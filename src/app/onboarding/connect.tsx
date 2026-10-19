@@ -89,7 +89,7 @@ export default function Connect() {
           </>
         ) : (
           <>
-            <Field label="Store ID" value={storeId} onChangeText={(t) => { setStoreId(t); setStaff(null) }} placeholder="store_xxxxxxxxxx" autoCapitalize="none" autoCorrect={false} hint="Owner → More → Settings → Data & sync shows it." />
+            <Field label="Store ID" value={storeId} onChangeText={(t) => { setStoreId(t); setStaff(null) }} placeholder="store_xxxxxxxxxx" autoCapitalize="none" autoCorrect={false} hint="In the web app: Settings → Data → Cloud sync. Or ask whoever set up your server." />
             {staff ? (
               <View style={{ gap: 10 }}>
                 <T v="h2">Who are you?</T>

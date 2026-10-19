@@ -54,6 +54,23 @@ describe('flush', () => {
     expect(h.state.lastSyncedAt).toBe(5000)
   })
 
+  test('a variant with no size or colour goes out with a dash (the server refuses empty ones); the stored entry is untouched', async () => {
+    const h = harness([
+      entry(1, 'variant', { id: 'v1', size: '', color: '', sku: 'S' }),
+      entry(2, 'variant', { id: 'v2', size: 'Strip of 10', color: '' }),
+      entry(3, 'variantUpdate', { id: 'v2', price: 30 }),
+      entry(4, 'variantUpdate', { id: 'v2', size: '' }),
+    ], () => res(200))
+    await h.engine.flush()
+    expect(h.calls.map((c) => c.body)).toEqual([
+      { id: 'v1', size: '-', color: '-', sku: 'S' },
+      { id: 'v2', size: 'Strip of 10', color: '-' },
+      { id: 'v2', price: 30 },
+      { id: 'v2', size: '-' },
+    ])
+    expect(h.outbox[0].payload).toEqual({ id: 'v1', size: '', color: '', sku: 'S' })
+  })
+
   test('a server hiccup stops the queue in place so order is preserved', async () => {
     const h = harness([entry(1, 'expense'), entry(2, 'expense'), entry(3, 'expense')], (_m, _p, b) => res((b as { n?: number })?.n === 2 ? 500 : 200))
     h.outbox[1].payload = { n: 2 }

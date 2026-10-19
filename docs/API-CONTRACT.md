@@ -4,7 +4,7 @@ Kosh talks to the **Krishna Collection billing cloud API** (NestJS + PostgreSQL,
 unchanged. Every business a client runs on the web/desktop product can be opened on a phone by entering the server
 address and signing in; no server work is needed to ship the app.
 
-All paths are relative to the server address the user enters (for example `https://billing.example.com`). Bodies are
+All paths are relative to the server address the user enters (for example `https://billing.example.com`). The API lives under `/api`; the app adds that prefix when the address has no path of its own, and leaves `…/api` or `…/shop/api` exactly as typed. Bodies are
 JSON. Errors are `{ "error": "message" }` with an HTTP status. Every route except `health`, `auth/login`,
 `auth/web-login` and `GET /users` requires `Authorization: Bearer <token>`.
 
@@ -84,6 +84,45 @@ Nothing industry-specific needs new columns. The generic item fields already exi
 the existing `fabric` / `season` columns, which each industry pack relabels (Composition / Shelf life for pharmacy,
 Model / Warranty for electronics, …). The first and second option axes use `size` / `color`.
 
+## Verified against the real server
+
+This contract is not just read from the server's source: the app's API client, snapshot hydration, ops and sync engine were run
+against the real Krishna backend (NestJS 10 + PostgreSQL 16, with its own migrations and `seed-demo` data). See
+[LIVE-TESTING.md](./LIVE-TESTING.md) to reproduce it. What was proved:
+
+* sign-in (password and PIN), role-filtered snapshots, token refresh, wrong-password and unreachable-server errors;
+* every kind of write the app queues is accepted, and the server's books afterwards match the phone's prediction — stock after
+  receipts / sales / returns / corrections, costs and prices, loyalty points and store credit, day-open/close sessions, coupons,
+  categories, staff, store settings;
+* a **replay of a whole generated business for each of the eight industries** (≈8,000 writes, ≈6,500 bills, 30 days of trading,
+  returns, store-credit refunds, discounts, split payments, services, fractional quantities, a cash drawer) — every write
+  accepted, and stock, prices, bill totals and statuses, returned quantities, purchases, expenses, sessions, and customer
+  points/credit agree with the phone;
+* two devices racing for one invoice number (the loser is surfaced, never dropped) and a cashier's forbidden write (refused,
+  retried 3×, set aside).
+
+### Options with no value
+
+The server rejects an empty `size` or `color` on a variant (`422 Missing required field(s): size, color`), but single items,
+services, and one-axis items (a 1 kg pack, a Half portion) have no second option. The phone keeps them as empty strings and swaps
+`''` for `-` on the way out (`src/data/wire.ts`) and `-` for `''` on the way in. Without this, every such item's variant is
+refused, the queue stalls behind it, and bills for it fail.
+
+## Known gaps in the server (found by running against it)
+
+None of these block the app, but each is worth a small fix on the server:
+
+1. **Empty size/colour are refused** (above). Fix: accept `''` for `size` and `color` in `POST /variants` (check for
+   `undefined`, not falsy). The Krishna web app creates such "plain" items too, so it is affected as well.
+2. **A return does not take loyalty points back.** `POST /bills/:id/return` restores stock, marks the original, and credits store
+   credit for credit refunds, but ignores the credit note's negative `loyaltyEarned`. The phone reverses the points locally, so
+   they snap back up at the next refresh. Fix: `UPDATE customers SET loyalty_points = GREATEST(0, loyalty_points + :loyaltyEarned)`
+   inside that transaction.
+3. **Services lose stock.** Selling an item whose product has `trackStock = false` still decrements the variant's stock (it goes
+   negative) and writes a `sale` movement. The phone ignores the number for such items; the server should skip them.
+4. **Expenses cannot be edited or deleted** (no `PUT`/`DELETE`), so the app hides those actions in connected mode.
+5. **The full snapshot** is the only read; see the improvements below.
+
 ## Recommended server improvements (not required)
 
 These make mobile fleets cheaper and safer; each is backwards compatible.
@@ -94,4 +133,4 @@ These make mobile fleets cheaper and safer; each is backwards compatible.
 3. **Recompute bills server-side** before accepting third-party writers (noted in the server's own comments).
 4. **`Idempotency-Key` header** on writes, in addition to client ids.
 5. **Push notifications** (low stock, day-close reminders) via a device-token endpoint.
-6. **Expense edit/delete** endpoints; today expenses are append-only, so the app hides edit/delete in connected mode.
+6. **Expense edit/delete** endpoints (see gap 4 above).

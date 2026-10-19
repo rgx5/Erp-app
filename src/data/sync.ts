@@ -1,5 +1,6 @@
 import type { OutboxEntry, SyncEntity } from '@/domain/types'
 import { CloudError, tokenLifeMs, type Api, type Snapshot } from './api'
+import { variantToWire } from './wire'
 
 export interface SyncState {
   online: boolean
@@ -130,10 +131,12 @@ export function createSyncEngine(d: SyncDeps) {
         const def = ENDPOINT[entry.entity]
         const payload = entry.payload as Record<string, unknown>
         const path = typeof def.path === 'function' ? def.path(payload) : def.path
+        // What goes over the wire can differ from what the phone keeps (see wire.ts); the stored entry is left as it was.
+        const body = entry.entity === 'variant' || entry.entity === 'variantUpdate' ? variantToWire(payload) : payload
 
         let res: Response
         try {
-          res = await api.raw(def.method, path, def.method === 'DELETE' ? undefined : payload)
+          res = await api.raw(def.method, path, def.method === 'DELETE' ? undefined : body)
         } catch {
           d.setState({ online: false, lastError: 'The server is unreachable' })
           break

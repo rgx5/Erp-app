@@ -35,9 +35,16 @@ export class CloudError extends Error {
 
 export type FetchFn = (input: string, init?: RequestInit) => Promise<Response>
 
+/**
+ * The server's address as the app will call it. People type `billing.example.com` or `https://billing.example.com/`, but the
+ * API lives under `/api`, so a bare host gets that added; an address that already has a path (`…/api`, `…/billing/api`) is
+ * left exactly as typed.
+ */
 export const normalizeApiUrl = (raw: string) => {
   let u = raw.trim().replace(/\/+$/, '')
-  if (u && !/^https?:\/\//i.test(u)) u = `https://${u}`
+  if (!u) return u
+  if (!/^https?:\/\//i.test(u)) u = `https://${u}`
+  try { if (new URL(u).pathname === '/') u += '/api' } catch { /* not a URL yet: leave it for the connection error to explain */ }
   return u
 }
 

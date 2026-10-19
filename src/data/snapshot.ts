@@ -1,6 +1,7 @@
 import type { StoreSettings } from '@/domain/types'
 import type { Snapshot } from './api'
 import { COLLECTIONS, emptyData, listOf, type DataState } from './state'
+import { variantFromWire } from './wire'
 
 const byId = <T extends { id: string }>(rows: T[] | undefined): Record<string, T> => {
   const out: Record<string, T> = {}
@@ -22,7 +23,7 @@ export function snapshotToData(snap: Snapshot, local: DataState = emptyData()): 
   data.categories = byId(snap.categories)
   // The server allows an item with no category; the app treats that as "uncategorised".
   data.products = byId(snap.products.map((p) => ({ ...p, categoryId: p.categoryId ?? '' })))
-  data.variants = byId(snap.variants)
+  data.variants = byId(snap.variants.map(variantFromWire))
   data.customers = byId(snap.customers)
   data.coupons = byId(snap.coupons)
   data.bills = { ...byId(snap.bills), ...byId(held) }

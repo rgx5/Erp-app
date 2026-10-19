@@ -82,9 +82,14 @@ scripts/        gen-golden.ts — regenerates the parity fixtures from the refer
 
 ## Verification status
 
-Automated (all green on the final commit): strict `tsc`, ESLint, **2,312 Jest tests** — including byte-for-byte parity of
+Automated (all green on the final commit): strict `tsc`, ESLint, **2,326 Jest tests** — including byte-for-byte parity of
 the money / GST / return / report maths with the reference implementation, a fake-server sync suite, and invariants over a
 generated business for every industry — and compiled Android and iOS Hermes bundles.
+
+Run against the **real Krishna backend** (NestJS + PostgreSQL): the app signs in, downloads a seeded store, uploads every kind of
+write, and a replay of a full 30-day business for each of the eight industries (~8,000 writes, ~6,500 bills) is accepted with the
+server's stock, prices, bills, purchases, expenses, drawer sessions and customer balances matching the phone's. This found and
+fixed two real mismatches (variants with no size/colour were refused; the server address needs `/api`) and surfaced three server quirks, listed in [docs/API-CONTRACT.md](docs/API-CONTRACT.md).
 
 Exercised by hand in a Chromium build of the same code, in light and dark mode and across all eight industry demos:
 receiving stock, creating an item with variants, recording an expense, adding a customer, closing the cash drawer,
@@ -93,6 +98,6 @@ switching industry, and every screen reachable from the tabs.
 **Not covered here** — do these before a client rollout:
 
 * a run on a physical Android/iOS device or emulator (camera barcode scanning, biometrics, on-device SQLite, printing);
-* a live sync test against a deployed Krishna server (the sync engine is tested against an in-memory fake that follows
-  the server's documented behaviour);
+* a live test against *your* deployed Krishna server (it has been run against the real Krishna backend on a local PostgreSQL —
+  see [docs/LIVE-TESTING.md](docs/LIVE-TESTING.md) — but not against a hosted one);
 * store builds — EAS Build needs your Expo and Apple/Google accounts.

@@ -81,6 +81,8 @@ Remote workspaces are **offline-first**: every change applies locally at once an
   record is *this* bill and not another device that took the same number.
 * Permanent errors (400/403/404/…) are retried 3× and then **set aside** so one bad record can't block the queue; the
   Sync screen shows them with a retry button.
+* What goes over the wire can differ from what the phone keeps: `src/data/wire.ts` swaps empty variant options for `-` (the server
+  refuses empty ones) and back again on download.
 * The tokens refresh when under 3 h of life remain. A snapshot pull happens only when nothing is pending, and keeps
   held bills and the local audit log.
 * `runtime.ts` wires it to NetInfo and AppState (sync on reconnect, on foreground, after every change).
