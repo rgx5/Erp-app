@@ -6,6 +6,15 @@ describe('normalizeApiUrl', () => {
     expect(normalizeApiUrl('  https://billing.example.com/  ')).toBe('https://billing.example.com/api')
     expect(normalizeApiUrl('http://192.168.1.20:8080')).toBe('http://192.168.1.20:8080/api')
   })
+  test('a machine on the local network defaults to http (it has no certificate); everything else to https', () => {
+    expect(normalizeApiUrl('192.168.1.20:8080')).toBe('http://192.168.1.20:8080/api')
+    expect(normalizeApiUrl('localhost:8081')).toBe('http://localhost:8081/api')
+    expect(normalizeApiUrl('shop-pc.local')).toBe('http://shop-pc.local/api')
+    expect(normalizeApiUrl('172.20.0.5')).toBe('http://172.20.0.5/api')
+    expect(normalizeApiUrl('172.40.0.5')).toBe('https://172.40.0.5/api')
+    expect(normalizeApiUrl('billing.example.com:8443')).toBe('https://billing.example.com:8443/api')
+    expect(normalizeApiUrl('localhost.example.com')).toBe('https://localhost.example.com/api')
+  })
   test('an address that already has a path is left as typed', () => {
     expect(normalizeApiUrl('https://billing.example.com/api')).toBe('https://billing.example.com/api')
     expect(normalizeApiUrl('https://billing.example.com/api/')).toBe('https://billing.example.com/api')

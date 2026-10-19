@@ -4,7 +4,7 @@ Kosh talks to the **Krishna Collection billing cloud API** (NestJS + PostgreSQL,
 unchanged. Every business a client runs on the web/desktop product can be opened on a phone by entering the server
 address and signing in; no server work is needed to ship the app.
 
-All paths are relative to the server address the user enters (for example `https://billing.example.com`). The API lives under `/api`; the app adds that prefix when the address has no path of its own, and leaves `…/api` or `…/shop/api` exactly as typed. Bodies are
+All paths are relative to the server address the user enters (for example `https://billing.example.com`). The API lives under `/api`; the app adds that prefix when the address has no path of its own, and leaves `…/api` or `…/shop/api` exactly as typed. A bare address with no scheme defaults to `https`, or to `http` for a machine on the local network (`localhost`, `192.168.x.x`, `10.x.x.x`, `*.local`). Note that release builds of the Android app block plain `http` unless cleartext traffic is enabled (`expo-build-properties` → `android.usesCleartextTraffic`), so a production server should use `https`. Bodies are
 JSON. Errors are `{ "error": "message" }` with an HTTP status. Every route except `health`, `auth/login`,
 `auth/web-login` and `GET /users` requires `Authorization: Bearer <token>`.
 

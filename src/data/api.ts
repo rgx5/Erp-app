@@ -35,6 +35,9 @@ export class CloudError extends Error {
 
 export type FetchFn = (input: string, init?: RequestInit) => Promise<Response>
 
+/** A machine on this phone's own network (localhost, 192.168.x.x, a .local name): the only place plain http is the sensible default. */
+const isPrivateHost = (addr: string) => /^(localhost|127\.\d+\.\d+\.\d+|10\.\d+\.\d+\.\d+|192\.168\.\d+\.\d+|172\.(1[6-9]|2\d|3[01])\.\d+\.\d+|[^/:]+\.local)(:\d+)?(\/|$)/i.test(addr)
+
 /**
  * The server's address as the app will call it. People type `billing.example.com` or `https://billing.example.com/`, but the
  * API lives under `/api`, so a bare host gets that added; an address that already has a path (`…/api`, `…/billing/api`) is
@@ -43,7 +46,7 @@ export type FetchFn = (input: string, init?: RequestInit) => Promise<Response>
 export const normalizeApiUrl = (raw: string) => {
   let u = raw.trim().replace(/\/+$/, '')
   if (!u) return u
-  if (!/^https?:\/\//i.test(u)) u = `https://${u}`
+  if (!/^https?:\/\//i.test(u)) u = `${isPrivateHost(u) ? 'http' : 'https'}://${u}`
   try { if (new URL(u).pathname === '/') u += '/api' } catch { /* not a URL yet: leave it for the connection error to explain */ }
   return u
 }
