@@ -13,6 +13,7 @@ import { KV, Notice, Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { Plus, Trash } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { goBack } from '@/ui/nav'
 
 interface Tier { upto: string; rate: string }
 const MAX_TIERS = 5
@@ -58,7 +59,7 @@ export default function TaxSettings() {
   function save() {
     setTried(true)
     if (bad) return
-    if (saveSettings({ priceIncludesTax: inclusive, slabs })) router.back()
+    if (saveSettings({ priceIncludesTax: inclusive, slabs })) goBack(router)
   }
 
   return (

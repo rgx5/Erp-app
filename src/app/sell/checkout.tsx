@@ -20,6 +20,7 @@ import { T } from '@/ui/Text'
 import { Banknote, ChevronRight, CreditCard, Phone, Ticket, UserPlus, Close } from '@/ui/icons'
 import { toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { firstName } from '@/domain/people'
 
 const MODES: Array<{ mode: PayMode; label: string; icon: (c: string) => React.ReactNode }> = [
   { mode: 'cash', label: 'Cash', icon: (c) => <Banknote size={18} color={c} /> },
@@ -233,7 +234,7 @@ export default function Checkout() {
         {staff.length > 1 ? (
           <Section title={`Sold by`} style={{ marginTop: 20 }}>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {staff.map((u) => <Chip key={u.id} label={`${u.code ? u.code + ' · ' : ''}${u.name.split(' ')[0]}`} selected={defaultStaff === u.id} onPress={() => cart.set({ staffId: u.id })} />)}
+              {staff.map((u) => <Chip key={u.id} label={`${u.code ? u.code + ' · ' : ''}${firstName(u.name)}`} selected={defaultStaff === u.id} onPress={() => cart.set({ staffId: u.id })} />)}
             </View>
           </Section>
         ) : null}

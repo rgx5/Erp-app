@@ -14,7 +14,7 @@ import { Avatar, Group, IconWell, Tap } from '@/ui/primitives'
 import { ListRow } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import {
-  Boxes, ChartColumn, ChevronRight, Clock, Cloud, Database, Gift, IdCard, Info, Lock, LogOut, Palette, Percent, Printer, Receipt, Store, Tags, Ticket, Truck, Users, UserRound, Wallet,
+  Boxes, ChartColumn, ChevronRight, Clock, Cloud, Database, Gift, IdCard, Info, Layers, Lock, LogOut, Palette, Percent, Printer, Receipt, Store, Tags, Ticket, Truck, Users, UserRound, Wallet,
   type IconProps,
 } from '@/ui/icons'
 import { ask } from '@/ui/overlays'
@@ -50,6 +50,7 @@ export default function More() {
   ]
   const business: Item[] = [
     { label: 'Business profile', sub: 'Name, address and GSTIN', icon: Store, tone: 'primary', to: '/settings/store' },
+    { label: 'Industry', sub: `${pack.name} — the words the app uses`, icon: Layers, tone: 'accent', to: '/settings/industry' },
     { label: 'Tax & GST', sub: 'Slabs and how prices include tax', icon: Percent, tone: 'warning', to: '/settings/tax' },
     { label: 'Receipts', sub: 'Paper width, policy and footer', icon: Printer, tone: 'primary', to: '/settings/receipt' },
     { label: 'Loyalty & rules', sub: 'Points, discount limits, low stock', icon: Gift, tone: 'accent', to: '/settings/loyalty' },
@@ -97,7 +98,7 @@ export default function More() {
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flex: 1 }}>
               <View style={{ width: 30, height: 30, borderRadius: 10, backgroundColor: 'rgba(255,255,255,0.14)', alignItems: 'center', justifyContent: 'center' }}><PackGlyph icon={pack.icon} size={17} color="#fff" /></View>
-              <T v="caption" style={{ color: 'rgba(255,255,255,0.8)' }} numberOfLines={1}>{pack.name}{ws?.demo ? ' · sample data' : ''}</T>
+              <T v="caption" style={{ color: 'rgba(255,255,255,0.8)' }} numberOfLines={1}>{ws?.demo ? 'Demo · ' : ''}{pack.name}</T>
             </View>
             <Tap onPress={() => router.push('/who')} accessibilityLabel="Switch user" style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, height: 34, borderRadius: 17, backgroundColor: 'rgba(255,255,255,0.16)' }}>
               <UserRound size={15} color="#fff" />

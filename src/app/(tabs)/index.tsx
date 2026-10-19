@@ -19,6 +19,7 @@ import { AreaChart, Donut, HBars, Legend, Sparkline } from '@/ui/charts'
 import { T } from '@/ui/Text'
 import { Alert, Boxes, ChartColumn, Clock, Package, Percent, Plus, Receipt, ReceiptText, Scan, Tags, Truck, Users, Wallet } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { firstName } from '@/domain/people'
 
 const RANGE_WORD: Record<DashRange, string> = { today: 'today', '7d': 'last 7 days', '30d': 'last 30 days' }
 const VS_WORD: Record<DashRange, string> = { today: 'vs same time yesterday', '7d': 'vs previous 7 days', '30d': 'vs previous 30 days' }
@@ -43,7 +44,7 @@ export default function HomeScreen() {
   const input = useAnalyticsInput()
   const d = useMemo(() => computeDashboard(input, range), [input, range])
 
-  const first = (user?.name ?? '').split(' ')[0]
+  const first = firstName(user?.name)
   const spark = d.series.map((s) => s.total)
   const avg = (t: typeof d.cur) => (t.bills ? t.billsTotal / t.bills : 0)
   const total = d.byMode.reduce((s, [, v]) => s + Math.max(0, v), 0) || 1

@@ -67,8 +67,8 @@ export default function Restock() {
     <Screen title="Restock" subtitle={need.length ? `${need.length} to reorder · ${picked.length} selected` : 'Nothing to reorder'} back scroll={false}
       footer={picked.length ? (
         <View style={{ flexDirection: 'row', gap: 10 }}>
-          <Button label="Share list" kind="outline" size="lg" icon={<Share size={18} color={c.ink} />} onPress={share} />
-          {canBuy ? <View style={{ flex: 1 }}><Button label={`Receive stock · ${picked.length}`} size="lg" block icon={<Truck size={18} color={c.onPrimary} />} onPress={createReceipt} /></View> : null}
+          <Button label="Share" kind="outline" size="lg" icon={<Share size={18} color={c.ink} />} onPress={share} />
+          {canBuy ? <View style={{ flex: 1 }}><Button label={`Receive · ${picked.length}`} size="lg" block icon={<Truck size={18} color={c.onPrimary} />} onPress={createReceipt} /></View> : null}
         </View>
       ) : undefined}>
       {chips.length > 2 ? (

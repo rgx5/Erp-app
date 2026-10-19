@@ -67,7 +67,7 @@ export function VariantSheet({ variant, onClose, onAdjust }: { variant: VariantV
 
         <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
           {variant.trackStock ? <Badge tone={variant.stock <= 0 ? 'danger' : variant.stock <= variant.reorderLevel ? 'warning' : 'success'}>{fmtQtyUnit(variant.stock, variant)} in stock</Badge> : <Badge>Not counted</Badge>}
-          {variant.price > 0 ? <Badge tone="primary">{variant.price > 0 ? `${Math.round(marginPct(variant.price, variant.avgCost ?? variant.cost))}% margin` : ''}</Badge> : <Badge tone="warning">No price</Badge>}
+          {variant.price <= 0 ? <Badge tone="warning">No price</Badge> : (variant.avgCost ?? variant.cost) > 0 ? <Badge tone="primary">{`${Math.round(marginPct(variant.price, variant.avgCost ?? variant.cost))}% margin`}</Badge> : <Badge>Cost not set</Badge>}
         </View>
 
         <View style={{ gap: 14 }}>

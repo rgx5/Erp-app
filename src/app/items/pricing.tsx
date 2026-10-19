@@ -37,7 +37,7 @@ export default function Pricing() {
         {!canEdit ? <Notice tone="warning" title="Ask a manager" body="Only a manager or the owner can set selling prices." /> : null}
         {waiting.length ? (
           <>
-            <T tone="soft">These {labels.items.toLowerCase()} are in stock but have no selling price, so they can’t be billed. Enter a price (and MRP if it differs) — blank rows stay in this list.</T>
+            <T tone="soft">These {labels.items.toLowerCase()} have no selling price, so they can’t be billed. Enter a price (and MRP if it differs) — blank rows stay in this list.</T>
             {overdue.length ? (
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 <Chip label="All" count={waiting.length} selected={only === 'all'} onPress={() => setOnly('all')} />

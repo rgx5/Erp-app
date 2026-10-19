@@ -9,6 +9,7 @@ import { Field, NumberField } from '@/ui/Inputs'
 import { Screen } from '@/ui/Screen'
 import { Notice, Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
+import { goBack } from '@/ui/nav'
 
 const GSTIN_RE = /^[0-9A-Z]{15}$/
 
@@ -50,7 +51,7 @@ export default function StoreSettingsScreen() {
       name: name.trim(), tagline: tagline.trim(), address: address.trim(), city: city.trim(), phone: phone.trim(), email: email.trim(),
       gstin: gstin.trim().toUpperCase(), invoicePrefix: prefix.trim(), ...(connected ? {} : { nextInvoiceNo: Number(nextNo) }),
     })
-    if (ok) router.back()
+    if (ok) goBack(router)
   }
 
   return (

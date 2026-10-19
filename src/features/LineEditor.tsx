@@ -14,6 +14,7 @@ import { T } from '@/ui/Text'
 import { Trash } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
 import { useCart } from './cart'
+import { firstName } from '@/domain/people'
 
 /** Edit one cart line: quantity, price (managers), discount (capped for cashiers) and who sold it. */
 export function LineEditor({ variantId, onClose }: { variantId: string | null; onClose: () => void }) {
@@ -74,7 +75,7 @@ export function LineEditor({ variantId, onClose }: { variantId: string | null; o
           <View style={{ gap: 8 }}>
             <T v="label" tone="soft">SOLD BY</T>
             <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-              {staff.map((u) => <Chip key={u.id} label={`${u.code ? u.code + ' · ' : ''}${u.name.split(' ')[0]}`} selected={(live.staffId || defaultStaff) === u.id} onPress={() => patch(live.variantId, { staffId: u.id === defaultStaff ? undefined : u.id })} />)}
+              {staff.map((u) => <Chip key={u.id} label={`${u.code ? u.code + ' · ' : ''}${firstName(u.name)}`} selected={(live.staffId || defaultStaff) === u.id} onPress={() => patch(live.variantId, { staffId: u.id === defaultStaff ? undefined : u.id })} />)}
             </View>
           </View>
         ) : null}

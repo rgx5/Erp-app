@@ -16,6 +16,7 @@ import { Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { Printer } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { goBack } from '@/ui/nav'
 
 /** How the printed or shared receipt looks: paper width, wording, and which extra lines it carries. */
 export default function ReceiptSettings() {
@@ -47,7 +48,7 @@ export default function ReceiptSettings() {
 
   function save() {
     const ok = saveSettings({ receiptWidth: width, returnPolicy: policy.trim(), footerNote: footer.trim(), returnWindowDays: days, receiptShowTax: showTax, receiptShowHsn: showHsn, receiptShowSavings: showSavings, receiptShowLoyalty: showLoyalty })
-    if (ok) router.back()
+    if (ok) goBack(router)
   }
   const testPrint = () => void printHtml(receiptHtml({ bill: sampleBill(draft), store: draft }, opts))
 

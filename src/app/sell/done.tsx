@@ -16,6 +16,7 @@ import { T } from '@/ui/Text'
 import { Check, FileText, Printer, Share } from '@/ui/icons'
 import { success } from '@/ui/feedback'
 import { useTheme } from '@/ui/theme'
+import { firstName } from '@/domain/people'
 
 /** The sale is saved. Hand over the receipt (WhatsApp, PDF, print) and start the next one. */
 export default function SaleDone() {
@@ -73,7 +74,7 @@ export default function SaleDone() {
         </Card>
 
         <View style={{ gap: 10 }}>
-          <Button label={customer?.phone ? `Send to ${customer.name.split(' ')[0]} on WhatsApp` : 'Share on WhatsApp'} kind="success" size="lg" block icon={<Share size={20} color="#fff" />}
+          <Button label={customer?.phone ? `Send to ${firstName(customer.name)} on WhatsApp` : 'Share on WhatsApp'} kind="success" size="lg" block icon={<Share size={20} color="#fff" />}
             onPress={() => void whatsApp(receiptText(ctx), customer?.phone)} />
           <View style={{ flexDirection: 'row', gap: 10 }}>
             <View style={{ flex: 1 }}><Button label="Print" kind="outline" block icon={<Printer size={18} color={c.ink} />} onPress={() => void printHtml(receiptHtml(ctx))} /></View>

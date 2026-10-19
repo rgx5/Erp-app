@@ -10,6 +10,7 @@ import { Screen } from '@/ui/Screen'
 import { Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { toast } from '@/ui/overlays'
+import { goBack } from '@/ui/nav'
 
 /** "19900315" → "1990-03-15" as the digits are typed. */
 const dateMask = (t: string) => {
@@ -69,7 +70,7 @@ export default function CustomerForm() {
         name, phone, email: email.trim(), dob, anniversary, address: address.trim(), gstin: gstin.toUpperCase(), notes: notes.trim(),
       }, id, ctx))
       toast(existing ? 'Saved' : `${r.customer.name} added`, 'ok')
-      if (existing) router.back()
+      if (existing) goBack(router)
       else router.replace({ pathname: '/customers/[id]', params: { id: r.customer.id } })
     } catch (e) {
       toast(e instanceof OpError ? e.message : 'Could not save', 'err')

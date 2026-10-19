@@ -16,6 +16,7 @@ import { T } from '@/ui/Text'
 import { Trash } from '@/ui/icons'
 import { ask, toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { goBack } from '@/ui/nav'
 
 const MODES: Array<{ value: ExpenseMode; label: string }> = [{ value: 'cash', label: 'Cash' }, { value: 'upi', label: 'UPI' }, { value: 'card', label: 'Card' }, { value: 'bank', label: 'Bank' }]
 
@@ -109,7 +110,7 @@ export default function ExpenseForm() {
       if (existing) perform((s) => editExpense(s, existing.id, draft))
       else perform((_s, ctx) => addExpense(draft, ctx))
       toast(existing ? 'Saved' : `${category} · ${inr(draft.amount)} recorded`, 'ok')
-      router.back()
+      goBack(router)
     } catch (e) {
       toast(e instanceof OpError ? e.message : 'Could not save', 'err')
       setBusy(false)
@@ -122,7 +123,7 @@ export default function ExpenseForm() {
     try {
       perform(() => removeExpense(existing.id))
       toast('Expense deleted', 'ok')
-      router.back()
+      goBack(router)
     } catch (e) { toast(e instanceof OpError ? e.message : 'Could not delete', 'err') }
   }
 

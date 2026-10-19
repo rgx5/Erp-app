@@ -82,10 +82,17 @@ scripts/        gen-golden.ts — regenerates the parity fixtures from the refer
 
 ## Verification status
 
-Automated: strict type-check, 2,000+ Jest assertions (including byte-for-byte parity of the money/GST/return/report
-maths with the reference implementation, a fake-server sync suite, and invariants over a generated business for every
-industry), and Android/iOS/web bundle exports. UI was exercised in a browser build with screenshot review in light and
-dark mode.
+Automated (all green on the final commit): strict `tsc`, ESLint, **2,312 Jest tests** — including byte-for-byte parity of
+the money / GST / return / report maths with the reference implementation, a fake-server sync suite, and invariants over a
+generated business for every industry — and compiled Android and iOS Hermes bundles.
 
-Not covered here: a run on a physical Android/iOS device or emulator (camera scanning, biometrics, SQLite on-device,
-printing), and a live integration test against a deployed Krishna server. Do both before a client rollout.
+Exercised by hand in a Chromium build of the same code, in light and dark mode and across all eight industry demos:
+receiving stock, creating an item with variants, recording an expense, adding a customer, closing the cash drawer,
+switching industry, and every screen reachable from the tabs.
+
+**Not covered here** — do these before a client rollout:
+
+* a run on a physical Android/iOS device or emulator (camera barcode scanning, biometrics, on-device SQLite, printing);
+* a live sync test against a deployed Krishna server (the sync engine is tested against an in-memory fake that follows
+  the server's documented behaviour);
+* store builds — EAS Build needs your Expo and Apple/Google accounts.

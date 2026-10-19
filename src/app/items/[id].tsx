@@ -27,6 +27,7 @@ import { T } from '@/ui/Text'
 import { Boxes, ChevronRight, More, Package, Pencil, Printer, Rupee, Tags, Trash } from '@/ui/icons'
 import { ask, toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { goBack } from '@/ui/nav'
 
 const MOVE_TONE: Record<string, 'primary' | 'success' | 'warning' | 'default'> = { sale: 'primary', purchase: 'success', return: 'success', adjust: 'warning', audit: 'warning', opening: 'default', transfer: 'default' }
 
@@ -67,7 +68,8 @@ export default function ItemDetail() {
   const colors = [...new Set(variants.map((v) => v.color))]
   const sample = variants[0]
   const avgMargin = (() => {
-    const priced = variants.filter((v) => v.price > 0)
+    // A margin is only meaningful once a cost is known.
+    const priced = variants.filter((v) => v.price > 0 && (v.avgCost ?? v.cost) > 0)
     return priced.length ? priced.reduce((s, v) => s + marginPct(v.price, v.avgCost ?? v.cost), 0) / priced.length : 0
   })()
 
@@ -90,7 +92,7 @@ export default function ItemDetail() {
   async function remove() {
     setMenu(false)
     if (!(await ask({ title: `Delete ${product!.name}?`, message: 'This removes it and its variants for good.', confirm: 'Delete', danger: true }))) return
-    try { perform((s, ctx) => deleteProduct(s, product!.id, ctx)); toast('Deleted', 'ok'); router.back() } catch (e) { toast(e instanceof OpError ? e.message : 'Could not delete', 'err') }
+    try { perform((s, ctx) => deleteProduct(s, product!.id, ctx)); toast('Deleted', 'ok'); goBack(router) } catch (e) { toast(e instanceof OpError ? e.message : 'Could not delete', 'err') }
   }
 
   const printAll = () => {
@@ -106,7 +108,7 @@ export default function ItemDetail() {
         {row.unpriced > 0 ? <Notice tone="accent" icon={<Tags size={20} color={c.accent} />} title={`${row.unpriced} ${row.unpriced === 1 ? 'variant needs' : 'variants need'} a price`} body="They can’t be sold until priced" action="Set prices" onAction={() => (canEdit ? setPriceAll(true) : undefined)} /> : null}
 
         <View style={{ flexDirection: 'row', gap: 12 }}>
-          <StatTile label="Selling price" value={row.minPrice ? (row.minPrice === row.maxPrice ? inr0(row.minPrice) : `${inr0(row.minPrice)}–${inr0(row.maxPrice)}`) : '—'} icon={<Rupee size={16} color={c.primary} />} foot={avgMargin ? `${Math.round(avgMargin)}% margin` : 'Not priced yet'} />
+          <StatTile label="Selling price" value={row.minPrice ? (row.minPrice === row.maxPrice ? inr0(row.minPrice) : `${inr0(row.minPrice)}–${inr0(row.maxPrice)}`) : '—'} icon={<Rupee size={16} color={c.primary} />} foot={avgMargin ? `${Math.round(avgMargin)}% margin` : row.minPrice ? 'Cost not set' : 'Not priced yet'} />
           <StatTile label="In stock" value={sample?.trackStock === false ? '—' : fmtQtyUnit(row.stock, sample)} icon={<Boxes size={16} color={c.success} />} tone="success" foot={sample?.trackStock === false ? 'Not counted' : `${inr0(row.value)} at cost`} />
         </View>
 
@@ -134,7 +136,7 @@ export default function ItemDetail() {
           <Card>
             <T v="h2" style={{ marginBottom: 12 }}>Add {sizesMode ? `${labels.option1.toLowerCase()}s or ${labels.option2.toLowerCase()}s` : 'options'}</T>
             <View style={{ gap: 12 }}>
-              <TagInput value={o1} onChange={setO1} placeholder={sizesMode ? `New ${labels.option1.toLowerCase()}s, e.g. 3XL` : 'New options'} />
+              <TagInput value={o1} onChange={setO1} caps={sizesMode ? 'characters' : 'words'} placeholder={sizesMode ? `New ${labels.option1.toLowerCase()}s, e.g. 3XL` : 'New options'} />
               {sizesMode && colors.length ? <TagInput value={o2} onChange={setO2} placeholder={`New ${labels.option2.toLowerCase()}s`} /> : null}
               {o1.length || o2.length ? <Button label="Add variants" onPress={addOptions} /> : null}
             </View>

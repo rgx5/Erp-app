@@ -6,8 +6,10 @@ import { Close } from './icons'
 import { fonts, useTheme } from './theme'
 
 /** Type a value and press return (or comma) to turn it into a chip — for sizes, colours, pack sizes, portions. */
-export function TagInput({ label, value, onChange, placeholder, hint, error, suggestions }: {
+export function TagInput({ label, value, onChange, placeholder, hint, error, suggestions, caps = 'words' }: {
   label?: string; value: string[]; onChange: (v: string[]) => void; placeholder?: string; hint?: string; error?: string | null; suggestions?: string[]
+  /** Keyboard capitalisation: sizes read best in capitals (XL), colours and names in words. */
+  caps?: 'characters' | 'words'
 }) {
   const { c, radius } = useTheme()
   const [text, setText] = useState('')
@@ -44,7 +46,7 @@ export function TagInput({ label, value, onChange, placeholder, hint, error, sug
           placeholderTextColor={c.inkMute}
           blurOnSubmit={false}
           returnKeyType="done"
-          autoCapitalize="characters"
+          autoCapitalize={caps}
           style={{ flex: 1, minWidth: 90, height: 32, color: c.ink, fontFamily: fonts.body, fontSize: 16, paddingVertical: 0, outlineWidth: 0 }}
         />
       </View>

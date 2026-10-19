@@ -46,8 +46,8 @@ export default function Purchases() {
 
   const header = (
     <View style={{ flexDirection: 'row', gap: 12, marginBottom: 12 }}>
-      <StatTile label="Owed to suppliers" value={inrShort(payable)} tone={payable ? 'warning' : 'success'} icon={<HandCoins size={16} color={payable ? c.warning : c.success} />} foot={payable ? `${parties.filter((p) => p.owed > 0).length} to pay` : 'All settled'} onPress={() => setTab('suppliers')} />
-      <StatTile label="Bought this month" value={inrShort(month)} icon={<Truck size={16} color={c.primary} />} foot={`${purchases.length} receipts in all`} />
+      <StatTile label="Owed" value={inrShort(payable)} tone={payable ? 'warning' : 'success'} icon={<HandCoins size={16} color={payable ? c.warning : c.success} />} foot={payable ? `${parties.filter((p) => p.owed > 0).length} to pay` : 'All settled'} onPress={() => setTab('suppliers')} />
+      <StatTile label="This month" value={inrShort(month)} icon={<Truck size={16} color={c.primary} />} foot={`${purchases.length} receipts in all`} />
     </View>
   )
 

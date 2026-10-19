@@ -124,8 +124,8 @@ export default function NewItem() {
 
         <Section title={sizesMode ? `${labels.option1}s & ${labels.option2.toLowerCase()}s` : sizeHint} style={{ marginTop: 14 }}>
           <View style={{ gap: 14 }}>
-            <TagInput label={sizesMode ? labels.option1 : sizeHint} value={opts1} onChange={setOpts1} placeholder={sizesMode ? 'S, M, L…' : 'Type and press return'} hint="Each one becomes its own barcoded variant with its own stock. Leave empty for a single item." />
-            {sizesMode ? <TagInput label={labels.option2} value={opts2} onChange={setOpts2} placeholder="White, Navy…" /> : null}
+            <TagInput label={sizesMode ? labels.option1 : sizeHint} value={opts1} onChange={setOpts1} placeholder={sizesMode ? 'S, M, L…' : 'Type and press return'} caps={sizesMode ? 'characters' : 'words'} suggestions={sizesMode ? pack.optionSuggestions?.option1 : undefined} hint="Each one becomes its own barcoded variant with its own stock. Leave empty for a single item." />
+            {sizesMode ? <TagInput label={labels.option2} value={opts2} onChange={setOpts2} placeholder="White, Navy…" suggestions={pack.optionSuggestions?.option2} /> : null}
             {variantCount > 1 ? <T v="caption" tone="soft">This creates <T v="caption" tone="primary" style={{ fontFamily: 'Inter_600SemiBold' }}>{variantCount}</T> barcoded variants.</T> : null}
           </View>
         </Section>

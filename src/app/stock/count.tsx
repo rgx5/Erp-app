@@ -19,6 +19,7 @@ import { T } from '@/ui/Text'
 import { ClipboardCheck, Plus, ScanBarcode, Trash } from '@/ui/icons'
 import { ask, toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { goBack } from '@/ui/nav'
 
 type Mode = 'count' | 'review'
 
@@ -68,7 +69,7 @@ export default function Count() {
       perform((s, ctx) => postCount(s, diffs.map((r) => ({ variantId: r.variant.id, variance: r.variance })), ctx))
       useCount.getState().clear()
       toast(`Stock corrected — ${diffs.length} ${diffs.length === 1 ? 'item' : 'items'}`, 'ok')
-      router.back()
+      goBack(router)
     } catch (e) { toast(e instanceof OpError ? e.message : 'Could not post the count', 'err'); setBusy(false) }
   }
 

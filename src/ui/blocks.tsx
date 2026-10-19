@@ -69,16 +69,19 @@ export function Notice({ tone = 'warning', icon, title, body, action, onAction }
   const { c } = useTheme()
   const fg = toneColor(c, tone)
   const tint = tone === 'warning' ? c.warningTint : tone === 'danger' ? c.dangerTint : tone === 'success' ? c.successTint : tone === 'accent' ? c.accentTint : c.primaryTint
-  return (
-    <Tap onPress={onAction} disabled={!onAction} haptic={!!onAction} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 18, backgroundColor: tint }}>
+  const inner = (
+    <>
       {icon ? <View>{icon}</View> : null}
       <View style={{ flex: 1, gap: 1 }}>
         <T v="bodyStrong" style={{ color: fg }}>{title}</T>
         {body ? <T v="caption" style={{ color: fg, opacity: 0.85 }}>{body}</T> : null}
       </View>
       {action ? <T v="bodyStrong" style={{ color: fg, fontSize: 13.5 }}>{action}</T> : null}
-    </Tap>
+    </>
   )
+  const box = { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 18, backgroundColor: tint } as const
+  // Only a notice that does something is a button; a plain one must not look disabled.
+  return onAction ? <Tap onPress={onAction} style={box}>{inner}</Tap> : <View style={box}>{inner}</View>
 }
 
 export function Delta({ pct, invert, label }: { pct: number | null; invert?: boolean; label?: string }) {
@@ -90,7 +93,7 @@ export function Delta({ pct, invert, label }: { pct: number | null; invert?: boo
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
       {up ? <TrendingUp size={13} color={fg} /> : <TrendingDown size={13} color={fg} />}
-      <T v="micro" style={{ color: fg }}>{pctLabel(pct)}</T>
+      <T v="micro" style={{ color: fg }}>{Math.abs(pct) >= 1000 ? (up ? '+999%+' : '−999%+') : pctLabel(pct)}</T>
       {label ? <T v="micro" tone="mute">{label}</T> : null}
     </View>
   )

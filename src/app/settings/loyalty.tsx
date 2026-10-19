@@ -12,6 +12,7 @@ import { Card } from '@/ui/primitives'
 import { Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { useTheme } from '@/ui/theme'
+import { goBack } from '@/ui/nav'
 
 /** Loyalty points, the discount a cashier may give, and the stock and cost rules that apply everywhere. */
 export default function LoyaltySettings() {
@@ -44,7 +45,7 @@ export default function LoyaltySettings() {
   function save() {
     setTried(true)
     if (Object.values(errors).some(Boolean)) return
-    if (saveSettings({ loyaltyEarnPct: e, loyaltyRedeemValue: r, maxCashierDiscountPct: m, lowStockDefault: Math.floor(l), costBasis: basis })) router.back()
+    if (saveSettings({ loyaltyEarnPct: e, loyaltyRedeemValue: r, maxCashierDiscountPct: m, lowStockDefault: Math.floor(l), costBasis: basis })) goBack(router)
   }
 
   return (

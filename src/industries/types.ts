@@ -62,6 +62,8 @@ export interface IndustryPack {
     /** What the price tag is called. */
     price: string
   }
+  /** One-tap suggestions when listing an item's options (sizes, colours…). */
+  optionSuggestions?: { option1?: string[]; option2?: string[] }
   tax: { slabs: TaxSlab[]; inclusive: boolean; hsnHint: string; defaultHsn: string }
   categories: PackCategory[]
   /** Order the category groups appear in. */

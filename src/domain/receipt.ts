@@ -4,6 +4,7 @@ import { fmtDateTime, fmtDate } from './dates'
 import { fmtQty, unitSuffix } from './qty'
 import { hsnSummary } from './tax'
 import { variantLabel } from './codes'
+import { firstName } from './people'
 
 /** What a printed bill shows. A GST tax invoice normally carries the CGST/SGST split and an HSN summary, so those are opt-in
  *  on the thermal receipt — and the A4 invoice always shows them. */
@@ -40,7 +41,7 @@ export function receiptText({ bill, store, customer }: DocContext): string {
   lines.push(`*${store.name}*`)
   if (store.city) lines.push(store.city)
   lines.push(`${credit ? 'Credit note' : 'Bill'} ${bill.no} · ${fmtDate(bill.date)}`)
-  if (customer?.name) lines.push(`Hi ${customer.name.split(' ')[0]},`)
+  if (customer?.name) lines.push(`Hi ${firstName(customer.name)},`)
   lines.push('')
   for (const i of bill.items) {
     const lbl = variantLabel(i.size, i.color)

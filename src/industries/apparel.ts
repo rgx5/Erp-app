@@ -71,6 +71,7 @@ export const apparel: IndustryPack = {
     option1: 'Size', option2: 'Colour', attr1: 'Fabric', attr2: 'Season', attr1Hint: 'Cotton, silk…', attr2Hint: 'Summer, festive…',
     sale: 'Bill', sales: 'Bills', newSale: 'New bill', staff: 'Salesperson', price: 'Tag price',
   },
+  optionSuggestions: { option1: ['S', 'M', 'L', 'XL', 'XXL'], option2: ['White', 'Black', 'Navy', 'Blue', 'Grey', 'Red'] },
   tax: { slabs: DEFAULT_SLABS, inclusive: true, hsnHint: 'Apparel is usually 6203–6206; fabric 52xx–55xx', defaultHsn: '6205' },
   categories: APPAREL_CATEGORIES,
   groupOrder: ['Women', 'Men', 'Kids', 'Fabric (by metre)', 'Home', 'Accessories'],

@@ -11,6 +11,7 @@ import { T } from '@/ui/Text'
 import { Camera, Check, Close, Flashlight, XCircle } from '@/ui/icons'
 import { success, fail } from '@/ui/feedback'
 import { fonts } from '@/ui/theme'
+import { goBack } from '@/ui/nav'
 
 const TYPES = ['ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39', 'qr'] as const
 
@@ -56,7 +57,7 @@ export default function Scan() {
 
       {/* Header */}
       <View style={{ position: 'absolute', top: 0, left: 0, right: 0, paddingTop: insets.top + 8, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <IconButton label="Close scanner" tone="dark" onPress={() => router.back()}><Close size={20} color="#fff" /></IconButton>
+        <IconButton label="Close scanner" tone="dark" onPress={() => goBack(router)}><Close size={20} color="#fff" /></IconButton>
         <View style={{ flex: 1 }}>
           <T v="bodyStrong" style={{ color: '#fff', textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 6 }}>{scannerTitle()}</T>
           {scannerHint() ? <T v="caption" style={{ color: 'rgba(255,255,255,0.75)' }}>{scannerHint()}</T> : null}
@@ -87,7 +88,7 @@ export default function Scan() {
           <TextInput ref={inputRef} value={manual} onChangeText={setManual} placeholder="Type or scan a code" placeholderTextColor="rgba(255,255,255,0.5)" autoCapitalize="characters" autoCorrect={false}
             returnKeyType="done" onSubmitEditing={() => { if (manual.trim()) { onCode(manual.trim()); setManual('') } inputRef.current?.focus() }}
             style={{ flex: 1, height: 50, borderRadius: 16, paddingHorizontal: 16, backgroundColor: 'rgba(255,255,255,0.16)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.22)', color: '#fff', fontFamily: fonts.body, fontSize: 16, outlineWidth: 0 }} />
-          <Tap onPress={() => router.back()} style={{ height: 50, paddingHorizontal: 22, borderRadius: 16, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
+          <Tap onPress={() => goBack(router)} style={{ height: 50, paddingHorizontal: 22, borderRadius: 16, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
             <T v="bodyStrong" style={{ color: '#0B1440' }}>Done</T>
           </Tap>
         </View>
