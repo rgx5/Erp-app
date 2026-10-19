@@ -82,7 +82,7 @@ export const apparel: IndustryPack = {
   expenseCategories: ['Rent', 'Salary', 'Electricity', 'Transport', 'Packaging', 'Marketing', 'Repairs', 'Tea & Snacks', 'GST / Taxes', 'Misc'],
   stockReasons: ['Damaged piece', 'Lost / theft', 'Sample given', 'Personal use', 'Supplier return', 'Counting correction', 'Other'],
   returnReasons: ['Wrong size', 'Changed mind', 'Defect', 'Colour not as expected', 'Gift exchange', 'Other'],
-  highlights: ['Size × colour variants with one barcode each', 'Fabric by the metre', 'Slab-based GST (5% / 18%)', 'Sell-by-salesperson commissions report'],
+  highlights: ['Size × colour variants with one barcode each', 'Fabric by the metre', 'Slab-based GST (5% / 18%)', 'Salesperson-wise sales and discount report'],
   demo: {
     storeName: 'Krishna Collection', city: 'Pune', ownerName: 'Anita Deshmukh', tagline: 'Fashion for the whole family',
     suppliers: [{ name: 'Surat Textile Mills', gstin: '24AABCS1429B1Z5' }, { name: 'Ludhiana Knitwear Co.', gstin: '03AAACL5521M1ZP' }, { name: 'Jaipur Block Prints' }],

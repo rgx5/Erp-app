@@ -1,0 +1,139 @@
+import type { Bill, Customer, StoreSettings, User } from './types'
+import { amountInWords, inr, round2 } from './money'
+import { fmtDateTime, fmtDate } from './dates'
+import { fmtQty, unitSuffix } from './qty'
+import { hsnSummary } from './tax'
+import { variantLabel } from './codes'
+
+/** What a printed bill shows. A GST tax invoice normally carries the CGST/SGST split and an HSN summary, so those are opt-in
+ *  on the thermal receipt — and the A4 invoice always shows them. */
+export interface ReceiptOptions { showTax: boolean; showHsn: boolean; showSavings: boolean; showLoyalty: boolean }
+
+export function receiptOptions(s: Partial<Pick<StoreSettings, 'receiptShowTax' | 'receiptShowHsn' | 'receiptShowSavings' | 'receiptShowLoyalty'>>): ReceiptOptions {
+  return { showTax: s.receiptShowTax === true, showHsn: s.receiptShowHsn === true, showSavings: s.receiptShowSavings !== false, showLoyalty: s.receiptShowLoyalty !== false }
+}
+
+export interface DocContext { bill: Bill; store: StoreSettings; customer?: Customer | null; seller?: User | null; labels?: { sale?: string } }
+
+export const esc = (s: string | number | undefined | null) =>
+  String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+
+export const isCreditNote = (b: Bill) => !!b.refundOfBillId || b.total < 0
+const sign = (b: Bill) => (isCreditNote(b) ? -1 : 1)
+
+/** How a tender line is named on paper and in lists: Cash, UPI, Card, Store credit, Points. */
+export function payLabel(p: { mode: string; ref?: string }): string {
+  if (p.mode === 'credit') return p.ref ? 'Points' : 'Store credit'
+  return p.mode === 'upi' ? 'UPI' : p.mode.charAt(0).toUpperCase() + p.mode.slice(1)
+}
+
+/** The tender lines, in words: "Cash ₹500 · UPI ₹499". */
+export function paymentSummary(b: Bill): string {
+  return b.payments.map((p) => `${payLabel(p)} ${inr(Math.abs(p.amount), 0)}`).join(' · ')
+}
+
+// ───────────────────────────── plain text (WhatsApp / SMS) ─────────────────────────────
+
+export function receiptText({ bill, store, customer }: DocContext): string {
+  const credit = isCreditNote(bill)
+  const lines: string[] = []
+  lines.push(`*${store.name}*`)
+  if (store.city) lines.push(store.city)
+  lines.push(`${credit ? 'Credit note' : 'Bill'} ${bill.no} · ${fmtDate(bill.date)}`)
+  if (customer?.name) lines.push(`Hi ${customer.name.split(' ')[0]},`)
+  lines.push('')
+  for (const i of bill.items) {
+    const lbl = variantLabel(i.size, i.color)
+    lines.push(`• ${i.name}${lbl ? ` (${lbl})` : ''} × ${fmtQty(i.qty)}${unitSuffix(i)} — ${inr(Math.abs(i.lineTotal), 0)}`)
+  }
+  lines.push('')
+  if (bill.billDiscount > 0 || bill.itemDiscount > 0) lines.push(`You saved ${inr(bill.grossMrp - bill.subtotal, 0)}`)
+  lines.push(`*${credit ? 'Refund' : 'Total'}: ${inr(Math.abs(bill.total), 0)}*`)
+  if (bill.payments.length) lines.push(`Paid by ${paymentSummary(bill)}`)
+  if (bill.loyaltyEarned > 0) lines.push(`⭐ You earned ${bill.loyaltyEarned} loyalty points`)
+  if (store.footerNote) { lines.push(''); lines.push(store.footerNote) }
+  if (store.phone) lines.push(`📞 ${store.phone}`)
+  return lines.join('\n')
+}
+
+// ───────────────────────────── thermal-style receipt (HTML) ─────────────────────────────
+
+const base = (width: string, body: string) => `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+  *{box-sizing:border-box}body{margin:0;padding:12px;font-family:-apple-system,Helvetica,Arial,sans-serif;color:#111;font-size:12px;line-height:1.35;width:${width};margin-inline:auto}
+  h1{font-size:16px;margin:0;text-align:center}h2{font-size:13px;margin:8px 0 2px;text-align:center;letter-spacing:.5px}
+  .c{text-align:center}.r{text-align:right}.muted{color:#555}.b{font-weight:700}.sm{font-size:11px}
+  hr{border:0;border-top:1px dashed #999;margin:8px 0}
+  table{width:100%;border-collapse:collapse}td,th{padding:2px 0;vertical-align:top}th{text-align:left;font-size:11px;color:#555;border-bottom:1px solid #ccc}
+  .row{display:flex;justify-content:space-between;gap:8px}.tot{font-size:15px;font-weight:800}
+</style></head><body>${body}</body></html>`
+
+export function receiptHtml(ctx: DocContext, opts: ReceiptOptions = receiptOptions(ctx.store)): string {
+  const { bill, store, customer, seller } = ctx
+  const credit = isCreditNote(bill)
+  const s = sign(bill)
+  const saved = round2(bill.grossMrp - bill.subtotal)
+  const rows = bill.items.map((i) => {
+    const lbl = variantLabel(i.size, i.color)
+    return `<tr><td colspan="3"><span class="b">${esc(i.name)}</span>${lbl ? ` <span class="muted">${esc(lbl)}</span>` : ''}</td></tr>
+      <tr><td class="muted sm">${esc(fmtQty(i.qty))}${esc(unitSuffix(i))} × ${esc(inr(i.price, 2))}${i.discountAmount > 0 ? ` <span>(−${esc(inr(i.discountAmount, 0))})</span>` : ''}</td><td></td><td class="r b">${esc(inr(Math.abs(i.lineTotal), 2))}</td></tr>`
+  }).join('')
+  const hsn = opts.showHsn ? hsnSummary(bill.items.map((i) => ({ ...i, qty: i.qty }))) : []
+  const body = `
+    <h1>${esc(store.name)}</h1>
+    ${store.tagline ? `<div class="c muted sm">${esc(store.tagline)}</div>` : ''}
+    ${[store.address, store.city].filter(Boolean).length ? `<div class="c sm">${esc([store.address, store.city].filter(Boolean).join(', '))}</div>` : ''}
+    ${store.phone ? `<div class="c sm">Ph: ${esc(store.phone)}</div>` : ''}${store.gstin ? `<div class="c sm">GSTIN: ${esc(store.gstin)}</div>` : ''}
+    <h2>${credit ? 'CREDIT NOTE' : 'TAX INVOICE'}</h2><hr>
+    <div class="row sm"><span>${esc(bill.no)}</span><span>${esc(fmtDateTime(bill.date))}</span></div>
+    ${customer ? `<div class="sm">Customer: ${esc(customer.name)}${customer.phone ? ` · ${esc(customer.phone)}` : ''}</div>` : ''}
+    ${seller ? `<div class="sm muted">Served by ${esc(seller.name)}</div>` : ''}
+    <hr><table>${rows}</table><hr>
+    ${bill.grossMrp > bill.subtotal && !credit ? `<div class="row sm"><span>Total MRP</span><span>${esc(inr(bill.grossMrp, 2))}</span></div>` : ''}
+    ${bill.itemDiscount + bill.billDiscount > 0 ? `<div class="row sm"><span>Discount${bill.coupon ? ` (${esc(bill.coupon)})` : ''}</span><span>−${esc(inr(bill.itemDiscount + bill.billDiscount, 2))}</span></div>` : ''}
+    ${opts.showTax ? `<div class="row sm"><span>Taxable value</span><span>${esc(inr(Math.abs(bill.taxableTotal), 2))}</span></div><div class="row sm"><span>CGST</span><span>${esc(inr(Math.abs(bill.cgstTotal), 2))}</span></div><div class="row sm"><span>SGST</span><span>${esc(inr(Math.abs(bill.sgstTotal), 2))}</span></div>` : ''}
+    ${bill.roundOff ? `<div class="row sm"><span>Round off</span><span>${esc(inr(bill.roundOff * s, 2))}</span></div>` : ''}
+    <div class="row tot"><span>${credit ? 'REFUND' : 'TOTAL'}</span><span>${esc(inr(Math.abs(bill.total), 2))}</span></div>
+    ${bill.payments.length ? `<div class="sm muted" style="margin-top:4px">${esc(paymentSummary(bill))}${bill.changeDue > 0 ? ` · Change ${esc(inr(bill.changeDue, 2))}` : ''}</div>` : ''}
+    ${opts.showSavings && saved > 0 && !credit ? `<div class="c b" style="margin-top:6px">You saved ${esc(inr(saved, 2))}!</div>` : ''}
+    ${opts.showLoyalty && bill.loyaltyEarned > 0 ? `<div class="c sm">⭐ +${bill.loyaltyEarned} loyalty points earned</div>` : ''}
+    ${hsn.length ? `<hr><table><tr><th>HSN</th><th>Rate</th><th class="r">Taxable</th><th class="r">Tax</th></tr>${hsn.map((h) => `<tr class="sm"><td>${esc(h.hsn)}</td><td>${h.rate}%</td><td class="r">${esc(inr(h.taxable, 2))}</td><td class="r">${esc(inr(round2(h.cgst + h.sgst), 2))}</td></tr>`).join('')}</table>` : ''}
+    <hr>${store.returnPolicy ? `<div class="c sm muted">${esc(store.returnPolicy)}</div>` : ''}
+    ${store.footerNote ? `<div class="c b" style="margin-top:6px">${esc(store.footerNote)}</div>` : ''}`
+  return base(store.receiptWidth === '58mm' ? '58mm' : '80mm', body)
+}
+
+// ───────────────────────────── A4 GST tax invoice ─────────────────────────────
+
+export function invoiceHtml(ctx: DocContext): string {
+  const { bill, store, customer, seller } = ctx
+  const credit = isCreditNote(bill)
+  const rows = bill.items.map((i, n) => `<tr>
+      <td>${n + 1}</td><td><b>${esc(i.name)}</b><div class="muted sm">${esc(variantLabel(i.size, i.color))}</div></td><td>${esc(i.hsn || '—')}</td>
+      <td class="r">${esc(fmtQty(i.qty))}${esc(unitSuffix(i))}</td><td class="r">${esc(inr(i.price))}</td><td class="r">${esc(inr(Math.abs(i.taxable)))}</td>
+      <td class="r">${i.taxRate}%</td><td class="r">${esc(inr(Math.abs(i.cgst)))}</td><td class="r">${esc(inr(Math.abs(i.sgst)))}</td><td class="r b">${esc(inr(Math.abs(i.lineTotal)))}</td></tr>`).join('')
+  const hsn = hsnSummary(bill.items)
+  const body = `
+  <style>@page{size:A4;margin:14mm}body{font-size:12px;padding:0;width:auto}table.items td,table.items th{border:1px solid #bbb;padding:5px 6px}table.items th{background:#f2f2f2;color:#111}.box{border:1px solid #bbb;padding:8px 10px;border-radius:4px}.grid{display:flex;gap:12px}.grid>div{flex:1}</style>
+  <div class="row"><div><h1 style="text-align:left;font-size:22px">${esc(store.name)}</h1>
+    <div class="muted">${esc([store.address, store.city].filter(Boolean).join(', '))}</div>
+    ${store.phone ? `<div>Ph: ${esc(store.phone)}${store.email ? ` · ${esc(store.email)}` : ''}</div>` : ''}${store.gstin ? `<div class="b">GSTIN: ${esc(store.gstin)}</div>` : ''}</div>
+    <div class="r"><div style="font-size:18px;font-weight:800;letter-spacing:1px">${credit ? 'CREDIT NOTE' : 'TAX INVOICE'}</div><div>No. <b>${esc(bill.no)}</b></div><div>Date: ${esc(fmtDate(bill.date))}</div></div></div>
+  <div class="grid" style="margin:12px 0"><div class="box"><div class="muted sm">BILLED TO</div><b>${esc(customer?.name ?? 'Walk-in customer')}</b>
+    ${customer?.phone ? `<div>${esc(customer.phone)}</div>` : ''}${customer?.address ? `<div class="muted">${esc(customer.address)}</div>` : ''}${customer?.gstin ? `<div>GSTIN: ${esc(customer.gstin)}</div>` : ''}</div>
+    <div class="box"><div class="muted sm">DETAILS</div>${seller ? `<div>Served by ${esc(seller.name)}</div>` : ''}<div>Payment: ${esc(paymentSummary(bill) || '—')}</div></div></div>
+  <table class="items"><tr><th>#</th><th>Item</th><th>HSN</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Taxable</th><th class="r">GST</th><th class="r">CGST</th><th class="r">SGST</th><th class="r">Amount</th></tr>${rows}</table>
+  <div class="grid" style="margin-top:12px"><div>
+    <table class="items"><tr><th>HSN</th><th class="r">Taxable</th><th class="r">Rate</th><th class="r">CGST</th><th class="r">SGST</th></tr>${hsn.map((h) => `<tr><td>${esc(h.hsn)}</td><td class="r">${esc(inr(Math.abs(h.taxable)))}</td><td class="r">${h.rate}%</td><td class="r">${esc(inr(Math.abs(h.cgst)))}</td><td class="r">${esc(inr(Math.abs(h.sgst)))}</td></tr>`).join('')}</table></div>
+    <div class="box">
+      <div class="row"><span>Subtotal</span><span>${esc(inr(Math.abs(bill.subtotal)))}</span></div>
+      ${bill.billDiscount > 0 ? `<div class="row"><span>Bill discount</span><span>−${esc(inr(bill.billDiscount))}</span></div>` : ''}
+      <div class="row"><span>Taxable value</span><span>${esc(inr(Math.abs(bill.taxableTotal)))}</span></div>
+      <div class="row"><span>CGST + SGST</span><span>${esc(inr(Math.abs(bill.taxTotal)))}</span></div>
+      ${bill.roundOff ? `<div class="row"><span>Round off</span><span>${esc(inr(bill.roundOff * sign(bill)))}</span></div>` : ''}
+      <div class="row tot" style="border-top:1px solid #999;margin-top:4px;padding-top:4px"><span>${credit ? 'Refund' : 'Total'}</span><span>${esc(inr(Math.abs(bill.total)))}</span></div></div></div>
+  <p style="margin-top:10px"><b>Amount in words:</b> ${esc(amountInWords(Math.abs(bill.total)))}</p>
+  <div class="grid" style="margin-top:16px"><div class="muted sm">${esc(store.returnPolicy)}</div><div class="r"><div style="height:44px"></div><div>Authorised signatory</div><div class="b">${esc(store.name)}</div></div></div>
+  ${store.footerNote ? `<p class="c muted">${esc(store.footerNote)}</p>` : ''}`
+  return base('100%', body)
+}

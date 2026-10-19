@@ -17,6 +17,8 @@ export interface Workspace {
   apiUrl?: string
   /** The server's id for this business. */
   storeId?: string
+  /** Email used to sign in, so an expired session can be renewed with just the password. */
+  loginEmail?: string
   /** Short tag that makes this phone's invoice numbers unique (INV-M4X-0001). Connected workspaces only. */
   deviceTag: string
   barcodeBase: number
@@ -90,6 +92,9 @@ function toBatch(c: Changes, store: DataState['store'], outbox: OutboxEntry[]): 
 }
 
 let outboxSeq = 0
+let afterCommit: (() => void) | null = null
+/** The sync runtime registers here so a new outbox row starts an upload without store.ts importing it. */
+export const onOutboxAdded = (fn: (() => void) | null) => { afterCommit = fn }
 
 export const useApp = create<AppStore>((set, get) => {
   lastError = (m) => { if (get().persistError !== m) set({ persistError: m }) }
@@ -138,6 +143,7 @@ export const useApp = create<AppStore>((set, get) => {
         : []
       set({ data, ...(rows.length ? { outbox: [...s.outbox, ...rows] } : {}) })
       void persist(toBatch(changes, data.store, rows))
+      if (rows.length) afterCommit?.()
     },
 
     async replaceData(data, opts) {
