@@ -317,7 +317,7 @@ export interface DaySession {
 }
 
 /** Entities the cloud API accepts, one per write endpoint — see `docs/API-CONTRACT.md`. */
-export type SyncEntity = 'bill' | 'billReturn' | 'customer' | 'customerUpdate' | 'product' | 'variant' | 'variantUpdate'
+export type SyncEntity = 'bill' | 'billReturn' | 'customer' | 'customerUpdate' | 'product' | 'productUpdate' | 'productDelete' | 'variant' | 'variantUpdate'
   | 'expense' | 'stockAdjust' | 'storeUpdate' | 'supplier' | 'supplierUpdate' | 'purchase' | 'session' | 'sessionUpdate'
   | 'user' | 'userUpdate' | 'coupon' | 'couponUpdate' | 'category' | 'categoryDelete'
 

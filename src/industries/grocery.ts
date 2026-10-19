@@ -1,0 +1,81 @@
+import type { IndustryPack, PackCategory } from './types'
+
+const MAX = Number.MAX_SAFE_INTEGER
+
+const c = (id: string, name: string, group: string, prefix: string, extra: PackCategory['config'] = {}): PackCategory =>
+  ({ id, name, group, config: { prefix, unit: 'pack', variantMode: 'plain', optionLabel: 'Pack sizes', reorderLevel: 6, ...extra } })
+
+export const grocery: IndustryPack = {
+  id: 'grocery',
+  name: 'Grocery & Kirana',
+  tagline: 'Supermarkets, kirana stores, dairy and fresh produce',
+  icon: 'shopping-basket',
+  tint: '#12B886',
+  labels: {
+    item: 'Product', items: 'Products', customer: 'Customer', customers: 'Customers',
+    option1: 'Pack size', option2: 'Variant', attr1: 'Brand line', attr2: 'Shelf life', attr1Hint: 'Premium, value…', attr2Hint: '6 months…',
+    sale: 'Bill', sales: 'Bills', newSale: 'New bill', staff: 'Cashier', price: 'MRP',
+  },
+  tax: { slabs: [{ upto: MAX, rate: 5 }], inclusive: true, hsnHint: 'Staples 1001–1101, oils 1507–1515, dairy 0401–0406', defaultHsn: '1101' },
+  categories: [
+    c('cat_g_flour', 'Atta & Flour', 'Staples', 'AT', { gstRate: 5, hsn: '1101' }),
+    c('cat_g_rice', 'Rice & Grains', 'Staples', 'RC', { gstRate: 5, hsn: '1006' }),
+    c('cat_g_dal', 'Dals & Pulses', 'Staples', 'DL', { gstRate: 5, hsn: '0713' }),
+    c('cat_g_loose', 'Loose Grains (by kg)', 'Loose & Fresh', 'LG', { unit: 'kg', gstRate: 0, hsn: '1006', step: 0.25, minQty: 0.25, optionLabel: 'Varieties' }),
+    c('cat_g_veg', 'Vegetables (by kg)', 'Loose & Fresh', 'VG', { unit: 'kg', gstRate: 0, hsn: '0702', step: 0.25, minQty: 0.25, optionLabel: 'Varieties', reorderLevel: 8 }),
+    c('cat_g_fruit', 'Fruits (by kg)', 'Loose & Fresh', 'FR', { unit: 'kg', gstRate: 0, hsn: '0804', step: 0.25, minQty: 0.25, optionLabel: 'Varieties', reorderLevel: 8 }),
+    c('cat_g_oil', 'Oils & Ghee', 'Kitchen', 'OL', { gstRate: 5, hsn: '1512', reorderLevel: 4 }),
+    c('cat_g_spice', 'Spices & Masala', 'Kitchen', 'SP', { gstRate: 5, hsn: '0910' }),
+    c('cat_g_dairy', 'Dairy & Eggs', 'Dairy', 'DY', { gstRate: 5, hsn: '0401', reorderLevel: 10 }),
+    c('cat_g_snack', 'Snacks & Biscuits', 'Packaged Food', 'SN', { gstRate: 12, hsn: '1905' }),
+    c('cat_g_bev', 'Beverages', 'Packaged Food', 'BV', { gstRate: 18, hsn: '2202' }),
+    c('cat_g_care', 'Personal Care', 'Home & Care', 'PC', { gstRate: 18, hsn: '3401' }),
+    c('cat_g_home', 'Household', 'Home & Care', 'HH', { gstRate: 18, hsn: '3402' }),
+  ],
+  groupOrder: ['Staples', 'Loose & Fresh', 'Kitchen', 'Dairy', 'Packaged Food', 'Home & Care'],
+  settings: {
+    returnPolicy: 'Packaged goods can be exchanged within 2 days with the bill. No returns on fresh produce.',
+    footerNote: 'Thank you! Fresh stock every morning.',
+    loyaltyEarnPct: 1, loyaltyRedeemValue: 0.5, maxCashierDiscountPct: 5, lowStockDefault: 6, returnWindowDays: 2, priceIncludesTax: true,
+  },
+  expenseCategories: ['Rent', 'Salary', 'Electricity', 'Transport', 'Packaging', 'Refrigeration', 'Wastage', 'Tea & Snacks', 'GST / Taxes', 'Misc'],
+  stockReasons: ['Expired', 'Damaged', 'Spillage / weighing loss', 'Sample / tasting', 'Supplier return', 'Counting correction', 'Other'],
+  returnReasons: ['Damaged pack', 'Wrong item', 'Expired', 'Changed mind', 'Other'],
+  highlights: ['Sell loose goods by the kilo (0.25 kg steps)', 'Per-item GST: 0 / 5 / 12 / 18%', 'Pack-size variants with their own barcode', 'Reorder alerts for fast movers'],
+  demo: {
+    storeName: 'Sharma Fresh Mart', city: 'Jaipur', ownerName: 'Rakesh Sharma', tagline: 'Fresh every morning',
+    suppliers: [{ name: 'Rajasthan Agro Traders', gstin: '08AAECR7788K1ZV' }, { name: 'Daily Dairy Supplies' }, { name: 'City Wholesale FMCG', gstin: '08AABCC1234F1Z2' }],
+    billsPerDay: [35, 70], lines: [3, 7], payMix: { cash: 0.42, upi: 0.5, card: 0.08 }, hours: [7, 22],
+    items: [
+      { name: 'Whole Wheat Atta', cat: 'cat_g_flour', brand: 'Annapurna', attr1: 'Premium', attr2: '6 months', cost: 190, mrp: 285, price: 265, options: ['5 kg', '10 kg'], optionPrice: [265, 515], stock: [8, 24], weight: 8 },
+      { name: 'Basmati Rice', cat: 'cat_g_rice', brand: 'Golden Grain', attr1: 'Aged', attr2: '12 months', cost: 98, mrp: 160, price: 145, options: ['1 kg', '5 kg'], optionPrice: [145, 690], stock: [8, 30], weight: 7 },
+      { name: 'Toor Dal', cat: 'cat_g_dal', brand: 'Kisan Fresh', attr1: 'Unpolished', attr2: '9 months', cost: 128, mrp: 190, price: 172, options: ['500 g', '1 kg'], optionPrice: [89, 172], stock: [8, 30], weight: 6 },
+      { name: 'Refined Sunflower Oil', cat: 'cat_g_oil', brand: 'Sunrise', attr1: 'Refined', attr2: '9 months', cost: 138, mrp: 185, price: 172, options: ['1 L', '5 L'], optionPrice: [172, 830], stock: [6, 20], weight: 7 },
+      { name: 'Pure Cow Ghee', cat: 'cat_g_oil', brand: 'Gau Amrit', attr1: 'Desi', attr2: '12 months', cost: 560, mrp: 720, price: 689, options: ['500 ml', '1 L'], optionPrice: [359, 689], stock: [4, 14], weight: 3 },
+      { name: 'Garam Masala', cat: 'cat_g_spice', brand: 'Kitchen King', attr1: 'Blended', attr2: '12 months', cost: 38, mrp: 70, price: 62, options: ['50 g', '100 g'], optionPrice: [62, 118], stock: [10, 30], weight: 4 },
+      { name: 'Full Cream Milk', cat: 'cat_g_dairy', brand: 'Daily Dairy', attr1: 'Pasteurised', attr2: '2 days', cost: 29, mrp: 34, price: 33, options: ['500 ml', '1 L'], optionPrice: [33, 64], stock: [20, 50], weight: 14, gst: 0 },
+      { name: 'Salted Butter', cat: 'cat_g_dairy', brand: 'Daily Dairy', attr1: 'Table', attr2: '6 months', cost: 52, mrp: 60, price: 58, options: ['100 g', '500 g'], optionPrice: [58, 285], stock: [8, 20], weight: 3, gst: 12 },
+      { name: 'Farm Eggs', cat: 'cat_g_dairy', brand: 'Farm Fresh', attr1: 'White', attr2: '10 days', cost: 5.2, mrp: 7.5, price: 7, options: ['Tray of 30', 'Pack of 6'], optionPrice: [205, 44], stock: [6, 16], weight: 6, gst: 0 },
+      { name: 'Cream Biscuits', cat: 'cat_g_snack', brand: 'Crunchy', attr1: 'Family pack', attr2: '8 months', cost: 18, mrp: 30, price: 28, options: ['100 g', '300 g'], optionPrice: [28, 78], stock: [12, 40], weight: 9 },
+      { name: 'Instant Noodles', cat: 'cat_g_snack', brand: 'Slurp', attr1: 'Masala', attr2: '9 months', cost: 11, mrp: 15, price: 14, options: ['Single', 'Pack of 5'], optionPrice: [14, 68], stock: [15, 50], weight: 10 },
+      { name: 'Masala Tea', cat: 'cat_g_bev', brand: 'Chai Ghar', attr1: 'Strong', attr2: '12 months', cost: 98, mrp: 140, price: 128, options: ['250 g', '500 g'], optionPrice: [128, 245], stock: [8, 20], weight: 4 },
+      { name: 'Cola Drink', cat: 'cat_g_bev', brand: 'Fizz', attr1: 'Soft drink', attr2: '6 months', cost: 33, mrp: 45, price: 42, options: ['750 ml', '2 L'], optionPrice: [42, 95], stock: [12, 40], weight: 6 },
+      { name: 'Beauty Soap', cat: 'cat_g_care', brand: 'Petal', attr1: 'Moisturising', attr2: '24 months', cost: 27, mrp: 42, price: 38, options: ['Single', 'Pack of 4'], optionPrice: [38, 140], stock: [12, 36], weight: 4 },
+      { name: 'Detergent Powder', cat: 'cat_g_home', brand: 'Brite', attr1: 'Front/Top load', attr2: '24 months', cost: 92, mrp: 140, price: 128, options: ['1 kg', '2 kg'], optionPrice: [128, 245], stock: [8, 24], weight: 5 },
+      { name: 'Onion', cat: 'cat_g_veg', brand: '', attr1: 'Nashik', attr2: '', cost: 24, mrp: 40, price: 36, options: ['Medium'], stock: [40, 120], weight: 12, qty: [0.5, 3] },
+      { name: 'Potato', cat: 'cat_g_veg', brand: '', attr1: 'Agra', attr2: '', cost: 20, mrp: 34, price: 30, options: ['Medium'], stock: [40, 120], weight: 12, qty: [0.5, 3] },
+      { name: 'Tomato', cat: 'cat_g_veg', brand: '', attr1: 'Hybrid', attr2: '', cost: 28, mrp: 48, price: 44, options: ['Ripe'], stock: [20, 60], weight: 10, qty: [0.25, 2] },
+      { name: 'Banana', cat: 'cat_g_fruit', brand: '', attr1: 'Robusta', attr2: '', cost: 34, mrp: 60, price: 54, options: ['Ripe'], stock: [18, 50], weight: 6, qty: [0.5, 2] },
+      { name: 'Loose Sugar', cat: 'cat_g_loose', brand: '', attr1: 'Sulphurless', attr2: '', cost: 38, mrp: 50, price: 46, options: ['Fine'], stock: [60, 180], weight: 6, qty: [0.5, 5] },
+    ],
+    expenses: [
+      { category: 'Rent', amount: [26000, 26000], every: 30, vendor: 'Landlord', mode: 'bank' },
+      { category: 'Salary', amount: [64000, 70000], every: 30, mode: 'bank' },
+      { category: 'Electricity', amount: [11000, 15500], every: 30, vendor: 'JVVNL', mode: 'upi' },
+      { category: 'Refrigeration', amount: [1800, 3200], every: 15, mode: 'upi' },
+      { category: 'Transport', amount: [600, 2400], every: 3, mode: 'cash' },
+      { category: 'Wastage', amount: [300, 1500], every: 4, mode: 'cash' },
+      { category: 'Tea & Snacks', amount: [60, 200], every: 2, mode: 'cash' },
+    ],
+  },
+}
