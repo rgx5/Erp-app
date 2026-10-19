@@ -1,0 +1,63 @@
+{
+  "name": "erp-app",
+  "version": "0.1.0",
+  "private": true,
+  "main": "expo-router/entry",
+  "scripts": {
+    "start": "expo start",
+    "android": "expo start --android",
+    "ios": "expo start --ios",
+    "web": "expo start --web",
+    "typecheck": "tsc --noEmit",
+    "lint": "expo lint",
+    "test": "jest",
+    "bundle:check": "expo export --platform android --platform ios --output-dir .export-check"
+  },
+  "dependencies": {
+    "@expo-google-fonts/inter": "^0.4.2",
+    "@expo-google-fonts/manrope": "^0.4.2",
+    "@expo/metro-runtime": "~58.0.14",
+    "@react-native-community/netinfo": "^12.0.1",
+    "expo": "~58.0.14",
+    "expo-asset": "~58.0.16",
+    "expo-camera": "~58.0.10",
+    "expo-constants": "~58.0.12",
+    "expo-crypto": "~58.0.7",
+    "expo-document-picker": "~58.0.4",
+    "expo-file-system": "~58.0.9",
+    "expo-font": "~58.0.8",
+    "expo-haptics": "~58.0.7",
+    "expo-linear-gradient": "~58.0.3",
+    "expo-linking": "~58.0.13",
+    "expo-local-authentication": "~58.0.2",
+    "expo-print": "~58.0.6",
+    "expo-router": "~58.0.23",
+    "expo-secure-store": "~58.0.2",
+    "expo-sharing": "~58.0.19",
+    "expo-splash-screen": "~58.0.10",
+    "expo-sqlite": "~58.0.13",
+    "expo-status-bar": "~58.0.3",
+    "lucide-react-native": "^1.59.0",
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0",
+    "react-native": "^0.88.0",
+    "react-native-safe-area-context": "~5.10.1",
+    "react-native-screens": "~4.30.0",
+    "react-native-svg": "^15.16.0",
+    "react-native-web": "^0.21.4",
+    "zustand": "^5.0.15"
+  },
+  "overrides": {
+    "napi-postinstall": "0.3.4"
+  },
+  "devDependencies": {
+    "@types/jest": "^30.0.0",
+    "@types/node": "^22.20.5",
+    "@types/react": "~19.3.0",
+    "babel-preset-expo": "^58.0.17",
+    "eslint": "^10.13.0",
+    "eslint-config-expo": "^58.0.4",
+    "jest": "^30.5.2",
+    "typescript": "~6.0.3"
+  }
+}
