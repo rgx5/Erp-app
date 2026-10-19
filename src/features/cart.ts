@@ -1,13 +1,12 @@
 import { useMemo } from 'react'
 import { create } from 'zustand'
 import { priceCart, type CartLine, type CartTotals } from '@/domain/cart'
-import type { DiscountType } from '@/domain/types'
+import type { DiscountType, StoreSettings } from '@/domain/types'
 import { costFor, needsPricing } from '@/domain/pricing'
 import { fmtQtyUnit, isFrac, minQtyOf, qtyStep, round3 } from '@/domain/qty'
 import { variantLabel } from '@/domain/codes'
 import type { VariantView } from '@/domain/views'
 import { useStore } from '@/data/hooks'
-import type { StoreSettings } from '@/domain/types'
 
 /**
  * The bill being rung up. It lives only in memory — a bill you walk away from can be parked (held), which is saved on

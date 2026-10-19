@@ -60,7 +60,7 @@ export default function Items() {
     <Screen large title={labels.items} subtitle={`${num(active)} ${active === 1 ? labels.item.toLowerCase() : labels.items.toLowerCase()} · ${num(variants.length)} variants`} scroll={false}
       right={canEdit ? <IconButton label={`Add ${labels.item.toLowerCase()}`} tone="dark" onPress={() => router.push('/items/new')}><Plus size={22} color={c.bg} /></IconButton> : undefined}>
       <View style={{ gap: 12, paddingBottom: 8 }}>
-        <SearchBar value={q} onChange={setQ} placeholder={`Search name, code, brand or barcode`} right={<IconButton label="Scan" onPress={scan} size={48}><ScanBarcode size={22} color={c.ink} /></IconButton>} />
+        <SearchBar value={q} onChange={setQ} placeholder="Search name, code or barcode" right={<IconButton label="Scan" onPress={scan} size={48}><ScanBarcode size={22} color={c.ink} /></IconButton>} />
         <FlatList horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }} keyExtractor={(x) => x[0]}
           data={[['', 'All', 0], ['low', 'Low stock', counts.low], ['out', 'Out of stock', counts.out], ['pricing', 'Needs price', counts.pricing], ['archived', 'Archived', 0]] as Array<[CatalogFilter, string, number]>}
           renderItem={({ item }) => <Chip label={item[1]} count={item[2] || undefined} selected={filter === item[0]} onPress={() => setFilter(item[0])} />} />
@@ -82,7 +82,7 @@ export default function Items() {
                 <T v="bodyStrong" tone="primary" style={{ fontSize: 13 }} fixed>{r.product.styleCode.split('-')[0].slice(0, 3)}</T>
               </View>
               <View style={{ flex: 1, gap: 2 }}>
-                <T v="bodyStrong" numberOfLines={1}>{r.product.name}</T>
+                <T v="bodyStrong" numberOfLines={2}>{r.product.name}</T>
                 <T v="caption" tone="mute" numberOfLines={1}>{[r.product.styleCode, catName.get(r.product.categoryId), `${r.variants.length} ${r.variants.length === 1 ? 'variant' : 'variants'}`].filter(Boolean).join(' · ')}</T>
                 <View style={{ flexDirection: 'row', gap: 6, marginTop: 2 }}>
                   {r.out > 0 ? <Badge tone="danger">{r.out} out</Badge> : null}

@@ -15,7 +15,6 @@ import { costFor, needsPricing, weightedAvg } from '../pricing'
 import { billFigures } from '../figures'
 import type { Bill } from '../types'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const golden: any = JSON.parse(gunzipSync(readFileSync(join(__dirname, 'fixtures', 'krishna-golden.json.gz'))).toString())
 
 // The fixture is JSON, so assertions are on the exact same values the reference produced (JSON drops `undefined`).

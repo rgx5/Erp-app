@@ -25,7 +25,11 @@
         "monochromeImage": "./assets/adaptive-icon-mono.png"
       },
       "predictiveBackGestureEnabled": true,
-      "permissions": ["CAMERA", "USE_BIOMETRIC", "USE_FINGERPRINT"]
+      "permissions": [
+        "CAMERA",
+        "USE_BIOMETRIC",
+        "USE_FINGERPRINT"
+      ]
     },
     "web": {
       "bundler": "metro",
@@ -45,7 +49,9 @@
       ],
       [
         "expo-local-authentication",
-        { "faceIDPermission": "Kosh uses Face ID to unlock the app and protect your business data." }
+        {
+          "faceIDPermission": "Kosh uses Face ID to unlock the app and protect your business data."
+        }
       ],
       [
         "expo-splash-screen",
@@ -54,12 +60,11 @@
           "imageWidth": 160,
           "resizeMode": "contain",
           "backgroundColor": "#0B1220",
-          "dark": { "backgroundColor": "#0B1220" }
+          "dark": {
+            "backgroundColor": "#0B1220"
+          }
         }
       ]
-    ],
-    "experiments": {
-      "typedRoutes": true
-    }
+    ]
   }
 }

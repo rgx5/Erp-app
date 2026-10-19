@@ -34,7 +34,6 @@ export default function ItemDetail() {
   const { id } = useLocalSearchParams<{ id: string }>()
   const { c } = useTheme()
   const router = useRouter()
-  const pack = useIndustry()
   const labels = useLabels()
   const store = useStore()
   const canEdit = useCan('inventory')
