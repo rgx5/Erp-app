@@ -20,7 +20,7 @@ import './register'
 import './replication'
 
 registerModule({
-  id: 'sales', name: 'Sales', tagline: 'Billing, orders, credit and pricing', icon: Tags, tone: 'primary', order: 10, needsKosh: true,
+  id: 'sales', name: 'Sales', tagline: 'Billing, orders, credit and pricing', icon: Tags, tone: 'primary', order: 10,
   features: [
     { id: 'price-lists', label: 'Price lists & tiers', sub: 'Retail, wholesale and dealer prices', icon: Tags, tone: 'primary', to: '/m/pricing/lists', perm: 'pricing', section: 'Pricing' },
     { id: 'qty-breaks', label: 'Quantity breaks', sub: 'The more they buy, the less each costs', icon: Layers, tone: 'accent', to: '/m/pricing/breaks', perm: 'pricing', section: 'Pricing' },
@@ -45,6 +45,6 @@ registerModule({
 })
 
 registerCheckoutPanel({ id: 'pricing', order: 20, component: PricingCheckoutPanel })
-registerPanel({ id: 'pricing.customer', slot: 'customer', order: 30, perm: 'customers', needsKosh: true, component: ({ customer }) => React.createElement(CustomerPricing, { customer: customer.customer }) })
+registerPanel({ id: 'pricing.customer', slot: 'customer', order: 30, perm: 'customers', needsKosh: true, component: ({ customer }) => React.createElement(CustomerPricing, { customer }) })
 
 void Barcode; void Truck

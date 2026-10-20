@@ -14,8 +14,8 @@ describe('quotation pipeline', () => {
     installBillHook()
     let s = baseState()
     const make = (validUntil: number, qty: number, at: number) => { const q = saveQuotation(s, quote(s, validUntil, qty), undefined, ctx({ now: at })).quotation; s = commit(s, { put: { quotations: [q] } }); return q }
-    const open = make(NOW + 10 * DAY, 1, NOW)
-    const soon = make(NOW + 1 * DAY, 2, NOW + 1)
+    make(NOW + 10 * DAY, 1, NOW)
+    make(NOW + 1 * DAY, 2, NOW + 1)
     const lapsed = { ...make(NOW + DAY, 1, NOW + 2), validUntil: NOW - 3 * DAY }
     s = commit(s, { put: { quotations: [lapsed] } })
     const no = make(NOW + 10 * DAY, 1, NOW + 3)
@@ -29,7 +29,6 @@ describe('quotation pipeline', () => {
     expect(p.rejected.count).toBe(1)
     expect(p.converted).toEqual({ count: 1, value: 2997 })
     expect(p.winRatePct).toBe(33)
-    expect([open.id, soon.id]).toHaveLength(2)
     expect(quotePipeline(baseState(), NOW).winRatePct).toBeNull()
   })
 })

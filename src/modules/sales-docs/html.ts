@@ -8,9 +8,8 @@ import { docTotals } from './logic/lines'
 import { CHALLAN_LABEL } from './logic/challans'
 import { QUOTE_LABEL } from './logic/quotes'
 import { ORDER_LABEL, type OrderMoney } from './logic/orders'
-import type { Shift } from './types'
 import type { ShiftFigures } from './logic/shifts'
-import type { Challan, Quotation, SalesOrder } from './types'
+import type { Challan, Quotation, SalesOrder, Shift } from './types'
 
 type Store = Pick<StoreSettings, 'name' | 'tagline' | 'address' | 'city' | 'phone' | 'email' | 'gstin' | 'slabs' | 'priceIncludesTax'>
 

@@ -63,9 +63,9 @@ export function billTaxInfo(store: StoreSettings | null | undefined, customer: P
   if (info?.placeOfSupply) out.placeOfSupply = info.placeOfSupply
   if (info?.reverseCharge) out.reverseCharge = true
   if (info?.priceListId) out.priceListId = info.priceListId
+  if (sum.interState) out.interState = true
   if (sum.noTax) out.taxMode = 'bill_of_supply'
   else if (Object.keys(out).length) out.taxMode = 'tax_invoice'
-  if (sum.interState) out.interState = true
   return Object.keys(out).length ? out : undefined
 }
 
