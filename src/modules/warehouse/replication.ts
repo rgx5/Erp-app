@@ -1,10 +1,10 @@
 import { registerCollections } from '@/data/state'
 import { registerPermission } from '@/domain/permissions'
 import { registerPostingRule } from '@/modules/postings'
-import { addEffects, addOwnedFields, registerCollectionMeta } from '@/replication/registry'
+import { addEffects, registerCollectionMeta } from '@/replication/registry'
 import { batchEffects, levelEffects } from './logic'
-import type { BatchMove, WriteOff } from './types'
-import { writeOffPosting } from './posting'
+import type { BatchMove, TransferReceipt, WriteOff } from './types'
+import { transferLossPosting, writeOffPosting } from './posting'
 import './types'
 
 /**
@@ -23,7 +23,8 @@ const WAREHOUSE = ['warehouse', 'stock']
 const FLOOR = ['warehouse', 'stock', 'pos', 'purchases', 'inventory']
 
 registerCollectionMeta(
-  { name: 'locations', kind: 'master', perm: 'warehouse', readPerm: 'any', branched: true },
+  // Locations and transfers are visible to every branch: a transfer between two stores has to be seen by both.
+  { name: 'locations', kind: 'master', perm: 'warehouse', readPerm: 'any' },
   { name: 'itemRules', kind: 'master', perm: 'warehouse', readPerm: 'any' },
   { name: 'unitConversions', kind: 'master', perm: 'warehouse', readPerm: 'any' },
   { name: 'bundles', kind: 'master', perm: 'warehouse', readPerm: 'any' },
@@ -36,10 +37,13 @@ registerCollectionMeta(
   { name: 'serials', kind: 'master', perm: FLOOR, readPerm: 'any' },
   { name: 'stockLevels', kind: 'master', perm: FLOOR, readPerm: WAREHOUSE.concat('pos'), owned: ['qty'] },
   {
-    name: 'transfers', kind: 'ledger', perm: WAREHOUSE, readPerm: WAREHOUSE, branched: true,
+    name: 'transfers', kind: 'ledger', perm: WAREHOUSE, readPerm: WAREHOUSE,
     validate: (d) => (Array.isArray(d.lines) && d.lines.length && typeof d.fromId === 'string' && typeof d.toId === 'string' && d.fromId !== d.toId ? null : 'A transfer needs two different places and its lines'),
   },
-  { name: 'transferReceipts', kind: 'ledger', perm: WAREHOUSE, readPerm: WAREHOUSE },
+  {
+    name: 'transferReceipts', kind: 'ledger', perm: WAREHOUSE, readPerm: WAREHOUSE,
+    validate: (d) => (typeof d.transferId === 'string' && Array.isArray(d.lines) ? null : 'A receipt needs its transfer and the lines that arrived'),
+  },
   {
     name: 'writeOffs', kind: 'ledger', perm: WAREHOUSE, readPerm: WAREHOUSE, branched: true,
     validate: (d) => (Array.isArray(d.lines) && d.lines.length ? null : 'A write-off needs its lines'),
@@ -48,7 +52,8 @@ registerCollectionMeta(
 
 // A stock movement that names a location changes that location's level (the core effect keeps the total).
 addEffects('moves', (doc) => levelEffects(doc as unknown as Parameters<typeof levelEffects>[0]))
-addOwnedFields('batches', ['qty'])
+// (`batches.qty` and `stockLevels.qty` are declared `owned` on their collections above; the server alone changes them.)
 
 // What a write-off means to the books: the cost of the stock written off leaves the inventory account.
 registerPostingRule('writeOffs', (d) => writeOffPosting(d as unknown as WriteOff))
+registerPostingRule('transferReceipts', (d) => transferLossPosting(d as unknown as TransferReceipt))

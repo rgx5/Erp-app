@@ -33,12 +33,12 @@ export function buildApp(deps: AppDeps): FastifyInstance & { ctx: Ctx } {
     bodyLimit: 8 * 1024 * 1024,
     trustProxy: cfg.trustProxy,
     // Never leak internals: a stray exception becomes a generic 500 (the real error is logged).
-    disableRequestLogging: !cfg.production,
   })
 
   const ctx: Ctx = { cfg, pool, principals: new PrincipalResolver(pool, cfg), passwords: new Passwords(cfg.bcryptCost), files: deps.files ?? new DiskFileStore(cfg.filesDir) }
 
   // Uploads arrive as raw bytes with any Content-Type (JSON keeps its own parser).
+  app.removeContentTypeParser('text/plain') // Fastify would hand a text upload over as a string; every upload is bytes
   app.addContentTypeParser('*', { parseAs: 'buffer', bodyLimit: 128 * 1024 * 1024 }, (_req, body, done) => done(null, body))
 
   // ── CORS (explicit allow-list) and defensive headers ──

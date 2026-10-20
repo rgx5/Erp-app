@@ -203,6 +203,8 @@ export interface ReceiptExtra {
   item?: (item: Bill['items'][number], bill: Bill, state: DataState) => string | null
   /** Lines above the footer (dues, a gift-card balance). */
   footer?: (bill: Bill, state: DataState) => string[]
+  /** Text to print as a QR code on the A4 invoice (an e-invoice's signed QR); the first module that has one wins. */
+  qr?: (bill: Bill, state: DataState) => string | null
 }
 
 /** Runs when goods are received (`receivePurchase`): refuse the receipt, or add documents to the same transaction. */
@@ -263,11 +265,12 @@ export function adjustLines(lines: CartLine[], c: CartCtx): CartLine[] {
 }
 
 /** What every registered module wants printed on this bill. Pass the result as `extras` in the receipt context. */
-export function receiptAddOns(bill: Bill, state: DataState): { header: string[]; footer: string[]; item: (it: Bill['items'][number]) => string | null } {
+export function receiptAddOns(bill: Bill, state: DataState): { header: string[]; footer: string[]; item: (it: Bill['items'][number]) => string | null; qr: string | null } {
   const list = receiptExtraList()
   return {
     header: list.flatMap((r) => r.header?.(bill, state) ?? []),
     footer: list.flatMap((r) => r.footer?.(bill, state) ?? []),
     item: (it) => list.map((r) => r.item?.(it, bill, state)).filter(Boolean).join(' · ') || null,
+    qr: list.map((r) => r.qr?.(bill, state)).find(Boolean) ?? null,
   }
 }

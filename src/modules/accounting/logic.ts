@@ -14,6 +14,8 @@ export function lockedThrough(state: DataState): number | null {
   return max
 }
 
+export const LOCKED_MESSAGE = 'That date is in a locked period — nothing can be posted there. Ask the owner to unlock it.'
+
 /** Whether a date falls in a locked period. Documents dated then must not be created or changed. */
 export function isLocked(state: DataState, date: number): boolean {
   const t = lockedThrough(state)

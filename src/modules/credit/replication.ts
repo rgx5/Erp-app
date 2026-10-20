@@ -5,6 +5,7 @@ import type { Bill } from '@/domain/types'
 import { addEffects, addOwnedFields, registerCollectionMeta, type Effect } from '@/replication/registry'
 import type { Collection, CreditTopup } from './types'
 import './types'
+import './postings'
 
 // Who may do what. The cashier takes payments on account and sells gift cards; terms and settings are for managers.
 registerPermission('collections', ['manager', 'cashier'])

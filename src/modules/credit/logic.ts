@@ -233,3 +233,33 @@ export const cashCollected = (state: DataState, from: number, to: number) =>
 
 export const dueLine = (p: Payment[]) => onAccountOf(p)
 export type { CustomerTerms }
+
+// ───────────────────────────── a customer's standing ─────────────────────────────
+
+export interface CreditStatus {
+  customerId: string
+  /** What they owe now (negative = in advance). */
+  owed: number
+  limit: number
+  blocked: boolean
+  creditDays: number
+  /** How much more may go on account; null when there is no limit. */
+  available: number | null
+  /** The part of what is owed that is past its due date. */
+  overdue: number
+  oldestDaysOverdue: number
+}
+
+/** Where a customer stands against their terms — what the checkout shows before putting a sale on account. */
+export function creditStatus(state: DataState, customerId: string, asOf: number, rec: Receivables = receivables(state)): CreditStatus {
+  const t = state.customerTerms?.[customerId]
+  const owed = netDue(rec, customerId)
+  const limit = t?.creditLimit ?? 0
+  const row = agingReport(state, asOf, rec).rows.find((r) => r.customerId === customerId)
+  return {
+    customerId, owed, limit, blocked: !!t?.blocked, creditDays: creditDaysFor(state, customerId),
+    available: limit > 0 ? Math.max(0, round2(limit - Math.max(0, owed))) : null,
+    overdue: row ? round2(row.total - row.buckets.notDue) : 0,
+    oldestDaysOverdue: row?.oldestDaysOverdue ?? 0,
+  }
+}

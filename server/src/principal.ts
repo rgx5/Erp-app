@@ -82,7 +82,9 @@ export class PrincipalResolver {
 
   private async fromKey(id: string, secret: string): Promise<Principal | null> {
     const ck = `key:${id}`
-    const hit = this.cache.get(`*|${ck}|${secret.slice(0, 8)}`)
+    // The cache key holds the hash of the whole secret, so a request that only knows a prefix of it cannot ride on a cached success.
+    const cacheKey = `*|${ck}|${hashSecret(secret)}`
+    const hit = this.cache.get(cacheKey)
     if (hit && Date.now() - hit.at < TTL_MS) return hit.p
     const r = await this.pool.query<{ org_id: string; name: string; secret_hash: string; permissions: string[]; revoked: boolean; expires_at: Date | null }>(
       'SELECT org_id, name, secret_hash, permissions, revoked, expires_at FROM api_keys WHERE id = $1', [id])
@@ -93,7 +95,8 @@ export class PrincipalResolver {
       p = { orgId: k.org_id, userId: `key:${id}`, kind: 'key', role: '', roleId: null, isOwner: false, permissions: k.permissions, deviceId: '', userName: k.name, keyId: id, can: (x) => set.has(x), branches: 'all' }
       void this.pool.query('UPDATE api_keys SET last_used = now() WHERE id = $1', [id]).catch(() => {})
     }
-    this.cache.set(`*|${ck}|${secret.slice(0, 8)}`, { at: Date.now(), p })
+    this.cache.set(cacheKey, { at: Date.now(), p })
+    if (this.cache.size > 5000) this.cache.clear()
     return p
   }
 }

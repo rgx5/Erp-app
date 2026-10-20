@@ -1,18 +1,17 @@
 import { can } from '@/domain/permissions'
 import { onAccountOf } from '@/domain/checkout'
 import { fmtDayShort } from '@/domain/dates'
-import { inr } from '@/domain/money'
-import { round2 } from '@/domain/money'
+import { inr, round2 } from '@/domain/money'
 import { OpError } from '@/data/ops'
 import type { Changes, DataState } from '@/data/state'
 import type { BillHook, BillHookCtx } from '../registry'
-import { cardProblem, checkGiftCard, normalizeCode } from './giftcards'
+import { cardProblem, checkGiftCard, giftCodeOf } from './giftcards'
 import { dueDateOf, netDue, receivables } from './logic'
 import { redemptionsFor } from './ops'
 import './replication'
 
 /** The credit data a bill carries (`bill.ext.credit`): when it is due, and whether a manager allowed it past the limit. */
-export interface CreditExt { dueDate?: number; override?: boolean }
+export interface CreditExt { dueDate?: number; override?: boolean; /** The gift card code the checkout panel was given, used for a gift-card payment that has no reference of its own. */ giftCode?: string }
 export const creditExt = (bill: { ext?: Record<string, unknown> }): CreditExt => (bill.ext?.credit as CreditExt | undefined) ?? {}
 
 /** Refuses a bill that puts too much on account, on account for someone who may not, or spends a gift card that cannot pay. */
@@ -35,10 +34,14 @@ export function checkBill({ state, ctx, bill }: BillHookCtx): void {
     }
   }
   const spend = new Map<string, number>()
-  for (const p of bill.payments) if (p.mode === 'giftcard') spend.set(normalizeCode(p.ref ?? ''), round2((spend.get(normalizeCode(p.ref ?? '')) ?? 0) + p.amount))
+  for (const p of bill.payments) {
+    if (p.mode !== 'giftcard') continue
+    const code = giftCodeOf(bill, p)
+    spend.set(code, round2((spend.get(code) ?? 0) + p.amount))
+  }
   for (const [code, amount] of spend) {
     const why = cardProblem(state, code, amount, bill.date)
-    if (why) throw new OpError(`${code ? `Gift card ${code}: ` : ''}${why}.`)
+    if (why) throw new OpError(code ? `Gift card ${code}: ${why}.` : 'Enter the gift card code.')
   }
 }
 
@@ -63,7 +66,11 @@ export function receiptLines(bill: BillHookCtx['bill'], state: DataState): strin
   const lines: string[] = []
   const due = onAccountOf(bill.payments)
   if (due > 0) lines.push(`On account ${inr(due, 0)} — please pay by ${fmtDayShort(dueDateOf(state, bill))}`)
-  for (const p of bill.payments) if (p.mode === 'giftcard') lines.push(`Gift card ${(p.ref ?? '').slice(-4) ? `…${(p.ref ?? '').slice(-4)}` : ''} used ${inr(p.amount, 0)}`.replace('  ', ' '))
+  for (const p of bill.payments) {
+    if (p.mode !== 'giftcard') continue
+    const last4 = giftCodeOf(bill, p).slice(-4)
+    lines.push(`Gift card${last4 ? ` …${last4}` : ''} used ${inr(p.amount, 0)}`)
+  }
   return lines
 }
 

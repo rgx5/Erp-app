@@ -6,13 +6,13 @@ import { GST_PAYMENT_CATEGORY } from '@/domain/analytics'
 import { nextNo } from '../numbering'
 import { defaultChart, EXPENSE_PREFIX, expenseAccountFor, nextExpenseCode, resolveAccount } from './chart'
 import { buildLedger, chartOf, closingSigned, profitAndLoss } from './ledger'
-import { isLocked, lockedThrough, reversedLines, VOUCHER_PREFIX, voucherProblem } from './logic'
+import { isLocked, LOCKED_MESSAGE, lockedThrough, reversedLines, VOUCHER_PREFIX, voucherProblem } from './logic'
 import type { Account, AccountType, FinancialYear, PeriodLock, Voucher, VoucherLine, VoucherType } from './types'
 import './postings'
 import './replication'
 
 const TYPES: AccountType[] = ['asset', 'liability', 'equity', 'income', 'expense']
-const LOCKED = 'That date is in a locked period — nothing can be posted there. Ask the owner to unlock it.'
+const LOCKED = LOCKED_MESSAGE
 
 // ───────────────────────────── chart of accounts ─────────────────────────────
 

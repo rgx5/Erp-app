@@ -58,3 +58,17 @@ export function scheduleAhead(sub: Pick<Subscription, 'nextDate' | 'endDate' | '
   while (out.length < n && !(sub.endDate && startOfDay(d) > endOfDay(sub.endDate))) { out.push(d); d = addPeriod(d, sub.frequency, anchor) }
   return out
 }
+
+/** Plans (AMCs especially) that end within `days` days, soonest first — the renewal call to make. */
+export function endingSoon(state: DataState, now: number, days = 30): Array<{ sub: Subscription; daysLeft: number }> {
+  const out: Array<{ sub: Subscription; daysLeft: number }> = []
+  for (const sub of listOf(state.subscriptions)) {
+    if (!sub.active || !sub.endDate) continue
+    const left = Math.ceil((endOfDay(sub.endDate) - now) / 86_400_000)
+    if (left <= days) out.push({ sub, daysLeft: left })
+  }
+  return out.sort((a, b) => a.daysLeft - b.daysLeft)
+}
+
+/** What one invoice of a plan comes to, over a year: for the "yearly value" line on a plan's page. */
+export const PERIODS_PER_YEAR: Record<Frequency, number> = { monthly: 12, quarterly: 4, yearly: 1 }

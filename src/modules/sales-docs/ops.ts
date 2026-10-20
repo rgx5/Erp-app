@@ -392,9 +392,8 @@ export function saveSalesTarget(state: DataState, d: { staffId: string; month: s
   if (!state.users[d.staffId]) throw new OpError('Choose the salesperson.')
   if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(d.month)) throw new OpError('The month should look like 2026-10.')
   if (!(d.amount > 0)) throw new OpError('Enter the target amount.')
-  // One target per person per month: setting it again replaces it.
-  const existing = listOf(state.salesTargets).find((t) => t.staffId === d.staffId && t.month === d.month)
-  const target: SalesTarget = { id: existing?.id ?? id('st', ctx.now), staffId: d.staffId, month: d.month, amount: round2(d.amount) }
+  // One target per person per month: the id says so, so setting it again (even from two phones) replaces it.
+  const target: SalesTarget = { id: `st_${d.staffId}_${d.month}`, staffId: d.staffId, month: d.month, amount: round2(d.amount) }
   return { target, changes: { put: { salesTargets: [target], audit: [audit(ctx, 'SALES_TARGET', `${state.users[d.staffId].name} ${d.month} ₹${target.amount}`)] } } }
 }
 

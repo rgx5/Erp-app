@@ -106,18 +106,37 @@ export function expensePosting(e: Expense): Posting | null {
   return { date: e.date, memo: `${e.category}${e.vendor ? ` — ${e.vendor}` : ''}`, lines: a.lines }
 }
 
-/** Opening stock brings stock into the books at what it cost, against the owner's capital. Receipts, sales and counts post elsewhere. */
-export function openingStockPosting(m: StockMove, state: DataState): Posting | null {
-  if (m.type !== 'opening' || !(m.qty > 0)) return null
+/** What one unit of a variant is worth to the books: the average cost, else the list cost. Zero for items that do not track stock. */
+function stockValue(m: StockMove, state: DataState): { value: number; sku: string } | null {
   const v = state.variants[m.variantId]
   if (!v) return null
   const trackStock = state.products[v.productId]?.trackStock !== false
-  const value = trackStock ? Math.round(m.qty * (v.avgCost ?? v.cost) * 100) : 0
-  if (value <= 0) return null
+  return { value: trackStock ? Math.round(Math.abs(m.qty) * (v.avgCost ?? v.cost) * 100) : 0, sku: v.sku }
+}
+
+/** Opening stock brings stock into the books at what it cost, against the owner's capital. Receipts and sales post with their own documents. */
+export function openingStockPosting(m: StockMove, state: DataState): Posting | null {
+  if (m.type !== 'opening' || !(m.qty > 0)) return null
+  const sv = stockValue(m, state)
+  if (!sv || sv.value <= 0) return null
   const a = book()
-  dr(a, 'inventory', value)
-  cr(a, 'owner_capital', value)
-  return { date: m.at, memo: `Opening stock ${v.sku}`, lines: a.lines }
+  dr(a, 'inventory', sv.value)
+  cr(a, 'owner_capital', sv.value)
+  return { date: m.at, memo: `Opening stock ${sv.sku}`, lines: a.lines }
+}
+
+/**
+ * A stock count correction, or a hand adjustment from the item screen, moves the stock account against "stock adjustments" at
+ * cost (a loss when stock is short, a gain when it is over). Write-offs post from their own document, so the movements they
+ * make along the way (any other reference) are left alone, or the loss would be booked twice.
+ */
+export function stockAdjustPosting(m: StockMove, state: DataState): Posting | null {
+  if (!(m.type === 'audit' || (m.type === 'adjust' && m.ref === 'MANUAL')) || !m.qty) return null
+  const sv = stockValue(m, state)
+  if (!sv || sv.value <= 0) return null
+  const a = book()
+  if (m.qty > 0) { dr(a, 'inventory', sv.value); cr(a, 'stock_adjustments', sv.value) } else { dr(a, 'stock_adjustments', sv.value); cr(a, 'inventory', sv.value) }
+  return { date: m.at, memo: `${m.type === 'audit' ? 'Stock count' : 'Stock adjustment'} ${sv.sku}`, lines: a.lines }
 }
 
 /** A drawer that closed over or short: the cash account is brought to what was actually counted. */
@@ -140,6 +159,6 @@ export function voucherPosting(v: Voucher): Posting | null {
 registerPostingRule<Bill>('bills', (b) => billPosting(b))
 registerPostingRule<Purchase>('purchases', (p) => purchasePosting(p))
 registerPostingRule<Expense>('expenses', (e) => expensePosting(e))
-registerPostingRule<StockMove>('moves', (m, s) => openingStockPosting(m, s))
+registerPostingRule<StockMove>('moves', (m, s) => openingStockPosting(m, s) ?? stockAdjustPosting(m, s))
 registerPostingRule<DaySession>('sessions', (s) => sessionPosting(s))
 registerPostingRule<Voucher>('vouchers', (v) => voucherPosting(v))

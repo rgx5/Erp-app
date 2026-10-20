@@ -8,7 +8,7 @@ import {
   batchEffects, batchId, incChanges, isMain, locationName, newBatchInit, normBatchNo, normSerial, serialId, StockBook, stockAt, transferProgress, wouldCycle, writeOffTotal, bundleEconomics,
 } from './logic'
 import type {
-  Batch, BatchInit, BatchMove, BatchMoveReason, Bundle, BundleComponent, ItemRule, Location, LocationType, Serial, SerialStatus, Transfer, TransferLine, TransferReceipt, UnitConversion, WriteOff, WriteOffLine, WriteOffReason,
+  Batch, BatchInit, BatchMove, BatchMoveInput, Bundle, BundleComponent, ItemRule, Location, LocationType, Serial, SerialStatus, Transfer, TransferLine, TransferReceipt, UnitConversion, WriteOff, WriteOffLine, WriteOffReason,
 } from './types'
 import { MAIN } from './types'
 import './replication'
@@ -99,7 +99,7 @@ export function dispatchTransfer(state: DataState, d: TransferDraft, ctx: OpCtx)
 
 /**
  * Records what arrived. Receive part now and the rest later, or close the transfer short when the rest is not coming (it is
- * then lost in transit — post a write-off if it should hit the books).
+ * then lost in transit; the books write it off by themselves — see `transferLossPosting`).
  */
 export function receiveTransfer(state: DataState, transferId: string, lines: TransferLine[], o: { closed?: boolean; notes?: string }, ctx: OpCtx): { changes: Changes; receipt: TransferReceipt } {
   const t = state.transfers[transferId]
@@ -115,14 +115,16 @@ export function receiveTransfer(state: DataState, transferId: string, lines: Tra
     if (l.qty > row.outstanding) throw new OpError(`Only ${row.outstanding} of that item are still on the way.`)
     b.move(l.variantId, l.qty, 'transfer', t.no, `Transfer from ${locationName(state, t.fromId)}`, t.toId)
   }
-  const receipt: TransferReceipt = { id: id('trr', ctx.now), transferId, lines: got, date: ctx.now, userId: ctx.userId, closed: !!o.closed, notes: (o.notes ?? '').trim() }
-  const short = o.closed ? progress.lines.reduce((s, l) => s + Math.max(0, round3(l.outstanding - (got.find((x) => x.variantId === l.variantId)?.qty ?? 0))), 0) : 0
+  const lost = o.closed ? progress.lines.map((l) => ({ variantId: l.variantId, qty: Math.max(0, round3(l.outstanding - (got.find((x) => x.variantId === l.variantId)?.qty ?? 0))) })) : []
+  const short = lost.reduce((s, l) => s + l.qty, 0)
+  const lossValue = round2(lost.reduce((s, l) => s + l.qty * (state.variants[l.variantId]?.avgCost ?? state.variants[l.variantId]?.cost ?? 0), 0))
+  const receipt: TransferReceipt = { id: id('trr', ctx.now), transferId, lines: got, date: ctx.now, userId: ctx.userId, closed: !!o.closed, ...(o.closed && lossValue > 0 ? { lossValue } : {}), notes: (o.notes ?? '').trim() }
   return { receipt, changes: mergeChanges(b.changes(), { put: { transferReceipts: [receipt], audit: [audit(ctx, 'TRANSFER_RECEIVE', `${t.no}${o.closed ? ` closed${short ? `, ${round3(short)} short` : ''}` : ''}`)] } }) }
 }
 
 // ───────────────────────────── batches ─────────────────────────────
 
-export interface BatchMoveInput { batchId: string; variantId: string; qty: number; reason: BatchMoveReason; ref: string; billId?: string; batch?: BatchInit }
+export type { BatchMoveInput }
 
 /** Batch movements plus what they do to the batches' quantities (the same arithmetic the server runs). */
 export function batchChanges(state: DataState, moves: BatchMoveInput[], ctx: OpCtx): Changes {
@@ -290,6 +292,8 @@ export function postWriteOff(state: DataState, d: WriteOffDraft, ctx: OpCtx): { 
     mustLocation(state, loc)
     const have = stockAt(state, l.variantId, loc)
     const tracked = state.products[v.productId]?.trackStock !== false
+    if (state.itemRules[v.productId]?.trackSerial && !l.serial) throw new OpError(`Choose the serial number of ${state.products[v.productId]?.name ?? v.sku} (one unit per line).`)
+    if (l.serial && l.qty !== 1) throw new OpError('A serial number is one unit — use one line for each.')
     if (tracked && l.qty > have) throw new OpError(`Only ${have} of ${state.products[v.productId]?.name ?? v.sku} at ${locationName(state, loc)}.`)
     if (l.batchId) {
       const batch = state.batches[l.batchId]

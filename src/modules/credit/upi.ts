@@ -16,7 +16,7 @@ export interface UpiInput {
 /**
  * A UPI payment link (the `upi://pay` deep link every UPI app understands, and the text inside a payment QR code). Amounts are
  * written with two decimals, text is percent-encoded. The app cannot tell whether the payer completed the payment — the person at
- * the counter confirms it.
+ * the counter confirms it (that is where online settlement stops: there is no gateway callback in the phone).
  */
 export function upiLink(i: UpiInput): string {
   const q: string[] = [`pa=${encodeURIComponent(i.vpa.trim())}`, `pn=${encodeURIComponent(i.name.trim() || i.vpa.trim())}`]

@@ -50,6 +50,7 @@ export async function startServer(label: string, cfgOver: Partial<Config> = {}):
   await admin.query(`CREATE DATABASE ${name}`)
   const url = ADMIN_URL.replace(/\/[^/]*$/, `/${name}`)
   const pool = new Pool({ connectionString: url, max: 8 })
+  pool.on('error', () => { /* connections closed by the DROP DATABASE at teardown */ })
   await migrate(pool)
   const files = new MemoryFileStore()
   const app = buildApp({ cfg: testConfig({ databaseUrl: url, ...cfgOver }), pool, files })
@@ -89,7 +90,7 @@ export async function signup(s: TestServer, name = 'Shop', extra: Record<string,
 }
 
 /** Adds a staff member and signs them in with their PIN on their own device. */
-export async function addStaff(s: TestServer, owner: Biz, role: 'manager' | 'cashier', name = role, extra: Record<string, unknown> = {}) {
+export async function addStaff(s: TestServer, owner: Biz, role: 'manager' | 'cashier', name: string = role, extra: Record<string, unknown> = {}) {
   const c = await s.call('POST', '/users', { token: owner.token, body: { name, role, pin: '4321', ...extra } })
   if (c.status !== 201) throw new Error(`add staff failed: ${c.status} ${c.body}`)
   const deviceId = `dev_${role}_${++counter}`
@@ -113,3 +114,13 @@ export function maybe(name: string, ok: boolean, fn: () => void) {
   if (ok) describe(name, fn)
   else describe.skip(`${name} (PostgreSQL is not reachable — start it with server/scripts/pg.sh)`, fn)
 }
+
+// ── document fixtures (shaped like the app's own) ──
+export const variantDoc = (id: string, over: Record<string, unknown> = {}) => ({ id, productId: 'p1', sku: `SKU-${id}`, barcode: '', size: 'M', color: 'Navy', cost: 400, mrp: 1299, price: 999, stock: 0, reorderLevel: 2, ...over })
+export const customerDoc = (id: string, over: Record<string, unknown> = {}) => ({ id, name: `Customer ${id}`, phone: '9876543210', email: '', loyaltyPoints: 0, storeCredit: 0, createdAt: 1, ...over })
+export const moveDoc = (id: string, variantId: string, qty: number, over: Record<string, unknown> = {}) => ({ id, variantId, qty, type: qty > 0 ? 'purchase' : 'sale', date: Date.now(), ref: '', ...over })
+export const billDoc = (id: string, over: Record<string, unknown> = {}) => ({
+  id, no: `INV-${id}`, date: Date.now(), customerId: null, items: [{ variantId: 'v1', productId: 'p1', name: 'Oxford Shirt', qty: 1, returnedQty: 0, price: 999, discountAmount: 0, lineTotal: 999 }],
+  subtotal: 999, taxTotal: 0, roundOff: 0, total: 999, payments: [{ mode: 'cash', amount: 999 }], paid: 999, changeDue: 0, loyaltyEarned: 0, loyaltyRedeemed: 0, creditUsed: 0,
+  cashierId: 'u', status: 'paid', notes: '', ...over,
+})

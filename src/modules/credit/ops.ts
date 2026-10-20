@@ -6,7 +6,7 @@ import { listOf, mergeChanges, type Changes, type DataState } from '@/data/state
 import { localEffects, withEffects } from '@/replication/local'
 import type { ReturnLine } from '@/domain/returns'
 import { nextNo } from '../numbering'
-import { findGiftCard, giftCardBalance, makeCode, normalizeCode } from './giftcards'
+import { findGiftCard, giftCardBalance, giftCodeOf, makeCode, normalizeCode } from './giftcards'
 import { allocateOldestFirst, receivables } from './logic'
 import type { Collection, CollectionMode, CreditSettings, CreditTopup, CustomerTerms, GiftCard, GiftCardTxn } from './types'
 import './replication'
@@ -178,8 +178,9 @@ export function redemptionsFor(state: DataState, bill: Bill, ctx: OpCtx): GiftCa
   const out: GiftCardTxn[] = []
   for (const p of bill.payments) {
     if (p.mode !== 'giftcard') continue
-    const card = findGiftCard(state, p.ref ?? '')
-    if (!card) throw new OpError(`The gift card ${p.ref ?? ''} was not found.`)
+    const code = giftCodeOf(bill, p)
+    const card = findGiftCard(state, code)
+    if (!card) throw new OpError(code ? `The gift card ${code} was not found.` : 'Enter the gift card code.')
     out.push({ id: id('gt_', ctx.now), cardId: card.id, type: 'redeem', amount: round2(p.amount), billId: bill.id, date: bill.date, userId: ctx.userId, note: `Spent on ${bill.no}`, ...(ctx.branchId ? { branchId: ctx.branchId } : {}) })
   }
   return out

@@ -8,7 +8,7 @@ import { newId } from '../ids'
 import { knownPermissions } from '../permissions'
 import { newApiKey, hashSecret } from '../tokens'
 import { bool, optStr, str, strArray } from '../validate'
-import { branchesFor } from './shared'
+import { branchesFor, userDoc } from './shared'
 
 export const BACKUP_FORMAT = 'kosh-backup'
 const MAX_RESTORE_BYTES = 128 * 1024 * 1024
@@ -77,12 +77,25 @@ export function registerBackupRoutes(app: FastifyInstance, ctx: Ctx) {
 
       let n = 0
       for (const d of docs) {
-        if (d.coll === 'users') continue // people are added through the users API, with their own credentials
+        if (d.coll === 'users') {
+          // People are added through the users API, with their own credentials. Their records come back as former staff, so a
+          // restored bill still says who served; nobody can sign in as them.
+          if (await store.get('users', d.id)) continue
+          const u = d.data as { name?: unknown; role?: unknown; code?: unknown }
+          const role = u.role === 'owner' || u.role === 'manager' ? u.role : 'cashier'
+          await store.put('users', d.id, userDoc({ id: d.id, name: typeof u.name === 'string' ? u.name.slice(0, 120) : 'Former staff', role, active: false, code: typeof u.code === 'string' ? u.code.slice(0, 20) : null }), { by: p.userId })
+          n++
+          continue
+        }
         const meta = collectionMeta(d.coll)!
         const data: Doc = { ...d.data }
-        const branch = meta.branched && typeof data.branchId === 'string' ? branchMap.get(data.branchId) ?? null : null
-        if (meta.branched && typeof data.branchId === 'string') { if (branch) data.branchId = branch; else delete data.branchId }
-        await store.put(d.coll, d.id, data, { branchId: branch, by: p.userId })
+        // `branchId` means the same thing everywhere (a bill's outlet as much as a transfer's): re-point it, or drop one we do not know.
+        let branch: string | null = null
+        if (typeof data.branchId === 'string') {
+          branch = branchMap.get(data.branchId) ?? null
+          if (branch) data.branchId = branch; else delete data.branchId
+        }
+        await store.put(d.coll, d.id, data, { branchId: meta.branched ? branch : null, by: p.userId })
         n++
       }
       return { ok: true, restored: n }

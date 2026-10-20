@@ -1,4 +1,4 @@
-import type { Doc } from './types'
+import type { Doc, DocStore } from './types'
 
 /**
  * master  — editable records (an item, a customer, a quotation). Concurrent edits merge field by field, last writer wins.
@@ -37,6 +37,8 @@ export interface CollectionMeta {
   branched?: boolean
   /** Pure sanity check run on create (and on the result of a patch). Return a message to refuse the write. */
   validate?: (doc: Doc) => string | null
+  /** Like `validate`, but may read other documents (a period lock): run on create, inside the transaction. Return a message to refuse. */
+  guard?: (doc: Doc, db: DocStore) => Promise<string | null>
   /** Effects of a created document. Pure. */
   effects?: (doc: Doc, ctx: EffectCtx) => Effect[]
 }

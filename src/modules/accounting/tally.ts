@@ -1,6 +1,7 @@
 import { listOf, type DataState } from '@/data/state'
 import { round2 } from '@/domain/money'
 import type { PartyType } from '../postings'
+import { toCsv, type CsvCell } from '@/domain/csv'
 import { buildLedger } from './ledger'
 import { isExpenseKey } from './chart'
 import type { Account } from './types'
@@ -20,7 +21,6 @@ import type { Account } from './types'
  */
 
 const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;')
-// eslint-disable-next-line no-control-regex
 const clean = (s: string) => s.replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, '').trim()
 const ymd = (ms: number) => { const d = new Date(ms); return `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}` }
 const money = (n: number) => round2(n).toFixed(2)
@@ -93,7 +93,7 @@ function namesFor(state: DataState, accounts: Account[]): Names {
 export function tallyMastersXml(state: DataState, company: string): { xml: string; ledgers: number } {
   const ledger = buildLedger(state)
   const accounts = ledger.chart.filter((a) => a.active)
-  const names = namesFor(state, accounts)
+  const names = namesFor(state, ledger.chart)
   const parts: string[] = []
   for (const a of accounts) {
     const n = names.account.get(a.id)!
@@ -121,30 +121,49 @@ function voucherMeta(state: DataState, coll: string | undefined, id: string | un
   return { type: 'Journal', number: '' }
 }
 
-/** Accounting vouchers for the period. Every voucher's amounts net to zero; entries to the same ledger are combined. */
-export function tallyVouchersXml(state: DataState, o: { company: string; from: number; to: number }): { xml: string; vouchers: number } {
+interface TallyVoucher { date: number; type: string; number: string; narration: string; lines: Array<{ name: string; amount: number }> }
+
+/** The period's postings as Tally vouchers: entries to the same ledger are combined, so every voucher's amounts net to zero. */
+export function tallyVouchers(state: DataState, o: { from: number; to: number }): TallyVoucher[] {
   const ledger = buildLedger(state, { from: o.from, to: o.to })
   const names = namesFor(state, ledger.chart)
-  const parts: string[] = []
+  const out: TallyVoucher[] = []
   for (const p of ledger.postings) {
     const net = new Map<string, number>()
     for (const l of p.lines) {
       const name = l.party ? names.party(l.party.type, l.party.id) : names.account.get(l.accountId) ?? ''
       net.set(name, round2((net.get(name) ?? 0) + l.debit - l.credit))
     }
-    const lines = [...net.entries()].filter(([, v]) => v !== 0)
+    const lines = [...net.entries()].filter(([, v]) => v !== 0).map(([name, amount]) => ({ name, amount }))
     if (lines.length < 2) continue
     const meta = voucherMeta(state, p.sourceColl, p.sourceId)
-    const entries = lines.map(([name, v]) => `     <ALLLEDGERENTRIES.LIST><LEDGERNAME>${esc(name)}</LEDGERNAME><ISDEEMEDPOSITIVE>${v > 0 ? 'Yes' : 'No'}</ISDEEMEDPOSITIVE><AMOUNT>${money(v > 0 ? -v : -v)}</AMOUNT></ALLLEDGERENTRIES.LIST>`).join('\n')
-    parts.push(`    <TALLYMESSAGE xmlns:UDF="TallyUDF">
-     <VOUCHER VCHTYPE="${esc(meta.type)}" ACTION="Create" OBJVIEW="Accounting Voucher View">
-     <DATE>${ymd(p.date)}</DATE>
-     <VOUCHERTYPENAME>${esc(meta.type)}</VOUCHERTYPENAME>
-     <VOUCHERNUMBER>${esc(clean(meta.number))}</VOUCHERNUMBER>
-     <NARRATION>${esc(clean(p.memo))}</NARRATION>
+    out.push({ date: p.date, type: meta.type, number: clean(meta.number), narration: clean(p.memo), lines })
+  }
+  return out
+}
+
+/** Accounting vouchers for the period, as a Tally import file. Debits are negative amounts with `ISDEEMEDPOSITIVE` Yes, as Tally writes them. */
+export function tallyVouchersXml(state: DataState, o: { company: string; from: number; to: number }): { xml: string; vouchers: number } {
+  const vouchers = tallyVouchers(state, o)
+  const parts = vouchers.map((v) => {
+    const entries = v.lines.map((l) => `     <ALLLEDGERENTRIES.LIST><LEDGERNAME>${esc(l.name)}</LEDGERNAME><ISDEEMEDPOSITIVE>${l.amount > 0 ? 'Yes' : 'No'}</ISDEEMEDPOSITIVE><AMOUNT>${money(-l.amount)}</AMOUNT></ALLLEDGERENTRIES.LIST>`).join('\n')
+    return `    <TALLYMESSAGE xmlns:UDF="TallyUDF">
+     <VOUCHER VCHTYPE="${esc(v.type)}" ACTION="Create" OBJVIEW="Accounting Voucher View">
+     <DATE>${ymd(v.date)}</DATE>
+     <VOUCHERTYPENAME>${esc(v.type)}</VOUCHERTYPENAME>
+     <VOUCHERNUMBER>${esc(v.number)}</VOUCHERNUMBER>
+     <NARRATION>${esc(v.narration)}</NARRATION>
 ${entries}
      </VOUCHER>
-    </TALLYMESSAGE>`)
-  }
+    </TALLYMESSAGE>`
+  })
   return { xml: envelope('Vouchers', o.company, parts.join('\n')), vouchers: parts.length }
+}
+
+/** The same vouchers as a spreadsheet: one row per ledger line (for software that imports CSV, or for a bookkeeper's eyes). */
+export function tallyVouchersCsv(state: DataState, o: { from: number; to: number }): { csv: string; vouchers: number } {
+  const vouchers = tallyVouchers(state, o)
+  const rows: CsvCell[][] = [['Date', 'Voucher type', 'Voucher no', 'Narration', 'Ledger', 'Debit', 'Credit']]
+  for (const v of vouchers) for (const l of v.lines) rows.push([ymd(v.date), v.type, v.number, v.narration, l.name, l.amount > 0 ? money(l.amount) : '', l.amount < 0 ? money(-l.amount) : ''])
+  return { csv: toCsv(rows), vouchers: vouchers.length }
 }

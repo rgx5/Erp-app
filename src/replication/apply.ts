@@ -75,6 +75,8 @@ async function run(db: DocStore, meta: CollectionMeta, m: Mutation, actor: Actor
     const branch = branchOf(next)
     checkBranch(branch)
     checkDoc(next)
+    const blocked = await meta.guard?.(next, db)
+    if (blocked) throw new Refusal('invalid', blocked)
     const rev = await db.put(m.coll, m.id, next, { branchId: branch, by: actor.userId })
     if (!live) { const fx = effectsFor(meta, next, { now }); if (fx.length) await runEffects(db, fx, actor, now) }
     return { status: 'ok', rev }

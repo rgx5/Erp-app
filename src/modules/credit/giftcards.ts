@@ -14,6 +14,10 @@ export function giftCardBalance(state: DataState, cardId: string): number {
 
 export const normalizeCode = (s: string) => s.trim().toUpperCase().replace(/[\s]+/g, '')
 
+/** The code a gift-card payment spends: the one on the payment, else the one given to the checkout panel (`bill.ext.credit.giftCode`). */
+export const giftCodeOf = (bill: { ext?: Record<string, unknown> }, p: { ref?: string }): string =>
+  normalizeCode(p.ref?.trim() ? p.ref : String((bill.ext?.credit as { giftCode?: string } | undefined)?.giftCode ?? ''))
+
 export const findGiftCard = (state: DataState, code: string): GiftCard | undefined => {
   const c = normalizeCode(code)
   return c ? listOf(state.giftCards ?? {}).find((g) => g.code === c) : undefined

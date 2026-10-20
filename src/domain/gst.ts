@@ -54,6 +54,8 @@ export interface BillTaxInfo {
   reverseCharge?: boolean
   /** The supply crosses state lines, so GST is IGST. */
   interState?: boolean
+  /** A price list picked for this bill alone; empty / missing = the customer's own list (or the shop's default). */
+  priceListId?: string
 }
 export const taxInfoOf = (bill: { ext?: Record<string, unknown> }): BillTaxInfo => ((bill.ext?.pricing ?? {}) as BillTaxInfo & Record<string, unknown>)
 

@@ -107,7 +107,7 @@ export default function Checkout() {
         date: ctx.now, customerId: cart.customerId, items: totals.items.map((it, i) => ({ ...it, soldBy: cart.lines[i]?.staffId || defaultStaff })),
         grossMrp: totals.grossMrp, itemDiscount: totals.itemDiscount, billDiscountType: cart.billDiscountType, billDiscountValue: cart.billDiscountValue,
         billDiscount: totals.billDiscount, coupon: cart.coupon, subtotal: totals.subtotal, taxableTotal: totals.taxableTotal, cgstTotal: totals.cgstTotal,
-        sgstTotal: totals.sgstTotal, taxTotal: totals.taxTotal, roundOff: totals.roundOff, total, payments, paid, changeDue: st.change,
+        sgstTotal: totals.sgstTotal, ...(totals.igstTotal !== undefined ? { igstTotal: totals.igstTotal } : {}), taxTotal: totals.taxTotal, roundOff: totals.roundOff, total, payments, paid, changeDue: st.change,
         loyaltyEarned: customer ? pointsEarned(total, store.loyaltyEarnPct) : 0, loyaltyRedeemed: st.pts, creditUsed: st.creditUsed,
         cashierId: user, soldBy: defaultStaff, status: 'paid', notes: '',
         ...(Object.keys(cart.extras).length ? { ext: cart.extras } : {}),

@@ -48,6 +48,8 @@ export interface TransferReceipt {
   userId: string
   /** Close the transfer even though some stock did not arrive (it is lost in transit, not still on the way). */
   closed: boolean
+  /** With `closed`: what never arrived, at cost. The books write it off (Dr stock adjustments, Cr inventory). */
+  lossValue?: number
   notes: string
 }
 
@@ -79,8 +81,22 @@ export interface BatchMove {
   reason: BatchMoveReason
   ref: string
   billId?: string
+  /** The kit variant this movement was made for (selling a kit takes its components out of their batches). */
+  viaKit?: string
   at: number
   userId: string
+  batch?: BatchInit
+}
+
+/** What an operation asks for; the operation fills in the id, time and user. */
+export interface BatchMoveInput {
+  batchId: string
+  variantId: string
+  qty: number
+  reason: BatchMoveReason
+  ref: string
+  billId?: string
+  viaKit?: string
   batch?: BatchInit
 }
 

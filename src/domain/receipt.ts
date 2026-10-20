@@ -6,6 +6,7 @@ import { fmtQty, unitSuffix } from './qty'
 import { hsnSummary } from './tax'
 import { variantLabel } from './codes'
 import { firstName } from './people'
+import { qrSvg } from './qrSvg'
 
 /** What a printed bill shows. A GST tax invoice normally carries the CGST/SGST split and an HSN summary, so those are opt-in
  *  on the thermal receipt — and the A4 invoice always shows them. */
@@ -16,7 +17,11 @@ export function receiptOptions(s: Partial<Pick<StoreSettings, 'receiptShowTax' |
 }
 
 /** What modules add to a printed bill (see `registerReceiptExtra`): lines under the header, a note per item, lines above the footer. */
-export interface ReceiptAddOns { header: string[]; footer: string[]; item?: (item: Bill['items'][number]) => string | null }
+export interface ReceiptAddOns {
+  header: string[]; footer: string[]; item?: (item: Bill['items'][number]) => string | null
+  /** Text for a QR code printed on the A4 invoice (the e-invoice's signed QR). */
+  qr?: string | null
+}
 export interface DocContext { bill: Bill; store: StoreSettings; customer?: Customer | null; seller?: User | null; labels?: { sale?: string }; extras?: ReceiptAddOns }
 
 export const esc = (s: string | number | undefined | null) =>
@@ -159,6 +164,7 @@ export function invoiceHtml(ctx: DocContext): string {
       <div class="row"><span>${lay.igst ? 'IGST' : 'CGST + SGST'}</span><span>${esc(inr(Math.abs(bill.taxTotal)))}</span></div>`}
       ${bill.roundOff ? `<div class="row"><span>Round off</span><span>${esc(inr(bill.roundOff * sign(bill)))}</span></div>` : ''}
       <div class="row tot" style="border-top:1px solid #999;margin-top:4px;padding-top:4px"><span>${credit ? 'Refund' : 'Total'}</span><span>${esc(inr(Math.abs(bill.total)))}</span></div></div></div>
+  ${extras?.qr ? `<div style="margin-top:10px">${qrSvg(extras.qr, 130)}</div>` : ''}
   <p style="margin-top:10px"><b>Amount in words:</b> ${esc(amountInWords(Math.abs(bill.total)))}</p>
   <div class="grid" style="margin-top:16px"><div class="muted sm">${esc(store.returnPolicy)}</div><div class="r"><div style="height:44px"></div><div>Authorised signatory</div><div class="b">${esc(store.name)}</div></div></div>
   ${store.footerNote ? `<p class="c muted">${esc(store.footerNote)}</p>` : ''}`

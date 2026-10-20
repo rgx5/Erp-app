@@ -17,7 +17,10 @@ export function sslFor(url: string): PoolConfig['ssl'] {
 }
 
 export function createPool(url: string, max = 10): Pool {
-  return new Pool({ connectionString: url, max, ssl: sslFor(url) })
+  const pool = new Pool({ connectionString: url, max, ssl: sslFor(url) })
+  // An idle connection the database drops (a restart, a failover) must not take the process down: the pool replaces it.
+  pool.on('error', (e) => console.error('database connection error:', e.message))
+  return pool
 }
 
 /** Runs `fn` in a transaction on one connection; commits if it returns, rolls back if it throws. */

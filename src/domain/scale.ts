@@ -1,4 +1,4 @@
-import { isValidEan13 } from './barcode'
+import { ean13CheckDigit, isValidEan13 } from './barcode'
 
 /**
  * Labels printed by a weighing scale (or a deli counter) carry the weight or the price inside the barcode:
@@ -72,4 +72,16 @@ export function scaleQuantity(read: ScaleRead, unit: string, unitPrice: number):
   }
   if (!(unitPrice > 0)) return null
   return Math.round((read.value / unitPrice) * 1000) / 1000
+}
+
+/**
+ * The inverse of `parseScaleBarcode`: the 13-digit label for an item and a weight (grams) or price (rupees), in the shop's layout —
+ * for printing in-house price-embedded labels, or checking what a scale should print. Null when the layout or the numbers do not fit.
+ */
+export function makeScaleBarcode(layout: ScaleLayout, item: string, value: number): string | null {
+  if (scaleLayoutProblem(layout) || !/^\d+$/.test(item) || item.length > layout.itemDigits || !(value >= 0)) return null
+  const raw = layout.value === 'weight_g' ? Math.round(value) : layout.value === 'weight_10g' ? Math.round(value / 10) : layout.value === 'price_rupees' ? Math.round(value) : Math.round(value * 100)
+  if (raw >= 10 ** layout.valueDigits) return null
+  const body = layout.prefix + '0'.repeat(scaleFiller(layout)) + item.padStart(layout.itemDigits, '0') + String(raw).padStart(layout.valueDigits, '0')
+  return body + ean13CheckDigit(body)
 }

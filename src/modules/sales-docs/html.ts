@@ -120,7 +120,7 @@ export function challanText(c: Challan, store: Pick<StoreSettings, 'name'>): str
 
 export function shiftHtml(shift: Shift, f: ShiftFigures, store: Store, userName: string): string {
   const rows: Array<[string, string, boolean?]> = [
-    ['Opening cash', inr(f.opening)], ['Cash sales', inr(f.cashSales)], ['Cash put in', inr(f.payIns)], ['Cash taken out', `− ${inr(f.payOuts)}`], ['Cash expenses', `− ${inr(f.cashExpenses)}`],
+    ['Opening cash', inr(f.opening)], ['Cash sales', inr(f.cashSales)], ...(f.cashOther ? [['Advances & dues in cash', inr(f.cashOther)] as [string, string]] : []), ['Cash put in', inr(f.payIns)], ['Cash taken out', `− ${inr(f.payOuts)}`], ['Cash expenses', `− ${inr(f.cashExpenses)}`],
     ['Should be in the drawer', inr(f.expected), true],
   ]
   if (shift.status === 'closed') rows.push(['Counted', inr(shift.countedCash ?? 0)], ['Difference', `${(shift.variance ?? 0) > 0 ? '+' : ''}${inr(shift.variance ?? 0)}`, true])
@@ -134,7 +134,7 @@ export function shiftHtml(shift: Shift, f: ShiftFigures, store: Store, userName:
 
 export function shiftText(shift: Shift, f: ShiftFigures, storeName: string, userName: string): string {
   const lines = [`*${storeName}* — shift ${shift.no} (${userName})`, `${fmtDateTime(shift.openedAt)}${shift.closedAt ? ` → ${fmtDateTime(shift.closedAt)}` : ' (open)'}`, '',
-    `Opening: ${inr(f.opening, 0)}`, `Cash sales: ${inr(f.cashSales, 0)}`, `Cash in: ${inr(f.payIns, 0)}`, `Cash out: ${inr(f.payOuts, 0)}`, `Cash expenses: ${inr(f.cashExpenses, 0)}`, `*Expected: ${inr(f.expected, 0)}*`]
+    `Opening: ${inr(f.opening, 0)}`, `Cash sales: ${inr(f.cashSales, 0)}`, ...(f.cashOther ? [`Advances & dues in cash: ${inr(f.cashOther, 0)}`] : []), `Cash in: ${inr(f.payIns, 0)}`, `Cash out: ${inr(f.payOuts, 0)}`, `Cash expenses: ${inr(f.cashExpenses, 0)}`, `*Expected: ${inr(f.expected, 0)}*`]
   if (shift.status === 'closed') lines.push(`Counted: ${inr(shift.countedCash ?? 0, 0)}`, `Difference: ${inr(shift.variance ?? 0, 0)}`)
   return lines.join('\n')
 }
