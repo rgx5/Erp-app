@@ -1,11 +1,11 @@
-import qrcode from 'qrcode-generator'
+import makeQr from 'qrcode-generator'
 
 /**
  * A QR code as an inline SVG string (for printed invoices). Byte mode, error correction M, falling back to L for a long payload —
  * an e-invoice's signed QR is over a thousand characters.
  */
 export function qrSvg(text: string, size = 120): string {
-  const build = (ec: 'M' | 'L') => { const q = qrcode(0, ec); q.addData(text, 'Byte'); q.make(); return q }
+  const build = (ec: 'M' | 'L') => { const q = makeQr(0, ec); q.addData(text, 'Byte'); q.make(); return q }
   let qr: ReturnType<typeof build>
   try { qr = build('M') } catch { qr = build('L') }
   const n = qr.getModuleCount()

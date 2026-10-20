@@ -14,7 +14,6 @@ import { computeLineTax, hsnSummary, rateSummary } from '../tax'
 import { round2 } from '../money'
 import type { Bill, BillItem } from '../types'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const golden: any = JSON.parse(gunzipSync(readFileSync(join(__dirname, 'fixtures', 'krishna-golden.json.gz'))).toString())
 const carts = (golden.carts as Array<{ input: { lines: CartLine[]; billDiscountType: 'pct' | 'amt'; billDiscountValue: number; slabs: never; inclusive: boolean } }>).map((c, i) => [i, c.input] as const)
 

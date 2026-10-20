@@ -1,6 +1,5 @@
-import { saveBill } from '@/data/ops'
+import { OpError, saveBill } from '@/data/ops'
 import { ctx } from '@/data/__tests__/helpers'
-import { OpError } from '@/data/ops'
 import { applyChanges, listOf } from '@/data/state'
 import { taxInfoOf } from '@/domain/gst'
 import { invoiceHtml, receiptHtml, receiptText } from '@/domain/receipt'

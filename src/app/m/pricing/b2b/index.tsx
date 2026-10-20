@@ -60,14 +60,14 @@ export default function B2BHome() {
       toast('Saved', 'ok'); setEditing(false)
     } catch (e) { toast(e instanceof OpError ? e.message : 'Could not save', 'err') }
   }
-  const badges = (billId: string, credit: boolean) => {
+  const badges = (billId: string) => {
     const b = bills.find((x) => x.id === billId)!
     const e = einv[eInvoiceId(billId)]
     const w = eway[ewayId(billId)]
     const needsE = !eInvoiceSkipReason(b, store, b.customerId ? customers[b.customerId] : null)
     return (
       <View style={{ flexDirection: 'row', gap: 6 }}>
-        {needsE ? <Badge tone={e?.status === 'registered' ? 'success' : e?.status === 'cancelled' ? 'danger' : 'warning'}>{e?.status === 'registered' ? 'IRN' : e?.status === 'cancelled' ? 'IRN cancelled' : credit ? 'No IRN' : 'No IRN'}</Badge> : null}
+        {needsE ? <Badge tone={e?.status === 'registered' ? 'success' : e?.status === 'cancelled' ? 'danger' : 'warning'}>{e?.status === 'registered' ? 'IRN' : e?.status === 'cancelled' ? 'IRN cancelled' : 'No IRN'}</Badge> : null}
         {w?.status === 'generated' ? <Badge tone="success">E-way</Badge> : ewbNeeded(b, settings).needed ? <Badge tone="warning">E-way due</Badge> : null}
       </View>
     )
@@ -96,10 +96,10 @@ export default function B2BHome() {
         <Section title="Invoices">
           {rows.length || others.length ? (
             <Card padded={false}>
-              {[...rows.map((r) => ({ id: r.billId, title: r.buyerName || r.buyerGstin, sub: `${r.no} · ${fmtDate(r.date)} · ${r.igst ? 'IGST' : 'CGST + SGST'}`, value: inr(r.total, 0), credit: r.kind === 'Credit note' })),
-                ...others.map((b) => ({ id: b.id, title: b.customerId ? customers[b.customerId]?.name ?? 'Customer' : 'Walk-in', sub: `${b.no} · ${fmtDate(b.date)} · no GSTIN`, value: inr(b.total, 0), credit: false }))].map((r, i) => (
+              {[...rows.map((r) => ({ id: r.billId, title: r.buyerName || r.buyerGstin, sub: `${r.no} · ${fmtDate(r.date)} · ${r.igst ? 'IGST' : 'CGST + SGST'}`, value: r.total, credit: r.kind === 'Credit note' })),
+                ...others.map((b) => ({ id: b.id, title: b.customerId ? customers[b.customerId]?.name ?? 'Customer' : 'Walk-in', sub: `${b.no} · ${fmtDate(b.date)} · no GSTIN`, value: b.total, credit: false }))].map((r, i) => (
                 <View key={r.id} style={{ borderTopWidth: i ? 1 : 0, borderTopColor: c.line }}>
-                  <ListRow title={r.title} subtitle={r.sub} value={r.credit ? `−${inr(Math.abs(Number(r.value.replace(/[^0-9.]/g, ''))), 0)}` : r.value} badge={badges(r.id, r.credit)} onPress={() => open(r.id)} />
+                  <ListRow title={r.title} subtitle={r.sub} value={inr(r.value, 0)} badge={badges(r.id)} onPress={() => open(r.id)} />
                 </View>
               ))}
             </Card>

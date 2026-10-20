@@ -28,7 +28,7 @@ export function PricingCheckoutPanel({ moduleId }: { moduleId: string }) {
   const state = useApp((s) => s.data)
   const lists = useList('priceLists')
   const customer = customerId ? state.customers[customerId] ?? null : null
-  const typed = (extras[moduleId] ?? {}) as BillTaxInfo
+  const typed = useMemo(() => (extras[moduleId] ?? {}) as BillTaxInfo, [extras, moduleId])
   const sum = useMemo(() => supplySummary(store, customer, typed), [store, customer, typed])
   const check = useMemo(() => checkBuyer(store, customer, typed), [store, customer, typed])
   const list = useMemo(() => listForCart(state, customerId, extras), [state, customerId, extras])
