@@ -3,9 +3,9 @@ import { applyChanges, listOf, type DataState } from '@/data/state'
 import { billInput, line } from '@/data/__tests__/helpers'
 import { createBundle, dispatchTransfer, receiveTransfer, saveItemRule, saveLocation } from '../ops'
 import { batchId, kitAvailable, serialId, stockAt } from '../logic'
-import { baseState, ctx, DAY, NOW, useWarehouseHooks, warehouseState } from './helpers'
+import { baseState, ctx, DAY, NOW, registerWarehouseHooks, warehouseState } from './helpers'
 
-useWarehouseHooks()
+registerWarehouseHooks()
 
 const at = (n: number) => ctx({ now: NOW + n })
 const withExt = (l: ReturnType<typeof line>, ext: Record<string, unknown>) => ({ ...l, ext: { warehouse: ext } })

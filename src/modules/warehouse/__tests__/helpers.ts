@@ -8,7 +8,7 @@ export { baseState, ctx, NOW }
 export const DAY = 86_400_000
 
 /** The module's hooks, registered the way the app does it (index.tsx). Call once per test file. */
-export function useWarehouseHooks() {
+export function registerWarehouseHooks() {
   registerBillHook(billHook)
   registerReceiptHook(receiptHook)
   registerReturnHook(returnHook)

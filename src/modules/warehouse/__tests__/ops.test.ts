@@ -109,6 +109,7 @@ describe('bundles', () => {
     s = applyChanges(s, up.changes)
     expect(s.variants[r.bundle.variantId].price).toBe(1800)
     expect(s.bundles[r.bundle.id].active).toBe(false)
+    expect(s.products[s.variants[r.bundle.variantId].productId].active).toBe(false)
     expect(updateBundle(s, r.bundle.id, { name: 'Pair+' }, ctx()).bundle.name).toBe('Pair+')
   })
 })

@@ -159,7 +159,6 @@ export function batchWise(state: DataState): Array<{ variantId: string; name: st
   const by = new Map<string, Batch[]>()
   for (const b of listOf(state.batches)) if (b.qty > 0) by.set(b.variantId, [...(by.get(b.variantId) ?? []), b])
   return [...by.entries()].map(([variantId, batches]) => {
-    const v = state.variants[variantId]
     return { variantId, name: variantName(state, variantId), total: round3(batches.reduce((s, b) => s + b.qty, 0)), batches: batches.sort((a, b) => (a.expiry ?? Infinity) - (b.expiry ?? Infinity)) }
   }).sort((a, b) => a.name.localeCompare(b.name))
 }

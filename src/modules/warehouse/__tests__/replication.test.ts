@@ -7,9 +7,9 @@ import { applyMutations } from '@/replication/apply'
 import type { Mutation } from '@/replication/types'
 import { addOpeningBatch, adjustBatch, createBundle, dispatchTransfer, postWriteOff, receiveTransfer, saveLocation, setLocationStock } from '../ops'
 import { batchId, serialId, stockAt } from '../logic'
-import { ctx, DAY, NOW, useWarehouseHooks, warehouseState } from './helpers'
+import { ctx, DAY, NOW, registerWarehouseHooks, warehouseState } from './helpers'
 
-useWarehouseHooks()
+registerWarehouseHooks()
 
 const at = (n: number) => ctx({ now: NOW + n })
 const COLLS = ['variants', 'moves', 'bills', 'purchases', 'batches', 'batchMoves', 'serials', 'stockLevels', 'transfers', 'transferReceipts', 'writeOffs', 'bundles', 'locations', 'products'] as const

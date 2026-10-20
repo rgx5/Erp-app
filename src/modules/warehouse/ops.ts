@@ -8,7 +8,7 @@ import {
   batchEffects, batchId, incChanges, isMain, locationName, newBatchInit, normBatchNo, normSerial, serialId, StockBook, stockAt, transferProgress, wouldCycle, writeOffTotal, bundleEconomics,
 } from './logic'
 import type {
-  Batch, BatchInit, BatchMove, BatchMoveInput, Bundle, BundleComponent, ItemRule, Location, LocationType, Serial, SerialStatus, Transfer, TransferLine, TransferReceipt, UnitConversion, WriteOff, WriteOffLine, WriteOffReason,
+  Batch, BatchMove, BatchMoveInput, Bundle, BundleComponent, ItemRule, Location, LocationType, Serial, SerialStatus, Transfer, TransferLine, TransferReceipt, UnitConversion, WriteOff, WriteOffLine, WriteOffReason,
 } from './types'
 import { MAIN } from './types'
 import './replication'
@@ -241,6 +241,9 @@ export function updateBundle(state: DataState, bundleId: string, d: { name?: str
     const up = updateVariant(state, cur.variantId, { price: bundle.price, cost: econ.cost, mrp: Math.max(bundle.price, econ.separately) }, ctx).changes
     delete up.outbox
     parts.push(up)
+    // A kit that is off is hidden from the counter (it would otherwise sell without taking its parts off the shelf).
+    const prod = state.products[state.variants[cur.variantId].productId]
+    if (prod && prod.active !== bundle.active) parts.push({ put: { products: [{ ...prod, active: bundle.active }] } })
   }
   return { bundle, changes: mergeChanges(...parts) }
 }
