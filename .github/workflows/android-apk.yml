@@ -31,7 +31,6 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
-      - uses: android-actions/setup-android@v3
       - run: npm ci
       - name: Generate the native Android project
         run: npx expo prebuild --platform android --no-install --clean
