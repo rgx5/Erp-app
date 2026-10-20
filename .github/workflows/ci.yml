@@ -13,6 +13,14 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_HOST_AUTH_METHOD: trust
+        ports: ['5433:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 5s --health-retries 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -28,5 +36,11 @@ jobs:
         run: npm run lint
       - name: Tests
         run: npm test -- --ci
+        env:
+          KOSH_TEST_AUTOSTART_PG: '0'
+      - name: Live sync against the real server
+        run: |
+          npm run build --prefix server
+          KOSH_LIVE_SERVER=spawn npx jest --ci kosh-live
       - name: Bundle (Android + iOS)
         run: npm run bundle:check

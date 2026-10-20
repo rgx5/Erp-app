@@ -17,7 +17,7 @@ import { Hourglass } from '@/ui/icons'
 import { ask, toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
 
-const WINDOWS: Array<[number, string]> = [[0, 'Expired'], [30, '30 days'], [60, '60 days'], [90, '90 days'], [Infinity, 'All dated']]
+const WINDOWS: Array<[number, string]> = [[-1, 'Expired'], [30, '30 days'], [60, '60 days'], [90, '90 days'], [Infinity, 'All dated']]
 
 /** Expiry report: what has expired and what will, with the value at risk; expired stock can be written off in one step. */
 export default function Expiry() {
@@ -60,7 +60,7 @@ export default function Expiry() {
                 badge={<Badge tone={(r.days ?? 1) < 0 ? 'danger' : (r.days ?? 99) <= 30 ? 'warning' : 'default'}>{whenLabel(r.days)}</Badge>} />
             ))}
           </Group>
-        ) : <EmptyState icon={<Hourglass size={26} color={c.primary} />} title="Nothing here" hint={win === 0 ? 'No stock has passed its expiry date.' : 'No batches with stock expire in this period.'} />}
+        ) : <EmptyState icon={<Hourglass size={26} color={c.primary} />} title="Nothing here" hint={win === -1 ? 'No stock has passed its expiry date.' : 'No batches with stock expire in this period.'} />}
         <Button label="Batches" kind="soft" block onPress={() => router.push('/m/warehouse/batches')} />
       </View>
     </Screen>
