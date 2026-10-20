@@ -5,7 +5,7 @@ import { mutationsFromChanges } from '@/replication/client'
 import { actorWith, rig } from '@/replication/testkit'
 import { applyMutations } from '@/replication/apply'
 import type { Mutation } from '@/replication/types'
-import { addOpeningBatch, adjustBatch, createBundle, dispatchTransfer, postWriteOff, receiveTransfer, saveLocation, setLocationStock } from '../ops'
+import { addOpeningBatch, adjustBatch, createBundle, dispatchTransfer, postWriteOff, receiveTransfer, saveLocation, setLocationStock, setSerialStatus } from '../ops'
 import { batchId, serialId, stockAt } from '../logic'
 import { ctx, DAY, NOW, registerWarehouseHooks, warehouseState } from './helpers'
 
@@ -141,5 +141,20 @@ describe('who may write what', () => {
       mut('transfers', 't2', 'create', { id: 't2', no: 'TR-2', fromId: 'a', toId: 'b', lines: [], date: NOW, userId: 'x', notes: '' }, 2),
     ], actorWith('all'))
     expect(bad.map((x) => x.code)).toEqual(['invalid', 'invalid'])
+  })
+})
+
+describe('serial numbers on the server', () => {
+  test('selling and taking a unit back leaves the same document on both sides', async () => {
+    const r = rig(warehouseState())
+    await r.seed()
+    await r.run((s) => receivePurchase(s, { supplierId: 's1', date: NOW, invoiceRef: 'P', items: [{ variantId: 'v4', qty: 1, cost: 8000 }], total: 8000, paid: 0, notes: '', ext: { warehouse: { lines: { v4: { serials: ['SN-9'] } } } } }, at(1)))
+    await r.run((s) => saveBill(s, billInput(s, [withExt(line(s.variants.v4, 1), { serials: ['SN-9'] })], { customerId: 'c1' }), at(2)))
+    let server = await same(r)
+    expect(server.serials[serialId('v4', 'SN-9')]).toMatchObject({ status: 'sold', customerId: 'c1' })
+    await r.run((s) => setSerialStatus(s, serialId('v4', 'SN-9'), 'in_stock', 'TAKEN BACK', at(3)))
+    server = await same(r)
+    expect(server.serials[serialId('v4', 'SN-9')].billNo).toBeUndefined()
+    expect(server.serials[serialId('v4', 'SN-9')].status).toBe('in_stock')
   })
 })

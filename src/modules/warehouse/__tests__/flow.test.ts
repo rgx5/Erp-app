@@ -2,6 +2,7 @@ import { OpError, processReturn, receivePurchase, saveBill } from '@/data/ops'
 import { applyChanges, listOf, type DataState } from '@/data/state'
 import { billInput, line } from '@/data/__tests__/helpers'
 import { createBundle, dispatchTransfer, receiveTransfer, saveItemRule, saveLocation } from '../ops'
+import { packAdjuster, receiptExtra } from '../hooks'
 import { batchId, kitAvailable, serialId, stockAt } from '../logic'
 import { baseState, ctx, DAY, NOW, registerWarehouseHooks, warehouseState } from './helpers'
 
@@ -223,3 +224,19 @@ describe('transfers keep the totals right', () => {
 })
 
 void saveItemRule
+
+describe('the cart and the printed bill', () => {
+  test('whole boxes are priced at the box price by the cart adjuster', () => {
+    const s = warehouseState()
+    const l = { ...line(s.variants.v1, 14), productId: 'p1', price: 999, ext: { warehouse: { packs: { unit: 'box', n: 1 } } } }
+    const [out] = packAdjuster.adjust([l], { state: s, customerId: null, extras: {} })
+    expect(out.price).toBe(Math.round(((10_000 + 2 * 999) / 14) * 100) / 100)
+    const [untouched] = packAdjuster.adjust([{ ...l, priceOverridden: true }], { state: s, customerId: null, extras: {} })
+    expect(untouched.price).toBe(999)
+
+    let st = stocked()
+    const sale = saveBill(st, billInput(st, [line(st.variants.v3, 3)]), at(10))
+    st = applyChanges(st, sale.changes)
+    expect(receiptExtra.item!(sale.bill.items[0], sale.bill, st)).toMatch(/^Batch B-SOON exp \d{2} \w{3} \d{4}$/)
+  })
+})
