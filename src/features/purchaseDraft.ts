@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 
 /** A receipt waiting to be filled in — handed from the reorder list to the goods-receipt form, then used up. */
-export interface PurchaseDraft { supplierId: string; lines: Array<{ variantId: string; qty: number }> }
+export interface PurchaseDraft { supplierId: string; lines: Array<{ variantId: string; qty: number; cost?: number }>; /** The purchase order being received. */ poId?: string }
 
 interface DraftStore {
   draft: PurchaseDraft | null

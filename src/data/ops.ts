@@ -12,6 +12,7 @@ import { skuFor } from '@/domain/codes'
 import { computeDayClose } from '@/domain/analytics'
 import { listOf, mergeChanges, type Changes, type DataState, type OutboxDraft } from './state'
 import { billHookList } from '@/modules/registry'
+import { withEffects } from '@/replication/local'
 
 /** A user-facing refusal ("Nothing selected to return."). Screens show `message` as-is. */
 export class OpError extends Error {}
@@ -30,7 +31,8 @@ export interface OpCtx {
 
 export const localCtx = (userId: string, now = Date.now()): OpCtx => ({ now, userId, series: '', barcodeBase: 1 })
 
-const audit = (ctx: OpCtx, action: string, detail: string): AuditLog => ({ id: id('log', ctx.now), at: ctx.now, userId: ctx.userId, action, detail })
+/** An audit-log entry for the change being made (every operation records who did what). */
+export const audit = (ctx: OpCtx, action: string, detail: string): AuditLog => ({ id: id('log', ctx.now), at: ctx.now, userId: ctx.userId, action, detail })
 const q = (entity: OutboxDraft['entity'], payload: unknown): OutboxDraft => ({ entity, payload })
 
 /** `undefined` cannot travel as JSON; a cleared field is sent as null so the server clears it too. */
@@ -257,10 +259,9 @@ export function receivePurchase(state: DataState, p: Omit<Purchase, 'id' | 'no' 
   void basis
   const logs = [audit(ctx, 'PURCHASE', `${purchase.no} — ₹${purchase.total}`)]
   if (costChanges.length) logs.push(audit(ctx, 'COST_CHANGE', `${purchase.no}: ${costChanges.join('; ')}`))
-  return {
-    purchase,
-    changes: mergeChanges({ put: { purchases: [purchase], audit: logs }, outbox: [q('purchase', purchase), ...variantUpdates] }, stockChanges(edit)),
-  }
+  const base = mergeChanges({ put: { purchases: [purchase], audit: logs }, outbox: [q('purchase', purchase), ...variantUpdates] }, stockChanges(edit))
+  // Other modules react to a receipt (a purchase order's received quantities); the stock side is already done above.
+  return { purchase, changes: withEffects(state, base, ['purchases'], ctx.now) }
 }
 
 /** Gives items a selling price (and MRP): the "price later" step after receiving stock. Logs what changed. */

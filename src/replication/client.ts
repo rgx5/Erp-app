@@ -1,6 +1,6 @@
 import { COLLECTIONS, type Changes, type DataState } from '@/data/state'
 import type { StoreSettings } from '@/domain/types'
-import { collectionMeta } from './registry'
+import { collectionMeta, ownedFields } from './registry'
 import type { Doc, Mutation, PullResult } from './types'
 import './core'
 
@@ -62,7 +62,7 @@ export function mutationsFromChanges(before: DataState, changes: Changes, o: Der
       const patch = diffDoc(old, row)
       const allowed = meta.kind === 'ledger' ? meta.patchable ?? [] : null
       for (const k of Object.keys(patch)) {
-        if (allowed ? !allowed.includes(k) : (meta.owned ?? []).includes(k)) delete patch[k]
+        if (allowed ? !allowed.includes(k) : ownedFields(meta).includes(k)) delete patch[k]
       }
       if (Object.keys(patch).length) push(coll, row.id, 'patch', patch)
     }

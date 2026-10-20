@@ -1,45 +1,15 @@
-import { applyChanges, emptyData, listOf, type Changes, type DataState } from '@/data/state'
+import { listOf, type DataState } from '@/data/state'
 import {
   adjustStock, createItem, deleteProduct, processReturn, receivePurchase, saveBill, saveCustomer, saveSupplier, updateProduct, updateSettings, updateVariant, addExpense, openDay, closeDay,
 } from '@/data/ops'
 import { baseState, billInput, ctx, line, NOW } from '@/data/__tests__/helpers'
-import { applyMutations, pullChanges, applyPull, mutationsFromChanges, MemoryDocStore, settingsToDoc, type Actor, type Mutation } from '..'
+import { applyMutations, pullChanges, mutationsFromChanges, MemoryDocStore, type Actor, type Mutation } from '..'
+import { rig as rigKit } from '../testkit'
 
 const owner: Actor = { userId: 'u_owner', can: () => true, branches: 'all' }
 const cashierActor: Actor = { userId: 'u_cash', can: (p) => ['pos', 'customers'].includes(p), branches: 'all' }
 
-/** A phone and a server side by side: every operation runs on the phone, its writes go to the server. */
-function rig(initial: DataState = baseState()) {
-  const db = new MemoryDocStore()
-  let seq = 0
-  const log: Mutation[] = []
-  let phone = initial
-  const send = async (muts: Mutation[], actor = owner) => {
-    const res = await applyMutations(db, muts, actor)
-    const bad = res.filter((r) => r.status === 'rejected')
-    if (bad.length) throw new Error(`server refused: ${JSON.stringify(bad)}`)
-    log.push(...muts)
-  }
-  const run = async <R extends { changes: Changes }>(fn: (s: DataState) => R): Promise<R> => {
-    const r = fn(phone)
-    const muts = mutationsFromChanges(phone, r.changes, { deviceId: 'dev1', nextSeq: () => ++seq })
-    phone = applyChanges(phone, r.changes)
-    await send(muts)
-    return r
-  }
-  // first sign-in: the phone's starting documents are uploaded
-  const seed = async () => {
-    const muts = mutationsFromChanges(emptyData(), { put: Object.fromEntries(Object.entries(initial).filter(([k]) => k !== 'store' && k !== 'users').map(([k, v]) => [k, Object.values(v as object)])) as Changes['put'] }, { deviceId: 'seed', nextSeq: () => ++seq })
-    muts.push({ mid: 'seed:settings', coll: 'settings', id: 'store', op: 'create', data: settingsToDoc(initial.store!), at: 1 })
-    await send(muts)
-  }
-  const serverView = async (): Promise<DataState> => {
-    const pulled = await pullChanges(db, owner, 0, 2000)
-    const empty = { ...emptyData(), store: initial.store }
-    return applyPull(empty, pulled)
-  }
-  return { db, run, seed, serverView, get phone() { return phone }, send }
-}
+const rig = (initial: DataState = baseState()) => rigKit(initial, owner)
 
 const without = (d: DataState) => ({ ...d, users: {} })
 

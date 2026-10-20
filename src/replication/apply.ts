@@ -1,4 +1,4 @@
-import { allCollectionMetas, collectionMeta, permits, type CollectionMeta, type Effect } from './registry'
+import { allCollectionMetas, collectionMeta, effectsFor, ownedFields, permits, type CollectionMeta, type Effect } from './registry'
 import type { Actor, Doc, DocStore, Mutation, MutationResult, PullResult, RejectCode } from './types'
 
 /** The largest document the server accepts (a bill with a few hundred lines is well under this). */
@@ -70,20 +70,20 @@ async function run(db: DocStore, meta: CollectionMeta, m: Mutation, actor: Actor
     if (!doc || typeof doc !== 'object' || doc.id !== m.id) throw new Refusal('invalid', 'A new record needs its id')
     if (live && meta.kind === 'ledger') return { status: 'duplicate', rev: existing!.rev }
     const keepOwned: Record<string, unknown> = {}
-    if (live) for (const f of meta.owned ?? []) if (f in live) keepOwned[f] = live[f]
+    if (live) for (const f of ownedFields(meta)) if (f in live) keepOwned[f] = live[f]
     const next = { ...doc, ...keepOwned } as Doc
     const branch = branchOf(next)
     checkBranch(branch)
     checkDoc(next)
     const rev = await db.put(m.coll, m.id, next, { branchId: branch, by: actor.userId })
-    if (!live && meta.effects) await runEffects(db, meta.effects(next, { now }), actor, now)
+    if (!live) { const fx = effectsFor(meta, next, { now }); if (fx.length) await runEffects(db, fx, actor, now) }
     return { status: 'ok', rev }
   }
 
   if (m.op === 'patch') {
     if (!live) throw new Refusal('not_found', `${m.coll}/${m.id} does not exist`)
     const allowed = meta.kind === 'ledger' ? meta.patchable ?? [] : null
-    const owned = new Set(meta.owned ?? [])
+    const owned = new Set(ownedFields(meta))
     const patch: Record<string, unknown> = {}
     for (const [k, v] of Object.entries(m.data ?? {})) {
       if (k === 'id') continue

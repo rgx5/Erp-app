@@ -51,6 +51,7 @@ export default function NewPurchase() {
   const [busy, setBusy] = useState(false)
   const [toPrice, setToPrice] = useState<{ purchaseId: string; variants: VariantView[] } | null>(null)
   const seeded = useRef(false)
+  const poRef = useRef<string | undefined>(undefined)
 
   const byId = useMemo(() => new Map(views.map((v) => [v.id, v])), [views])
 
@@ -62,7 +63,8 @@ export default function NewPurchase() {
       const d = usePurchaseDraft.getState().take()
       if (d) {
         if (d.supplierId) setSupplierId(d.supplierId)
-        setLines(d.lines.filter((l) => byId.has(l.variantId)).map((l) => ({ variantId: l.variantId, qty: String(l.qty), cost: byId.get(l.variantId)!.cost > 0 ? String(byId.get(l.variantId)!.cost) : '' })))
+        if (d.poId) poRef.current = d.poId
+        setLines(d.lines.filter((l) => byId.has(l.variantId)).map((l) => ({ variantId: l.variantId, qty: String(l.qty), cost: l.cost ? String(l.cost) : byId.get(l.variantId)!.cost > 0 ? String(byId.get(l.variantId)!.cost) : '' })))
       }
     } else if (params.productId) {
       setLines(views.filter((v) => v.productId === params.productId && v.active).map((v) => ({ variantId: v.id, qty: '', cost: v.cost > 0 ? String(v.cost) : '' })))
@@ -104,7 +106,7 @@ export default function NewPurchase() {
       const dayStart = toInputDate(Date.now()) === date ? Date.now() : fromInputDate(date)
       const r = perform((s, ctx) => receivePurchase(s, {
         supplierId, date: dayStart, invoiceRef: invoiceRef.trim(), invoiceTotal: Number(invoiceTotal) > 0 ? round2(Number(invoiceTotal)) : undefined,
-        items: built.items, total, paid, notes: notes.trim(),
+        items: built.items, total, paid, notes: notes.trim(), ...(poRef.current ? { poId: poRef.current } : {}),
       }, ctx))
       toast(`${r.purchase.no} received — ${built.items.length} ${built.items.length === 1 ? 'line' : 'lines'}`, 'ok')
       const unpriced = built.items.map((i) => byId.get(i.variantId)).filter((v): v is VariantView => !!v && needsPricing(v)).map((v) => ({ ...v, cost: built.items.find((i) => i.variantId === v.id)?.cost || v.cost }))

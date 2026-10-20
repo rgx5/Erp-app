@@ -1,7 +1,22 @@
 /**
- * Every module's UI registration, in one list. A module adds itself by creating `src/modules/<dir>/index.ts` (which calls
- * `registerModule`, `registerPanel`… and imports its own `replication.ts`) and listing it here. Core comes first so the
- * eleven apps exist before anything adds to them.
+ * Every module's UI registration, in one list. Core comes first so the eleven apps exist before anything adds to them.
+ * Each module's `index.ts` registers its apps, panels and hooks and imports its own `replication.ts`.
  */
 import './core'
-// Modules are listed below, one import per line (kept sorted).
+import './accounting'
+import './admin-core'
+import './admin-platform'
+import './catalog'
+import './credit'
+import './crm'
+import './hr'
+import './industry-food'
+import './industry-retail'
+import './manufacturing'
+import './pricing'
+import './purchasing'
+import './reports-plus'
+import './sales-docs'
+import './services'
+import './tax'
+import './warehouse'

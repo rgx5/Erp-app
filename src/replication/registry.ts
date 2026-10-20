@@ -43,11 +43,36 @@ export interface CollectionMeta {
 
 const metas = new Map<string, CollectionMeta>()
 
+/** A collection name belongs to exactly one module; registering it twice is a mistake that would silently drop rules. */
 export function registerCollectionMeta(...list: CollectionMeta[]) {
-  for (const m of list) metas.set(m.name, m)
+  for (const m of list) {
+    const cur = metas.get(m.name)
+    if (cur && cur !== m) throw new Error(`The collection “${m.name}” is registered twice`)
+    metas.set(m.name, m)
+  }
 }
 export const collectionMeta = (name: string) => metas.get(name)
 export const allCollectionMetas = () => [...metas.values()]
+
+const extraOwned = new Map<string, string[]>()
+/** Declares more server-maintained fields on a collection another module owns (the credit module adds `customers.dueBalance`). */
+export function addOwnedFields(coll: string, fields: string[]) {
+  extraOwned.set(coll, [...new Set([...(extraOwned.get(coll) ?? []), ...fields])])
+}
+/** Every field of the collection that clients may not set: the collection's own plus those other modules added. */
+export const ownedFields = (meta: CollectionMeta): string[] => [...(meta.owned ?? []), ...(extraOwned.get(meta.name) ?? [])]
+
+const extra = new Map<string, Array<(doc: Doc, ctx: EffectCtx) => Effect[]>>()
+/** Adds an effect to a collection another module owns (purchase orders react to goods received, ledgers react to bills…). */
+export function addEffects(coll: string, fn: (doc: Doc, ctx: EffectCtx) => Effect[]) {
+  const list = extra.get(coll) ?? []
+  list.push(fn)
+  extra.set(coll, list)
+}
+/** Everything that posting `doc` does: the collection's own effects plus any other module's. */
+export function effectsFor(meta: CollectionMeta, doc: Doc, ctx: EffectCtx): Effect[] {
+  return [...(meta.effects?.(doc, ctx) ?? []), ...(extra.get(meta.name) ?? []).flatMap((fn) => fn(doc, ctx))]
+}
 
 export const permList = (p: PermSpec): string[] => (Array.isArray(p) ? p : [p])
 export const permits = (can: (perm: string) => boolean, p: PermSpec) => permList(p).some((x) => x === 'any' || can(x))

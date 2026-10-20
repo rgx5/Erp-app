@@ -157,6 +157,11 @@ export interface Purchase {
   paid: number
   notes: string
   userId: string
+  /** The purchase order this receipt fulfils (updates its received quantities and status). */
+  poId?: string
+  /** Data a module attaches to the receipt, keyed by module id. */
+  ext?: Record<string, unknown>
+  branchId?: string
 }
 
 export interface Customer {
