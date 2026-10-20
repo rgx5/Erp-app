@@ -21,8 +21,9 @@ import { Banknote, ChevronRight, CreditCard, Phone, Ticket, UserPlus, Close } fr
 import { toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
 import { firstName } from '@/domain/people'
+import { checkoutPanelList, paymentMethodList } from '@/modules/registry'
 
-const MODES: Array<{ mode: PayMode; label: string; icon: (c: string) => React.ReactNode }> = [
+const BASE_MODES: Array<{ mode: PayMode; label: string; icon: (c: string) => React.ReactNode }> = [
   { mode: 'cash', label: 'Cash', icon: (c) => <Banknote size={18} color={c} /> },
   { mode: 'upi', label: 'UPI', icon: (c) => <Phone size={18} color={c} /> },
   { mode: 'card', label: 'Card', icon: (c) => <CreditCard size={18} color={c} /> },
@@ -55,6 +56,15 @@ export default function Checkout() {
   const [saving, setSaving] = useState(false)
 
   const defaultStaff = cart.staffId || user
+  // Built-in ways to pay, then any a module has added (on account, gift card…) that apply to this bill.
+  const appState = useApp((s) => s.data)
+  const modes = useMemo(() => [
+    ...BASE_MODES,
+    ...paymentMethodList()
+      .filter((m) => !m.enabled || m.enabled(appState, { state: appState, customerId: cart.customerId, extras: cart.extras }))
+      .map((m) => ({ mode: m.id as PayMode, label: m.label, icon: (col: string) => <m.icon size={18} color={col} /> })),
+  ], [appState, cart.customerId, cart.extras])
+  const panels = checkoutPanelList()
   const billBefore = useMemo(() => round2(cart.lines.reduce((s, l) => s + (l.price * l.qty - lineDiscount(l)), 0)), [cart.lines])
   const total = totals.total
   const st = settle({ total, customer, loyaltyValue: store.loyaltyRedeemValue, redeemPts, useCredit, split, mode, tendered })
@@ -100,6 +110,7 @@ export default function Checkout() {
         sgstTotal: totals.sgstTotal, taxTotal: totals.taxTotal, roundOff: totals.roundOff, total, payments, paid, changeDue: st.change,
         loyaltyEarned: customer ? pointsEarned(total, store.loyaltyEarnPct) : 0, loyaltyRedeemed: st.pts, creditUsed: st.creditUsed,
         cashierId: user, soldBy: defaultStaff, status: 'paid', notes: '',
+        ...(Object.keys(cart.extras).length ? { ext: cart.extras } : {}),
       }, ctx, { heldId: cart.heldId ?? undefined, unpriced }))
       cart.clear()
       router.replace({ pathname: '/sell/done', params: { id: r.bill.id, change: String(st.change) } })
@@ -180,6 +191,9 @@ export default function Checkout() {
           </Section>
         ) : null}
 
+        {/* Sections added by modules (buyer GSTIN, delivery, table…) */}
+        {panels.filter((p) => !p.industries || p.industries.includes(useApp.getState().workspace?.industry ?? '')).map((p) => <p.component key={p.id} moduleId={p.id} />)}
+
         {/* Payment */}
         <Section title="Payment" style={{ marginTop: 20 }}>
           <View style={{ gap: 12 }}>
@@ -189,11 +203,11 @@ export default function Checkout() {
               {(split.length || st.creditUsed || st.loyaltyRupees) ? <T v="caption" style={{ color: c.bg, opacity: 0.7 }}>Bill {inr(total, 0)}{st.splitPaid ? ` − paid ${inr0(st.splitPaid)}` : ''}{st.creditUsed ? ` − credit ${inr0(st.creditUsed)}` : ''}{st.loyaltyRupees ? ` − points ${inr0(st.loyaltyRupees)}` : ''}</T> : null}
             </View>
 
-            <View style={{ flexDirection: 'row', gap: 10 }}>
-              {MODES.map((m) => {
+            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+              {modes.map((m) => {
                 const on = mode === m.mode
                 return (
-                  <Tap key={m.mode} onPress={() => { setMode(m.mode); setRef('') }} style={{ flex: 1, height: 52, borderRadius: radius.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: on ? c.primary : c.surface, borderWidth: 1, borderColor: on ? c.primary : c.lineStrong }}>
+                  <Tap key={m.mode} onPress={() => { setMode(m.mode); setRef('') }} style={{ flexGrow: 1, flexBasis: modes.length > 3 ? '30%' : 0, minWidth: 92, height: 52, borderRadius: radius.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, backgroundColor: on ? c.primary : c.surface, borderWidth: 1, borderColor: on ? c.primary : c.lineStrong }}>
                     {m.icon(on ? c.onPrimary : c.inkSoft)}
                     <T v="bodyStrong" style={{ color: on ? c.onPrimary : c.ink }}>{m.label}</T>
                   </Tap>

@@ -28,6 +28,7 @@ import { Boxes, ChevronRight, More, Package, Pencil, Printer, Rupee, Tags, Trash
 import { ask, toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
 import { goBack } from '@/ui/nav'
+import { PanelSlot } from '@/modules/PanelSlot'
 
 const MOVE_TONE: Record<string, 'primary' | 'success' | 'warning' | 'default'> = { sale: 'primary', purchase: 'success', return: 'success', adjust: 'warning', audit: 'warning', opening: 'default', transfer: 'default' }
 
@@ -142,6 +143,8 @@ export default function ItemDetail() {
             </View>
           </Card>
         ) : null}
+
+        <PanelSlot slot="item" product={product} variants={variants} />
 
         <Section title="Details">
           <Card>

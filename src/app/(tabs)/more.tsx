@@ -14,7 +14,7 @@ import { Avatar, Group, IconWell, Tap } from '@/ui/primitives'
 import { ListRow } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import {
-  Boxes, ChartColumn, ChevronRight, Clock, Cloud, Database, Gift, IdCard, Info, Layers, Lock, LogOut, Palette, Percent, Printer, Receipt, Store, Tags, Ticket, Truck, Users, UserRound, Wallet,
+  Boxes, ChartColumn, ChevronRight, Clock, Cloud, Database, Gift, IdCard, Info, Layers, Grid, Lock, LogOut, Palette, Percent, Printer, Receipt, Store, Tags, Ticket, Truck, Users, UserRound, Wallet,
   type IconProps,
 } from '@/ui/icons'
 import { ask } from '@/ui/overlays'
@@ -40,6 +40,7 @@ export default function More() {
   const canSettings = useCan('settings')
 
   const run: Item[] = [
+    { label: 'All apps', sub: 'Sales, stock, accounts, people and more', icon: Grid, tone: 'primary', to: '/apps' },
     { label: `${labels.sales}`, sub: 'Every bill, return and receipt', icon: Receipt, tone: 'primary', to: '/bills' },
     { label: `${labels.customers}`, sub: 'Contacts, points and credit', icon: Users, tone: 'success', to: '/customers' },
     { label: 'Stock', sub: 'On hand, restock and counts', icon: Boxes, tone: 'accent', to: '/stock', show: canStock },

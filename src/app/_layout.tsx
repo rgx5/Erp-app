@@ -14,6 +14,7 @@ import { useApp } from '@/data/store'
 import { ThemeProvider, useTheme } from '@/ui/theme'
 import { DialogHost, ToastHost } from '@/ui/overlays'
 import { LockScreen } from '@/features/LockScreen'
+import '@/modules/all'
 
 void SplashScreen.preventAutoHideAsync()
 

@@ -12,6 +12,12 @@ export interface Workspace {
   id: string
   name: string
   mode: 'local' | 'remote'
+  /** Which server a connected workspace talks to: a Krishna-compatible retail server, or a Kosh server (the full ERP). */
+  backend?: 'krishna' | 'kosh'
+  /** This phone's identity on a Kosh server (idempotency of its writes, device list). */
+  deviceId?: string
+  /** The outlet this phone works for (multi-store, Kosh server). */
+  branchId?: string
   /** Industry pack id (see src/industries). */
   industry: string
   apiUrl?: string
@@ -224,7 +230,7 @@ export function makeCtx(now = Date.now()): OpCtx {
   const s = useApp.getState()
   const ws = s.workspace
   const remote = ws?.mode === 'remote'
-  return { now, userId: s.session?.userId ?? '', series: remote ? ws!.deviceTag : '', barcodeBase: remote ? ws!.barcodeBase : 1 }
+  return { now, userId: s.session?.userId ?? '', series: remote ? ws!.deviceTag : '', barcodeBase: remote ? ws!.barcodeBase : 1, ...(ws?.branchId ? { branchId: ws.branchId } : {}) }
 }
 
 /**

@@ -11,6 +11,7 @@ import { nextBarcode as pickBarcode } from '@/domain/barcode'
 import { skuFor } from '@/domain/codes'
 import { computeDayClose } from '@/domain/analytics'
 import { listOf, mergeChanges, type Changes, type DataState, type OutboxDraft } from './state'
+import { billHookList } from '@/modules/registry'
 
 /** A user-facing refusal ("Nothing selected to return."). Screens show `message` as-is. */
 export class OpError extends Error {}
@@ -23,6 +24,8 @@ export interface OpCtx {
   series: string
   /** Where this device starts numbering the barcodes it prints, so phones and counters never mint the same code. */
   barcodeBase: number
+  /** The branch / outlet this phone works for (multi-store); stamped on the documents it creates. */
+  branchId?: string
 }
 
 export const localCtx = (userId: string, now = Date.now()): OpCtx => ({ now, userId, series: '', barcodeBase: 1 })
@@ -122,7 +125,9 @@ export function saveBill(state: DataState, input: BillInput, ctx: OpCtx, opts: {
     if (held) no = `HOLD-${new Date(ctx.now).toTimeString().slice(0, 5).replace(':', '')}`
     else ({ no, counter } = nextInvoiceNo(state, ctx))
   }
-  const bill: Bill = { ...input, no: no!, id: id('bill', ctx.now) }
+  const bill: Bill = { ...input, no: no!, id: id('bill', ctx.now), ...(input.branchId || !ctx.branchId ? {} : { branchId: ctx.branchId }) }
+  // Modules may refuse a bill (an expired batch, a credit limit) before anything is written.
+  if (!held) for (const h of billHookList()) h.beforeSave?.({ state, ctx, bill })
   const parts: Changes[] = [{ put: { bills: [bill] }, ...(opts.heldId ? { del: { bills: [opts.heldId] } } : {}) }]
   if (counter) parts.push({ store: { nextInvoiceNo: counter } })
 
@@ -146,6 +151,8 @@ export function saveBill(state: DataState, input: BillInput, ctx: OpCtx, opts: {
     }
     parts.push({ put: { audit: logs }, outbox: [q('bill', bill)] })
     if (keep.length) parts.push(priceVariants(state, keep, ctx, `Saved from sale ${bill.no}`).changes)
+    // …and add their own documents in the same transaction (a receivable, a kitchen order, a gift-card redemption).
+    for (const h of billHookList()) { const extra = h.onSave?.({ state, ctx, bill }); if (extra) parts.push(extra) }
   }
   return { changes: mergeChanges(...parts), bill }
 }

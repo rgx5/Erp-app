@@ -21,6 +21,8 @@ import { T } from '@/ui/Text'
 import { FileText, Printer, Return, Share } from '@/ui/icons'
 import { toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { receiptAddOns } from '@/modules/registry'
+import { PanelSlot } from '@/modules/PanelSlot'
 
 export default function BillDetail() {
   const { id } = useLocalSearchParams<{ id: string }>()
@@ -40,7 +42,7 @@ export default function BillDetail() {
   if (!bill) return <Screen title="Not found" back><T tone="mute">This bill is no longer here.</T></Screen>
 
   const credit = isCreditNote(bill)
-  const ctx = { bill, store, customer, seller }
+  const ctx = { bill, store, customer, seller, extras: receiptAddOns(bill, useApp.getState().data) }
   const canReturn = canPos && !credit && bill.status !== 'held' && bill.items.some((i) => round3(i.qty - i.returnedQty) > 0)
   const original = credit && bill.refundOfBillId ? useApp.getState().data.bills[bill.refundOfBillId] : null
 
@@ -120,6 +122,7 @@ export default function BillDetail() {
           </Section>
         ) : null}
 
+        <PanelSlot slot="bill" bill={bill} />
         {canReturn ? <Button label={`Return / exchange · ${labels.items.toLowerCase()}`} kind="soft" block size="lg" icon={<Return size={18} color={c.primary} />} onPress={() => setReturning(true)} /> : null}
       </View>
 

@@ -15,6 +15,7 @@ import { Trash } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
 import { useCart } from './cart'
 import { firstName } from '@/domain/people'
+import { PanelSlot } from '@/modules/PanelSlot'
 
 /** Edit one cart line: quantity, price (managers), discount (capped for cashiers) and who sold it. */
 export function LineEditor({ variantId, onClose }: { variantId: string | null; onClose: () => void }) {
@@ -79,6 +80,7 @@ export function LineEditor({ variantId, onClose }: { variantId: string | null; o
             </View>
           </View>
         ) : null}
+        <PanelSlot slot="line" line={live} patch={(pt) => patch(live.variantId, pt)} />
       </View>
     </Sheet>
   )

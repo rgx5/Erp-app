@@ -221,9 +221,12 @@ export interface BillItem {
   soldBy?: string
   /** Purchase cost of one unit at the moment of sale, so profit reports do not move when the cost is edited later. */
   cost?: number
+  /** Data a module attaches to the line (a batch, a serial number, a price-list id), keyed by module id. */
+  ext?: Record<string, unknown>
 }
 
-export type PayMode = 'cash' | 'card' | 'upi' | 'credit'
+/** The four built-in ways to pay; a module can add its own (`'due'`, `'giftcard'`…), so the type stays open. */
+export type PayMode = 'cash' | 'card' | 'upi' | 'credit' | (string & {})
 
 export interface Payment {
   mode: PayMode
@@ -265,6 +268,10 @@ export interface Bill {
   refundOfBillId?: string
   refundAmount?: number
   notes: string
+  /** Data a module attaches to the bill (a delivery address, the buyer's GSTIN, a table), keyed by module id. */
+  ext?: Record<string, unknown>
+  /** The branch / outlet that made the sale (multi-store). */
+  branchId?: string
 }
 
 export type MoveType = 'opening' | 'purchase' | 'sale' | 'return' | 'adjust' | 'audit' | 'transfer'

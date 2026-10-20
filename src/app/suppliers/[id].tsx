@@ -15,6 +15,7 @@ import { KV, ListRow, Section, StatTile } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { HandCoins, Pencil, Phone, Truck } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { PanelSlot } from '@/modules/PanelSlot'
 
 /** A supplier: what you owe, what you've bought, and every receipt from them. */
 export default function SupplierDetail() {
@@ -63,6 +64,8 @@ export default function SupplierDetail() {
         </Card>
 
         <Button label="Receive stock from this supplier" icon={<Truck size={18} color={c.onPrimary} />} block onPress={() => router.push({ pathname: '/purchases/new', params: { supplierId: supplier.id } })} />
+
+        <PanelSlot slot="supplier" supplier={supplier} />
 
         <Section title={`Receipts · ${mine.length}`} style={{ marginTop: 6 }}>
           {mine.length ? (

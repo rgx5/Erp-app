@@ -38,6 +38,8 @@ export interface CartLine {
   staffId?: string
   /** Purchase cost per unit, copied onto the bill line when it is sold. */
   cost?: number
+  /** Data a module attaches to the line; copied onto the bill line (`BillItem.ext`). */
+  ext?: Record<string, unknown>
 }
 
 export interface CartTotals {
@@ -124,6 +126,7 @@ export function priceCart(
       ...(l.unpricedSale ? { unpricedSale: true } : {}),
       unit: l.unit,
       cost: l.cost,
+      ...(l.ext ? { ext: l.ext } : {}),
     }
   })
 

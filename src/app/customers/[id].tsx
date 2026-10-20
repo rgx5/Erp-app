@@ -17,6 +17,7 @@ import { T } from '@/ui/Text'
 import { Cake, ChevronRight, Gift, HandCoins, Pencil, Phone, Plus, ReceiptText, Return, Share, Wallet } from '@/ui/icons'
 import { toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { PanelSlot } from '@/modules/PanelSlot'
 
 const HISTORY_SHOWN = 12
 
@@ -101,6 +102,8 @@ export default function CustomerProfile() {
             </Card>
           </Section>
         ) : null}
+
+        <PanelSlot slot="customer" customer={customer} />
 
         <Section title="Purchase history" action={bills.length > HISTORY_SHOWN ? (all ? 'Show less' : `All ${bills.length}`) : undefined} onAction={() => setAll(!all)} style={{ marginTop: 6 }}>
           {bills.length ? (

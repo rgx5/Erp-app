@@ -20,18 +20,28 @@ export interface CollMap {
   audit: AuditLog
 }
 export type Coll = keyof CollMap
+/**
+ * Every collection the app holds, in the order writes are sent to a server (a record is created before the ones that
+ * refer to it). `CollMap` is an interface on purpose: a module adds its own collections by augmenting it
+ * (`declare module '@/data/state' { interface CollMap { quotations: Quotation } }`) and calls `registerCollections`.
+ */
 export const COLLECTIONS: Coll[] = [
   'users', 'categories', 'products', 'variants', 'customers', 'coupons', 'suppliers', 'purchases', 'bills',
   'moves', 'expenses', 'sessions', 'audit',
 ]
 
+/** Adds a module's collections (idempotent). Must run before the app boots, i.e. at import time of the module. */
+export function registerCollections(names: Coll[]) {
+  for (const n of names) if (!COLLECTIONS.includes(n)) COLLECTIONS.push(n)
+}
+
 export type DataState = { store: StoreSettings | null } & { [K in Coll]: Record<string, CollMap[K]> }
 
-export const emptyData = (): DataState => ({
-  store: null,
-  users: {}, categories: {}, products: {}, variants: {}, customers: {}, coupons: {}, suppliers: {}, purchases: {},
-  bills: {}, moves: {}, expenses: {}, sessions: {}, audit: {},
-})
+export const emptyData = (): DataState => {
+  const d = { store: null } as unknown as Record<string, unknown>
+  for (const c of COLLECTIONS) d[c] = {}
+  return d as unknown as DataState
+}
 
 /** A write queued for the server. The id and bookkeeping are added when it is stored. */
 export interface OutboxDraft { entity: SyncEntity; payload: unknown }

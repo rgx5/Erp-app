@@ -7,6 +7,8 @@ import { fmtQtyUnit, isFrac, minQtyOf, qtyStep, round3 } from '@/domain/qty'
 import { variantLabel } from '@/domain/codes'
 import type { VariantView } from '@/domain/views'
 import { useStore } from '@/data/hooks'
+import { useApp } from '@/data/store'
+import { adjustLines } from '@/modules/registry'
 
 /**
  * The bill being rung up. It lives only in memory — a bill you walk away from can be parked (held), which is saved on
@@ -22,6 +24,9 @@ export interface CartState {
   staffId: string
   /** The parked bill this cart was resumed from; deleted when the bill is paid. */
   heldId: string | null
+  /** Module data for the bill (`bill.ext`), keyed by module id — written by checkout panels. */
+  extras: Record<string, unknown>
+  setExtra: (moduleId: string, value: unknown) => void
   set: (patch: Partial<Omit<CartState, 'lines'>>) => void
   setLines: (lines: CartLine[]) => void
   patchLine: (variantId: string, patch: Partial<CartLine>) => void
@@ -29,11 +34,12 @@ export interface CartState {
   clear: () => void
 }
 
-const blank = { lines: [] as CartLine[], customerId: null, billDiscountType: 'amt' as DiscountType, billDiscountValue: 0, coupon: '', heldId: null }
+const blank = { lines: [] as CartLine[], customerId: null, billDiscountType: 'amt' as DiscountType, billDiscountValue: 0, coupon: '', heldId: null, extras: {} as Record<string, unknown> }
 
 export const useCart = create<CartState>((set) => ({
   ...blank,
   staffId: '',
+  setExtra: (moduleId, value) => set((s) => ({ extras: { ...s.extras, [moduleId]: value } })),
   set: (patch) => set(patch),
   setLines: (lines) => set({ lines }),
   patchLine: (variantId, patch) => set((s) => ({ lines: s.lines.map((l) => (l.variantId === variantId ? { ...l, ...patch } : l)) })),
@@ -86,9 +92,14 @@ export interface CartView extends CartTotals { lines: CartLine[] }
 /** Prices the live cart with the business's tax rules. */
 export function useCartTotals(): CartView {
   const store = useStore()
-  const lines = useCart((s) => s.lines)
+  const raw = useCart((s) => s.lines)
   const type = useCart((s) => s.billDiscountType)
   const value = useCart((s) => s.billDiscountValue)
+  const customerId = useCart((s) => s.customerId)
+  const extras = useCart((s) => s.extras)
+  const state = useApp((s) => s.data)
+  // Modules (price lists, quantity breaks, promotions) may reprice the lines; the count and order never change.
+  const lines = useMemo(() => adjustLines(raw, { state, customerId, extras }), [raw, state, customerId, extras])
   return useMemo(() => ({ ...priceCart(lines, type, value, store.slabs, store.priceIncludesTax), lines }), [lines, type, value, store.slabs, store.priceIncludesTax])
 }
 

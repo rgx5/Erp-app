@@ -17,6 +17,7 @@ import { Check, FileText, Printer, Share } from '@/ui/icons'
 import { success } from '@/ui/feedback'
 import { useTheme } from '@/ui/theme'
 import { firstName } from '@/domain/people'
+import { receiptAddOns } from '@/modules/registry'
 
 /** The sale is saved. Hand over the receipt (WhatsApp, PDF, print) and start the next one. */
 export default function SaleDone() {
@@ -42,7 +43,7 @@ export default function SaleDone() {
 
   if (!bill) return null
   const changeDue = Number(change) || 0
-  const ctx = { bill, store, customer, seller }
+  const ctx = { bill, store, customer, seller, extras: receiptAddOns(bill, useApp.getState().data) }
 
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>

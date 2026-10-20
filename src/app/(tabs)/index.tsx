@@ -17,9 +17,10 @@ import { Segmented } from '@/ui/Inputs'
 import { EmptyState, ListRow, Notice, Section, StatTile } from '@/ui/blocks'
 import { AreaChart, Donut, HBars, Legend, Sparkline } from '@/ui/charts'
 import { T } from '@/ui/Text'
-import { Alert, Boxes, ChartColumn, Clock, Package, Percent, Plus, Receipt, ReceiptText, Scan, Tags, Truck, Users, Wallet } from '@/ui/icons'
+import { Alert, Boxes, ChartColumn, Clock, Grid, Package, Percent, Plus, Receipt, ReceiptText, Scan, Tags, Truck, Users, Wallet } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
 import { firstName } from '@/domain/people'
+import { useModuleNotices } from '@/modules/hooks'
 
 const RANGE_WORD: Record<DashRange, string> = { today: 'today', '7d': 'last 7 days', '30d': 'last 30 days' }
 const VS_WORD: Record<DashRange, string> = { today: 'vs same time yesterday', '7d': 'vs previous 7 days', '30d': 'vs previous 30 days' }
@@ -74,7 +75,9 @@ export default function HomeScreen() {
     { label: 'Expenses', icon: Wallet, to: '/expenses', ok: canExp },
     { label: 'Reports', icon: ChartColumn, to: '/(tabs)/reports', ok: canReports },
     { label: 'Day close', icon: Clock, to: '/dayclose', ok: canReports },
+    { label: 'All apps', icon: Grid, to: '/apps', ok: true },
   ].filter((m) => m.ok)
+  const notices = useModuleNotices()
 
   return (
     <Screen
@@ -141,6 +144,7 @@ export default function HomeScreen() {
             {d.stock.lowCount > 0 && canStock ? (
               <Notice tone="accent" icon={<Alert size={20} color={c.accent} />} title={`${d.stock.lowCount} to reorder`} body={`${d.stock.outOfStock} out of stock`} action="Restock" onAction={() => router.push('/stock')} />
             ) : null}
+            {notices.map((n) => <Notice key={n.id} tone={n.tone} title={n.title} body={n.body} action={n.action} onAction={n.to ? () => router.push(n.to as never) : undefined} />)}
           </View>
 
           {/* Tiles */}
