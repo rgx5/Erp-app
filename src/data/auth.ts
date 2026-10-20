@@ -2,6 +2,7 @@ import { id } from '@/domain/ids'
 import { industryById } from '@/industries'
 import { buildDemo, newBusinessState, type NewBusiness } from './demo'
 import { createApi, normalizeApiUrl, type Api, type LoginResult } from './api'
+import { createKoshApi } from './kosh/api'
 import { hashPin, lockoutSeconds, verifyPin } from './pin'
 import { secureDelete, secureGet, secureSet } from './secure'
 import { snapshotToData } from './snapshot'
@@ -24,7 +25,7 @@ export async function setToken(t: string | null) {
 /** The API client for the connected server (null for an offline workspace). */
 export function getApi(): Api | null {
   const ws = useApp.getState().workspace
-  return ws?.mode === 'remote' && ws.apiUrl ? createApi(ws.apiUrl, getToken) : null
+  return ws?.mode === 'remote' && ws.apiUrl && ws.backend !== 'kosh' ? createApi(ws.apiUrl, getToken) : null
 }
 
 const TAG_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
@@ -88,8 +89,13 @@ export async function reauthenticate(password: string): Promise<void> {
   const s = useApp.getState()
   const ws = s.workspace
   if (!ws?.apiUrl || !ws.loginEmail) throw new Error('Sign out and connect again to continue syncing.')
-  const login = await createApi(ws.apiUrl).webLogin(ws.loginEmail, password)
-  await setToken(login.token)
+  if (ws.backend === 'kosh') {
+    const login = await createKoshApi(ws.apiUrl).login(ws.loginEmail, password, ws.deviceId ?? 'dev', 'Kosh app')
+    await setToken(login.token)
+  } else {
+    const login = await createApi(ws.apiUrl).webLogin(ws.loginEmail, password)
+    await setToken(login.token)
+  }
   s.patchSync({ authenticated: true, lastError: null })
 }
 
@@ -147,7 +153,17 @@ export async function switchUser(userId: string, pin: string): Promise<PinResult
   if (await lockedForSeconds() > 0) return 'locked'
 
   let ok = false
-  if (ws.mode === 'remote' && ws.apiUrl && ws.storeId) {
+  if (ws.mode === 'remote' && ws.backend === 'kosh' && ws.apiUrl && ws.storeId && ws.deviceId) {
+    try {
+      const login = await createKoshApi(ws.apiUrl).pinLogin(ws.storeId, userId, pin, ws.deviceId, 'Kosh app')
+      await setToken(login.token)
+      ok = true
+    } catch (e) {
+      const status = (e as { status?: number }).status ?? 0
+      if (status === 429) return 'locked'
+      if (status === 0) return 'offline'
+    }
+  } else if (ws.mode === 'remote' && ws.apiUrl && ws.storeId) {
     try {
       const login = await createApi(ws.apiUrl).pinLogin(ws.storeId, userId, pin)
       await setToken(login.token)

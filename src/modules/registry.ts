@@ -1,5 +1,5 @@
 import type { ComponentType } from 'react'
-import type { Bill, Customer, Product, Supplier, Variant } from '@/domain/types'
+import type { Bill, Customer, Product, Purchase, StockMove, Supplier, Variant } from '@/domain/types'
 import type { CartLine } from '@/domain/cart'
 import type { Permission } from '@/domain/permissions'
 import type { Changes, DataState } from '@/data/state'
@@ -114,6 +114,17 @@ export interface PanelProps {
   supplier: { supplier: Supplier }
   /** Inside the line editor of the sell screen. */
   line: { line: CartLine; patch: (p: Partial<CartLine>) => void }
+  /**
+   * In the goods-receipt screen, under the items: capture what arrived beyond quantity and cost (batch + expiry, serial numbers,
+   * the location it goes to). `ext` is what the screen will save as `purchase.ext`; change it with `setExt(moduleId, value)`.
+   */
+  receipt: {
+    items: Array<{ variantId: string; qty: number; cost: number }>
+    ext: Record<string, unknown>
+    setExt: (moduleId: string, value: unknown) => void
+    /** Change a line's quantity (a unit-conversion helper types "3 box" and sets 36). */
+    setQty: (variantId: string, qty: number) => void
+  }
 }
 export type PanelSlotName = keyof PanelProps
 
@@ -194,9 +205,37 @@ export interface ReceiptExtra {
   footer?: (bill: Bill, state: DataState) => string[]
 }
 
+/** Runs when goods are received (`receivePurchase`): refuse the receipt, or add documents to the same transaction. */
+export interface ReceiptHookCtx {
+  state: DataState
+  ctx: OpCtx
+  purchase: Purchase
+  /** The stock movements the receipt creates (one per line) — a hook may re-put them with more detail (a location). */
+  moves: StockMove[]
+}
+export interface ReceiptHook {
+  id: string
+  beforeSave?: (c: ReceiptHookCtx) => void
+  onSave?: (c: ReceiptHookCtx) => Changes | null
+}
+
+/** Runs when a return is processed (`processReturn`): add documents to the same transaction (restore a batch). */
+export interface ReturnHookCtx {
+  state: DataState
+  ctx: OpCtx
+  original: Bill
+  creditNote: Bill
+}
+export interface ReturnHook {
+  id: string
+  onReturn?: (c: ReturnHookCtx) => Changes | null
+}
+
 const checkoutPanels: CheckoutPanelDef[] = []
 const paymentMethods: PaymentMethodDef[] = []
 const billHooks: BillHook[] = []
+const receiptHooks: ReceiptHook[] = []
+const returnHooks: ReturnHook[] = []
 const adjusters: CartAdjuster[] = []
 const receiptExtras: ReceiptExtra[] = []
 
@@ -204,12 +243,16 @@ const upsert = <T extends { id: string }>(list: T[], x: T) => { const i = list.f
 export const registerCheckoutPanel = (p: CheckoutPanelDef) => upsert(checkoutPanels, p)
 export const registerPaymentMethod = (p: PaymentMethodDef) => upsert(paymentMethods, p)
 export const registerBillHook = (h: BillHook) => upsert(billHooks, h)
+export const registerReceiptHook = (h: ReceiptHook) => upsert(receiptHooks, h)
+export const registerReturnHook = (h: ReturnHook) => upsert(returnHooks, h)
 export const registerCartAdjuster = (a: CartAdjuster) => upsert(adjusters, a)
 export const registerReceiptExtra = (r: ReceiptExtra) => upsert(receiptExtras, r)
 
 export const checkoutPanelList = () => [...checkoutPanels].sort((a, b) => a.order - b.order)
 export const paymentMethodList = () => [...paymentMethods].sort((a, b) => a.order - b.order)
 export const billHookList = () => [...billHooks]
+export const receiptHookList = () => [...receiptHooks]
+export const returnHookList = () => [...returnHooks]
 export const receiptExtraList = () => [...receiptExtras]
 
 /** Runs every adjuster over the cart's lines. */

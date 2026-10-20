@@ -5,6 +5,8 @@ import { ROLE_LABEL } from '@/domain/permissions'
 import type { Role } from '@/domain/types'
 import { connectWithPassword, connectWithPin, listStaff } from '@/data/auth'
 import { CloudError } from '@/data/api'
+import { detectBackend } from '@/data/kosh/api'
+import { koshLogin, koshPinLogin, koshStaff } from '@/data/kosh/auth'
 import { PinSheet } from '@/features/PinSheet'
 import { Button } from '@/ui/Button'
 import { Field, Segmented } from '@/ui/Inputs'
@@ -41,13 +43,23 @@ export default function Connect() {
 
   const fail = (e: unknown) => setError(e instanceof CloudError ? e.message : e instanceof Error ? e.message : 'Something went wrong')
 
+  // What kind of server this is decides which sign-in to use; the person never has to know.
+  const [kind, setKind] = useState<{ backend: 'kosh' | 'krishna'; url: string } | null>(null)
+  async function detect() {
+    const k = kind ?? (await detectBackend(url))
+    setKind(k)
+    return k
+  }
+
   async function signIn() {
     setError(null)
     if (!url.trim()) { setError('Enter the server address your administrator gave you.'); return }
     if (!email.trim() || !password) { setError('Enter your email and password.'); return }
     setBusy(true)
     try {
-      await connectWithPassword(url, email, password)
+      const k = await detect()
+      if (k.backend === 'kosh') await koshLogin(k.url, email, password)
+      else await connectWithPassword(url, email, password)
       toast('Connected — your business is on this phone', 'ok')
       router.replace('/')
     } catch (e) { fail(e); setBusy(false) }
@@ -57,13 +69,19 @@ export default function Connect() {
     setError(null)
     if (!url.trim() || !storeId.trim()) { setError('Enter the server address and the Store ID.'); return }
     setBusy(true)
-    try { setStaff((await listStaff(url, storeId)).filter((u) => u.active)) } catch (e) { fail(e) }
+    try {
+      const k = await detect()
+      const list = k.backend === 'kosh' ? await koshStaff(k.url, storeId) : await listStaff(url, storeId)
+      setStaff((list as Person[]).filter((u) => u.active))
+    } catch (e) { fail(e) }
     setBusy(false)
   }
 
   async function pinSubmit(pin: string): Promise<string | null> {
     try {
-      await connectWithPin(url, storeId, picked!.id, pin)
+      const k = await detect()
+      if (k.backend === 'kosh') await koshPinLogin(k.url, storeId.trim(), picked!.id, pin)
+      else await connectWithPin(url, storeId, picked!.id, pin)
       router.replace('/')
       return null
     } catch (e) {
@@ -78,7 +96,7 @@ export default function Connect() {
       <View style={{ gap: 16, marginTop: 8 }}>
         <Segmented<Method> value={method} onChange={(m) => { setMethod(m); setError(null) }} options={[{ value: 'owner', label: 'Owner / Manager' }, { value: 'staff', label: 'Staff PIN' }]} />
 
-        <Field label="Server address" value={url} onChangeText={setUrl} placeholder="https://erp.yourshop.in/api" autoCapitalize="none" autoCorrect={false} keyboardType="url"
+        <Field label="Server address" value={url} onChangeText={(t) => { setUrl(t); setKind(null) }} placeholder="https://erp.yourshop.in/api" autoCapitalize="none" autoCorrect={false} keyboardType="url"
           left={<Server size={18} color={c.inkMute} />} hint="Your administrator provides this — it is the API your ERP runs on." />
 
         {method === 'owner' ? (

@@ -5,6 +5,8 @@ import { applyChanges, COLLECTIONS, emptyData, type Changes, type Coll, type Dat
 import { getStorage } from './storage'
 import type { WriteBatch } from './storage.types'
 import { initialSyncState, type SyncState } from './sync'
+import { applyPull, mutationsFromChanges, SETTINGS_COLL } from '@/replication/client'
+import type { Mutation, PullResult } from '@/replication/types'
 import type { OpCtx } from './ops'
 
 /** One business on this phone. Either an offline workspace (everything stays on the phone) or a connected one (synced to a server). */
@@ -53,9 +55,16 @@ interface AppStore {
   /** The app lock screen is showing. */
   locked: boolean
   persistError: string | null
+  /** Kosh server: how far this phone has downloaded (the server's revision counter). */
+  cursor: number
 
   boot: () => Promise<void>
   commit: (changes: Changes) => void
+  /** Kosh server: fold a download into the local data and remember where it stopped. */
+  applyRemote: (pull: Pick<PullResult, 'upserts' | 'deletes'>, pending: Set<string>) => Promise<void>
+  setCursor: (n: number) => Promise<void>
+  /** Kosh server: queue writes for upload (used to publish a whole business that was built on this phone). */
+  enqueue: (muts: Mutation[]) => void
   /** Replace everything (first sign-in, or a fresh snapshot from the server). */
   replaceData: (data: DataState, opts?: { keepOutbox?: boolean }) => Promise<void>
   setWorkspace: (ws: Workspace | null) => Promise<void>
@@ -98,6 +107,9 @@ function toBatch(c: Changes, store: DataState['store'], outbox: OutboxEntry[]): 
 }
 
 let outboxSeq = 0
+/** Makes a write's idempotency key unique even if this phone's counter ever starts over (a restore, a cleared queue). */
+let nonce = Math.random().toString(36).slice(2, 6)
+const mid = (deviceId: string | undefined, n: number) => `${deviceId}:${nonce}:${n}`
 let afterCommit: (() => void) | null = null
 /** The sync runtime registers here so a new outbox row starts an upload without store.ts importing it. */
 export const onOutboxAdded = (fn: (() => void) | null) => { afterCommit = fn }
@@ -115,6 +127,7 @@ export const useApp = create<AppStore>((set, get) => {
     sync: initialSyncState(),
     locked: false,
     persistError: null,
+    cursor: 0,
 
     async boot() {
       const saved = await getStorage().load()
@@ -128,11 +141,12 @@ export const useApp = create<AppStore>((set, get) => {
       }
       const outbox = [...saved.outbox].sort((a, b) => a.id - b.id)
       outboxSeq = outbox.reduce((m, o) => Math.max(m, o.id), 0)
+      nonce = Math.random().toString(36).slice(2, 6)
       const ws = saved.kv.workspace ? (JSON.parse(saved.kv.workspace) as Workspace) : null
       const prefs = { ...DEFAULT_PREFS, ...(saved.kv.prefs ? JSON.parse(saved.kv.prefs) : {}) } as Prefs
       const session = saved.kv.session ? (JSON.parse(saved.kv.session) as { userId: string }) : null
       set({
-        data, outbox, workspace: ws, prefs, ready: true,
+        data, outbox, workspace: ws, prefs, ready: true, cursor: Number(saved.kv.cursor ?? 0) || 0,
         // Only keep a session that still points at a real, active person.
         session: session && data.users[session.userId]?.active ? session : null,
         locked: !!ws && prefs.appLock,
@@ -143,13 +157,57 @@ export const useApp = create<AppStore>((set, get) => {
       const s = get()
       const { outbox: drafts, ...rest } = changes
       const data = applyChanges(s.data, rest)
-      const connected = s.workspace?.mode === 'remote'
-      const rows: OutboxEntry[] = connected
-        ? (drafts ?? []).map((d) => ({ id: ++outboxSeq, entity: d.entity, payload: d.payload, createdAt: Date.now(), synced: 0 as const, attempts: 0 }))
-        : []
+      const ws = s.workspace
+      const connected = ws?.mode === 'remote'
+      let rows: OutboxEntry[] = []
+      if (connected && ws?.backend === 'kosh') {
+        // A Kosh server takes documents: what changed is sent as writes, worked out from the before/after of each record.
+        const muts = mutationsFromChanges(s.data, rest, { deviceId: ws.deviceId ?? 'dev', nextSeq: () => 0 })
+        rows = muts.map((m) => { const n = ++outboxSeq; return { id: n, entity: 'mut' as const, payload: { ...m, mid: mid(ws.deviceId, n) }, createdAt: Date.now(), synced: 0 as const, attempts: 0 } })
+        // Staff accounts are not documents (they carry credentials); they keep their own queue entries.
+        for (const d of drafts ?? []) if (d.entity === 'user' || d.entity === 'userUpdate') rows.push({ id: ++outboxSeq, entity: d.entity, payload: d.payload, createdAt: Date.now(), synced: 0 as const, attempts: 0 })
+      } else if (connected) {
+        rows = (drafts ?? []).map((d) => ({ id: ++outboxSeq, entity: d.entity, payload: d.payload, createdAt: Date.now(), synced: 0 as const, attempts: 0 }))
+      }
       set({ data, ...(rows.length ? { outbox: [...s.outbox, ...rows] } : {}) })
       void persist(toBatch(changes, data.store, rows))
       if (rows.length) afterCommit?.()
+    },
+
+    async applyRemote(pull, pending) {
+      const s = get()
+      const data = applyPull(s.data, pull, pending, s.workspace?.storeId ?? '')
+      const batch: WriteBatch = { put: [], del: [] }
+      for (const u of pull.upserts) {
+        if (pending.has(`${u.coll}\u0000${u.id}`)) continue
+        if (u.coll === SETTINGS_COLL) { if (data.store) batch.put!.push({ coll: 'store', id: 'store', json: json(data.store) }) }
+        else if ((COLLECTIONS as string[]).includes(u.coll)) batch.put!.push({ coll: u.coll as Coll, id: u.id, json: json(u.data) })
+      }
+      for (const d of pull.deletes) {
+        if (pending.has(`${d.coll}\u0000${d.id}`)) continue
+        if ((COLLECTIONS as string[]).includes(d.coll)) batch.del!.push({ coll: d.coll as Coll, id: d.id })
+      }
+      // Everyone on a Kosh server shares one industry, kept in the business settings.
+      const ws = s.workspace
+      const industry = data.store?.industry
+      const wsNext = ws && industry && ws.industry !== industry ? { ...ws, industry } : ws
+      set({ data, ...(wsNext !== ws ? { workspace: wsNext } : {}) })
+      if (wsNext !== ws) batch.kv = { workspace: json(wsNext) }
+      await persist(batch)
+    },
+
+    async setCursor(n) {
+      set({ cursor: n })
+      await persist({ kv: { cursor: String(n) } })
+    },
+
+    enqueue(muts) {
+      const ws = get().workspace
+      if (!muts.length || ws?.backend !== 'kosh') return
+      const rows: OutboxEntry[] = muts.map((m) => { const n = ++outboxSeq; return { id: n, entity: 'mut' as const, payload: { ...m, mid: mid(ws.deviceId, n) }, createdAt: Date.now(), synced: 0 as const, attempts: 0 } })
+      set((s) => ({ outbox: [...s.outbox, ...rows] }))
+      void persist({ outboxPut: rows })
+      afterCommit?.()
     },
 
     async replaceData(data, opts) {
@@ -166,6 +224,7 @@ export const useApp = create<AppStore>((set, get) => {
       if (!opts?.keepOutbox) {
         batch.outboxDel = s.outbox.map((o) => o.id)
         outboxSeq = 0
+        nonce = Math.random().toString(36).slice(2, 6)
       }
       set({ data, ...(opts?.keepOutbox ? {} : { outbox: [] }) })
       await persist(batch)
@@ -209,7 +268,8 @@ export const useApp = create<AppStore>((set, get) => {
       await chain
       await getStorage().wipe()
       outboxSeq = 0
-      set({ workspace: null, data: emptyData(), outbox: [], session: null, sync: initialSyncState(), locked: false })
+      nonce = Math.random().toString(36).slice(2, 6)
+      set({ workspace: null, data: emptyData(), outbox: [], session: null, sync: initialSyncState(), locked: false, cursor: 0 })
     },
   }
 })

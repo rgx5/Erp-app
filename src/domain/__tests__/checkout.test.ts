@@ -1,4 +1,4 @@
-import { cashSuggestions, finalPayments, pointsEarned, settle, type SettleInput } from '../checkout'
+import { cashSuggestions, finalPayments, onAccountOf, paidAmount, pointsEarned, settle, type SettleInput } from '../checkout'
 
 const base: SettleInput = { total: 1000, customer: null, loyaltyValue: 1, redeemPts: 0, useCredit: false, split: [], mode: 'cash', tendered: '' }
 
@@ -80,5 +80,55 @@ describe('helpers', () => {
     expect(pointsEarned(1099, 1)).toBe(10)
     expect(pointsEarned(99, 1)).toBe(0)
     expect(pointsEarned(5000, 0)).toBe(0)
+  })
+})
+
+describe('on account (udhaar)', () => {
+  const cust = { storeCredit: 0, loyaltyPoints: 0 }
+
+  test('the whole bill goes on account for a customer; nothing is collected', () => {
+    const i = { ...base, customer: cust, mode: 'due' as const }
+    const s = settle(i)
+    expect(s).toMatchObject({ onAccount: 1000, covers: true, shortBy: 0, change: 0, blocked: null, remaining: 1000 })
+    expect(finalPayments(i, s)).toEqual([{ mode: 'due', amount: 1000 }])
+    expect(paidAmount(finalPayments(i, s))).toBe(0)
+    expect(onAccountOf(finalPayments(i, s))).toBe(1000)
+  })
+
+  test('a walk-in cannot buy on account', () => {
+    const s = settle({ ...base, mode: 'due' })
+    expect(s).toMatchObject({ covers: false, shortBy: 1000, onAccount: 0 })
+    expect(s.blocked).toMatch(/customer/i)
+  })
+
+  test('part paid now, the rest on account', () => {
+    const split = [{ mode: 'cash' as const, amount: 300 }]
+    const i = { ...base, customer: cust, split, mode: 'due' as const }
+    const s = settle(i)
+    expect(s).toMatchObject({ remaining: 700, onAccount: 700, covers: true })
+    const pays = finalPayments(i, s)
+    expect(pays).toEqual([{ mode: 'cash', amount: 300 }, { mode: 'due', amount: 700 }])
+    expect(paidAmount(pays)).toBe(300)
+    expect(onAccountOf(pays)).toBe(700)
+  })
+
+  test('credit and points still pay first; only what is left goes on account', () => {
+    const i = { ...base, customer: { storeCredit: 200, loyaltyPoints: 100 }, useCredit: true, redeemPts: 100, mode: 'due' as const }
+    const s = settle(i)
+    expect(s.onAccount).toBe(700)
+    const pays = finalPayments(i, s)
+    expect(pays.reduce((t, p) => t + p.amount, 0)).toBe(1000)
+    expect(paidAmount(pays)).toBe(300) // store credit and points are tender received
+  })
+
+  test('nothing left to put on account when credit covers the bill', () => {
+    const i = { ...base, total: 100, customer: { storeCredit: 100, loyaltyPoints: 0 }, useCredit: true, mode: 'due' as const }
+    const s = settle(i)
+    expect(s.onAccount).toBe(0)
+    expect(finalPayments(i, s)).toEqual([{ mode: 'credit', amount: 100 }])
+  })
+
+  test('a credit note that reduces dues carries a negative on-account line', () => {
+    expect(onAccountOf([{ mode: 'due', amount: -400 }, { mode: 'cash', amount: -100 }])).toBe(-400)
   })
 })

@@ -1,6 +1,8 @@
 import { AppState } from 'react-native'
 import NetInfo from '@react-native-community/netinfo'
 import { getApi, getToken, setToken } from './auth'
+import { getKoshApi } from './kosh/auth'
+import { createKoshSync } from './kosh/sync'
 import { snapshotToData } from './snapshot'
 import { onOutboxAdded, useApp } from './store'
 import { createSyncEngine, type SyncEngine } from './sync'
@@ -14,14 +16,31 @@ const HEARTBEAT_MS = 30_000
 /** Pull fresh data from the server at most this often in the background (pull-to-refresh is always immediate). */
 const PULL_EVERY_MS = 5 * 60_000
 
-let engine: SyncEngine | null = null
+type Engine = { flush: () => Promise<void>; pull: () => Promise<boolean>; syncNow: () => Promise<unknown>; recount: () => void }
+let engine: Engine | null = null
 let timer: ReturnType<typeof setInterval> | null = null
 let kickTimer: ReturnType<typeof setTimeout> | null = null
 let online = true
 let unsubNet: (() => void) | null = null
 let appSub: { remove: () => void } | null = null
 
-function build(): SyncEngine {
+function buildKosh(): Engine {
+  return createKoshSync({
+    api: () => getKoshApi(getToken),
+    token: () => getToken(),
+    setToken: (t) => { void setToken(t) },
+    outbox: () => useApp.getState().outbox,
+    updateOutbox: (id, patch) => useApp.getState().updateOutbox(id, patch),
+    applyRemote: (pull, pending) => useApp.getState().applyRemote(pull, pending),
+    getCursor: () => useApp.getState().cursor,
+    setCursor: (n) => useApp.getState().setCursor(n),
+    isOnline: () => online,
+    getState: () => useApp.getState().sync,
+    setState: (p) => useApp.getState().patchSync(p),
+  })
+}
+
+function build(): Engine {
   return createSyncEngine({
     api: () => getApi(),
     token: () => getToken(),
@@ -50,7 +69,7 @@ async function tick(pull: boolean) {
 /** Starts background syncing for a connected workspace (safe to call again). */
 export function startSync() {
   if (!connected() || timer) return
-  engine = build()
+  engine = useApp.getState().workspace?.backend === 'kosh' ? buildKosh() : build()
   engine.recount()
   useApp.getState().patchSync({ authenticated: !!getToken() })
   timer = setInterval(() => { void tick(false) }, HEARTBEAT_MS)

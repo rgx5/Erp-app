@@ -5,7 +5,9 @@
 module.exports = {
   testEnvironment: 'node',
   transform: { '^.+\\.(ts|tsx|js|jsx)$': ['babel-jest', { presets: ['babel-preset-expo'] }] },
-  testMatch: ['<rootDir>/src/**/__tests__/**/*.test.ts'],
+  testMatch: ['<rootDir>/src/**/__tests__/**/*.test.ts', '<rootDir>/server/src/**/__tests__/**/*.test.ts'],
+  // fastify's `cookie` ships ESM only; the server tests load it through babel.
+  transformIgnorePatterns: ['/node_modules/(?!(cookie)/)'],
   moduleNameMapper: { '^@/(.*)$': '<rootDir>/src/$1' },
   collectCoverageFrom: ['src/domain/**/*.ts', 'src/data/**/*.ts', 'src/industries/**/*.ts'],
 };

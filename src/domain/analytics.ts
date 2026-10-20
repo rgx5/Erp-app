@@ -189,7 +189,7 @@ export interface ReportAgg {
   modes: Array<[string, number]>
   items: Array<{ id: string; name: string; sku: string; variant: string; qty: number; revenue: number; cost: number }>
   staff: Array<{ userId: string; user: User | undefined; bills: number; qty: number; revenue: number; discount: number }>
-  lines: Array<{ hsn: string; taxable: number; cgst: number; sgst: number; taxRate: number; qty: number }>
+  lines: Array<{ hsn: string; taxable: number; cgst: number; sgst: number; igst?: number; taxRate: number; qty: number }>
   hsn: ReturnType<typeof hsnSummary>
   rates: ReturnType<typeof rateSummary>
   daily: Array<{ start: number; total: number; bills: number; qty: number }>
@@ -236,7 +236,7 @@ export function computeReport(input: AnalyticsInput, users: User[], from: number
       it.revenue += i.taxable * f.sign // sales value excluding GST, so margin is a real margin
       it.cost += (i.cost ?? currentCost(i.variantId)) * i.qty * f.sign
       items.set(i.variantId, it)
-      lines.push({ hsn: i.hsn, taxable: i.taxable * f.sign, cgst: i.cgst * f.sign, sgst: i.sgst * f.sign, taxRate: i.taxRate, qty: i.qty * f.sign })
+      lines.push({ hsn: i.hsn, taxable: i.taxable * f.sign, cgst: i.cgst * f.sign, sgst: i.sgst * f.sign, ...(i.igst !== undefined ? { igst: i.igst * f.sign } : {}), taxRate: i.taxRate, qty: i.qty * f.sign })
     }
     for (const p of b.payments) modes.set(p.mode, (modes.get(p.mode) ?? 0) + p.amount)
 

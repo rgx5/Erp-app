@@ -16,8 +16,8 @@ export interface ReturnPlan {
   loyaltyReverse: number
 }
 
-const sumPrior = (prior: Bill[], variantId: string, field: 'discountAmount' | 'net' | 'taxable' | 'cgst' | 'sgst' | 'lineTotal') =>
-  round2(prior.reduce((s, cn) => s + cn.items.filter((i) => i.variantId === variantId).reduce((a, i) => a + i[field], 0), 0))
+const sumPrior = (prior: Bill[], variantId: string, field: 'discountAmount' | 'net' | 'taxable' | 'cgst' | 'sgst' | 'igst' | 'lineTotal') =>
+  round2(prior.reduce((s, cn) => s + cn.items.filter((i) => i.variantId === variantId).reduce((a, i) => a + (i[field] ?? 0), 0), 0))
 
 /**
  * Works out a return against `original`, given the credit notes already issued for it (`prior`).
@@ -34,12 +34,12 @@ export function planReturn(original: Bill, prior: Bill[], lines: ReturnLine[]): 
     const qty = Math.min(isFrac(rulesOfBillItem(it)) ? round3(want) : Math.floor(want), remaining)
     if (qty <= 0) continue
     const last = round3(qty - remaining) === 0
-    const part = (field: 'discountAmount' | 'net' | 'taxable' | 'cgst' | 'sgst' | 'lineTotal') =>
-      last ? round2(it[field] - sumPrior(prior, it.variantId, field)) : round2((it[field] * qty) / it.qty)
+    const part = (field: 'discountAmount' | 'net' | 'taxable' | 'cgst' | 'sgst' | 'igst' | 'lineTotal') =>
+      last ? round2((it[field] ?? 0) - sumPrior(prior, it.variantId, field)) : round2(((it[field] ?? 0) * qty) / it.qty)
     items.push({
       ...it, qty, returnedQty: 0,
       discountAmount: part('discountAmount'), net: part('net'), taxable: part('taxable'),
-      cgst: part('cgst'), sgst: part('sgst'), lineTotal: part('lineTotal'),
+      cgst: part('cgst'), sgst: part('sgst'), ...(it.igst !== undefined ? { igst: part('igst') } : {}), lineTotal: part('lineTotal'),
     })
   }
   if (!items.length) return null

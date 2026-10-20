@@ -28,7 +28,7 @@ export function billFigures(b: Bill, currentCost: (variantId: string) => number)
   let net = 0, gst = 0, pieces = 0, cost = 0, discount = 0
   for (const i of b.items) {
     net += i.taxable
-    gst += i.cgst + i.sgst
+    gst += i.cgst + i.sgst + (i.igst ?? 0)
     pieces += i.qty
     cost += (i.cost ?? currentCost(i.variantId)) * i.qty
     discount += i.discountAmount

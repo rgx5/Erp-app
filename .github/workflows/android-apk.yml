@@ -1,0 +1,60 @@
+name: Android APK
+
+# Builds an installable Android APK (signed with the debug key, so it installs directly on a phone
+# for testing; it is not a Play Store build). Run it from the Actions tab ("Run workflow"), or it
+# runs on every push to a ccr-* branch / main. Download the file from the run's Artifacts, or from
+# the "apk-latest" pre-release on the Releases page.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, 'ccr-*']
+
+concurrency:
+  group: apk-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - uses: android-actions/setup-android@v3
+      - run: npm ci
+      - name: Generate the native Android project
+        run: npx expo prebuild --platform android --no-install --clean
+      - name: Build release APK
+        working-directory: android
+        run: ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a,armeabi-v7a,x86_64 --no-daemon
+      - name: Name the APK
+        id: name
+        run: |
+          SHORT=$(git rev-parse --short HEAD)
+          cp android/app/build/outputs/apk/release/app-release.apk "kosh-erp-$SHORT.apk"
+          echo "file=kosh-erp-$SHORT.apk" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: kosh-erp-apk
+          path: ${{ steps.name.outputs.file }}
+          retention-days: 30
+      - name: Publish to the apk-latest pre-release
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete apk-latest --cleanup-tag --yes || true
+          gh release create apk-latest "${{ steps.name.outputs.file }}" --prerelease \
+            --target "$GITHUB_SHA" --title "Kosh ERP – latest test APK" \
+            --notes "Debug-signed test build of $GITHUB_SHA. Enable 'install unknown apps' on the phone to install."

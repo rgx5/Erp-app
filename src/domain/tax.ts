@@ -26,8 +26,16 @@ export interface LineTaxResult {
   rate: number
   cgst: number
   sgst: number
+  /** Only on an inter-state line, where it carries the whole tax and `cgst` / `sgst` are 0. */
+  igst?: number
   tax: number
   gross: number
+}
+
+/** How a sale is taxed beyond the ordinary local CGST + SGST: across state lines (IGST) or not at all (a bill of supply). */
+export interface LineTaxOptions {
+  interState?: boolean
+  noTax?: boolean
 }
 
 /**
@@ -49,22 +57,27 @@ export function computeLineTax(
   slabs: TaxSlab[],
   inclusive: boolean,
   fixedRate?: number,
+  opts?: LineTaxOptions,
 ): LineTaxResult {
+  // A composition or unregistered dealer collects no tax: the price is the whole amount, shown at 0%.
+  if (opts?.noTax) return { taxable: round2(netAmount), rate: 0, cgst: 0, sgst: 0, tax: 0, gross: round2(netAmount) }
   const perPiece = qty > 0 ? netAmount / qty : netAmount
   const rate = fixedRate !== undefined && fixedRate >= 0 ? fixedRate : rateFor(perPiece, slabs)
 
   const taxable = inclusive ? round2(netAmount / (1 + rate / 100)) : round2(netAmount)
   const tax = round2(inclusive ? netAmount - taxable : (netAmount * rate) / 100)
+  // Across state lines the same tax is one IGST amount instead of two halves — totals are identical.
+  if (opts?.interState) return { taxable, rate, cgst: 0, sgst: 0, igst: tax, tax, gross: round2(taxable + tax) }
   const cgst = round2(tax / 2)
   const sgst = round2(tax - cgst)
   return { taxable, rate, cgst, sgst, tax: round2(cgst + sgst), gross: round2(taxable + cgst + sgst) }
 }
 
 /** Groups lines into an HSN-wise summary block for the tax invoice and the GST report. */
-export function hsnSummary<T extends { hsn: string; taxable: number; cgst: number; sgst: number; taxRate: number; qty: number }>(
+export function hsnSummary<T extends { hsn: string; taxable: number; cgst: number; sgst: number; igst?: number; taxRate: number; qty: number }>(
   lines: T[],
 ) {
-  const map = new Map<string, { hsn: string; rate: number; qty: number; taxable: number; cgst: number; sgst: number }>()
+  const map = new Map<string, { hsn: string; rate: number; qty: number; taxable: number; cgst: number; sgst: number; igst?: number }>()
   for (const l of lines) {
     const key = `${l.hsn}|${l.taxRate}`
     const row = map.get(key) ?? { hsn: l.hsn || '—', rate: l.taxRate, qty: 0, taxable: 0, cgst: 0, sgst: 0 }
@@ -72,19 +85,22 @@ export function hsnSummary<T extends { hsn: string; taxable: number; cgst: numbe
     row.taxable = round2(row.taxable + l.taxable)
     row.cgst = round2(row.cgst + l.cgst)
     row.sgst = round2(row.sgst + l.sgst)
+    // `igst` appears on a row only once an inter-state line has been seen, so a local-only summary is exactly what it was.
+    if (l.igst !== undefined) row.igst = round2((row.igst ?? 0) + l.igst)
     map.set(key, row)
   }
   return [...map.values()].sort((a, b) => a.hsn.localeCompare(b.hsn) || a.rate - b.rate)
 }
 
 /** Rate-wise summary (5% / 12% / 18%…) — the other view accountants ask for. */
-export function rateSummary<T extends { taxable: number; cgst: number; sgst: number; taxRate: number }>(lines: T[]) {
-  const map = new Map<number, { rate: number; taxable: number; cgst: number; sgst: number }>()
+export function rateSummary<T extends { taxable: number; cgst: number; sgst: number; igst?: number; taxRate: number }>(lines: T[]) {
+  const map = new Map<number, { rate: number; taxable: number; cgst: number; sgst: number; igst?: number }>()
   for (const l of lines) {
     const row = map.get(l.taxRate) ?? { rate: l.taxRate, taxable: 0, cgst: 0, sgst: 0 }
     row.taxable = round2(row.taxable + l.taxable)
     row.cgst = round2(row.cgst + l.cgst)
     row.sgst = round2(row.sgst + l.sgst)
+    if (l.igst !== undefined) row.igst = round2((row.igst ?? 0) + l.igst)
     map.set(l.taxRate, row)
   }
   return [...map.values()].sort((a, b) => a.rate - b.rate)

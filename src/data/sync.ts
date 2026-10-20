@@ -25,7 +25,7 @@ export const initialSyncState = (): SyncState => ({
 type Endpoint = { method: string; path: string | ((p: Record<string, unknown>) => string) }
 
 /** One write endpoint per entity — the exact routes the cloud API exposes (see docs/API-CONTRACT.md). */
-export const ENDPOINT: Record<SyncEntity, Endpoint> = {
+export const ENDPOINT: Record<Exclude<SyncEntity, 'mut'>, Endpoint> = {
   bill: { method: 'POST', path: '/bills' },
   billReturn: { method: 'POST', path: (p) => `/bills/${p.refundOfBillId}/return` },
   customer: { method: 'POST', path: '/customers' },
@@ -128,6 +128,7 @@ export function createSyncEngine(d: SyncDeps) {
         if (!entry || seen.has(entry.id)) break
         seen.add(entry.id)
 
+        if (entry.entity === 'mut') { await d.updateOutbox(entry.id, { synced: 2, attempts: entry.attempts + 1, lastError: 'A Kosh-server write reached a Krishna-compatible connection' }); continue }
         const def = ENDPOINT[entry.entity]
         const payload = entry.payload as Record<string, unknown>
         const path = typeof def.path === 'function' ? def.path(payload) : def.path

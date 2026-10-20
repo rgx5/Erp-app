@@ -1,0 +1,29 @@
+{
+  "name": "kosh-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Kosh Server — the standalone backend for the Kosh ERP (Fastify + PostgreSQL)",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "start": "node dist/main.js",
+    "migrate": "node dist/migrate.js",
+    "dev": "npm run build && node dist/main.js",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "cd .. && npx jest server"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "fastify": "^5.2.0",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.13.0"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.7",
+    "@types/node": "^22.10.0",
+    "@types/pg": "^8.11.10",
+    "esbuild": "^0.24.0",
+    "typescript": "^5.6.3"
+  }
+}

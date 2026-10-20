@@ -24,6 +24,7 @@ import { T } from '@/ui/Text'
 import { Plus, ScanBarcode, Trash, UserPlus } from '@/ui/icons'
 import { toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { PanelSlot } from '@/modules/PanelSlot'
 
 type PayMode = 'full' | 'later' | 'part'
 
@@ -43,6 +44,8 @@ export default function NewPurchase() {
   const [invoiceTotal, setInvoiceTotal] = useState('')
   const [date, setDate] = useState(toInputDate(Date.now()))
   const [notes, setNotes] = useState('')
+  // What modules capture on the receipt (batches, serial numbers, the location) — saved as `purchase.ext`.
+  const [ext, setExtAll] = useState<Record<string, unknown>>({})
   const [payMode, setPayMode] = useState<PayMode>('full')
   const [part, setPart] = useState('')
   const [picking, setPicking] = useState(false)
@@ -106,7 +109,7 @@ export default function NewPurchase() {
       const dayStart = toInputDate(Date.now()) === date ? Date.now() : fromInputDate(date)
       const r = perform((s, ctx) => receivePurchase(s, {
         supplierId, date: dayStart, invoiceRef: invoiceRef.trim(), invoiceTotal: Number(invoiceTotal) > 0 ? round2(Number(invoiceTotal)) : undefined,
-        items: built.items, total, paid, notes: notes.trim(), ...(poRef.current ? { poId: poRef.current } : {}),
+        items: built.items, total, paid, notes: notes.trim(), ...(poRef.current ? { poId: poRef.current } : {}), ...(Object.keys(ext).length ? { ext } : {}),
       }, ctx))
       toast(`${r.purchase.no} received — ${built.items.length} ${built.items.length === 1 ? 'line' : 'lines'}`, 'ok')
       const unpriced = built.items.map((i) => byId.get(i.variantId)).filter((v): v is VariantView => !!v && needsPricing(v)).map((v) => ({ ...v, cost: built.items.find((i) => i.variantId === v.id)?.cost || v.cost }))
@@ -172,6 +175,9 @@ export default function NewPurchase() {
             {built.skipped > 0 ? <T v="caption" tone="mute">{built.skipped} {built.skipped === 1 ? 'line has' : 'lines have'} no quantity and will be left out.</T> : null}
           </View>
         </Section>
+
+        <PanelSlot slot="receipt" items={built.items.map((i) => ({ variantId: i.variantId, qty: i.qty, cost: i.cost }))} ext={ext}
+          setExt={(moduleId, value) => setExtAll((cur) => ({ ...cur, [moduleId]: value }))} setQty={(variantId, qty) => patch(variantId, { qty: String(qty) })} />
 
         <Section title="The supplier’s bill" style={{ marginTop: 18 }}>
           <View style={{ gap: 14 }}>

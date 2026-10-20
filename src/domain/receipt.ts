@@ -1,5 +1,6 @@
 import type { Bill, Customer, StoreSettings, User } from './types'
 import { amountInWords, inr, round2 } from './money'
+import { gstinState, stateName, taxInfoOf } from './gst'
 import { fmtDateTime, fmtDate } from './dates'
 import { fmtQty, unitSuffix } from './qty'
 import { hsnSummary } from './tax'
@@ -22,6 +23,14 @@ export const esc = (s: string | number | undefined | null) =>
   String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 
 export const isCreditNote = (b: Bill) => !!b.refundOfBillId || b.total < 0
+
+/** How a bill's tax is laid out: a bill of supply shows none, an inter-state bill shows IGST, a local one CGST + SGST. */
+export function taxLayout(b: Bill): { billOfSupply: boolean; igst: boolean; igstTotal: number; info: ReturnType<typeof taxInfoOf> } {
+  const info = taxInfoOf(b)
+  const igstTotal = round2(b.igstTotal ?? b.items.reduce((s, i) => s + (i.igst ?? 0), 0))
+  return { billOfSupply: info.taxMode === 'bill_of_supply', igst: b.igstTotal !== undefined || b.items.some((i) => i.igst !== undefined), igstTotal, info }
+}
+const docTitle = (b: Bill) => (isCreditNote(b) ? 'CREDIT NOTE' : taxLayout(b).billOfSupply ? 'BILL OF SUPPLY' : 'TAX INVOICE')
 const sign = (b: Bill) => (isCreditNote(b) ? -1 : 1)
 
 /** How a tender line is named on paper and in lists: Cash, UPI, Card, Store credit, Points. */
@@ -42,7 +51,7 @@ export function receiptText({ bill, store, customer, extras }: DocContext): stri
   const lines: string[] = []
   lines.push(`*${store.name}*`)
   if (store.city) lines.push(store.city)
-  lines.push(`${credit ? 'Credit note' : 'Bill'} ${bill.no} · ${fmtDate(bill.date)}`)
+  lines.push(`${credit ? 'Credit note' : taxLayout(bill).billOfSupply ? 'Bill of supply' : 'Bill'} ${bill.no} · ${fmtDate(bill.date)}`)
   for (const h of extras?.header ?? []) lines.push(h)
   if (customer?.name) lines.push(`Hi ${firstName(customer.name)},`)
   lines.push('')
@@ -80,33 +89,37 @@ export function receiptHtml(ctx: DocContext, opts: ReceiptOptions = receiptOptio
   const credit = isCreditNote(bill)
   const s = sign(bill)
   const saved = round2(bill.grossMrp - bill.subtotal)
+  const lay = taxLayout(bill)
+  const buyerGstin = lay.info.buyerGstin || customer?.gstin || ''
+  const pos = lay.info.placeOfSupply || gstinState(buyerGstin)
   const rows = bill.items.map((i) => {
     const lbl = variantLabel(i.size, i.color)
     return `<tr><td colspan="3"><span class="b">${esc(i.name)}</span>${lbl ? ` <span class="muted">${esc(lbl)}</span>` : ''}</td></tr>
       <tr><td class="muted sm">${esc(fmtQty(i.qty))}${esc(unitSuffix(i))} × ${esc(inr(i.price, 2))}${i.discountAmount > 0 ? ` <span>(−${esc(inr(i.discountAmount, 0))})</span>` : ''}</td><td></td><td class="r b">${esc(inr(Math.abs(i.lineTotal), 2))}</td></tr>${extras?.item?.(i) ? `<tr><td colspan="3" class="muted sm">${esc(extras.item(i))}</td></tr>` : ''}`
   }).join('')
-  const hsn = opts.showHsn ? hsnSummary(bill.items.map((i) => ({ ...i, qty: i.qty }))) : []
+  const hsn = opts.showHsn && !lay.billOfSupply ? hsnSummary(bill.items.map((i) => ({ ...i, qty: i.qty }))) : []
   const body = `
     <h1>${esc(store.name)}</h1>
     ${store.tagline ? `<div class="c muted sm">${esc(store.tagline)}</div>` : ''}
     ${[store.address, store.city].filter(Boolean).length ? `<div class="c sm">${esc([store.address, store.city].filter(Boolean).join(', '))}</div>` : ''}
     ${store.phone ? `<div class="c sm">Ph: ${esc(store.phone)}</div>` : ''}${store.gstin ? `<div class="c sm">GSTIN: ${esc(store.gstin)}</div>` : ''}
-    <h2>${credit ? 'CREDIT NOTE' : 'TAX INVOICE'}</h2><hr>
+    <h2>${docTitle(bill)}</h2><hr>
     <div class="row sm"><span>${esc(bill.no)}</span><span>${esc(fmtDateTime(bill.date))}</span></div>
     ${customer ? `<div class="sm">Customer: ${esc(customer.name)}${customer.phone ? ` · ${esc(customer.phone)}` : ''}</div>` : ''}
+    ${buyerGstin ? `<div class="sm">Buyer GSTIN: ${esc(buyerGstin)}</div>` : ''}${pos && !lay.billOfSupply ? `<div class="sm">Place of supply: ${esc(stateName(pos) || pos)} (${esc(pos)})</div>` : ''}${lay.info.reverseCharge ? `<div class="sm b">Tax payable on reverse charge basis</div>` : ''}
     ${seller ? `<div class="sm muted">Served by ${esc(seller.name)}</div>` : ''}
     ${(extras?.header ?? []).map((h) => `<div class="sm">${esc(h)}</div>`).join('')}
     <hr><table>${rows}</table><hr>
     ${bill.grossMrp > bill.subtotal && !credit ? `<div class="row sm"><span>Total MRP</span><span>${esc(inr(bill.grossMrp, 2))}</span></div>` : ''}
     ${bill.itemDiscount + bill.billDiscount > 0 ? `<div class="row sm"><span>Discount${bill.coupon ? ` (${esc(bill.coupon)})` : ''}</span><span>−${esc(inr(bill.itemDiscount + bill.billDiscount, 2))}</span></div>` : ''}
-    ${opts.showTax ? `<div class="row sm"><span>Taxable value</span><span>${esc(inr(Math.abs(bill.taxableTotal), 2))}</span></div><div class="row sm"><span>CGST</span><span>${esc(inr(Math.abs(bill.cgstTotal), 2))}</span></div><div class="row sm"><span>SGST</span><span>${esc(inr(Math.abs(bill.sgstTotal), 2))}</span></div>` : ''}
+    ${opts.showTax && !lay.billOfSupply ? `<div class="row sm"><span>Taxable value</span><span>${esc(inr(Math.abs(bill.taxableTotal), 2))}</span></div>${lay.igst ? `<div class="row sm"><span>IGST</span><span>${esc(inr(Math.abs(lay.igstTotal), 2))}</span></div>` : `<div class="row sm"><span>CGST</span><span>${esc(inr(Math.abs(bill.cgstTotal), 2))}</span></div><div class="row sm"><span>SGST</span><span>${esc(inr(Math.abs(bill.sgstTotal), 2))}</span></div>`}` : ''}${lay.billOfSupply && store.registrationType === 'composition' ? `<div class="sm muted">Composition taxable person, not eligible to collect tax on supplies.</div>` : ''}
     ${bill.roundOff ? `<div class="row sm"><span>Round off</span><span>${esc(inr(bill.roundOff * s, 2))}</span></div>` : ''}
     <div class="row tot"><span>${credit ? 'REFUND' : 'TOTAL'}</span><span>${esc(inr(Math.abs(bill.total), 2))}</span></div>
     ${bill.payments.length ? `<div class="sm muted" style="margin-top:4px">${esc(paymentSummary(bill))}${bill.changeDue > 0 ? ` · Change ${esc(inr(bill.changeDue, 2))}` : ''}</div>` : ''}
     ${opts.showSavings && saved > 0 && !credit ? `<div class="c b" style="margin-top:6px">You saved ${esc(inr(saved, 2))}!</div>` : ''}
     ${opts.showLoyalty && bill.loyaltyEarned > 0 ? `<div class="c sm">⭐ +${bill.loyaltyEarned} loyalty points earned</div>` : ''}
     ${(extras?.footer ?? []).map((f) => `<div class="c sm">${esc(f)}</div>`).join('')}
-    ${hsn.length ? `<hr><table><tr><th>HSN</th><th>Rate</th><th class="r">Taxable</th><th class="r">Tax</th></tr>${hsn.map((h) => `<tr class="sm"><td>${esc(h.hsn)}</td><td>${h.rate}%</td><td class="r">${esc(inr(h.taxable, 2))}</td><td class="r">${esc(inr(round2(h.cgst + h.sgst), 2))}</td></tr>`).join('')}</table>` : ''}
+    ${hsn.length ? `<hr><table><tr><th>HSN</th><th>Rate</th><th class="r">Taxable</th><th class="r">Tax</th></tr>${hsn.map((h) => `<tr class="sm"><td>${esc(h.hsn)}</td><td>${h.rate}%</td><td class="r">${esc(inr(h.taxable, 2))}</td><td class="r">${esc(inr(round2(h.cgst + h.sgst + (h.igst ?? 0)), 2))}</td></tr>`).join('')}</table>` : ''}
     <hr>${store.returnPolicy ? `<div class="c sm muted">${esc(store.returnPolicy)}</div>` : ''}
     ${store.footerNote ? `<div class="c b" style="margin-top:6px">${esc(store.footerNote)}</div>` : ''}`
   return base(store.receiptWidth === '58mm' ? '58mm' : '80mm', body)
@@ -117,28 +130,33 @@ export function receiptHtml(ctx: DocContext, opts: ReceiptOptions = receiptOptio
 export function invoiceHtml(ctx: DocContext): string {
   const { bill, store, customer, seller, extras } = ctx
   const credit = isCreditNote(bill)
+  const lay = taxLayout(bill)
+  const bos = lay.billOfSupply
+  const buyerGstin = lay.info.buyerGstin || customer?.gstin || ''
+  const pos = lay.info.placeOfSupply || gstinState(buyerGstin)
+  const taxCols = (i: Bill['items'][number]) => (bos ? '' : lay.igst ? `<td class="r">${esc(inr(Math.abs(i.igst ?? 0)))}</td>` : `<td class="r">${esc(inr(Math.abs(i.cgst)))}</td><td class="r">${esc(inr(Math.abs(i.sgst)))}</td>`)
   const rows = bill.items.map((i, n) => `<tr>
       <td>${n + 1}</td><td><b>${esc(i.name)}</b><div class="muted sm">${esc(variantLabel(i.size, i.color))}</div>${extras?.item?.(i) ? `<div class="muted sm">${esc(extras.item(i))}</div>` : ''}</td><td>${esc(i.hsn || '—')}</td>
-      <td class="r">${esc(fmtQty(i.qty))}${esc(unitSuffix(i))}</td><td class="r">${esc(inr(i.price))}</td><td class="r">${esc(inr(Math.abs(i.taxable)))}</td>
-      <td class="r">${i.taxRate}%</td><td class="r">${esc(inr(Math.abs(i.cgst)))}</td><td class="r">${esc(inr(Math.abs(i.sgst)))}</td><td class="r b">${esc(inr(Math.abs(i.lineTotal)))}</td></tr>`).join('')
+      <td class="r">${esc(fmtQty(i.qty))}${esc(unitSuffix(i))}</td><td class="r">${esc(inr(i.price))}</td>${bos ? '' : `<td class="r">${esc(inr(Math.abs(i.taxable)))}</td>`}
+      ${bos ? '' : `<td class="r">${i.taxRate}%</td>`}${taxCols(i)}<td class="r b">${esc(inr(Math.abs(i.lineTotal)))}</td></tr>`).join('')
   const hsn = hsnSummary(bill.items)
   const body = `
   <style>@page{size:A4;margin:14mm}body{font-size:12px;padding:0;width:auto}table.items td,table.items th{border:1px solid #bbb;padding:5px 6px}table.items th{background:#f2f2f2;color:#111}.box{border:1px solid #bbb;padding:8px 10px;border-radius:4px}.grid{display:flex;gap:12px}.grid>div{flex:1}</style>
   <div class="row"><div><h1 style="text-align:left;font-size:22px">${esc(store.name)}</h1>
     <div class="muted">${esc([store.address, store.city].filter(Boolean).join(', '))}</div>
     ${store.phone ? `<div>Ph: ${esc(store.phone)}${store.email ? ` · ${esc(store.email)}` : ''}</div>` : ''}${store.gstin ? `<div class="b">GSTIN: ${esc(store.gstin)}</div>` : ''}</div>
-    <div class="r"><div style="font-size:18px;font-weight:800;letter-spacing:1px">${credit ? 'CREDIT NOTE' : 'TAX INVOICE'}</div><div>No. <b>${esc(bill.no)}</b></div><div>Date: ${esc(fmtDate(bill.date))}</div></div></div>
+    <div class="r"><div style="font-size:18px;font-weight:800;letter-spacing:1px">${docTitle(bill)}</div><div>No. <b>${esc(bill.no)}</b></div><div>Date: ${esc(fmtDate(bill.date))}</div></div></div>
   <div class="grid" style="margin:12px 0"><div class="box"><div class="muted sm">BILLED TO</div><b>${esc(customer?.name ?? 'Walk-in customer')}</b>
-    ${customer?.phone ? `<div>${esc(customer.phone)}</div>` : ''}${customer?.address ? `<div class="muted">${esc(customer.address)}</div>` : ''}${customer?.gstin ? `<div>GSTIN: ${esc(customer.gstin)}</div>` : ''}</div>
+    ${customer?.phone ? `<div>${esc(customer.phone)}</div>` : ''}${customer?.address ? `<div class="muted">${esc(customer.address)}</div>` : ''}${buyerGstin ? `<div>GSTIN: ${esc(buyerGstin)}</div>` : ''}${pos && !bos ? `<div>Place of supply: ${esc(stateName(pos) || pos)} (${esc(pos)})</div>` : ''}${!bos && buyerGstin ? `<div>Reverse charge: ${lay.info.reverseCharge ? 'Yes' : 'No'}</div>` : ''}</div>
     <div class="box"><div class="muted sm">DETAILS</div>${seller ? `<div>Served by ${esc(seller.name)}</div>` : ''}<div>Payment: ${esc(paymentSummary(bill) || '—')}</div>${[...(extras?.header ?? []), ...(extras?.footer ?? [])].map((h) => `<div>${esc(h)}</div>`).join('')}</div></div>
-  <table class="items"><tr><th>#</th><th>Item</th><th>HSN</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Taxable</th><th class="r">GST</th><th class="r">CGST</th><th class="r">SGST</th><th class="r">Amount</th></tr>${rows}</table>
+  <table class="items"><tr><th>#</th><th>Item</th><th>HSN</th><th class="r">Qty</th><th class="r">Rate</th>${bos ? '' : `<th class="r">Taxable</th><th class="r">GST</th>${lay.igst ? '<th class="r">IGST</th>' : '<th class="r">CGST</th><th class="r">SGST</th>'}`}<th class="r">Amount</th></tr>${rows}</table>
   <div class="grid" style="margin-top:12px"><div>
-    <table class="items"><tr><th>HSN</th><th class="r">Taxable</th><th class="r">Rate</th><th class="r">CGST</th><th class="r">SGST</th></tr>${hsn.map((h) => `<tr><td>${esc(h.hsn)}</td><td class="r">${esc(inr(Math.abs(h.taxable)))}</td><td class="r">${h.rate}%</td><td class="r">${esc(inr(Math.abs(h.cgst)))}</td><td class="r">${esc(inr(Math.abs(h.sgst)))}</td></tr>`).join('')}</table></div>
+    ${bos ? `<div class="muted sm">${store.registrationType === 'composition' ? 'Composition taxable person, not eligible to collect tax on supplies.' : 'Issued by a supplier not registered for GST — no tax is charged.'}</div>` : `<table class="items"><tr><th>HSN</th><th class="r">Taxable</th><th class="r">Rate</th>${lay.igst ? '<th class="r">IGST</th>' : '<th class="r">CGST</th><th class="r">SGST</th>'}</tr>${hsn.map((h) => `<tr><td>${esc(h.hsn)}</td><td class="r">${esc(inr(Math.abs(h.taxable)))}</td><td class="r">${h.rate}%</td>${lay.igst ? `<td class="r">${esc(inr(Math.abs(h.igst ?? 0)))}</td>` : `<td class="r">${esc(inr(Math.abs(h.cgst)))}</td><td class="r">${esc(inr(Math.abs(h.sgst)))}</td>`}</tr>`).join('')}</table>`}</div>
     <div class="box">
       <div class="row"><span>Subtotal</span><span>${esc(inr(Math.abs(bill.subtotal)))}</span></div>
       ${bill.billDiscount > 0 ? `<div class="row"><span>Bill discount</span><span>−${esc(inr(bill.billDiscount))}</span></div>` : ''}
-      <div class="row"><span>Taxable value</span><span>${esc(inr(Math.abs(bill.taxableTotal)))}</span></div>
-      <div class="row"><span>CGST + SGST</span><span>${esc(inr(Math.abs(bill.taxTotal)))}</span></div>
+      ${bos ? '' : `<div class="row"><span>Taxable value</span><span>${esc(inr(Math.abs(bill.taxableTotal)))}</span></div>
+      <div class="row"><span>${lay.igst ? 'IGST' : 'CGST + SGST'}</span><span>${esc(inr(Math.abs(bill.taxTotal)))}</span></div>`}
       ${bill.roundOff ? `<div class="row"><span>Round off</span><span>${esc(inr(bill.roundOff * sign(bill)))}</span></div>` : ''}
       <div class="row tot" style="border-top:1px solid #999;margin-top:4px;padding-top:4px"><span>${credit ? 'Refund' : 'Total'}</span><span>${esc(inr(Math.abs(bill.total)))}</span></div></div></div>
   <p style="margin-top:10px"><b>Amount in words:</b> ${esc(amountInWords(Math.abs(bill.total)))}</p>

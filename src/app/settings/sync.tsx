@@ -16,9 +16,10 @@ import { Sheet } from '@/ui/Sheet'
 import { Badge, Card, IconWell } from '@/ui/primitives'
 import { KV, Notice, Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
-import { Database, Refresh } from '@/ui/icons'
+import { Cloud, Database, Refresh } from '@/ui/icons'
 import { toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { MoveToServerSheet } from '@/features/MoveToServer'
 
 const ENTITY: Partial<Record<SyncEntity, string>> = {
   bill: 'Sale', billReturn: 'Return', customer: 'Customer', customerUpdate: 'Customer edit', product: 'New item', productUpdate: 'Item edit', productDelete: 'Item removal',
@@ -44,6 +45,7 @@ export default function SyncScreen() {
   const customers = useList('customers')
   const [busy, setBusy] = useState(false)
   const [signIn, setSignIn] = useState(false)
+  const [moving, setMoving] = useState(false)
 
   const connected = ws?.mode === 'remote'
   const rejected = outbox.filter((o) => o.synced === 2)
@@ -100,7 +102,7 @@ export default function SyncScreen() {
                   {rejected.slice(0, 12).map((o) => (
                     <Card key={o.id} flat>
                       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                        <T v="bodyStrong" style={{ flex: 1 }}>{ENTITY[o.entity] ?? o.entity}</T>
+                        <T v="bodyStrong" style={{ flex: 1 }}>{o.entity === 'mut' ? `Change to ${String((o.payload as { coll?: string }).coll ?? 'a record')}` : ENTITY[o.entity] ?? o.entity}</T>
                         <Badge tone="danger">{o.attempts} {o.attempts === 1 ? 'try' : 'tries'}</Badge>
                       </View>
                       <T v="caption" tone="danger" style={{ marginTop: 4 }}>{o.lastError ?? 'Refused by the server'}</T>
@@ -127,10 +129,14 @@ export default function SyncScreen() {
                 <KV k="Customers" v={num(customers.length)} />
               </Card>
             </Section>
-            <T v="caption" tone="mute" style={{ marginTop: 14 }}>To share one business between several phones, sign out and connect to a Kosh server from the welcome screen. Your data lives on the server and every phone keeps working offline.</T>
+            <View style={{ marginTop: 14, gap: 10 }}>
+              <T v="caption" tone="mute">To share one business between several phones, move it to a Kosh server. Your data then lives on the server and every phone keeps working offline.</T>
+              <Button label="Move to a server" kind="outline" block icon={<Cloud size={18} color={c.ink} />} onPress={() => setMoving(true)} />
+            </View>
           </>
         )}
       </View>
+      <MoveToServerSheet visible={moving} onClose={() => setMoving(false)} />
       <SignInSheet visible={signIn} email={ws?.loginEmail ?? ''} onClose={() => setSignIn(false)} onDone={() => { setSignIn(false); void run() }} />
     </Screen>
   )

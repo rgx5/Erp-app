@@ -1,5 +1,5 @@
 import type { BillItem, DiscountType } from './types'
-import { computeLineTax, type TaxSlab } from './tax'
+import { computeLineTax, type LineTaxOptions, type TaxSlab } from './tax'
 import { round2, roundOff } from './money'
 
 export interface CartLine {
@@ -51,6 +51,8 @@ export interface CartTotals {
   taxableTotal: number
   cgstTotal: number
   sgstTotal: number
+  /** Present only on an inter-state sale (then `cgstTotal` and `sgstTotal` are 0). */
+  igstTotal?: number
   taxTotal: number
   roundOff: number
   total: number
@@ -76,6 +78,8 @@ export function priceCart(
   billDiscountValue: number,
   slabs: TaxSlab[],
   priceIncludesTax: boolean,
+  /** Inter-state supply (IGST) or no tax at all (bill of supply). Left out, a sale is the ordinary local CGST + SGST one. */
+  tax?: LineTaxOptions,
 ): CartTotals {
   const grossMrp = round2(lines.reduce((s, l) => s + l.mrp * l.qty, 0))
 
@@ -100,7 +104,7 @@ export function priceCart(
   const items: BillItem[] = lines.map((l, i) => {
     const itemDisc = lineDiscount(l)
     const net = round2(netBeforeBill[i] - shares[i])
-    const t = computeLineTax(net, l.qty, slabs, priceIncludesTax, l.fixedRate)
+    const t = computeLineTax(net, l.qty, slabs, priceIncludesTax, l.fixedRate, tax)
     return {
       variantId: l.variantId,
       sku: l.sku,
@@ -120,6 +124,7 @@ export function priceCart(
       taxRate: t.rate,
       cgst: t.cgst,
       sgst: t.sgst,
+      ...(t.igst !== undefined ? { igst: t.igst } : {}),
       lineTotal: priceIncludesTax ? net : t.gross,
       returnedQty: 0,
       priceOverridden: l.priceOverridden,
@@ -133,6 +138,7 @@ export function priceCart(
   const taxableTotal = round2(items.reduce((s, i) => s + i.taxable, 0))
   const cgstTotal = round2(items.reduce((s, i) => s + i.cgst, 0))
   const sgstTotal = round2(items.reduce((s, i) => s + i.sgst, 0))
+  const igstTotal = round2(items.reduce((s, i) => s + (i.igst ?? 0), 0))
   const subtotal = round2(items.reduce((s, i) => s + i.lineTotal, 0))
   const [total, off] = roundOff(subtotal)
 
@@ -145,7 +151,8 @@ export function priceCart(
     taxableTotal,
     cgstTotal,
     sgstTotal,
-    taxTotal: round2(cgstTotal + sgstTotal),
+    ...(tax?.interState ? { igstTotal } : {}),
+    taxTotal: round2(cgstTotal + sgstTotal + igstTotal),
     roundOff: off,
     total,
     qtyTotal: lines.reduce((s, l) => s + l.qty, 0),

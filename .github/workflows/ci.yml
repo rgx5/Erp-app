@@ -20,6 +20,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Server dependencies (the server tests import them)
+        run: npm ci --prefix server
       - name: Typecheck
         run: npm run typecheck
       - name: Lint

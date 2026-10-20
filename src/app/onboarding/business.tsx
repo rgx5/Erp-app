@@ -3,9 +3,12 @@ import { View } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { industryById } from '@/industries'
 import { createLocalBusiness } from '@/data/auth'
+import { koshCreateBusiness } from '@/data/kosh/auth'
+import { normalizeKoshUrl } from '@/data/kosh/api'
 import { isValidPin } from '@/data/pin'
 import { Button } from '@/ui/Button'
-import { Field, NumberField } from '@/ui/Inputs'
+import { Field, NumberField, SwitchRow } from '@/ui/Inputs'
+import { Card } from '@/ui/primitives'
 import { Screen } from '@/ui/Screen'
 import { T } from '@/ui/Text'
 import { toast } from '@/ui/overlays'
@@ -23,6 +26,10 @@ export default function BusinessSetup() {
   const [pin2, setPin2] = useState('')
   const [busy, setBusy] = useState(false)
   const [tried, setTried] = useState(false)
+  const [online, setOnline] = useState(false)
+  const [server, setServer] = useState('')
+  const [email, setEmail] = useState('')
+  const [password, setPassword] = useState('')
 
   const gstinBad = gstin.trim() !== '' && !/^[0-9A-Z]{15}$/.test(gstin.trim().toUpperCase())
   const errors = {
@@ -31,6 +38,9 @@ export default function BusinessSetup() {
     pin: !isValidPin(pin) ? 'A PIN is exactly 4 digits' : null,
     pin2: pin2 !== pin ? 'The PINs do not match' : null,
     gstin: gstinBad ? 'GSTIN is 15 letters and digits' : null,
+    server: online && !server.trim() ? 'Enter the server address' : null,
+    email: online && !/^\S+@\S+\.\S+$/.test(email.trim()) ? 'Enter a valid email' : null,
+    password: online && password.length < 8 ? 'At least 8 characters' : null,
   }
   const ok = !Object.values(errors).some(Boolean)
 
@@ -39,7 +49,8 @@ export default function BusinessSetup() {
     if (!ok) return
     setBusy(true)
     try {
-      await createLocalBusiness({ packId: pack.id, name, ownerName: owner, city, gstin, pin })
+      if (online) await koshCreateBusiness(normalizeKoshUrl(server), { packId: pack.id, name, ownerName: owner, city, gstin, pin, email, password })
+      else await createLocalBusiness({ packId: pack.id, name, ownerName: owner, city, gstin, pin })
       toast(`${name.trim()} is ready`, 'ok')
       router.replace('/')
     } catch (e) {
@@ -61,6 +72,17 @@ export default function BusinessSetup() {
         </View>
         <NumberField label="PIN" value={pin} onChange={(v) => setPin(v.slice(0, 4))} secureTextEntry maxLength={4} error={tried ? errors.pin : null} />
         <NumberField label="Repeat PIN" value={pin2} onChange={(v) => setPin2(v.slice(0, 4))} secureTextEntry maxLength={4} error={tried ? errors.pin2 : null} />
+
+        <Card padded={false} style={{ marginTop: 8 }}>
+          <SwitchRow title="Keep it on a Kosh server" subtitle="Back it up, use it on more than one phone, and unlock accounts, payroll and more" value={online} onChange={setOnline} />
+          {online ? (
+            <View style={{ gap: 14, padding: 16, paddingTop: 4 }}>
+              <Field label="Server address" value={server} onChangeText={setServer} placeholder="https://erp.yourshop.in" autoCapitalize="none" autoCorrect={false} keyboardType="url" error={tried ? errors.server : null} />
+              <Field label="Your email" value={email} onChangeText={setEmail} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" error={tried ? errors.email : null} hint="You sign in on the web and on other phones with this." />
+              <Field label="Choose a password" value={password} onChangeText={setPassword} secureTextEntry autoCapitalize="none" error={tried ? errors.password : null} />
+            </View>
+          ) : null}
+        </Card>
       </View>
     </Screen>
   )

@@ -9,6 +9,8 @@ import type { VariantView } from '@/domain/views'
 import { useStore } from '@/data/hooks'
 import { useApp } from '@/data/store'
 import { adjustLines } from '@/modules/registry'
+import { supplyOptions, type BillTaxInfo } from '@/domain/gst'
+import type { ScannedVariant } from '@/data/lookup'
 
 /**
  * The bill being rung up. It lives only in memory — a bill you walk away from can be parked (held), which is saved on
@@ -73,7 +75,8 @@ export function addToCart(v: VariantView, opts: { qty?: number; basis: StoreSett
 
   const { lines, setLines } = useCart.getState()
   const existing = lines.find((l) => l.variantId === v.id)
-  const add = opts.qty ?? (existing ? qtyStep(v) : minQtyOf(v))
+  // A weighing-scale label says how much to sell (`scanQty`); otherwise one step more, or the minimum for a first piece.
+  const add = opts.qty ?? (v as ScannedVariant).scanQty ?? (existing ? qtyStep(v) : minQtyOf(v))
   if (existing) {
     const next = round3(existing.qty + add)
     if (v.trackStock && next > v.stock) return { ok: false, message: `Only ${fmtQtyUnit(v.stock, v)} left in stock` }
@@ -100,7 +103,15 @@ export function useCartTotals(): CartView {
   const state = useApp((s) => s.data)
   // Modules (price lists, quantity breaks, promotions) may reprice the lines; the count and order never change.
   const lines = useMemo(() => adjustLines(raw, { state, customerId, extras }), [raw, state, customerId, extras])
-  return useMemo(() => ({ ...priceCart(lines, type, value, store.slabs, store.priceIncludesTax), lines }), [lines, type, value, store.slabs, store.priceIncludesTax])
+  // GST treatment: IGST across state lines, no tax at all for a composition / unregistered dealer (the pricing module's checkout panel
+  // records the place of supply and buyer's GSTIN in `extras.pricing`).
+  const customerGstin = customerId ? state.customers[customerId]?.gstin : undefined
+  const info = extras.pricing as BillTaxInfo | undefined
+  const supply = useMemo(() => supplyOptions(store, customerGstin, info), [store, customerGstin, info])
+  return useMemo(
+    () => ({ ...priceCart(lines, type, value, store.slabs, store.priceIncludesTax, supply.interState || supply.noTax ? supply : undefined), lines }),
+    [lines, type, value, store.slabs, store.priceIncludesTax, supply],
+  )
 }
 
 export const cartCount = (lines: CartLine[]) => lines.length

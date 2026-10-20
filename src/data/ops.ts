@@ -11,7 +11,7 @@ import { nextBarcode as pickBarcode } from '@/domain/barcode'
 import { skuFor } from '@/domain/codes'
 import { computeDayClose } from '@/domain/analytics'
 import { listOf, mergeChanges, type Changes, type DataState, type OutboxDraft } from './state'
-import { billHookList } from '@/modules/registry'
+import { billHookList, receiptHookList, returnHookList } from '@/modules/registry'
 import { withEffects } from '@/replication/local'
 
 /** A user-facing refusal ("Nothing selected to return."). Screens show `message` as-is. */
@@ -197,12 +197,15 @@ export function processReturn(
     taxableTotal: round2(plan.items.reduce((s, i) => s + i.taxable, 0)),
     cgstTotal: round2(plan.items.reduce((s, i) => s + i.cgst, 0)),
     sgstTotal: round2(plan.items.reduce((s, i) => s + i.sgst, 0)),
-    taxTotal: round2(plan.items.reduce((s, i) => s + i.cgst + i.sgst, 0)),
+    ...(plan.items.some((i) => i.igst !== undefined) ? { igstTotal: round2(plan.items.reduce((s, i) => s + (i.igst ?? 0), 0)) } : {}),
+    taxTotal: round2(plan.items.reduce((s, i) => s + i.cgst + i.sgst + (i.igst ?? 0), 0)),
     roundOff: plan.roundOff, total: -plan.total,
     payments: [{ mode: refundMode === 'cash' ? 'cash' : 'credit', amount: -plan.total }],
     paid: -plan.total, changeDue: 0, loyaltyEarned: -plan.loyaltyReverse, loyaltyRedeemed: 0, creditUsed: 0,
     cashierId: ctx.userId, soldBy: original.soldBy, status: 'returned', refundOfBillId: original.id, refundAmount: plan.total,
     notes: `Return against ${original.no}${why ? ` · ${why}` : ''}`,
+    // The credit note keeps the original's tax treatment (buyer GSTIN, place of supply, bill of supply…) so it prints the same way.
+    ...(original.ext ? { ext: original.ext } : {}),
   }
 
   const updatedItems = original.items.map((it) => {
@@ -228,6 +231,8 @@ export function processReturn(
       + (plan.loyaltyReverse ? `, ${plan.loyaltyReverse} points taken back` : '') + (why ? ` — ${why}` : ''))] },
     outbox: [q('billReturn', creditNote)],
   })
+  // Modules add their own side of a return (a batch gets its quantity back).
+  for (const h of returnHookList()) { const extra = h.onReturn?.({ state, ctx, original, creditNote }); if (extra) parts.push(extra) }
   return { changes: mergeChanges(...parts), creditNote }
 }
 
@@ -259,7 +264,10 @@ export function receivePurchase(state: DataState, p: Omit<Purchase, 'id' | 'no' 
   void basis
   const logs = [audit(ctx, 'PURCHASE', `${purchase.no} — ₹${purchase.total}`)]
   if (costChanges.length) logs.push(audit(ctx, 'COST_CHANGE', `${purchase.no}: ${costChanges.join('; ')}`))
-  const base = mergeChanges({ put: { purchases: [purchase], audit: logs }, outbox: [q('purchase', purchase), ...variantUpdates] }, stockChanges(edit))
+  // Modules may refuse the receipt, or add to it (batches and serial numbers that arrived, the location they go to).
+  for (const h of receiptHookList()) h.beforeSave?.({ state, ctx, purchase, moves: edit.moves })
+  const hookChanges = receiptHookList().map((h) => h.onSave?.({ state, ctx, purchase, moves: edit.moves })).filter((x): x is Changes => !!x)
+  const base = mergeChanges({ put: { purchases: [purchase], audit: logs }, outbox: [q('purchase', purchase), ...variantUpdates] }, stockChanges(edit), ...hookChanges)
   // Other modules react to a receipt (a purchase order's received quantities); the stock side is already done above.
   return { purchase, changes: withEffects(state, base, ['purchases'], ctx.now) }
 }
@@ -617,7 +625,10 @@ export function updateSettings(patch: Partial<StoreSettings>, ctx: OpCtx): Chang
   const { id: _id, plan: _plan, ...rest } = patch
   void _id; void _plan
   if (!Object.keys(rest).length) return {}
-  return { store: rest, put: { audit: [audit(ctx, 'SETTINGS', Object.keys(rest).join(', '))] }, outbox: [q('storeUpdate', rest)] }
+  // `industry` is for the Kosh server's settings document; a Krishna-compatible server has no such field.
+  const { industry: _industry, ...forKrishna } = rest
+  void _industry
+  return { store: rest, put: { audit: [audit(ctx, 'SETTINGS', Object.keys(rest).join(', '))] }, ...(Object.keys(forKrishna).length ? { outbox: [q('storeUpdate', forKrishna)] } : {}) }
 }
 
 // ───────────────────────────── helpers for screens ─────────────────────────────
