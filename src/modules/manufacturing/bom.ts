@@ -36,7 +36,7 @@ export const currentCost = (state: DataState, variantId: string): number => {
 
 /** A recipe line's quantity in the item's own unit, or `null` when its unit does not fit the item. */
 export const lineQtyInStockUnit = (state: DataState, line: Pick<RecipeLine, 'variantId' | 'qty' | 'unit'>): number | null =>
-  convertQty(line.qty, line.unit, stockUnitOf(state, line.variantId))
+  convertQty(line.qty, line.unit ?? stockUnitOf(state, line.variantId), stockUnitOf(state, line.variantId))
 
 // ───────────────────────────── recipes ─────────────────────────────
 

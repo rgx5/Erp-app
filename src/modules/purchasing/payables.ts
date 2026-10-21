@@ -80,7 +80,7 @@ export function payables(state: DataState): Payables {
     const ob = round2(s.openingBalance || 0)
     if (ob > 0) {
       const f = firstDate.get(s.id)
-      make({ ref: openingRef(s.id), kind: 'opening', no: 'Opening balance', supplierId: s.id, date: f ?? 0, dueDate: f === undefined ? null : f + days(s.id), amount: ob, paidAtSource: 0 })
+      make({ ref: openingRef(s.id), kind: 'opening', no: 'Opening balance', supplierId: s.id, date: f === undefined ? 0 : f - 1, dueDate: f === undefined ? null : f + days(s.id), amount: ob, paidAtSource: 0 })
     } else if (ob < 0) addCredit(s.id, -ob)
   }
 
