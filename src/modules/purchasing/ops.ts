@@ -3,6 +3,7 @@ import { round2 } from '@/domain/money'
 import { audit, OpCtx, OpError } from '@/data/ops'
 import { listOf, type Changes, type DataState } from '@/data/state'
 import { nextNo } from '../numbering'
+import { canSend, settingsOf } from './approvals'
 import { poTotal, statusFor } from './logic'
 import type { PoLine, PoStatus, PurchaseOrder } from './types'
 import './replication'
@@ -52,6 +53,10 @@ export function setPoStatus(state: DataState, orderId: string, to: Extract<PoSta
   const got = cur.items.some((i) => i.receivedQty > 0)
   if (to === 'draft' && (got || cur.status !== 'sent')) throw new OpError('Only a sent order with nothing received can go back to draft.')
   if (to === 'sent' && cur.status !== 'draft') throw new OpError('Only a draft can be sent.')
+  if (to === 'sent') {
+    const check = canSend(settingsOf(state), cur, state.users[ctx.userId]?.role)
+    if (!check.ok) throw new OpError(check.reason)
+  }
   const order: PurchaseOrder = { ...cur, status: to === 'cancelled' ? 'cancelled' : statusFor(to, cur.items) }
   const word = { draft: 'back to draft', sent: 'sent', cancelled: 'cancelled' }[to]
   return { order, changes: { put: { purchaseOrders: [order], audit: [audit(ctx, 'PO_STATUS', `${cur.no} ${word}`)] } } }

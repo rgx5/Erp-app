@@ -21,6 +21,7 @@ export const KEY_TABLE: Record<ChartKey, Row> = {
   advances_paid: { code: '1110', name: 'Advances paid to suppliers', type: 'asset' },
   employee_advances: { code: '1120', name: 'Employee advances', type: 'asset' },
   inventory: { code: '1200', name: 'Inventory (stock in hand)', type: 'asset' },
+  wip: { code: '1210', name: 'Work in progress (production)', type: 'asset' },
   gst_input_cgst: { code: '1301', name: 'GST input credit — CGST', type: 'asset' },
   gst_input_sgst: { code: '1302', name: 'GST input credit — SGST', type: 'asset' },
   gst_input_igst: { code: '1303', name: 'GST input credit — IGST', type: 'asset' },

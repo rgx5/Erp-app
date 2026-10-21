@@ -15,7 +15,7 @@ export type WellKnownAccount =
   | 'sales' | 'sales_returns' | 'discounts' | 'round_off'
   | 'gst_output_cgst' | 'gst_output_sgst' | 'gst_output_igst' | 'gst_input_cgst' | 'gst_input_sgst' | 'gst_input_igst'
   | 'receivables' | 'payables' | 'advances_received' | 'advances_paid' | 'store_credit' | 'gift_cards' | 'loyalty_liability'
-  | 'inventory' | 'purchases' | 'purchase_returns' | 'cogs' | 'stock_adjustments' | 'freight_in'
+  | 'inventory' | 'wip' | 'purchases' | 'purchase_returns' | 'cogs' | 'stock_adjustments' | 'freight_in'
   | 'salaries' | 'salary_payable' | 'employee_advances' | 'pf_payable' | 'esi_payable' | 'tds_payable' | 'professional_tax_payable'
   | 'owner_capital' | 'drawings' | 'suspense'
 export type AccountKey = WellKnownAccount | (string & {})

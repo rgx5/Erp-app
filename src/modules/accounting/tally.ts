@@ -27,7 +27,7 @@ const money = (n: number) => round2(n).toFixed(2)
 
 const GROUP_BY_KEY: Record<string, string> = {
   cash: 'Cash-in-Hand', bank: 'Bank Accounts', upi: 'Bank Accounts', card: 'Bank Accounts', wallet: 'Bank Accounts',
-  receivables: 'Sundry Debtors', payables: 'Sundry Creditors', inventory: 'Stock-in-Hand',
+  receivables: 'Sundry Debtors', payables: 'Sundry Creditors', inventory: 'Stock-in-Hand', wip: 'Stock-in-Hand',
   gst_input_cgst: 'Duties & Taxes', gst_input_sgst: 'Duties & Taxes', gst_input_igst: 'Duties & Taxes',
   gst_output_cgst: 'Duties & Taxes', gst_output_sgst: 'Duties & Taxes', gst_output_igst: 'Duties & Taxes', gst_paid: 'Duties & Taxes',
   sales: 'Sales Accounts', sales_returns: 'Sales Accounts', purchases: 'Purchase Accounts', purchase_returns: 'Purchase Accounts',
