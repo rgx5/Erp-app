@@ -1,7 +1,7 @@
 // Pure half of the crm module: collections, permissions, effects. See docs/MODULES.md.
 import { registerCollections } from '@/data/state'
 import { registerPermission } from '@/domain/permissions'
-import { addOwnedFields, registerCollectionMeta, type Effect } from '@/replication/registry'
+import { registerCollectionMeta, type Effect } from '@/replication/registry'
 import type { ReferralReward } from './types'
 import './types'
 
@@ -63,10 +63,7 @@ registerCollectionMeta(
   { name: 'crmSettings', kind: 'master', perm: 'crm', readPerm: 'any' },
 )
 
-// storeCredit and loyaltyPoints are already kept by the server (bills move them); referral rewards add to the same numbers.
-addOwnedFields('customers', ['storeCredit', 'loyaltyPoints'])
-
-/** A reward adds store credit and points to the customer who referred, and credit to the one who was referred. */
+/** A reward adds store credit and points (both are numbers the server already keeps for each customer) to the customer who referred, and credit to the one who was referred. */
 export function rewardEffects(r: ReferralReward): Effect[] {
   const out: Effect[] = []
   if (r.referrerCredit > 0) out.push({ kind: 'inc', coll: 'customers', id: r.referrerId, field: 'storeCredit', by: r.referrerCredit })

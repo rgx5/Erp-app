@@ -125,6 +125,8 @@ export interface CampaignSend {
   name: string
   phone: string
   text: string
+  /** Position in the list, so the order the campaign was built in is kept. */
+  order: number
   status: SendStatus
   at?: number
   userId?: string
