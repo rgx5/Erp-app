@@ -1,4 +1,4 @@
-import { listOf, type DataState } from '@/data/state'
+import { listOf, type Changes, type DataState } from '@/data/state'
 import {
   adjustStock, createItem, deleteProduct, processReturn, receivePurchase, saveBill, saveCustomer, saveSupplier, updateProduct, updateSettings, updateVariant, addExpense, openDay, closeDay,
 } from '@/data/ops'
@@ -134,5 +134,16 @@ describe('the rules the server enforces', () => {
     const res = await applyMutations(db, [m('o:1', 'products', 'p1', 'patch', { name: 'ghost' }), m('o:2', 'products', 'p2', 'create', { id: 'p2' })], owner)
     expect(res.map((r) => r.status)).toEqual(['rejected', 'ok'])
     expect(await db.get('products', 'p1')).toBeUndefined()
+  })
+})
+
+describe('a new item with opening stock', () => {
+  test('is counted once on the server (the variant is sent without the stock its move brings)', () => {
+    const variant = { id: 'v1', productId: 'p1', stock: 10 }
+    const move = { id: 'm1', variantId: 'v1', qty: 10 }
+    const before = { variants: {}, moves: {} } as unknown as DataState
+    const muts = mutationsFromChanges(before, { put: { variants: [variant], moves: [move] } } as unknown as Changes, { deviceId: 'd', nextSeq: (() => { let n = 0; return () => ++n })() })
+    const sent = muts.find((m) => m.coll === 'variants')!
+    expect((sent.data as { stock: number }).stock).toBe(0)
   })
 })

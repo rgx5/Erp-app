@@ -25,6 +25,17 @@ export function diffDoc(before: Record<string, unknown>, after: Record<string, u
   return out
 }
 
+/**
+ * A variant created together with its opening-stock move already shows that stock locally, but the server adds the move
+ * to the variant itself — so the variant is sent without the quantity those moves bring.
+ */
+function withoutOwnMoves(row: Doc, changes: Changes): Doc {
+  const moved = ((changes.put?.moves ?? []) as unknown as Array<{ variantId: string; qty: number }>)
+    .filter((m) => m.variantId === row.id).reduce((n, m) => n + m.qty, 0)
+  const stock = typeof row.stock === 'number' ? row.stock : 0
+  return moved ? { ...row, stock: Math.round((stock - moved) * 1000) / 1000 } : row
+}
+
 export interface DeriveOpts {
   deviceId: string
   nextSeq: () => number
@@ -58,7 +69,7 @@ export function mutationsFromChanges(before: DataState, changes: Changes, o: Der
     for (const row of (changes.put?.[coll] ?? []) as unknown as Doc[]) {
       if (coll === 'bills' && (row as { status?: string }).status === 'held') continue
       const old = prev[row.id]
-      if (!old) { push(coll, row.id, 'create', row); continue }
+      if (!old) { push(coll, row.id, 'create', coll === 'variants' ? withoutOwnMoves(row, changes) : row); continue }
       const patch = diffDoc(old, row)
       const allowed = meta.kind === 'ledger' ? meta.patchable ?? [] : null
       for (const k of Object.keys(patch)) {
