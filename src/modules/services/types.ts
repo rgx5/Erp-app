@@ -173,6 +173,8 @@ export interface PackageUse {
   sessions: number
   /** Signed revenue recognised with it (GST excluded). */
   value: number
+  /** Signed GST released with it (the share of the GST in the price that belongs to these sessions). */
+  tax: number
   date: number
   variantId?: string
   serviceName?: string
@@ -226,6 +228,8 @@ export interface JobCard {
   photos: string[]
   status: JobStatus
   lines: JobLine[]
+  /** The total (GST included) the customer approved; more work on top of it needs a new approval. */
+  approvedTotal?: number
   assignedTo?: string
   receivedAt: number
   promisedAt?: number
