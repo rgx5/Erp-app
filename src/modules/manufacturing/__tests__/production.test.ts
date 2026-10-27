@@ -80,7 +80,7 @@ describe('starting and issuing', () => {
     expect(s.variants.butter.stock).toBe(18.9)
     expect(s.variants.box.stock).toBe(80)
     // parts with no recipe are for buying
-    const short = { ...s, variants: { ...s.variants, butter: { ...s.variants.butter, stock: 0 } } }
+    const short = { ...s, variants: { ...s.variants, dough: { ...s.variants.dough, stock: 2 }, butter: { ...s.variants.butter, stock: 0 } } }
     const again = planWorkOrder(short, { recipeId: recipeIdOf(short, 'cake'), qty: 10 }, at(8))
     const s2 = apply(short, again)
     const buy = planShortfallOrders(s2, again.workOrder.id, at(9))
