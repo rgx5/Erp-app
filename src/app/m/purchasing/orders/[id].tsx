@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import { View } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { variantLabel } from '@/domain/codes'
@@ -7,16 +7,20 @@ import { inr } from '@/domain/money'
 import { fmtQty } from '@/domain/qty'
 import { useList, useVariantViews } from '@/data/hooks'
 import { OpError } from '@/data/ops'
-import { perform, useCan } from '@/data/store'
+import { perform, useApp, useCan, useUser } from '@/data/store'
+import { approvalRefusal, approvalState, approvalsFor, approverHint, canSend, settingsOf } from '@/modules/purchasing/approvals'
+import { decidePurchaseOrder } from '@/modules/purchasing/ops-approvals'
 import { isOverdue, remaining, STATUS_LABEL } from '@/modules/purchasing/logic'
 import { deletePurchaseOrder, setPoStatus } from '@/modules/purchasing/ops'
 import { usePurchaseDraft } from '@/features/purchaseDraft'
 import { Button } from '@/ui/Button'
+import { Field } from '@/ui/Inputs'
 import { Screen } from '@/ui/Screen'
+import { Sheet } from '@/ui/Sheet'
 import { Badge, Card, ProgressBar } from '@/ui/primitives'
 import { KV, Notice, Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
-import { Pencil, Send, Trash, Truck, Close } from '@/ui/icons'
+import { Check, Pencil, Send, Trash, Truck, Close } from '@/ui/icons'
 import { ask, toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
 
@@ -30,6 +34,10 @@ export default function PurchaseOrderPage() {
   const suppliers = useList('suppliers')
   const receipts = useList('purchases').filter((p) => p.poId === id)
   const views = useVariantViews()
+  const data = useApp((s) => s.data)
+  const user = useUser()
+  const [rejecting, setRejecting] = useState(false)
+  const [reason, setReason] = useState('')
 
   if (!canBuy) return <Screen title="Purchase order" back><T tone="mute">Purchase orders are for the owner and managers.</T></Screen>
   if (!order) return <Screen title="Not found" back><T tone="mute">This purchase order is no longer here.</T></Screen>
@@ -37,12 +45,25 @@ export default function PurchaseOrderPage() {
   const byId = new Map(views.map((v) => [v.id, v]))
   const open = order.status === 'sent' || order.status === 'partial'
   const late = isOverdue(order, Date.now())
+  const settings = settingsOf(data)
+  const aState = approvalState(settings, order)
+  const sendCheck = canSend(settings, order, user?.role)
+  const mayDecide = order.status === 'draft' && aState === 'pending' && approvalRefusal(settings, order, user?.role) === null
+  const log = approvalsFor(data, order.id)
   const got = order.items.reduce((s, i) => s + i.receivedQty, 0)
   const want = order.items.reduce((s, i) => s + i.qty, 0)
 
   function change(to: 'sent' | 'draft' | 'cancelled') {
     try { perform((s, ctx) => setPoStatus(s, order!.id, to, ctx)); toast(to === 'sent' ? 'Marked as sent' : to === 'draft' ? 'Back to draft' : 'Order cancelled', 'ok') }
     catch (e) { toast(e instanceof OpError ? e.message : 'Could not change the order', 'err') }
+  }
+  function decide(decision: 'approved' | 'rejected', note = '') {
+    try { perform((s, ctx) => decidePurchaseOrder(s, order!.id, decision, note, ctx)); toast(decision === 'approved' ? 'Order approved' : 'Order turned down', 'ok') }
+    catch (e) { toast(e instanceof OpError ? e.message : 'Could not record the decision', 'err') }
+  }
+  function turnDown() {
+    if (!reason.trim()) { toast('Say why the order is turned down', 'err'); return }
+    decide('rejected', reason); setRejecting(false)
   }
   async function cancel() { if (await ask({ title: `Cancel ${order!.no}?`, message: 'What has not arrived will no longer be expected.', confirm: 'Cancel order', danger: true })) change('cancelled') }
   async function remove() {
@@ -56,13 +77,21 @@ export default function PurchaseOrderPage() {
 
   return (
     <Screen title={order.no} subtitle={supplier?.name ?? 'Supplier'} back
-      footer={order.status === 'draft' ? <Button label="Send to supplier" size="lg" block icon={<Send size={18} color={c.onPrimary} />} onPress={() => change('sent')} />
+      footer={order.status === 'draft' ? (mayDecide && !sendCheck.ok
+          ? <View style={{ flexDirection: 'row', gap: 10 }}>
+              <View style={{ flex: 1 }}><Button label="Turn down" kind="outline" size="lg" block onPress={() => setRejecting(true)} /></View>
+              <View style={{ flex: 1 }}><Button label="Approve" size="lg" block icon={<Check size={18} color={c.onPrimary} />} onPress={() => decide('approved')} /></View>
+            </View>
+          : <Button label="Send to supplier" size="lg" block disabled={!sendCheck.ok} icon={<Send size={18} color={c.onPrimary} />} onPress={() => change('sent')} />)
         : open ? <Button label="Receive goods" size="lg" block icon={<Truck size={18} color={c.onPrimary} />} onPress={receive} /> : undefined}>
       <View style={{ gap: 14, paddingBottom: 14 }}>
         <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
           <Badge tone={order.status === 'received' ? 'success' : order.status === 'cancelled' ? 'danger' : order.status === 'partial' ? 'warning' : order.status === 'sent' ? 'primary' : 'default'}>{STATUS_LABEL[order.status]}</Badge>
           {late ? <Badge tone="danger">Overdue</Badge> : null}
+          {aState === 'pending' ? <Badge tone="warning">Needs approval</Badge> : aState === 'approved' ? <Badge tone="success">Approved</Badge> : aState === 'rejected' ? <Badge tone="danger">Turned down</Badge> : null}
         </View>
+        {order.status === 'draft' && aState === 'pending' ? <Notice tone="warning" title="Waiting for approval" body={sendCheck.ok ? 'Your limit covers this order, so you can send it without asking.' : `Orders of ${inr(order.total, 0)} need approval${approverHint(settings, order.total)}.`} /> : null}
+        {order.status === 'draft' && aState === 'rejected' ? <Notice tone="danger" title="Turned down" body={sendCheck.reason} /> : null}
         {late ? <Notice tone="danger" title="Past its expected date" body={`Expected ${fmtDayShort(order.expectedDate!)} — ${fmtQty(want - got)} still to arrive.`} /> : null}
 
         <Card>
@@ -109,6 +138,19 @@ export default function PurchaseOrderPage() {
           </Section>
         ) : null}
 
+        {log.length ? (
+          <Section title="Approval history" style={{ marginTop: 6 }}>
+            <Card padded={false}>
+              {log.map((a, i) => (
+                <View key={a.id} style={{ padding: 14, gap: 2, borderTopWidth: i ? 1 : 0, borderTopColor: c.line }}>
+                  <T v="bodyStrong">{a.decision === 'approved' ? 'Approved' : 'Turned down'} · {inr(a.amount, 0)}</T>
+                  <T v="caption" tone="mute">{data.users[a.userId]?.name ?? a.role} · {fmtDayShort(a.date)}{a.note ? ` · ${a.note}` : ''}</T>
+                </View>
+              ))}
+            </Card>
+          </Section>
+        ) : null}
+
         {order.notes ? <Card><T v="label" tone="soft">NOTES</T><T>{order.notes}</T></Card> : null}
 
         <View style={{ gap: 10, marginTop: 4 }}>
@@ -118,6 +160,9 @@ export default function PurchaseOrderPage() {
           {open ? <Button label="Cancel order" kind="danger" block icon={<Close size={18} color={c.danger} />} onPress={cancel} /> : null}
         </View>
       </View>
+      <Sheet visible={rejecting} onClose={() => setRejecting(false)} title={`Turn down ${order.no}?`} footer={<Button label="Turn down" kind="danger" size="lg" block onPress={turnDown} />}>
+        <Field label="Why?" value={reason} onChangeText={setReason} placeholder="So whoever made it knows what to change" multiline />
+      </Sheet>
     </Screen>
   )
 }

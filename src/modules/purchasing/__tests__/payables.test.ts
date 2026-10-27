@@ -1,5 +1,5 @@
 import { ctx, NOW } from '@/data/__tests__/helpers'
-import { OpError } from '@/data/ops'
+import { OpError, receivePurchase } from '@/data/ops'
 import { applyChanges } from '@/data/state'
 import { isBalanced, postingsFor } from '@/modules/postings'
 import '@/modules/accounting/postings'
@@ -8,7 +8,6 @@ import { agingReport, allocateOldestFirst, creditDaysFor, dueList, dueSummary, p
 import { savePurchaseSettings, paySupplier, reversePayment, saveSupplierTerms } from '../ops-payables'
 import { paymentAdviceText, agingCsv, statementCsv } from '../reports'
 import { purchasingState, withReceipt, DAY } from './helpers'
-import { receivePurchase } from '@/data/ops'
 
 describe('what we owe suppliers', () => {
   test('receipts raise it, what was paid at the time and payments bring it down', () => {

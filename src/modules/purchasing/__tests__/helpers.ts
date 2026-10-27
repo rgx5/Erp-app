@@ -1,9 +1,8 @@
-import { baseState, NOW } from '@/data/__tests__/helpers'
+import { baseState, ctx, NOW } from '@/data/__tests__/helpers'
 import { gstinCheckChar } from '@/domain/gst'
 import { receivePurchase } from '@/data/ops'
 import { applyChanges, type DataState } from '@/data/state'
 import type { Supplier, User } from '@/domain/types'
-import { ctx } from '@/data/__tests__/helpers'
 
 export const DAY = 86_400_000
 export const gstin = (first14: string) => first14 + gstinCheckChar(first14)

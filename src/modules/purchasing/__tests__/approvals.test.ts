@@ -1,7 +1,6 @@
 import { ctx, NOW } from '@/data/__tests__/helpers'
 import { applyChanges } from '@/data/state'
-import { rig } from '@/replication/testkit'
-import { actorWith } from '@/replication/testkit'
+import { actorWith, rig } from '@/replication/testkit'
 import { approvalRefusal, approvalState, awaitingApproval, canSend, limitFor, needsApproval, settingsOf } from '../approvals'
 import { savePurchaseOrder, setPoStatus } from '../ops'
 import { decidePurchaseOrder } from '../ops-approvals'
