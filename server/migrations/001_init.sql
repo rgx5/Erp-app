@@ -1,4 +1,4 @@
--- Kosh Server: tenants, people, devices, documents.
+-- OneSync Server: tenants, people, devices, documents.
 -- Every table that holds business data carries org_id; every query filters by it.
 
 CREATE TABLE orgs (

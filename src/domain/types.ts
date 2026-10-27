@@ -47,7 +47,7 @@ export interface StoreSettings {
   /** Which purchase cost reports and stock value use: the weighted average over all receipts (default) or the latest. */
   costBasis?: 'average' | 'latest'
   plan?: string
-  /** The industry pack this business runs on (shared by every device on a Kosh server). */
+  /** The industry pack this business runs on (shared by every device on a OneSync server). */
   industry?: string
   /** How the business is registered for GST. Missing = regular. Composition and unregistered dealers issue a bill of supply (no tax shown). */
   registrationType?: 'regular' | 'composition' | 'unregistered'
@@ -344,7 +344,7 @@ export interface DaySession {
 export type SyncEntity = 'bill' | 'billReturn' | 'customer' | 'customerUpdate' | 'product' | 'productUpdate' | 'productDelete' | 'variant' | 'variantUpdate'
   | 'expense' | 'stockAdjust' | 'storeUpdate' | 'supplier' | 'supplierUpdate' | 'purchase' | 'session' | 'sessionUpdate'
   | 'user' | 'userUpdate' | 'coupon' | 'couponUpdate' | 'category' | 'categoryDelete'
-  /** A document write for a Kosh server (see src/replication). */
+  /** A document write for a OneSync server (see src/replication). */
   | 'mut'
 
 /** One outbound write, queued right after the change it describes and flushed to the server in order. */

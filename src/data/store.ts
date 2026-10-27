@@ -14,11 +14,11 @@ export interface Workspace {
   id: string
   name: string
   mode: 'local' | 'remote'
-  /** Which server a connected workspace talks to: a Krishna-compatible retail server, or a Kosh server (the full ERP). */
+  /** Which server a connected workspace talks to: a Krishna-compatible retail server, or a OneSync server (the full ERP). */
   backend?: 'krishna' | 'kosh'
-  /** This phone's identity on a Kosh server (idempotency of its writes, device list). */
+  /** This phone's identity on a OneSync server (idempotency of its writes, device list). */
   deviceId?: string
-  /** The outlet this phone works for (multi-store, Kosh server). */
+  /** The outlet this phone works for (multi-store, OneSync server). */
   branchId?: string
   /** Industry pack id (see src/industries). */
   industry: string
@@ -55,15 +55,15 @@ interface AppStore {
   /** The app lock screen is showing. */
   locked: boolean
   persistError: string | null
-  /** Kosh server: how far this phone has downloaded (the server's revision counter). */
+  /** OneSync server: how far this phone has downloaded (the server's revision counter). */
   cursor: number
 
   boot: () => Promise<void>
   commit: (changes: Changes) => void
-  /** Kosh server: fold a download into the local data and remember where it stopped. */
+  /** OneSync server: fold a download into the local data and remember where it stopped. */
   applyRemote: (pull: Pick<PullResult, 'upserts' | 'deletes'>, pending: Set<string>) => Promise<void>
   setCursor: (n: number) => Promise<void>
-  /** Kosh server: queue writes for upload (used to publish a whole business that was built on this phone). */
+  /** OneSync server: queue writes for upload (used to publish a whole business that was built on this phone). */
   enqueue: (muts: Mutation[]) => void
   /** Replace everything (first sign-in, or a fresh snapshot from the server). */
   replaceData: (data: DataState, opts?: { keepOutbox?: boolean }) => Promise<void>
@@ -161,7 +161,7 @@ export const useApp = create<AppStore>((set, get) => {
       const connected = ws?.mode === 'remote'
       let rows: OutboxEntry[] = []
       if (connected && ws?.backend === 'kosh') {
-        // A Kosh server takes documents: what changed is sent as writes, worked out from the before/after of each record.
+        // A OneSync server takes documents: what changed is sent as writes, worked out from the before/after of each record.
         const muts = mutationsFromChanges(s.data, rest, { deviceId: ws.deviceId ?? 'dev', nextSeq: () => 0 })
         rows = muts.map((m) => { const n = ++outboxSeq; return { id: n, entity: 'mut' as const, payload: { ...m, mid: mid(ws.deviceId, n) }, createdAt: Date.now(), synced: 0 as const, attempts: 0 } })
         // Staff accounts are not documents (they carry credentials); they keep their own queue entries.
@@ -187,7 +187,7 @@ export const useApp = create<AppStore>((set, get) => {
         if (pending.has(`${d.coll}\u0000${d.id}`)) continue
         if ((COLLECTIONS as string[]).includes(d.coll)) batch.del!.push({ coll: d.coll as Coll, id: d.id })
       }
-      // Everyone on a Kosh server shares one industry, kept in the business settings.
+      // Everyone on a OneSync server shares one industry, kept in the business settings.
       const ws = s.workspace
       const industry = data.store?.industry
       const wsNext = ws && industry && ws.industry !== industry ? { ...ws, industry } : ws

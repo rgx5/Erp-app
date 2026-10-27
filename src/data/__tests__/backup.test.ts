@@ -21,8 +21,8 @@ describe('backup', () => {
 
   it('rejects files that are not backups', () => {
     expect(() => parseBackup('not json')).toThrow(/not valid JSON/)
-    expect(() => parseBackup('[]')).toThrow(/not a Kosh backup/)
-    expect(() => parseBackup(JSON.stringify({ format: 'something-else' }))).toThrow(/not a Kosh backup/)
+    expect(() => parseBackup('[]')).toThrow(/not a OneSyncERP backup/)
+    expect(() => parseBackup(JSON.stringify({ format: 'something-else' }))).toThrow(/not a OneSyncERP backup/)
   })
 
   it('rejects a backup from a newer app, a damaged one, and one nobody could sign in to', () => {

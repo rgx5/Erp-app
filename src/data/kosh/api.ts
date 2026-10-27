@@ -2,7 +2,7 @@ import type { Role } from '@/domain/types'
 import type { Mutation, MutationResult, PullResult } from '@/replication/types'
 import { CloudError, type FetchFn } from '../api'
 
-/** A Kosh server's address as people type it: no path (the API is at the root), https unless it is a machine on the local network. */
+/** A OneSync server's address as people type it: no path (the API is at the root), https unless it is a machine on the local network. */
 export function normalizeKoshUrl(raw: string): string {
   let u = raw.trim().replace(/\/+$/, '')
   if (!u) return u
@@ -23,7 +23,7 @@ export interface KoshSession {
   device?: { id: string; name?: string }
 }
 
-/** The Kosh server's REST client. JSON in, `{ error }` out; every failure is a CloudError with the HTTP status (0 = unreachable). */
+/** The OneSync server's REST client. JSON in, `{ error }` out; every failure is a CloudError with the HTTP status (0 = unreachable). */
 export function createKoshApi(baseUrl: string, getToken: () => string | null = () => null, fetchFn: FetchFn = (i, n) => fetch(i, n)) {
   const base = normalizeKoshUrl(baseUrl)
 
@@ -67,7 +67,7 @@ export function createKoshApi(baseUrl: string, getToken: () => string | null = (
 }
 export type KoshApi = ReturnType<typeof createKoshApi>
 
-/** Which kind of server an address is: a Kosh server answers /health with `app: 'kosh-server'`; a Krishna-compatible one at /api/health. */
+/** Which kind of server an address is: a OneSync server answers /health with `app: 'kosh-server'`; a Krishna-compatible one at /api/health. */
 export async function detectBackend(raw: string, fetchFn: FetchFn = (i, n) => fetch(i, n)): Promise<{ backend: 'kosh' | 'krishna'; url: string }> {
   const kosh = normalizeKoshUrl(raw)
   try {

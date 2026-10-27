@@ -90,7 +90,7 @@ export async function reauthenticate(password: string): Promise<void> {
   const ws = s.workspace
   if (!ws?.apiUrl || !ws.loginEmail) throw new Error('Sign out and connect again to continue syncing.')
   if (ws.backend === 'kosh') {
-    const login = await createKoshApi(ws.apiUrl).login(ws.loginEmail, password, ws.deviceId ?? 'dev', 'Kosh app')
+    const login = await createKoshApi(ws.apiUrl).login(ws.loginEmail, password, ws.deviceId ?? 'dev', 'OneSyncERP app')
     await setToken(login.token)
   } else {
     const login = await createApi(ws.apiUrl).webLogin(ws.loginEmail, password)
@@ -155,7 +155,7 @@ export async function switchUser(userId: string, pin: string): Promise<PinResult
   let ok = false
   if (ws.mode === 'remote' && ws.backend === 'kosh' && ws.apiUrl && ws.storeId && ws.deviceId) {
     try {
-      const login = await createKoshApi(ws.apiUrl).pinLogin(ws.storeId, userId, pin, ws.deviceId, 'Kosh app')
+      const login = await createKoshApi(ws.apiUrl).pinLogin(ws.storeId, userId, pin, ws.deviceId, 'OneSyncERP app')
       await setToken(login.token)
       ok = true
     } catch (e) {

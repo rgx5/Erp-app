@@ -1,6 +1,6 @@
-# Design language — "Kosh"
+# Design language — "OneSyncERP"
 
-Kosh ERP's look is **independent of the billing app it grew from**. The reference product is a dense desktop/web till;
+OneSyncERP's look is **independent of the billing app it grew from**. The reference product is a dense desktop/web till;
 this is a phone-first app for owners and counter staff, so it is calmer, larger and more tactile.
 
 ## Principles

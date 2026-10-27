@@ -40,7 +40,7 @@ export default function CatalogFiles() {
   return (
     <Screen title="Photos & files" subtitle={`${files.length} attached`} back
       right={pending.length && online ? <Button label={`Upload ${pending.length}`} size="sm" icon={<Cloud size={15} color={c.bg} />} loading={busy} onPress={() => void sendAll()} /> : undefined}>
-      {!online && pending.length ? <Notice tone="warning" title="Not connected to a server" body="Photos stay on this phone until it is connected to a Kosh server; then they can be uploaded so other phones see them." /> : null}
+      {!online && pending.length ? <Notice tone="warning" title="Not connected to a server" body="Photos stay on this phone until it is connected to a OneSync server; then they can be uploaded so other phones see them." /> : null}
       {!files.length ? (
         <EmptyState icon={<ImageIcon size={26} color={c.primary} />} title="No photos or files yet" hint="Open an item and add a photo, a spec sheet or a warranty card." />
       ) : (

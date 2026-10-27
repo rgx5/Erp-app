@@ -31,8 +31,8 @@ const isObj = (v: unknown): v is Record<string, unknown> => typeof v === 'object
 /** Reads a backup file, refusing anything that is not one — a restore replaces everything, so it has to be sure. */
 export function parseBackup(text: string): Backup {
   let raw: unknown
-  try { raw = JSON.parse(text) } catch { throw new Error('That file is not a Kosh backup (it is not valid JSON).') }
-  if (!isObj(raw) || raw.format !== BACKUP_FORMAT) throw new Error('That file is not a Kosh backup.')
+  try { raw = JSON.parse(text) } catch { throw new Error('That file is not a OneSyncERP backup (it is not valid JSON).') }
+  if (!isObj(raw) || raw.format !== BACKUP_FORMAT) throw new Error('That file is not a OneSyncERP backup.')
   if (typeof raw.version !== 'number' || raw.version > BACKUP_VERSION) throw new Error('This backup was made by a newer version of the app. Update the app and try again.')
   const store = raw.store
   if (!isObj(store) || typeof store.name !== 'string' || !store.name) throw new Error('The backup has no business details.')

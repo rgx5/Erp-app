@@ -1,4 +1,4 @@
-# Kosh Server
+# OneSync Server
 
 The standalone backend for the full ERP. It is a small, boring server on purpose: **it stores documents, enforces who may
 write them, and keeps the few numbers that must be atomic (stock on hand, customer balances)** — everything else is
@@ -42,7 +42,7 @@ JSON in and out. Errors are `{ "error": "message", "code"?: "…" }`. All routes
 
 | Route | |
 | --- | --- |
-| `GET /health` | `{ app: 'kosh-server', version, time }` — the app uses `app` to tell a Kosh server from a Krishna-compatible one. |
+| `GET /health` | `{ app: 'kosh-server', version, time }` — the app uses `app` to tell a OneSync server from a Krishna-compatible one. |
 | `POST /auth/signup` | `{ orgName, ownerName, email, password, pin?, industry?, deviceId, deviceName }` → creates org + owner + default branch → `{ token, user, org, branch, device }`. |
 | `POST /auth/login` | `{ email, password, deviceId, deviceName }` → `{ token, user, org, branches }`. 401 on bad credentials; throttled (429 after repeated failures, per email+IP). |
 | `POST /auth/pin-login` | `{ orgId, userId, pin, deviceId, deviceName }` → same shape. Throttled; lockout escalates like the app's local PIN. |

@@ -125,7 +125,7 @@ export default function More() {
           {prefs.appLock ? <ListRow icon={<Lock size={20} color={c.primary} />} title="Lock app now" subtitle="Ask for fingerprint or face to continue" onPress={() => setLocked(true)} /> : null}
           <ListRow icon={<LogOut size={20} color={c.danger} />} title="Sign out" subtitle={ws?.mode === 'remote' ? 'Disconnect this phone from the business' : 'Erase this business from the phone'} danger onPress={leave} chevron={false} />
         </Block>
-        <T v="caption" tone="mute" align="center" style={{ marginTop: 22 }}>Kosh ERP · version {Constants.expoConfig?.version ?? '0.1.0'}</T>
+        <T v="caption" tone="mute" align="center" style={{ marginTop: 22 }}>OneSyncERP · version {Constants.expoConfig?.version ?? '0.1.0'}</T>
       </View>
     </Screen>
   )

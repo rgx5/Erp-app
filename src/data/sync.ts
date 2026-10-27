@@ -128,7 +128,7 @@ export function createSyncEngine(d: SyncDeps) {
         if (!entry || seen.has(entry.id)) break
         seen.add(entry.id)
 
-        if (entry.entity === 'mut') { await d.updateOutbox(entry.id, { synced: 2, attempts: entry.attempts + 1, lastError: 'A Kosh-server write reached a Krishna-compatible connection' }); continue }
+        if (entry.entity === 'mut') { await d.updateOutbox(entry.id, { synced: 2, attempts: entry.attempts + 1, lastError: 'A OneSync-server write reached a Krishna-compatible connection' }); continue }
         const def = ENDPOINT[entry.entity]
         const payload = entry.payload as Record<string, unknown>
         const path = typeof def.path === 'function' ? def.path(payload) : def.path

@@ -1,6 +1,6 @@
 # Cloud API contract
 
-Kosh talks to the **Krishna Collection billing cloud API** (NestJS + PostgreSQL, `krishna-collection-billing/backend`)
+OneSyncERP talks to the **Krishna Collection billing cloud API** (NestJS + PostgreSQL, `krishna-collection-billing/backend`)
 unchanged. Every business a client runs on the web/desktop product can be opened on a phone by entering the server
 address and signing in; no server work is needed to ship the app.
 

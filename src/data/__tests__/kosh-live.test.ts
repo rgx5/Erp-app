@@ -1,5 +1,5 @@
 /**
- * Live end-to-end test: the app's real Kosh client (src/data/kosh) against a real Kosh Server and PostgreSQL.
+ * Live end-to-end test: the app's real Kosh client (src/data/kosh) against a real OneSync Server and PostgreSQL.
  *
  * Skipped unless KOSH_LIVE_SERVER is set, so `npm test` stays hermetic (see docs/LIVE-TESTING.md):
  *
@@ -61,7 +61,7 @@ const freePort = () => new Promise<number>((resolve, reject) => {
   srv.listen(0, '127.0.0.1', () => { const { port } = srv.address() as { port: number }; srv.close(() => resolve(port)) })
 })
 
-suite('live: the app’s Kosh client against a real Kosh Server', () => {
+suite('live: the app’s Kosh client against a real OneSync Server', () => {
   let url = ''
   let child: ChildProcess | null = null
   let dbName = ''
@@ -129,7 +129,7 @@ suite('live: the app’s Kosh client against a real Kosh Server', () => {
       try { if ((await fetch(`${url}/health`)).ok) return } catch { /* not yet */ }
       await new Promise((r) => setTimeout(r, 200))
     }
-    throw new Error('the Kosh server did not start')
+    throw new Error('the OneSync server did not start')
   })
 
   afterAll(async () => {
@@ -148,7 +148,7 @@ suite('live: the app’s Kosh client against a real Kosh Server', () => {
   let billId = ''
   let billNo = ''
 
-  test('the server identifies itself as a Kosh server', async () => {
+  test('the server identifies itself as a OneSync server', async () => {
     const h = await createKoshApi(url).health()
     expect(h).toMatchObject({ app: 'kosh-server' })
   })

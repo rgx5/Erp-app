@@ -42,7 +42,7 @@ export function registerBackupRoutes(app: FastifyInstance, ctx: Ctx) {
     const p = principalOf(req)
     requireOwner(p)
     const b = bodyOf(req)
-    if (b.format !== BACKUP_FORMAT || b.version !== 1 || !Array.isArray(b.docs)) throw badRequest('That does not look like a Kosh backup file')
+    if (b.format !== BACKUP_FORMAT || b.version !== 1 || !Array.isArray(b.docs)) throw badRequest('That does not look like a OneSyncERP backup file')
     const docs = b.docs as BackupDoc[]
     const branches = Array.isArray(b.branches) ? (b.branches as Array<{ id: string; name: string; code?: string; address?: string; phone?: string; active?: boolean; isDefault?: boolean }>) : []
     const roles = Array.isArray(b.roles) ? (b.roles as Array<{ name: string; permissions: string[] }>) : []

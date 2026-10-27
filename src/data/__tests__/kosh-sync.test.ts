@@ -14,7 +14,7 @@ import type { Workspace } from '../store'
 jest.mock('expo-crypto', () => ({}))
 jest.mock('../secure', () => ({ secureGet: async () => null, secureSet: async () => undefined, secureDelete: async () => undefined }))
 
-/** A Kosh server in memory: the real replication rules behind a fake `fetch`, so the whole client path runs without a network. */
+/** A OneSync server in memory: the real replication rules behind a fake `fetch`, so the whole client path runs without a network. */
 function fakeServer() {
   const db = new MemoryDocStore()
   let down = false
@@ -56,7 +56,7 @@ async function phone(server: ReturnType<typeof fakeServer>, deviceId: string, ro
   return { eng, api, get sync() { return state } }
 }
 
-describe('a phone and a Kosh server', () => {
+describe('a phone and a OneSync server', () => {
   test('a business is published, trading syncs, and the server\'s numbers come back', async () => {
     const server = fakeServer()
     const a = await phone(server, 'devA')

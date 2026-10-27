@@ -205,7 +205,7 @@ export interface ReferralReward {
   branchId?: string
 }
 
-/** A public link to a bill's invoice made by the Kosh server (POST /share → GET /p/:token). */
+/** A public link to a bill's invoice made by the OneSync server (POST /share → GET /p/:token). */
 export interface InvoiceLink {
   /** The bill's id. */
   id: string

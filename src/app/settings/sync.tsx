@@ -130,7 +130,7 @@ export default function SyncScreen() {
               </Card>
             </Section>
             <View style={{ marginTop: 14, gap: 10 }}>
-              <T v="caption" tone="mute">To share one business between several phones, move it to a Kosh server. Your data then lives on the server and every phone keeps working offline.</T>
+              <T v="caption" tone="mute">To share one business between several phones, move it to a OneSync server. Your data then lives on the server and every phone keeps working offline.</T>
               <Button label="Move to a server" kind="outline" block icon={<Cloud size={18} color={c.ink} />} onPress={() => setMoving(true)} />
             </View>
           </>

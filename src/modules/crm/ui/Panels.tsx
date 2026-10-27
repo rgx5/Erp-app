@@ -42,7 +42,7 @@ export function CustomerCrmPanel({ customer }: { customer: Customer }) {
   )
 }
 
-/** On a bill: a public link to the invoice made by the Kosh server, sent on WhatsApp. Only when connected to a Kosh server. */
+/** On a bill: a public link to the invoice made by the OneSync server, sent on WhatsApp. Only when connected to a OneSync server. */
 export function BillSharePanel({ bill }: { bill: Bill }) {
   const { c } = useTheme()
   const connected = useKoshConnected()

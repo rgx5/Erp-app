@@ -1,4 +1,4 @@
-# Kosh ERP
+# OneSyncERP
 
 A mobile ERP for **Android and iOS** that runs a small business end to end — billing, stock, purchases, customers,
 expenses, cash drawer and reports — and adapts its vocabulary, tax defaults and starting catalogue to the trade:
@@ -9,7 +9,7 @@ loyalty, offline-first sync, multi-device numbering), re-imagined as a phone-nat
 It connects to the same cloud API, so clients who already run that product can open their business on a phone, and it
 also works **fully offline on its own**.
 
-> "Kosh" (कोश, *treasury*) is a working name — rename it in `app.json` and `src/features/Logo.tsx`.
+> **OneSyncERP** is the product name (it was "Kosh" while being built). Some internal identifiers keep the old name on purpose — `KoshApi`, the `kosh` backend id and the server's `/health` answer — because renaming them would change what phones and servers say to each other.
 
 ## What's in it
 
@@ -63,7 +63,7 @@ eas build -p ios     --profile preview     # needs an Apple developer account
 eas build --profile production             # Play Store AAB / App Store build
 ```
 
-Set the app name, `com.kosh.erp` bundle id / package and icons in `app.json` and `assets/` to your own before
+Set the app name, `com.onesync.erp` bundle id / package and icons in `app.json` and `assets/` to your own before
 publishing.
 
 ## Project layout
@@ -71,7 +71,7 @@ publishing.
 ```
 src/
   app/          Expo Router screens (tabs, sell, bills, items, stock, purchases, customers, expenses, settings…)
-  ui/           Kosh design system: theme, text, buttons, inputs, sheets, charts, icons
+  ui/           OneSync design system: theme, text, buttons, inputs, sheets, charts, icons
   features/     Reusable flows: pickers, line editor, PIN pad, scanner bus, print/share
   data/         Store, ops (business actions), storage, sync engine, demo generator, auth
   domain/       Pure business logic: money, GST, cart, returns, analytics, receipts  (+ tests)

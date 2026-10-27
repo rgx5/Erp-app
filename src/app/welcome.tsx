@@ -19,7 +19,7 @@ export default function Welcome() {
       <ScrollView contentContainerStyle={{ flexGrow: 1, padding: 24, paddingTop: insets.top + 28, paddingBottom: insets.bottom + 24 }} showsVerticalScrollIndicator={false}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <Logo size={44} />
-          <T v="h2" style={{ color: '#fff', letterSpacing: 0.4 }}>Kosh ERP</T>
+          <T v="h2" style={{ color: '#fff', letterSpacing: 0.4 }}>OneSyncERP</T>
         </View>
 
         <View style={{ marginTop: 44, gap: 14 }}>
@@ -43,7 +43,7 @@ export default function Welcome() {
             <Cloud size={22} color="#1B3FD1" />
             <View style={{ flex: 1 }}>
               <T v="bodyStrong" style={{ color: '#0B1440' }}>Connect my business</T>
-              <T v="caption" style={{ color: '#5B6483' }}>Sign in to your Kosh server</T>
+              <T v="caption" style={{ color: '#5B6483' }}>Sign in to your OneSync server</T>
             </View>
             <ArrowRight size={20} color="#1B3FD1" />
           </Tap>

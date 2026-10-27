@@ -1,13 +1,13 @@
 # Architecture
 
-Kosh ERP is an Expo / React Native app (TypeScript, strict). One codebase builds the Android and iOS apps; the same
+OneSyncERP is an Expo / React Native app (TypeScript, strict). One codebase builds the Android and iOS apps; the same
 code also runs on the web, which is how the UI is previewed and screenshot-tested in CI-less environments.
 
 ```
  ┌──────────────────────────── src/app ─────────────────────────────┐
  │  Expo Router screens (file = route). Thin: read state, call ops.  │
  ├──────────────────────────── src/ui, src/features ─────────────────┤
- │  Design system (Kosh) + reusable flows (pickers, sheets, scanner) │
+ │  Design system (OneSync) + reusable flows (pickers, sheets, scanner) │
  ├──────────────────────────── src/data ─────────────────────────────┤
  │  store (zustand) ── ops (state → Changes) ── storage ── sync      │
  ├──────────────────────────── src/domain ───────────────────────────┤

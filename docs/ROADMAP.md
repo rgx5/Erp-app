@@ -28,5 +28,5 @@ many clients it unblocks.
 
 ## Deliberately out of scope for now
 
-Full accounting (ledgers, balance sheet), payroll, manufacturing/BOM, and online-store sync. Kosh exports clean CSVs
+Full accounting (ledgers, balance sheet), payroll, manufacturing/BOM, and online-store sync. OneSyncERP exports clean CSVs
 (sales, GST, profit, items, staff) so a client's accountant can take it from there.

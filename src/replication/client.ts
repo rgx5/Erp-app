@@ -42,7 +42,7 @@ export interface DeriveOpts {
 }
 
 /**
- * Turns what a business operation changed into the writes a Kosh server needs, using each collection's rules: a new
+ * Turns what a business operation changed into the writes a OneSync server needs, using each collection's rules: a new
  * record is sent whole; an edit to an editable record sends only the fields that changed (and never the ones the server
  * keeps); a posted document is never edited; a parked bill never leaves the phone. Derived numbers such as stock and
  * customer balances are not sent at all — the server works them out from the posted documents.

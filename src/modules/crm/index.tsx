@@ -1,7 +1,7 @@
 /**
  * Customers & CRM — where it appears in the app. Segments and groups, leads and a pipeline, tasks and notes, campaigns (messages
  * opened one by one in WhatsApp / SMS), complaints / tickets / warranty claims with a due time, feedback and a recommend score,
- * membership tiers and referral rewards, and shareable invoice links (Kosh server only).
+ * membership tiers and referral rewards, and shareable invoice links (OneSync server only).
  *   replication.ts  collections, permission, the referral-reward effect (pure; the server loads it too)
  *   stats / segments / leads / tasks / campaigns / tickets / feedback / referrals / share / reports .ts   rules (pure; tested)
  *   ops.ts          operations (pure; tested)
@@ -67,5 +67,5 @@ registerModule({
 
 // On a customer's page: tier, open tasks and tickets, and the way into notes, groups and the referral code.
 registerPanel({ id: 'crm.customer', slot: 'customer', order: 20, perm: 'customers', needsKosh: true, component: ({ customer }) => <CustomerCrmPanel customer={customer} /> })
-// On a bill: a shareable invoice link (hides itself unless this phone is connected to a Kosh server).
+// On a bill: a shareable invoice link (hides itself unless this phone is connected to a OneSync server).
 registerPanel({ id: 'crm.bill', slot: 'bill', order: 20, perm: 'pos', needsKosh: true, component: ({ bill }) => <BillSharePanel bill={bill} /> })

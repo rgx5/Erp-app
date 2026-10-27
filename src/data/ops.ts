@@ -625,7 +625,7 @@ export function updateSettings(patch: Partial<StoreSettings>, ctx: OpCtx): Chang
   const { id: _id, plan: _plan, ...rest } = patch
   void _id; void _plan
   if (!Object.keys(rest).length) return {}
-  // `industry` is for the Kosh server's settings document; a Krishna-compatible server has no such field.
+  // `industry` is for the OneSync server's settings document; a Krishna-compatible server has no such field.
   const { industry: _industry, ...forKrishna } = rest
   void _industry
   return { store: rest, put: { audit: [audit(ctx, 'SETTINGS', Object.keys(rest).join(', '))] }, ...(Object.keys(forKrishna).length ? { outbox: [q('storeUpdate', forKrishna)] } : {}) }

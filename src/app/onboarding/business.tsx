@@ -74,7 +74,7 @@ export default function BusinessSetup() {
         <NumberField label="Repeat PIN" value={pin2} onChange={(v) => setPin2(v.slice(0, 4))} secureTextEntry maxLength={4} error={tried ? errors.pin2 : null} />
 
         <Card padded={false} style={{ marginTop: 8 }}>
-          <SwitchRow title="Keep it on a Kosh server" subtitle="Back it up, use it on more than one phone, and unlock accounts, payroll and more" value={online} onChange={setOnline} />
+          <SwitchRow title="Keep it on a OneSync server" subtitle="Back it up, use it on more than one phone, and unlock accounts, payroll and more" value={online} onChange={setOnline} />
           {online ? (
             <View style={{ gap: 14, padding: 16, paddingTop: 4 }}>
               <Field label="Server address" value={server} onChangeText={setServer} placeholder="https://erp.yourshop.in" autoCapitalize="none" autoCorrect={false} keyboardType="url" error={tried ? errors.server : null} />

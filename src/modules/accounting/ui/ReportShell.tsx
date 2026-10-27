@@ -28,7 +28,7 @@ export function ReportShell({ title, subtitle, period, table, links, children, e
   const can = useCan('accounting')
   const store = useStore()
   if (!can) return <Screen title={title} back><T tone="mute">The books are for the owner and managers.</T></Screen>
-  const name = store?.name ?? 'Kosh'
+  const name = store?.name ?? 'OneSyncERP'
   return (
     <Screen title={title} subtitle={subtitle ?? table.subtitle} back>
       <View style={{ gap: 14, paddingBottom: 24 }}>

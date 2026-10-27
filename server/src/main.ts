@@ -10,7 +10,7 @@ async function main() {
   if (process.env.MIGRATE_ON_START !== '0') await migrate(pool, undefined, (m) => console.log(m))
   const app = buildApp({ cfg, pool })
   await app.listen({ port: cfg.port, host: cfg.host })
-  console.log(`Kosh Server listening on :${cfg.port}`)
+  console.log(`OneSync Server listening on :${cfg.port}`)
   const stop = async () => { await app.close(); await pool.end(); process.exit(0) }
   process.on('SIGTERM', stop)
   process.on('SIGINT', stop)

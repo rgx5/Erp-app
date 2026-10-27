@@ -1,5 +1,5 @@
 /**
- * The replication protocol shared by the app and the Kosh server.
+ * The replication protocol shared by the app and the OneSync server.
  *
  * Every business record is a JSON document in a named collection. Devices write by sending *mutations*; they read by
  * pulling everything that changed since a cursor. The rules for what a mutation may do live in one place

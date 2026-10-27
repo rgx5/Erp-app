@@ -2,7 +2,7 @@
   "name": "kosh-server",
   "version": "0.1.0",
   "private": true,
-  "description": "Kosh Server — the standalone backend for the Kosh ERP (Fastify + PostgreSQL)",
+  "description": "OneSync Server — the standalone backend for the OneSyncERP (Fastify + PostgreSQL)",
   "main": "dist/main.js",
   "scripts": {
     "build": "node scripts/build.mjs",

@@ -24,7 +24,7 @@ type Method = 'owner' | 'staff'
 type Person = { id: string; name: string; role: Role; active: boolean; code?: string }
 
 /**
- * Connect to a Kosh server. Owners and managers sign in with email and password; counter staff pick their name and enter
+ * Connect to a OneSync server. Owners and managers sign in with email and password; counter staff pick their name and enter
  * their PIN. Either way the whole business is downloaded to the phone, and from then on works offline.
  */
 export default function Connect() {

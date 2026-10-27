@@ -209,6 +209,6 @@ connected workspaces — a sync path to the server.
 
 1. Business rules in `src/domain` (pure TypeScript) with tests.
 2. A new collection in `DataState`, a pure operation in `src/data/ops.ts`, and a `SyncEntity` for it.
-3. Screens in the Kosh design language, gated by a permission, using the industry's own vocabulary.
+3. Screens in the OneSync design language, gated by a permission, using the industry's own vocabulary.
 4. For connected workspaces: the server endpoint and migration, then a live test against a real server (see
    [LIVE-TESTING.md](./LIVE-TESTING.md)).

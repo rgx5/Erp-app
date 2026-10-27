@@ -33,7 +33,7 @@ export default function About() {
       <View style={{ paddingBottom: 12 }}>
         <View style={{ alignItems: 'center', gap: 6, paddingVertical: 18 }}>
           <Logo size={72} />
-          <T v="h1" style={{ marginTop: 8 }}>Kosh ERP</T>
+          <T v="h1" style={{ marginTop: 8 }}>OneSyncERP</T>
           <T tone="mute">Version {version}</T>
           <T tone="soft" align="center" style={{ maxWidth: 300, marginTop: 4 }}>One app to bill, stock, buy and report — for the shop, counter or kitchen you run.</T>
         </View>

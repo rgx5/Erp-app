@@ -74,7 +74,7 @@ export interface ModuleDef {
   tone: Tone
   /** Position on the Apps screen (lower first). */
   order: number
-  /** Needs a Kosh server or an offline workspace; hidden when connected to a Krishna-compatible server (which has no such tables). */
+  /** Needs a OneSync server or an offline workspace; hidden when connected to a Krishna-compatible server (which has no such tables). */
   needsKosh?: boolean
   /** Whole module only for these industries. */
   industries?: string[]

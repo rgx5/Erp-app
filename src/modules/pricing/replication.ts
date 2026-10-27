@@ -1,4 +1,4 @@
-// Pure half of the pricing module: collections and permissions. The Kosh server loads this file too. See docs/MODULES.md.
+// Pure half of the pricing module: collections and permissions. The OneSync server loads this file too. See docs/MODULES.md.
 import { registerCollections } from '@/data/state'
 import { registerPermission } from '@/domain/permissions'
 import { DEFAULT_SCALE, scaleLayoutProblem, type ScaleLayout } from '@/domain/scale'

@@ -26,7 +26,7 @@ export interface KoshSyncDeps {
 }
 
 /**
- * Sync with a Kosh server: upload the waiting writes in order, then download what changed since the last cursor. Writes are
+ * Sync with a OneSync server: upload the waiting writes in order, then download what changed since the last cursor. Writes are
  * idempotent on the server, so a retry after a lost reply is harmless; one the server refuses is set aside (with its reason)
  * so it cannot hold up the rest.
  */

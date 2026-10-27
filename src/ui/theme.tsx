@@ -3,7 +3,7 @@ import { Platform, useColorScheme, type TextStyle, type ViewStyle } from 'react-
 import { useApp } from '@/data/store'
 
 /**
- * Kosh design language: a calm warm-paper canvas, ink-black text and one confident cobalt — with a saffron highlight
+ * OneSync design language: a calm warm-paper canvas, ink-black text and one confident cobalt — with a saffron highlight
  * used sparingly for what needs a look. Numbers are the hero of an ERP, so they get the display face (Manrope,
  * tabular figures) and everything else reads in Inter.
  */

@@ -13,7 +13,7 @@ export const newDeviceId = () => `dev_${hex(10)}`
 const TAG_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 const randomTag = () => 'M' + Array.from({ length: 2 }, () => TAG_CHARS[Math.floor(Math.random() * TAG_CHARS.length)]).join('')
 const randomBarcodeBase = () => (1 + Math.floor(Math.random() * 88)) * 10_000_000
-const DEVICE_NAME = 'Kosh app'
+const DEVICE_NAME = 'OneSyncERP app'
 
 /** The api for the connected Kosh workspace (null for any other kind). */
 export function getKoshApi(getToken: () => string | null): KoshApi | null {
@@ -42,7 +42,7 @@ function workspaceFor(session: KoshSession, url: string, deviceId: string, indus
   }
 }
 
-/** Sign in to an existing business on a Kosh server and download it. */
+/** Sign in to an existing business on a OneSync server and download it. */
 async function finishLogin(url: string, session: KoshSession, deviceId: string, email?: string): Promise<void> {
   const s = useApp.getState()
   const keep = s.workspace?.backend === 'kosh' && s.workspace.storeId === session.org.id ? s.workspace : null
@@ -91,7 +91,7 @@ export function publishAll(data: DataState, deviceId = 'publish'): Mutation[] {
 export interface NewKoshBusiness extends Omit<NewBusiness, 'pinHash' | 'pack'> { packId: string; pin: string; email: string; password: string }
 
 /**
- * Creates a business on a Kosh server: the organisation and its owner there, the starting catalogue here, then everything is
+ * Creates a business on a OneSync server: the organisation and its owner there, the starting catalogue here, then everything is
  * uploaded. The owner keeps the same id on both sides, so bills and reports attribute sales to the right person.
  */
 export async function koshCreateBusiness(url: string, input: NewKoshBusiness): Promise<void> {
@@ -107,7 +107,7 @@ export async function koshCreateBusiness(url: string, input: NewKoshBusiness): P
 }
 
 /**
- * Moves the business that lives on this phone to a Kosh server: creates the organisation there with this owner, and uploads
+ * Moves the business that lives on this phone to a OneSync server: creates the organisation there with this owner, and uploads
  * every record. Staff other than the owner keep their local PIN hashes only on this phone, so they are added again on the
  * server (the returned count says how many).
  */

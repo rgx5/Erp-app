@@ -4,8 +4,8 @@ import { firstName } from '@/domain/people'
 import type { Bill } from '@/domain/types'
 
 /**
- * A shareable invoice link comes from a Kosh server: POST /share { coll: 'bills', id } answers { token, url }, and anyone who opens
- * GET /p/:token sees the invoice as a web page, no sign-in. Without a Kosh server there is no page to link to — the screens hide
+ * A shareable invoice link comes from a OneSync server: POST /share { coll: 'bills', id } answers { token, url }, and anyone who opens
+ * GET /p/:token sees the invoice as a web page, no sign-in. Without a OneSync server there is no page to link to — the screens hide
  * the feature then. The link is only as private as its token: anyone who has it can read that one invoice.
  */
 

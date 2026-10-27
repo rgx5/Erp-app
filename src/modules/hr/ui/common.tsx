@@ -96,7 +96,7 @@ export function ExportBar({ table }: { table: HrTable }) {
   const { c } = useTheme()
   const store = useStore()
   if (!table.rows.length) return null
-  const name = store?.name ?? 'Kosh'
+  const name = store?.name ?? 'OneSyncERP'
   return (
     <View style={{ flexDirection: 'row', gap: 10 }}>
       <View style={{ flex: 1 }}><Button label="CSV" kind="outline" block icon={<Download size={18} color={c.ink} />} onPress={() => void shareFile(csvFileName(table.title), toCsv(tableCsvRows(table)))} /></View>

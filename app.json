@@ -1,8 +1,8 @@
 {
   "expo": {
-    "name": "Kosh ERP",
-    "slug": "kosh-erp",
-    "scheme": "kosh",
+    "name": "OneSyncERP",
+    "slug": "onesync-erp",
+    "scheme": "onesync",
     "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -10,7 +10,7 @@
     "backgroundColor": "#0B1220",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.kosh.erp",
+      "bundleIdentifier": "com.onesync.erp",
       "infoPlist": {
         "NSCameraUsageDescription": "Kosh uses the camera to scan barcodes on your products.",
         "NSFaceIDUsageDescription": "Kosh uses Face ID to unlock the app and protect your business data.",
@@ -18,7 +18,7 @@
       }
     },
     "android": {
-      "package": "com.kosh.erp",
+      "package": "com.onesync.erp",
       "adaptiveIcon": {
         "backgroundColor": "#0B1220",
         "foregroundImage": "./assets/adaptive-icon.png",

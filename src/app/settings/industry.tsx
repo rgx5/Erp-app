@@ -33,7 +33,7 @@ export default function IndustrySettings() {
     const ws = useApp.getState().workspace
     if (!ws) return
     await useApp.getState().setWorkspace({ ...ws, industry: p.id })
-    // Every phone on a Kosh server shares the choice, so it is part of the business settings (a no-op for an offline business).
+    // Every phone on a OneSync server shares the choice, so it is part of the business settings (a no-op for an offline business).
     perform((_s, ctx) => ({ changes: updateSettings({ industry: p.id }, ctx) }))
     toast(`Now set up for ${p.name}`, 'ok')
   }

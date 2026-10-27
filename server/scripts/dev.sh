@@ -34,7 +34,7 @@ export FILES_DIR="${FILES_DIR:-/tmp/kosh-files}" BCRYPT_COST="${BCRYPT_COST:-8}"
 nohup node dist/main.js > /tmp/kosh-server.log 2>&1 &
 echo $! > "$PIDFILE"
 for _ in $(seq 1 50); do
-  if curl -fs "http://localhost:$PORT/health" >/dev/null 2>&1; then echo "Kosh Server on http://localhost:$PORT  (db $DB, log /tmp/kosh-server.log)"; exit 0; fi
+  if curl -fs "http://localhost:$PORT/health" >/dev/null 2>&1; then echo "OneSync Server on http://localhost:$PORT  (db $DB, log /tmp/kosh-server.log)"; exit 0; fi
   sleep 0.2
 done
 echo "server did not come up; see /tmp/kosh-server.log" >&2; tail -20 /tmp/kosh-server.log >&2; exit 1

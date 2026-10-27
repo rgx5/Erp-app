@@ -63,7 +63,7 @@ export async function shareBytes(name: string, bytes: Uint8Array, mime: string):
   else await Share.share({ message: name })
 }
 
-/** The Kosh server this phone talks to, or null (an offline workspace has nowhere to upload to). */
+/** The OneSync server this phone talks to, or null (an offline workspace has nowhere to upload to). */
 export function uploadTarget(): { baseUrl: string } | null {
   const ws = useApp.getState().workspace
   return ws?.mode === 'remote' && ws.backend === 'kosh' && ws.apiUrl ? { baseUrl: normalizeKoshUrl(ws.apiUrl) } : null
@@ -77,7 +77,7 @@ const deps = (baseUrl: string): UploadDeps => ({ baseUrl, token: getToken, read:
 /** Uploads one attachment and records it. Returns an error message, or null on success. */
 export async function uploadOne(a: ItemAttachment): Promise<string | null> {
   const t = uploadTarget()
-  if (!t) return 'Connect this phone to a Kosh server to upload.'
+  if (!t) return 'Connect this phone to a OneSync server to upload.'
   try {
     const r = await uploadAttachment(a, deps(t.baseUrl))
     perform((s, ctx) => markUploaded(s, a.id, { id: r.id, url: r.url }, ctx))
