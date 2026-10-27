@@ -2,7 +2,6 @@ import { accruedIn, leaveBalance, leaveDays, leaveYearOf, type LeaveFacts } from
 import type { LeaveType } from '../types'
 
 const type = (over: Partial<LeaveType> = {}): LeaveType => ({ id: 't1', name: 'Casual', code: 'CL', daysPerYear: 12, accrual: 'monthly', carryForwardMax: 0, paid: true, allowNegative: false, active: true, ...over })
-const none: LeaveFacts = { requests: [], grants: [] }
 
 describe('leave years', () => {
   test('calendar and April-March years', () => {

@@ -20,9 +20,7 @@ type Tab = 'shifts' | 'roster' | 'holidays'
 
 /** Shifts, the week's roster, and the holiday calendar. */
 export default function Shifts() {
-  const { c } = useTheme()
   const can = useCan('hr')
-  const { data, now } = useHr()
   const [tab, setTab] = useState<Tab>('shifts')
   if (!can) return <Denied title="Shifts" who="Shifts, rosters and holidays are for the owner and managers." />
   return (

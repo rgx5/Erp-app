@@ -5,7 +5,7 @@ import { fmtDateTime } from '@/domain/dates'
 import { inr } from '@/domain/money'
 import { useCan } from '@/data/store'
 import { STAGES, STAGE_LABEL } from '@/modules/hr/logic/recruitment'
-import { atTime, ymdOf } from '@/modules/hr/logic/ymd'
+import { WEEKDAYS, atTime, ymdOf } from '@/modules/hr/logic/ymd'
 import { addInterview, hireCandidate, moveCandidate, saveCandidate } from '@/modules/hr/ops'
 import type { CandidateStage } from '@/modules/hr/types'
 import { act, Denied, useHr } from '@/modules/hr/ui/common'
@@ -16,7 +16,6 @@ import { Sheet } from '@/ui/Sheet'
 import { Badge, Card, Chip } from '@/ui/primitives'
 import { KV, Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
-import { WEEKDAYS } from '@/modules/hr/logic/ymd'
 
 /** A candidate: details, stage, interviews, and hiring. */
 export default function CandidatePage() {

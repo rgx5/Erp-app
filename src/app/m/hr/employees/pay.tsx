@@ -11,7 +11,7 @@ import { Screen } from '@/ui/Screen'
 import { Card, Tap } from '@/ui/primitives'
 import { Notice, Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
-import { Plus, Trash } from '@/ui/icons'
+import { Trash } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
 
 /** How a person is paid: pay type and amounts, allowances, PF/ESI/PT/TDS, overtime and bank details. */

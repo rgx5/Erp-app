@@ -2,7 +2,7 @@ import React, { useMemo } from 'react'
 import { View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { inr } from '@/domain/money'
-import { useCan } from '@/data/store'
+import { useCan, useUser } from '@/data/store'
 import { dayBoard } from '@/modules/hr/logic/select'
 import { payrollPreview, payrollTotals } from '@/modules/hr/logic/payroll'
 import { waitingApprovals } from '@/modules/hr/notices'
@@ -17,7 +17,6 @@ import { T } from '@/ui/Text'
 import { CalendarCheck, Clock, Users, WalletCards } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
 import { can as roleCan } from '@/domain/permissions'
-import { useUser } from '@/data/store'
 
 /** People & payroll: today at a glance, and the way into each part. */
 export default function HrHome() {

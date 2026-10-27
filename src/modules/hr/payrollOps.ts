@@ -8,7 +8,7 @@ import { decisionId, cancelId, statusOf, decisionsByRef } from './logic/decision
 import { payrollPreview } from './logic/payroll'
 import { consumedAdjustmentIds, liveSlipFor, nextRev, paidOf, payoutId, payslipId, livePayslips, voidId, voidedIds } from './logic/slips'
 import { incentiveAdjustmentId, scorecards } from './logic/targets'
-import { isYM, isYMD, labelYM, ymOf, ymdOf, atTime } from './logic/ymd'
+import { isYM, isYMD, labelYM, ymOf, ymdOf } from './logic/ymd'
 import { employeeOrThrow } from './ops'
 import type {
   AdjustmentKind, AdvanceKind, ClaimPayout, ExpenseClaim, HrDecision, IncentivePlan, IncentiveSlab, PayAdjustment, Payslip, PayslipVoid, SalaryPayout, StaffAdvance, StaffRepayment, YM, YMD,

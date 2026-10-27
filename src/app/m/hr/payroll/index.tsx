@@ -18,7 +18,7 @@ import { Sheet } from '@/ui/Sheet'
 import { Avatar, Badge, Card, Chip, Tap } from '@/ui/primitives'
 import { EmptyState, KV, Notice, Section, StatTile } from '@/ui/blocks'
 import { T } from '@/ui/Text'
-import { Download, FileText, Settings, WalletCards } from '@/ui/icons'
+import { Download, Settings, WalletCards } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
 
 /** The monthly payroll: preview from attendance, run it, pay it, hand the bank a file. */
