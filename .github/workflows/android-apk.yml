@@ -1,16 +1,14 @@
 name: Android APK
 
-# Builds an installable Android APK (signed with the debug key, so it installs directly on a phone
-# for testing; it is not a Play Store build). Run it from the Actions tab ("Run workflow"), or it
-# runs on every push to a ccr-* branch / main. Download the file from the run's Artifacts, or from
-# the "apk-latest" pre-release on the Releases page.
+# Builds installable Android APKs (signed with the debug key, so they install directly on a phone for testing;
+# not a Play Store build). One file per CPU type, so each is small:
+#   arm64-v8a    nearly every phone since 2017
+#   armeabi-v7a  older and some budget phones that run 32-bit Android ("App not installed" on the other file)
+# Run it from the Actions tab ("Run workflow"), or it runs on every push to a ccr-* branch / main. Download from the
+# run's Artifacts, or from the "apk-latest" pre-release on the Releases page.
 
 on:
   workflow_dispatch:
-    inputs:
-      abis:
-        description: 'CPU types to include (arm64-v8a = nearly every phone since 2017; add armeabi-v7a for old 32-bit phones, x86_64 for emulators)'
-        default: 'arm64-v8a'
   push:
     branches: [main, 'ccr-*']
 
@@ -22,9 +20,13 @@ permissions:
   contents: write
 
 jobs:
-  apk:
+  build:
     runs-on: ubuntu-latest
     timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        abi: [arm64-v8a, armeabi-v7a]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -40,24 +42,33 @@ jobs:
         run: npx expo prebuild --platform android --no-install --clean
       - name: Build release APK
         working-directory: android
-        run: ./gradlew assembleRelease -PreactNativeArchitectures=${{ github.event.inputs.abis || 'arm64-v8a' }} --no-daemon
+        run: ./gradlew assembleRelease -PreactNativeArchitectures=${{ matrix.abi }} --no-daemon
       - name: Name the APK
         id: name
         run: |
           SHORT=$(git rev-parse --short HEAD)
-          cp android/app/build/outputs/apk/release/app-release.apk "onesync-erp-$SHORT.apk"
-          echo "file=onesync-erp-$SHORT.apk" >> "$GITHUB_OUTPUT"
+          cp android/app/build/outputs/apk/release/app-release.apk "onesync-erp-${{ matrix.abi }}-$SHORT.apk"
+          echo "file=onesync-erp-${{ matrix.abi }}-$SHORT.apk" >> "$GITHUB_OUTPUT"
       - uses: actions/upload-artifact@v4
         with:
-          name: onesync-erp-apk
+          name: onesync-erp-apk-${{ matrix.abi }}
           path: ${{ steps.name.outputs.file }}
           retention-days: 30
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: onesync-erp-apk-*
+          merge-multiple: true
       - name: Publish to the apk-latest pre-release
-        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           gh release delete apk-latest --cleanup-tag --yes || true
-          gh release create apk-latest "${{ steps.name.outputs.file }}" --prerelease \
-            --target "$GITHUB_SHA" --title "OneSyncERP – latest test APK" \
-            --notes "Debug-signed test build of $GITHUB_SHA. Enable 'install unknown apps' on the phone to install."
+          gh release create apk-latest *.apk --prerelease --target "$GITHUB_SHA" \
+            --title "OneSyncERP – latest test APK" \
+            --notes "Debug-signed test build of $GITHUB_SHA. Most phones: the arm64-v8a file. If it says 'App not installed' (older or 32-bit phones), use the armeabi-v7a file. Enable 'install unknown apps' to install."
