@@ -1,7 +1,7 @@
 import { id } from '@/domain/ids'
 import { nextNo } from '../numbering'
 import { signatureProblem, VISIT_FLOW, VISIT_LABEL } from './logic/visits'
-import { usePackageSession } from './ops-packages'
+import { consumePackageSession } from './ops-packages'
 import { audit, branch, isManager, listOf, mergeChanges, need, OpError, type Changes, type DataState, type OpCtx } from './ops-shared'
 import type { FieldVisit, VisitReport, VisitSignature } from './types'
 import './replication'
@@ -85,7 +85,7 @@ export function completeVisit(state: DataState, visitId: string, ctx: OpCtx, o: 
   let changes: Changes = {}
   if (o.packageId) {
     if (!cur.customerId) throw new OpError('Choose a customer on the visit to use their package.')
-    const u = usePackageSession(state, o.packageId, { customerId: cur.customerId, serviceName: `Visit ${cur.no}`, visitId: cur.id, note: cur.purpose }, ctx)
+    const u = consumePackageSession(state, o.packageId, { customerId: cur.customerId, serviceName: `Visit ${cur.no}`, visitId: cur.id, note: cur.purpose }, ctx)
     visit = { ...visit, packageUseId: u.use.id }
     changes = u.changes
   }

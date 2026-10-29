@@ -27,7 +27,7 @@ const COUNTER = ['services', 'servicesManage', 'reports']
 const MANAGE = 'servicesManage'
 
 /** A session used (or lapsed) adds to what the package has consumed; a reversal takes it back. The same function runs on the phone. */
-export function useEffects(u: PackageUse): Effect[] {
+export function packageUseEffects(u: PackageUse): Effect[] {
   return [
     { kind: 'inc', coll: 'customerPackages', id: u.customerPackageId, field: 'sessionsUsed', by: u.sessions },
     { kind: 'inc', coll: 'customerPackages', id: u.customerPackageId, field: 'recognised', by: u.value },
@@ -91,7 +91,7 @@ registerCollectionMeta(
     name: 'packageUses', kind: 'ledger', perm: 'services', readPerm: COUNTER, branched: true,
     validate: (d) => (str(d.customerPackageId) && str(d.customerId) && oneOf(d.kind, ['use', 'reversal', 'expiry']) && finite(d.sessions) && finite(d.value) && finite(d.tax) && finite(d.date) ? null : 'A package use needs a package, a kind, sessions and the revenue'),
     guard: useGuard,
-    effects: (d) => useEffects(d as unknown as PackageUse),
+    effects: (d) => packageUseEffects(d as unknown as PackageUse),
   },
   {
     name: 'jobCards', kind: 'master', perm: 'services', readPerm: COUNTER, branched: true,

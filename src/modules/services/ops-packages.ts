@@ -72,7 +72,7 @@ export interface UseInput {
 }
 
 /** Takes one session from the package and earns its share of the revenue. */
-export function usePackageSession(state: DataState, packageId: string, o: UseInput, ctx: OpCtx): { changes: Changes; use: PackageUse; package: CustomerPackage } {
+export function consumePackageSession(state: DataState, packageId: string, o: UseInput, ctx: OpCtx): { changes: Changes; use: PackageUse; package: CustomerPackage } {
   const cp = need(state.customerPackages?.[packageId], 'package')
   if (o.customerId && o.customerId !== cp.customerId) throw new OpError('That package belongs to another customer.')
   const why = usageProblem(cp, ctx.now, o.variantIds ?? [])

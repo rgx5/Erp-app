@@ -5,7 +5,7 @@ import { OpError } from '@/data/ops'
 import { saveBill } from '@/data/ops'
 import { customerBalance, earnedAfter, lapseFor, packageLiability, packageStatus, releaseFor, remainingValue, splitPrice, taxAt, usageProblem } from '../logic/packages'
 import { packagePayments } from '../hooks'
-import { billAppointment, completeWithPackage, expireDue, expirePackage, reverseUse, saveAppointment, savePlan, sellPackage, setPackageFrozen, usePackageSession } from '../ops'
+import { billAppointment, completeWithPackage, expireDue, expirePackage, reverseUse, saveAppointment, savePlan, sellPackage, setPackageFrozen, consumePackageSession } from '../ops'
 import { serviceBillInput } from '../logic/billing'
 import { packageSalePosting, packageUsePosting } from '../postings'
 import { bookDraft, cctx, ctx, DAY, mctx, NOW, planId, run, shopState, SVC } from './helpers'
@@ -71,25 +71,25 @@ describe('using sessions', () => {
     let s = sell(shopState()).state
     const pid = listOf(s.customerPackages)[0].id
     for (let i = 1; i <= 5; i++) {
-      const r = run(s, usePackageSession(s, pid, { customerId: 'c1', variantIds: [SVC.spa], serviceName: 'Hair spa' }, ctx()))
+      const r = run(s, consumePackageSession(s, pid, { customerId: 'c1', variantIds: [SVC.spa], serviceName: 'Hair spa' }, ctx()))
       s = r.state
       expect(s.customerPackages[pid].sessionsUsed).toBe(i)
       expect(r.result.use).toMatchObject({ kind: 'use', sessions: 1, value: 1000, tax: 180 })
     }
     expect(s.customerPackages[pid].recognised).toBe(5000)
-    expect(() => usePackageSession(s, pid, {}, ctx())).toThrow('no sessions left')
+    expect(() => consumePackageSession(s, pid, {}, ctx())).toThrow('no sessions left')
     expect(customerBalance(s, 'c1', NOW).sessions).toBe(0)
   })
 
   test('it must cover the service, belong to the customer, and not be frozen or expired', () => {
     let s = sell(shopState()).state
     const pid = listOf(s.customerPackages)[0].id
-    expect(() => usePackageSession(s, pid, { variantIds: [SVC.cut] }, ctx())).toThrow('does not cover')
-    expect(() => usePackageSession(s, pid, { customerId: 'c2' }, ctx())).toThrow('another customer')
-    expect(() => usePackageSession(s, pid, {}, ctx({ now: NOW + 91 * DAY }))).toThrow('expired')
+    expect(() => consumePackageSession(s, pid, { variantIds: [SVC.cut] }, ctx())).toThrow('does not cover')
+    expect(() => consumePackageSession(s, pid, { customerId: 'c2' }, ctx())).toThrow('another customer')
+    expect(() => consumePackageSession(s, pid, {}, ctx({ now: NOW + 91 * DAY }))).toThrow('expired')
     expect(() => setPackageFrozen(s, pid, true, 'away', cctx())).toThrow('Only a manager')
     s = run(s, setPackageFrozen(s, pid, true, 'away', mctx())).state
-    expect(() => usePackageSession(s, pid, {}, ctx())).toThrow('frozen')
+    expect(() => consumePackageSession(s, pid, {}, ctx())).toThrow('frozen')
     expect(packageStatus(s.customerPackages[pid], NOW)).toBe('frozen')
     s = run(s, setPackageFrozen(s, pid, false, '', mctx())).state
     expect(usageProblem(s.customerPackages[pid], NOW)).toBeNull()
@@ -98,7 +98,7 @@ describe('using sessions', () => {
   test('giving a session back reverses it once, for managers only', () => {
     let s = sell(shopState()).state
     const pid = listOf(s.customerPackages)[0].id
-    const u = run(s, usePackageSession(s, pid, {}, ctx()))
+    const u = run(s, consumePackageSession(s, pid, {}, ctx()))
     s = u.state
     expect(() => reverseUse(s, u.result.use.id, 'oops', cctx())).toThrow('Only a manager')
     expect(() => reverseUse(s, u.result.use.id, '', mctx())).toThrow('why')
@@ -113,7 +113,7 @@ describe('using sessions', () => {
   test('a package that lapses unused earns what is left once, and cannot be used again', () => {
     let s = sell(shopState()).state
     const pid = listOf(s.customerPackages)[0].id
-    s = run(s, usePackageSession(s, pid, {}, ctx())).state
+    s = run(s, consumePackageSession(s, pid, {}, ctx())).state
     expect(() => expirePackage(s, pid, ctx())).toThrow('still valid')
     const later = ctx({ now: NOW + 100 * DAY })
     expect(packageStatus(s.customerPackages[pid], later.now)).toBe('expired')
@@ -204,9 +204,9 @@ describe('the books', () => {
     let s = sell(shopState()).state
     const pid = listOf(s.customerPackages)[0].id
     const uses = []
-    for (let i = 0; i < 2; i++) { const r = run(s, usePackageSession(s, pid, { serviceName: 'Hair spa' }, ctx())); s = r.state; uses.push(r.result.use) }
+    for (let i = 0; i < 2; i++) { const r = run(s, consumePackageSession(s, pid, { serviceName: 'Hair spa' }, ctx())); s = r.state; uses.push(r.result.use) }
     s = run(s, reverseUse(s, uses[1].id, 'mistake', mctx())).state
-    s = run(s, usePackageSession(s, pid, {}, ctx())).state
+    s = run(s, consumePackageSession(s, pid, {}, ctx())).state
     s = run(s, expirePackage(s, pid, ctx({ now: NOW + 120 * DAY }))).state
     const posts = postingsFor(s).filter((p) => p.sourceColl === 'packageUses' || p.sourceColl === 'packageSales')
     expect(posts).toHaveLength(1 + 4 + 1)
@@ -230,7 +230,7 @@ describe('the books', () => {
   test('the liability report lists money held and what is already earned', () => {
     let s = sell(shopState()).state
     const pid = listOf(s.customerPackages)[0].id
-    s = run(s, usePackageSession(s, pid, {}, ctx())).state
+    s = run(s, consumePackageSession(s, pid, {}, ctx())).state
     const l = packageLiability(s, NOW)
     expect(l.sold).toBe(5900)
     expect(l.deferred).toBe(4720)

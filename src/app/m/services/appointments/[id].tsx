@@ -145,7 +145,7 @@ export default function AppointmentView() {
       <Sheet visible={!!to} onClose={() => setTo(null)} title={to === 'no_show' ? 'Did not come' : 'Cancel the appointment'} footer={<Button label="Confirm" size="lg" block onPress={() => to && move(to, reason)} />}>
         <View style={{ gap: 12, paddingBottom: 8 }}>
           <Field label={to === 'no_show' ? 'Note (optional)' : 'Why? (optional)'} value={reason} onChangeText={setReason} autoCapitalize="sentences" />
-          {to === 'no_show' ? <T v="caption" tone="mute">After the shop's limit of no-shows, this customer needs a manager to book again.</T> : null}
+          {to === 'no_show' ? <T v="caption" tone="mute">After the shop&apos;s limit of no-shows, this customer needs a manager to book again.</T> : null}
         </View>
       </Sheet>
     </Screen>

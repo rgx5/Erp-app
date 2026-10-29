@@ -8,7 +8,7 @@ import { apptTotal, apptTitle, canEditAppt, APPT_FLOW, APPT_LABEL, noShowProblem
 import { bookingProblem, canDo, durationOf } from './logic/calendar'
 import { serviceBillInput } from './logic/billing'
 import { applyChanges, audit, branch, checkPayments, isManager, listOf, mergeChanges, need, OpError, type Changes, type DataState, type OpCtx } from './ops-shared'
-import { usePackageSession } from './ops-packages'
+import { consumePackageSession } from './ops-packages'
 import type { Appointment, ApptService, ApptStatus } from './types'
 import './replication'
 
@@ -125,7 +125,7 @@ export function completeWithPackage(state: DataState, apptId: string, customerPa
   if (cur.billId || cur.packageUseId) throw new OpError(`${cur.no} has already been paid for.`)
   if (!cur.customerId) throw new OpError('Choose a customer on the appointment to use their package.')
   if (cur.status === 'cancelled' || cur.status === 'no_show') throw new OpError('A cancelled or missed appointment cannot use a package.')
-  const u = usePackageSession(state, customerPackageId, { customerId: cur.customerId, variantIds: cur.services.map((s) => s.variantId), serviceName: apptTitle(cur), appointmentId: cur.id, note: cur.no }, ctx)
+  const u = consumePackageSession(state, customerPackageId, { customerId: cur.customerId, variantIds: cur.services.map((s) => s.variantId), serviceName: apptTitle(cur), appointmentId: cur.id, note: cur.no }, ctx)
   const a: Appointment = { ...cur, status: 'completed', packageUseId: u.use.id, completedAt: cur.completedAt ?? ctx.now, ...(cur.arrivedAt ? {} : { arrivedAt: ctx.now }) }
   return { appointment: a, changes: mergeChanges(u.changes, { put: { appointments: [a], audit: [audit(ctx, 'APPT_PACKAGE', `${cur.no} — ${u.use.serviceName}`)] } }) }
 }

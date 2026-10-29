@@ -4,7 +4,7 @@ import { mutationsFromChanges } from '@/replication/client'
 import { allCollectionMetas } from '@/replication/registry'
 import { actorWith, rig } from '@/replication/testkit'
 import { billAppointment, billJobCard, checkIn, completeVisit, completeWithPackage, expirePackage, invoiceFixedFee, invoiceTimesheet, issuePart, logTime, reverseUse, saveAppointment, saveJobCard, saveProject, savePlan, saveResource, saveServiceItem, saveServiceSettings,
-  saveTask, saveVisit, saveVisitReport, sellPackage, setAppointmentStatus, setJobLines, setJobStatus, setPackageFrozen, setTaskStatus, signVisit, startTimer, stopTimer, usePackageSession } from '../ops'
+  saveTask, saveVisit, saveVisitReport, sellPackage, setAppointmentStatus, setJobLines, setJobStatus, setPackageFrozen, setTaskStatus, signVisit, startTimer, stopTimer, consumePackageSession } from '../ops'
 import { baseState, bookDraft, cctx, ctx, DAY, mctx, NOW, PART, SVC, tomorrowAt, TODAY } from './helpers'
 
 const SERVICE_COLLS: Coll[] = [
@@ -31,10 +31,10 @@ async function busy() {
   const sale = await r.run((s) => sellPackage(s, { customerId: 'c1', planId: plan.plan.id, mode: 'upi' }, asOwner))
   const pid = sale.package.id
   await r.run((s) => completeWithPackage(s, a2.appointment.id, pid, asOwner))
-  const u2 = await r.run((s) => usePackageSession(s, pid, { customerId: 'c1', serviceName: 'Hair spa' }, asOwner))
+  const u2 = await r.run((s) => consumePackageSession(s, pid, { customerId: 'c1', serviceName: 'Hair spa' }, asOwner))
   await r.run((s) => reverseUse(s, u2.use.id, 'Booked twice', mctx()))
   const sale2 = await r.run((s) => sellPackage(s, { customerId: 'c2', planId: plan.plan.id, mode: 'cash' }, asOwner))
-  await r.run((s) => usePackageSession(s, sale2.package.id, {}, asOwner))
+  await r.run((s) => consumePackageSession(s, sale2.package.id, {}, asOwner))
   await r.run((s) => setPackageFrozen(s, sale2.package.id, true, 'Away', mctx()))
   await r.run((s) => setPackageFrozen(s, sale2.package.id, false, '', mctx()))
   await r.run((s) => expirePackage(s, sale2.package.id, ctx({ now: NOW + 100 * DAY })))
@@ -156,11 +156,11 @@ describe('services replicate', () => {
     await r.run((s) => saveServiceSettings(s, {}, mctx()))
     const plan = await r.run((s) => savePlan(s, { name: 'Two', price: 1000, sessions: 2, validityDays: 0, variantIds: [], gstRate: 0, notes: '', active: true }, undefined, mctx()))
     const sale = await r.run((s) => sellPackage(s, { customerId: 'c1', planId: plan.plan.id, mode: 'cash' }, ctx()))
-    await r.run((s) => usePackageSession(s, sale.package.id, {}, ctx()))
+    await r.run((s) => consumePackageSession(s, sale.package.id, {}, ctx()))
     // both phones know "1 session left" …
     const stale = r.phone
-    const a = usePackageSession(stale, sale.package.id, {}, ctx({ now: NOW + 1000 }))
-    const b = usePackageSession(stale, sale.package.id, {}, ctx({ now: NOW + 2000 }))
+    const a = consumePackageSession(stale, sale.package.id, {}, ctx({ now: NOW + 1000 }))
+    const b = consumePackageSession(stale, sale.package.id, {}, ctx({ now: NOW + 2000 }))
     await r.send(muts(stale, a.changes).filter((m) => m.coll === 'packageUses'))
     await expect(r.send(muts(stale, b.changes).filter((m) => m.coll === 'packageUses'))).rejects.toThrow('has only 0 sessions left')
     const view = await r.serverView()

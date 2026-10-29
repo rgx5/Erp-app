@@ -4,7 +4,7 @@ import { round2 } from '@/domain/money'
 import type { Bill } from '@/domain/types'
 import type { BillHook, BillHookCtx } from '@/modules/registry'
 import { bestPackage, customerBalance } from './logic/packages'
-import { usePackageSession } from './ops-packages'
+import { consumePackageSession } from './ops-packages'
 import type { Appointment, JobCard, Project, TimeEntry } from './types'
 import './replication'
 
@@ -93,7 +93,7 @@ export function onSave({ state, ctx, bill }: BillHookCtx): Changes | null {
     for (let i = 0; i < n; i++) {
       const p = bestPackage(s, bill.customerId, ctx.now, vids)
       if (!p) break
-      const u = usePackageSession(s, p.id, { customerId: bill.customerId, variantIds: vids, serviceName: names, billId: bill.id, note: bill.no }, ctx)
+      const u = consumePackageSession(s, p.id, { customerId: bill.customerId, variantIds: vids, serviceName: names, billId: bill.id, note: bill.no }, ctx)
       parts.push(u.changes); s = applyChanges(s, u.changes)
     }
   }
