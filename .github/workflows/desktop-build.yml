@@ -1,10 +1,11 @@
 name: Desktop apps
 
-# Builds installable OneSyncERP desktop apps for Windows, macOS and Linux. It is the same web build the browser
-# gets (desktop/main.js just serves it from a small local server inside a window) — no separate app to keep in
-# sync. These are unsigned test builds (no Apple/Microsoft signing certificate), so:
-#   Windows   SmartScreen warns "Windows protected your PC" → More info → Run anyway
-#   macOS     Gatekeeper refuses to open it → right-click the app → Open → Open
+# Builds an installable OneSyncERP desktop app. It is the same web build the browser gets (desktop/main.js just
+# serves it from a small local server inside a window) — no separate app to keep in sync. This is an unsigned test
+# build (no Microsoft signing certificate), so Windows SmartScreen will warn: "More info" → "Run anyway".
+#
+# Windows only for now (macOS and Linux are disabled below — see the matrix — until their build issues are fixed).
+#
 # Run it from the Actions tab ("Run workflow"), or it runs on every push to a ccr-* branch / main. Download from
 # the run's Artifacts, or from the "desktop-latest" pre-release on the Releases page.
 
@@ -29,14 +30,15 @@ jobs:
           - os: windows-latest
             label: windows
             glob: 'desktop/release/*.exe'
-          - os: macos-latest
-            label: macos
-            glob: 'desktop/release/*.dmg'
-          - os: ubuntu-latest
-            label: linux
-            glob: |
-              desktop/release/*.AppImage
-              desktop/release/*.deb
+          # Disabled for now — re-enable once their build issues are fixed:
+          # - os: macos-latest
+          #   label: macos
+          #   glob: 'desktop/release/*.dmg'
+          # - os: ubuntu-latest
+          #   label: linux
+          #   glob: |
+          #     desktop/release/*.AppImage
+          #     desktop/release/*.deb
     runs-on: ${{ matrix.os }}
     timeout-minutes: 45
     steps:
@@ -91,4 +93,4 @@ jobs:
           gh release delete desktop-latest --cleanup-tag --yes || true
           gh release create desktop-latest * --prerelease --target "$GITHUB_SHA" \
             --title "OneSyncERP – latest desktop test build" \
-            --notes "Unsigned test build of $GITHUB_SHA. Windows: SmartScreen → More info → Run anyway. macOS: right-click the app → Open → Open (first run only). Linux: either file; AppImage needs no install (chmod +x, then run it), .deb installs normally."
+            --notes "Unsigned test build of $GITHUB_SHA. Windows only for now. SmartScreen will warn — More info → Run anyway."
