@@ -21,11 +21,19 @@ import { Alert, Boxes, ChartColumn, Clock, Grid, Package, Percent, Plus, Receipt
 import { useTheme } from '@/ui/theme'
 import { firstName } from '@/domain/people'
 import { useModuleNotices } from '@/modules/hooks'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopHome } from '@/ui/desktop/Home'
 
 const RANGE_WORD: Record<DashRange, string> = { today: 'today', '7d': 'last 7 days', '30d': 'last 30 days' }
 const VS_WORD: Record<DashRange, string> = { today: 'vs same time yesterday', '7d': 'vs previous 7 days', '30d': 'vs previous 30 days' }
 
 export default function HomeScreen() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopHome />
+  return <MobileHome />
+}
+
+function MobileHome() {
   const { c, radius } = useTheme()
   const router = useRouter()
   const user = useUser()
