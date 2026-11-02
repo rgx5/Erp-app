@@ -1,13 +1,15 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Modal, Platform, Pressable, TextInput, View } from 'react-native'
 import { useFocusEffect, useRouter } from 'expo-router'
-import { inr, inr0 } from '@/domain/money'
+import { cashSuggestions, finalPayments, pointsEarned, settle } from '@/domain/checkout'
+import { inr, inr0, round2 } from '@/domain/money'
 import { fmtQty, fmtQtyUnit, unitSuffix } from '@/domain/qty'
 import { buildIndex, parseQuery, searchGroups, type ProductGroup, type SearchResult } from '@/domain/search'
 import { variantLabel } from '@/domain/codes'
 import { lineDiscount, type CartLine } from '@/domain/cart'
 import { DAY, fmtDateTime } from '@/domain/dates'
-import type { Bill } from '@/domain/types'
+import { billPrintHtml, paymentSummary, receiptText } from '@/domain/receipt'
+import type { Bill, Customer, PayMode } from '@/domain/types'
 import { findVariantByCode } from '@/data/lookup'
 import { useLabels, useList, useStore, useVariantViews } from '@/data/hooks'
 import { saveBill } from '@/data/ops'
@@ -16,12 +18,14 @@ import { addToCart, lineFor, useCart, useCartTotals } from '@/features/cart'
 import { CustomerPicker } from '@/features/CustomerPicker'
 import { VariantPicker } from '@/features/VariantPicker'
 import { openScanner } from '@/features/scanBus'
+import { printHtml, whatsApp } from '@/features/share'
 import { Stepper, type InputRef } from '@/ui/Inputs'
 import { T } from '@/ui/Text'
 import { fonts, useTheme } from '@/ui/theme'
 import { ask, toast } from '@/ui/overlays'
-import { soft } from '@/ui/feedback'
-import { Close, Pause, Scan, Search as SearchIcon, Trash, UserPlus } from '@/ui/icons'
+import { soft, success } from '@/ui/feedback'
+import { Banknote, Check, Close, CreditCard, Pause, Phone, Printer, Scan, Search as SearchIcon, Share, Trash, UserPlus } from '@/ui/icons'
+import { receiptAddOns, paymentMethodList } from '@/modules/registry'
 import { DataTable, DeskButton, DeskPage, KeyHint, Pill, SplitPane, Toolbar, cellNum, cellText, dtext } from './kit'
 
 /**
@@ -51,6 +55,7 @@ export function DesktopPos() {
   const [picker, setPicker] = useState<ProductGroup | null>(null)
   const [showCustomer, setShowCustomer] = useState(false)
   const [showHeld, setShowHeld] = useState(false)
+  const [charging, setCharging] = useState(false)
   const searchRef = useRef<InputRef>(null)
 
   const index = useMemo(() => buildIndex(variants), [variants])
@@ -101,7 +106,7 @@ export function DesktopPos() {
 
   // Enter in an empty search box rings the sale up — the keyboard-only path to Charge when nothing is left to add.
   function onSearchSubmit() {
-    if (!parsed.term.trim()) { if (lines.length) router.push('/sell/checkout'); return }
+    if (!parsed.term.trim()) { if (lines.length) setCharging(true); return }
     submit()
   }
 
@@ -162,11 +167,11 @@ export function DesktopPos() {
     if (Platform.OS !== 'web' || typeof window === 'undefined') return
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === 'F2') { e.preventDefault(); searchRef.current?.focus() }
-      else if (e.key === 'F4' && lines.length) { e.preventDefault(); router.push('/sell/checkout') }
+      else if (e.key === 'F4' && lines.length) { e.preventDefault(); setCharging(true) }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
-  }, [lines.length, router])
+  }, [lines.length])
 
   // A search row's click mirrors the mobile Card's onPress: one variant adds it straight away, several open the picker.
   function onResultPress(r: SearchResult) {
@@ -324,7 +329,7 @@ export function DesktopPos() {
             </View>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <View style={{ flex: 1 }}><DeskButton label="Hold" onPress={hold} disabled={!lines.length} /></View>
-              <View style={{ flex: 1 }}><DeskButton label="Charge" tone="primary" hint="F4" onPress={() => router.push('/sell/checkout')} disabled={!lines.length} /></View>
+              <View style={{ flex: 1 }}><DeskButton label="Charge" tone="primary" hint="F4" onPress={() => setCharging(true)} disabled={!lines.length} /></View>
             </View>
           </View>
         </View>
@@ -333,7 +338,185 @@ export function DesktopPos() {
       <VariantPicker group={picker} visible={!!picker} onClose={() => setPicker(null)} onAdd={(id) => add(id)} />
       <CustomerPicker visible={showCustomer} onClose={() => setShowCustomer(false)} selectedId={customerId} onPick={(cu) => useCart.getState().set({ customerId: cu?.id ?? null })} />
       <HeldBills visible={showHeld} bills={held} onClose={() => setShowHeld(false)} onResume={(b) => { resume(b); setShowHeld(false) }} />
+      <ChargePanel visible={charging} onClose={() => setCharging(false)} customer={customer} onRefocus={() => searchRef.current?.focus()} />
     </DeskPage>
+  )
+}
+
+/**
+ * Payment and printing, without ever leaving the counter screen — the thing `/sell/checkout` + `/sell/done` cost two
+ * screen changes and a dozen taps for. Covers the common case (cash/UPI/card, one tender, this shop's usual loyalty
+ * and store-credit rules) in the fewest clicks the money math allows: open with Cash and the exact amount already
+ * selected, so a plain cash sale is one click (Charge) once the panel is up. A coupon, a bill discount, a split
+ * across several modes, or a different seller are real but rarer needs — "More options" still goes to the full
+ * `/sell/checkout` screen for those, rather than this panel trying to be that screen.
+ *
+ * The money logic is the exact `settle`/`finalPayments`/`saveBill` triplet `/sell/checkout` itself calls — nothing
+ * about how a bill is priced, taxed, or paid is re-derived here, only the screen it happens on.
+ */
+function ChargePanel({ visible, onClose, customer, onRefocus }: { visible: boolean; onClose: () => void; customer: Customer | null; onRefocus: () => void }) {
+  const { c, radius } = useTheme()
+  const router = useRouter()
+  const store = useStore()
+  const userId = useApp((s) => s.session?.userId ?? '')
+  const cart = useCart()
+  const totals = useCartTotals()
+  const total = totals.total
+  const appState = useApp((s) => s.data)
+
+  const [mode, setMode] = useState<PayMode>('cash')
+  const [tendered, setTendered] = useState('')
+  const [redeemPts, setRedeemPts] = useState(0)
+  const [useCredit, setUseCredit] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [done, setDone] = useState<Bill | null>(null)
+
+  // Reset to a clean "about to charge" state each time the panel opens, for the next sale.
+  useEffect(() => {
+    if (visible) { setMode('cash'); setTendered(''); setRedeemPts(0); setUseCredit(false); setSaving(false); setDone(null) }
+  }, [visible])
+
+  const modes = useMemo(() => [
+    { mode: 'cash' as PayMode, label: 'Cash', icon: Banknote },
+    { mode: 'upi' as PayMode, label: 'UPI', icon: Phone },
+    { mode: 'card' as PayMode, label: 'Card', icon: CreditCard },
+    ...paymentMethodList()
+      .filter((m) => !m.enabled || m.enabled(appState, { state: appState, customerId: cart.customerId, extras: cart.extras }))
+      .map((m) => ({ mode: m.id as PayMode, label: m.label, icon: m.icon })),
+  ], [appState, cart.customerId, cart.extras])
+
+  const st = settle({ total, customer, loyaltyValue: store.loyaltyRedeemValue, redeemPts, useCredit, split: [], mode, tendered })
+  const isCash = mode === 'cash'
+  const quick = isCash ? cashSuggestions(st.remaining) : []
+
+  function charge() {
+    if (saving || total <= 0 || !st.covers) return
+    setSaving(true)
+    try {
+      const payments = finalPayments({ total, customer, loyaltyValue: store.loyaltyRedeemValue, redeemPts, useCredit, split: [], mode, tendered }, st)
+      const paid = round2(payments.reduce((s, p) => s + p.amount, 0))
+      const r = perform((s, ctx) => saveBill(s, {
+        date: ctx.now, customerId: cart.customerId, items: totals.items.map((it, i) => ({ ...it, soldBy: cart.lines[i]?.staffId || cart.staffId || userId })),
+        grossMrp: totals.grossMrp, itemDiscount: totals.itemDiscount, billDiscountType: cart.billDiscountType, billDiscountValue: cart.billDiscountValue,
+        billDiscount: totals.billDiscount, coupon: cart.coupon, subtotal: totals.subtotal, taxableTotal: totals.taxableTotal, cgstTotal: totals.cgstTotal,
+        sgstTotal: totals.sgstTotal, ...(totals.igstTotal !== undefined ? { igstTotal: totals.igstTotal } : {}), taxTotal: totals.taxTotal, roundOff: totals.roundOff, total, payments, paid, changeDue: st.change,
+        loyaltyEarned: customer ? pointsEarned(total, store.loyaltyEarnPct) : 0, loyaltyRedeemed: st.pts, creditUsed: st.creditUsed,
+        cashierId: userId, soldBy: cart.staffId || userId, status: 'paid', notes: '',
+        ...(Object.keys(cart.extras).length ? { ext: cart.extras } : {}),
+      }, ctx, { heldId: cart.heldId ?? undefined }))
+      cart.clear()
+      setDone(r.bill)
+      if (store.autoPrintOnSale) void printHtml(billPrintHtml({ bill: r.bill, store, customer, seller: appState.users[r.bill.soldBy ?? r.bill.cashierId] ?? null, extras: receiptAddOns(r.bill, appState) }))
+    } catch (e) {
+      toast(e instanceof Error ? e.message : 'Could not save the bill', 'err')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function newSale() {
+    onClose()
+    setTimeout(onRefocus, 0) // after the modal has actually closed, so focus lands in the search box, not the panel
+  }
+
+  if (!visible) return null
+  const docCtx = done ? { bill: done, store, customer, seller: appState.users[done.soldBy ?? done.cashierId] ?? null, extras: receiptAddOns(done, appState) } : null
+
+  return (
+    <Modal visible transparent animationType="fade" onRequestClose={done ? newSale : onClose}>
+      <Pressable style={{ flex: 1, backgroundColor: c.overlay, alignItems: 'center', justifyContent: 'center' }} onPress={done ? undefined : onClose}>
+        <Pressable onPress={(e) => e.stopPropagation()} style={{ width: 400, backgroundColor: c.surface, borderRadius: 10, borderWidth: 1, borderColor: c.line, overflow: 'hidden' }}>
+          {done && docCtx ? (
+            <View style={{ padding: 20, gap: 14, alignItems: 'center' }}>
+              <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: c.success, alignItems: 'center', justifyContent: 'center' }}>
+                <Check size={28} color="#fff" strokeWidth={3} />
+              </View>
+              <View style={{ alignItems: 'center', gap: 2 }}>
+                <T style={[dtext.tiny, { color: c.inkMute }]}>PAYMENT RECEIVED</T>
+                <T style={dtext.kpi}>{inr(done.total, 0)}</T>
+                <T style={[dtext.tiny, { color: c.inkMute }]}>{done.no} · {paymentSummary(done)}</T>
+              </View>
+              {done.changeDue > 0 ? (
+                <View style={{ width: '100%', padding: 12, borderRadius: radius.md, backgroundColor: c.warningTint, alignItems: 'center' }}>
+                  <T style={[dtext.tiny, { color: c.warning }]}>CHANGE DUE</T>
+                  <T style={[dtext.numStrong, { color: c.warning, fontSize: 18 }]}>{inr(done.changeDue)}</T>
+                </View>
+              ) : null}
+              {store.autoPrintOnSale ? <T style={[dtext.tiny, { color: c.inkMute }]}>Printed automatically</T> : null}
+              <View style={{ flexDirection: 'row', gap: 8, width: '100%' }}>
+                <View style={{ flex: 1 }}><DeskButton label="Print" icon={<Printer size={14} color={c.ink} />} onPress={() => void printHtml(billPrintHtml(docCtx))} /></View>
+                {customer?.phone ? <View style={{ flex: 1 }}><DeskButton label="WhatsApp" icon={<Share size={14} color={c.ink} />} onPress={() => void whatsApp(receiptText(docCtx), customer.phone)} /></View> : null}
+              </View>
+              <View style={{ width: '100%' }}><DeskButton label="New sale" tone="primary" hint="Esc" onPress={newSale} /></View>
+            </View>
+          ) : (
+            <>
+              <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, height: 48, borderBottomWidth: 1, borderBottomColor: c.line }}>
+                <T style={dtext.title}>Charge</T>
+                <View style={{ flex: 1 }} />
+                <Pressable onPress={onClose} accessibilityLabel="Close" hitSlop={8}><Close size={18} color={c.inkMute} /></Pressable>
+              </View>
+              <View style={{ padding: 16, gap: 12 }}>
+                <View style={{ borderRadius: radius.lg, padding: 16, backgroundColor: c.ink, alignItems: 'center', gap: 2 }}>
+                  <T style={[dtext.tiny, { color: c.bg, opacity: 0.7 }]}>AMOUNT DUE</T>
+                  <T style={[dtext.kpi, { color: c.bg, fontSize: 30 }]}>{inr(st.remaining, 2)}</T>
+                </View>
+
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                  {modes.map((m) => {
+                    const on = mode === m.mode
+                    return (
+                      <Pressable key={m.mode} onPress={() => { setMode(m.mode); setTendered('') }} style={{ flexGrow: 1, minWidth: 90, height: 42, borderRadius: radius.md, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: on ? c.primary : c.bg, borderWidth: 1, borderColor: on ? c.primary : c.lineStrong }}>
+                        <m.icon size={15} color={on ? c.onPrimary : c.inkSoft} />
+                        <T style={[dtext.cellStrong, { color: on ? c.onPrimary : c.ink }]}>{m.label}</T>
+                      </Pressable>
+                    )
+                  })}
+                </View>
+
+                {isCash ? (
+                  <View style={{ gap: 8 }}>
+                    <TextInput
+                      value={tendered}
+                      onChangeText={setTendered}
+                      placeholder={`Exact — ${inr0(st.remaining)}`}
+                      placeholderTextColor={c.inkMute}
+                      keyboardType="decimal-pad"
+                      style={{ height: 42, borderRadius: radius.md, borderWidth: 1, borderColor: c.lineStrong, paddingHorizontal: 12, color: c.ink, fontFamily: fonts.displayMedium, fontSize: 16, outlineWidth: 0 }}
+                    />
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                      {quick.map((n) => <Pill key={n} tone={Number(tendered) === n ? 'primary' : 'default'} label={inr0(n)} />)}
+                    </View>
+                  </View>
+                ) : null}
+
+                {customer && (customer.storeCredit > 0 || (customer.loyaltyPoints > 0 && store.loyaltyRedeemValue > 0)) ? (
+                  <View style={{ gap: 8, padding: 10, borderRadius: radius.md, backgroundColor: c.sunken }}>
+                    {customer.storeCredit > 0 ? (
+                      <Pressable onPress={() => setUseCredit(!useCredit)} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <Check size={14} color={useCredit ? c.primary : c.inkMute} />
+                        <T style={dtext.cell}>Use store credit · {inr0(customer.storeCredit)}</T>
+                      </Pressable>
+                    ) : null}
+                    {customer.loyaltyPoints > 0 && store.loyaltyRedeemValue > 0 ? (
+                      <Pressable onPress={() => setRedeemPts(st.maxPts)} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                        <Check size={14} color={st.pts > 0 ? c.primary : c.inkMute} />
+                        <T style={dtext.cell}>Redeem {st.maxPts} points · {inr0(st.maxPts * store.loyaltyRedeemValue)}</T>
+                      </Pressable>
+                    ) : null}
+                  </View>
+                ) : null}
+
+                {st.shortBy > 0 ? <T style={[dtext.cell, { color: c.danger }]}>Short by {inr(st.shortBy)}</T> : st.change > 0 ? <T style={[dtext.cell, { color: c.warning }]}>Change to return {inr(st.change)}</T> : null}
+
+                <DeskButton label={`Charge ${inr(total, 0)}`} tone="primary" disabled={!st.covers || saving} onPress={charge} />
+                <Pressable onPress={() => { onClose(); router.push('/sell/checkout') }}><T style={[dtext.tiny, { color: c.primary, textAlign: 'center' }]}>More options (coupon, split payment, discount)</T></Pressable>
+              </View>
+            </>
+          )}
+        </Pressable>
+      </Pressable>
+    </Modal>
   )
 }
 

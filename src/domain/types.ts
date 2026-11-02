@@ -32,6 +32,11 @@ export interface StoreSettings {
   slabs: TaxSlab[]
   priceIncludesTax: boolean
   receiptWidth: '58mm' | '80mm'
+  /** What a one-tap "Print" produces: the thermal receipt (at `receiptWidth`) or the full A4 tax invoice.
+   * Room for more sizes later (e.g. a 4x6 shipping-label printer) without another field. */
+  printFormat: 'thermal' | 'a4'
+  /** Print the chosen format the moment a sale is charged — no extra tap, no extra screen. */
+  autoPrintOnSale: boolean
   returnPolicy: string
   /** Days after a sale that returns are expected within. Later returns are allowed but flagged in the audit log. 0 = no limit. */
   returnWindowDays?: number

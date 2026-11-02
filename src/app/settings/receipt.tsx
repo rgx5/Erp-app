@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from 'react'
 import { View } from 'react-native'
 import { useRouter } from 'expo-router'
-import { receiptHtml, receiptOptions } from '@/domain/receipt'
+import { billPrintHtml, receiptOptions } from '@/domain/receipt'
 import { sampleBill } from '@/domain/sampleBill'
 import type { StoreSettings } from '@/domain/types'
 import { useStore } from '@/data/hooks'
@@ -26,7 +26,9 @@ export default function ReceiptSettings() {
   const store = useStore()
   const base = receiptOptions(store)
 
+  const [format, setFormat] = useState<'thermal' | 'a4'>(store.printFormat)
   const [width, setWidth] = useState<'58mm' | '80mm'>(store.receiptWidth)
+  const [autoPrint, setAutoPrint] = useState(store.autoPrintOnSale)
   const [policy, setPolicy] = useState(store.returnPolicy)
   const [windowDays, setWindowDays] = useState(String(store.returnWindowDays ?? 0))
   const [footer, setFooter] = useState(store.footerNote)
@@ -36,36 +38,53 @@ export default function ReceiptSettings() {
   const [showLoyalty, setShowLoyalty] = useState(base.showLoyalty)
 
   const draft: StoreSettings = useMemo(() => ({
-    ...store, receiptWidth: width, returnPolicy: policy, footerNote: footer, receiptShowTax: showTax, receiptShowHsn: showHsn, receiptShowSavings: showSavings, receiptShowLoyalty: showLoyalty,
-  }), [store, width, policy, footer, showTax, showHsn, showSavings, showLoyalty])
+    ...store, printFormat: format, receiptWidth: width, autoPrintOnSale: autoPrint, returnPolicy: policy, footerNote: footer, receiptShowTax: showTax, receiptShowHsn: showHsn, receiptShowSavings: showSavings, receiptShowLoyalty: showLoyalty,
+  }), [store, format, width, autoPrint, policy, footer, showTax, showHsn, showSavings, showLoyalty])
   const opts = { showTax, showHsn, showSavings, showLoyalty }
 
   if (!allowed) return <SettingsLocked title="Receipts" />
 
   const days = Math.max(0, Number(windowDays) || 0)
-  const dirty = width !== store.receiptWidth || policy !== store.returnPolicy || footer !== store.footerNote || days !== (store.returnWindowDays ?? 0)
+  const dirty = format !== store.printFormat || width !== store.receiptWidth || autoPrint !== store.autoPrintOnSale || policy !== store.returnPolicy || footer !== store.footerNote || days !== (store.returnWindowDays ?? 0)
     || showTax !== base.showTax || showHsn !== base.showHsn || showSavings !== base.showSavings || showLoyalty !== base.showLoyalty
 
   function save() {
-    const ok = saveSettings({ receiptWidth: width, returnPolicy: policy.trim(), footerNote: footer.trim(), returnWindowDays: days, receiptShowTax: showTax, receiptShowHsn: showHsn, receiptShowSavings: showSavings, receiptShowLoyalty: showLoyalty })
+    const ok = saveSettings({ printFormat: format, receiptWidth: width, autoPrintOnSale: autoPrint, returnPolicy: policy.trim(), footerNote: footer.trim(), returnWindowDays: days, receiptShowTax: showTax, receiptShowHsn: showHsn, receiptShowSavings: showSavings, receiptShowLoyalty: showLoyalty })
     if (ok) goBack(router)
   }
-  const testPrint = () => void printHtml(receiptHtml({ bill: sampleBill(draft), store: draft }, opts))
+  const testPrint = () => void printHtml(billPrintHtml({ bill: sampleBill(draft), store: draft }, opts))
 
   return (
     <Screen title="Receipts" back footer={<Button label="Save changes" size="lg" block disabled={!dirty} onPress={save} />}>
       <View style={{ paddingBottom: 12 }}>
-        <Section title="Preview" style={{ marginTop: 6 }}>
-          <View style={{ backgroundColor: c.sunken, borderRadius: 20, padding: 16 }}>
-            <ReceiptPreview store={draft} opts={opts} />
-          </View>
+        <Section title="What prints" style={{ marginTop: 6 }}>
+          <Segmented<'thermal' | 'a4'> value={format} onChange={setFormat} options={[{ value: 'thermal', label: 'Thermal receipt' }, { value: 'a4', label: 'A4 tax invoice' }]} />
+          <T v="caption" tone="mute" style={{ marginTop: 8 }}>What every one-tap &ldquo;Print&rdquo; sends — at the till, on a saved bill, and (if turned on below) the moment a sale is charged. Either one can also be sent as a PDF invoice from a bill&apos;s own page.</T>
+        </Section>
+
+        {format === 'thermal' ? (
+          <Section title="Paper width" style={{ marginTop: 24 }}>
+            <Segmented<'58mm' | '80mm'> value={width} onChange={setWidth} options={[{ value: '58mm', label: '58 mm (small)' }, { value: '80mm', label: '80 mm (standard)' }]} />
+          </Section>
+        ) : null}
+
+        <Section title="Preview" style={{ marginTop: 24 }}>
+          {format === 'thermal' ? (
+            <View style={{ backgroundColor: c.sunken, borderRadius: 20, padding: 16 }}>
+              <ReceiptPreview store={draft} opts={opts} />
+            </View>
+          ) : (
+            <Card><T tone="mute">A4 invoices are formatted for full-page printing — the itemised GST tax invoice, with HSN summary, buyer details and an authorised-signatory line. Print a sample to see it.</T></Card>
+          )}
           <View style={{ marginTop: 12 }}>
-            <Button label="Print a test receipt" kind="outline" block icon={<Printer size={18} color={c.ink} />} onPress={testPrint} />
+            <Button label={format === 'thermal' ? 'Print a test receipt' : 'Print a sample A4 invoice'} kind="outline" block icon={<Printer size={18} color={c.ink} />} onPress={testPrint} />
           </View>
         </Section>
 
-        <Section title="Paper" style={{ marginTop: 24 }}>
-          <Segmented<'58mm' | '80mm'> value={width} onChange={setWidth} options={[{ value: '58mm', label: '58 mm (small)' }, { value: '80mm', label: '80 mm (standard)' }]} />
+        <Section title="At the till" style={{ marginTop: 24 }}>
+          <Card padded={false}>
+            <SwitchRow title="Print automatically" subtitle="The moment a sale is charged — no extra tap" value={autoPrint} onChange={setAutoPrint} />
+          </Card>
         </Section>
 
         <Section title="Wording" style={{ marginTop: 24 }}>

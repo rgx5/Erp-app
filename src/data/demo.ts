@@ -42,7 +42,7 @@ export function newBusinessState(b: NewBusiness, now = Date.now()): DataState {
   const settings: StoreSettings = {
     id: id('store', now), name: b.name.trim(), tagline: b.tagline ?? '', address: '', city: b.city ?? '', phone: b.phone ?? '', email: b.email ?? '',
     gstin: (b.gstin ?? '').toUpperCase(), invoicePrefix: 'INV-', nextInvoiceNo: 1, slabs: b.pack.tax.slabs ?? DEFAULT_SLABS,
-    priceIncludesTax: b.pack.tax.inclusive, receiptWidth: '80mm', returnPolicy: '', footerNote: '', loyaltyEarnPct: 0, loyaltyRedeemValue: 0,
+    priceIncludesTax: b.pack.tax.inclusive, receiptWidth: '80mm', printFormat: 'thermal', autoPrintOnSale: false, returnPolicy: '', footerNote: '', loyaltyEarnPct: 0, loyaltyRedeemValue: 0,
     maxCashierDiscountPct: 10, lowStockDefault: 3, costBasis: 'average', receiptShowTax: false, receiptShowHsn: false, receiptShowSavings: true,
     receiptShowLoyalty: true, ...b.pack.settings,
   }

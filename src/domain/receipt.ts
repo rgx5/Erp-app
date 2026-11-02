@@ -170,3 +170,10 @@ export function invoiceHtml(ctx: DocContext): string {
   ${store.footerNote ? `<p class="c muted">${esc(store.footerNote)}</p>` : ''}`
   return base('100%', body)
 }
+
+/** The document a one-tap "Print" sends, per `store.printFormat` — the thermal receipt or the A4 invoice. Every
+ * "Print" button in the app (checkout, the bill screen, auto-print-on-sale) goes through this one switch, so
+ * changing the setting changes what printing does everywhere at once. */
+export function billPrintHtml(ctx: DocContext, opts?: ReceiptOptions): string {
+  return ctx.store.printFormat === 'a4' ? invoiceHtml(ctx) : receiptHtml(ctx, opts)
+}

@@ -3,7 +3,7 @@ import { Animated, Easing, ScrollView, View } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { LinearGradient } from 'expo-linear-gradient'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { receiptHtml, receiptText, invoiceHtml, paymentSummary } from '@/domain/receipt'
+import { billPrintHtml, receiptText, invoiceHtml, paymentSummary } from '@/domain/receipt'
 import { inr } from '@/domain/money'
 import { fmtDateTime } from '@/domain/dates'
 import { useLabels, useStore } from '@/data/hooks'
@@ -40,6 +40,20 @@ export default function SaleDone() {
       Animated.timing(rise, { toValue: 1, duration: 280, easing: Easing.out(Easing.cubic), useNativeDriver: true }),
     ]).start()
   }, [pop, rise])
+
+  // "Print automatically after each sale" (Settings → Receipts): no extra tap, straight to the printer the moment
+  // this screen appears. Keyed on the bill id, so it fires once per sale even if the screen re-renders. This hook
+  // must run before the `!bill` early return below (React hooks can't be called conditionally), so it re-reads
+  // the bill from the store itself rather than depending on the `ctx` built after that return.
+  useEffect(() => {
+    const b = useApp.getState().data.bills[id]
+    if (b && store.autoPrintOnSale) {
+      const cu = b.customerId ? useApp.getState().data.customers[b.customerId] : null
+      const se = useApp.getState().data.users[b.soldBy ?? b.cashierId]
+      void printHtml(billPrintHtml({ bill: b, store, customer: cu ?? null, seller: se ?? null, extras: receiptAddOns(b, useApp.getState().data) }))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id])
 
   if (!bill) return null
   const changeDue = Number(change) || 0
@@ -78,7 +92,7 @@ export default function SaleDone() {
           <Button label={customer?.phone ? `Send to ${firstName(customer.name)} on WhatsApp` : 'Share on WhatsApp'} kind="success" size="lg" block icon={<Share size={20} color="#fff" />}
             onPress={() => void whatsApp(receiptText(ctx), customer?.phone)} />
           <View style={{ flexDirection: 'row', gap: 10 }}>
-            <View style={{ flex: 1 }}><Button label="Print" kind="outline" block icon={<Printer size={18} color={c.ink} />} onPress={() => void printHtml(receiptHtml(ctx))} /></View>
+            <View style={{ flex: 1 }}><Button label="Print" kind="outline" block icon={<Printer size={18} color={c.ink} />} onPress={() => void printHtml(billPrintHtml(ctx))} /></View>
             <View style={{ flex: 1 }}><Button label="PDF invoice" kind="outline" block icon={<FileText size={18} color={c.ink} />} onPress={() => void sharePdf(invoiceHtml(ctx), `${bill.no}.pdf`)} /></View>
           </View>
         </View>

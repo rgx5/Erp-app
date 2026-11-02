@@ -10,7 +10,7 @@ export const ctx = (over: Partial<OpCtx> = {}): OpCtx => ({ now: NOW, userId: 'u
 
 export const store = (over: Partial<StoreSettings> = {}): StoreSettings => ({
   id: 'st1', name: 'Test Store', tagline: '', address: '', city: '', phone: '', email: '', gstin: '',
-  invoicePrefix: 'INV-', nextInvoiceNo: 1, slabs: DEFAULT_SLABS, priceIncludesTax: true, receiptWidth: '80mm',
+  invoicePrefix: 'INV-', nextInvoiceNo: 1, slabs: DEFAULT_SLABS, priceIncludesTax: true, receiptWidth: '80mm', printFormat: 'thermal', autoPrintOnSale: false,
   returnPolicy: '', footerNote: '', loyaltyEarnPct: 1, loyaltyRedeemValue: 1, maxCashierDiscountPct: 10, lowStockDefault: 3,
   ...over,
 })

@@ -5,7 +5,7 @@ import { fmtDateTime } from '@/domain/dates'
 import { inr, round2 } from '@/domain/money'
 import { fmtQty, fmtQtyUnit, qtyStep, rulesOfBillItem, round3 } from '@/domain/qty'
 import { planReturn, creditNotesFor } from '@/domain/returns'
-import { invoiceHtml, isCreditNote, paymentSummary, receiptHtml, receiptText } from '@/domain/receipt'
+import { billPrintHtml, invoiceHtml, isCreditNote, paymentSummary, receiptText } from '@/domain/receipt'
 import { variantLabel } from '@/domain/codes'
 import { useIndustry, useLabels, useList, useStore } from '@/data/hooks'
 import { OpError, processReturn } from '@/data/ops'
@@ -52,7 +52,7 @@ export default function BillDetail() {
       footer={bill.status === 'held' ? undefined : (
         <View style={{ flexDirection: 'row', gap: 10 }}>
           <Button label="WhatsApp" kind="success" icon={<Share size={18} color="#fff" />} onPress={() => void whatsApp(receiptText(ctx), customer?.phone)} />
-          <Button label="Print" kind="outline" icon={<Printer size={18} color={c.ink} />} onPress={() => void printHtml(receiptHtml(ctx))} />
+          <Button label="Print" kind="outline" icon={<Printer size={18} color={c.ink} />} onPress={() => void printHtml(billPrintHtml(ctx))} />
           <View style={{ flex: 1 }}><Button label="PDF" kind="outline" block icon={<FileText size={18} color={c.ink} />} onPress={() => void sharePdf(invoiceHtml(ctx), `${bill.no}.pdf`)} /></View>
         </View>
       )}>

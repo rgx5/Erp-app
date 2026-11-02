@@ -5,7 +5,7 @@ import type { Bill, StoreSettings } from '../types'
 
 const store: StoreSettings = {
   id: 's', name: 'Sharma & Sons <Traders>', tagline: 'Since 1990', address: '12 MG Road', city: 'Pune', phone: '9876500000', email: '', gstin: '27AAAAA0000A1Z5',
-  invoicePrefix: 'INV-', nextInvoiceNo: 1, slabs: DEFAULT_SLABS, priceIncludesTax: true, receiptWidth: '80mm', returnPolicy: 'Exchange in 7 days.',
+  invoicePrefix: 'INV-', nextInvoiceNo: 1, slabs: DEFAULT_SLABS, priceIncludesTax: true, receiptWidth: '80mm', printFormat: 'thermal', autoPrintOnSale: false, returnPolicy: 'Exchange in 7 days.',
   footerNote: 'Thank you!', loyaltyEarnPct: 1, loyaltyRedeemValue: 1, maxCashierDiscountPct: 10, lowStockDefault: 3,
 }
 
