@@ -15,6 +15,8 @@ import { EmptyState } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { Cake, ChevronRight, Plus, Users } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopCustomers } from '@/ui/desktop/Customers'
 
 type Sort = 'name' | 'spend' | 'recent'
 
@@ -27,6 +29,12 @@ const dayOf = (s: string) => {
 const NONE: CustomerStats = { bills: 0, spent: 0, last: null, avg: 0 }
 
 export default function Customers() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopCustomers />
+  return <MobileCustomers />
+}
+
+function MobileCustomers() {
   const { c } = useTheme()
   const router = useRouter()
   const labels = useLabels()

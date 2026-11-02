@@ -19,11 +19,19 @@ import { EmptyState, StatTile } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { Alert, Boxes, ClipboardCheck, ArrowUpDown, Clock, ScanBarcode, Truck } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopStock } from '@/ui/desktop/Stock'
 
 const LEVEL_TONE = { out: 'danger', low: 'warning', ok: 'success', na: 'default' } as const
 
 /** What is on the shelf, lowest first: search, filter, and fix a figure with one tap. */
 export default function Stock() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopStock />
+  return <MobileStock />
+}
+
+function MobileStock() {
   const { c } = useTheme()
   const router = useRouter()
   const labels = useLabels()

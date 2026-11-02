@@ -17,8 +17,16 @@ import { EmptyState } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { ChevronRight, Package, Plus, ScanBarcode } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopItems } from '@/ui/desktop/Items'
 
 export default function Items() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopItems />
+  return <MobileItems />
+}
+
+function MobileItems() {
   const { c } = useTheme()
   const router = useRouter()
   const labels = useLabels()

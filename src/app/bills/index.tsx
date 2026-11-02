@@ -15,11 +15,19 @@ import { EmptyState } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { ChevronRight, Receipt, ReceiptText, Return } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopBills } from '@/ui/desktop/Bills'
 
 type Status = '' | 'paid' | 'returned' | 'credit' | 'held'
 type Row = { kind: 'head'; key: string; label: string; count: number; total: number } | { kind: 'bill'; key: string; bill: Bill }
 
 export default function Bills() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopBills />
+  return <MobileBills />
+}
+
+function MobileBills() {
   const { c } = useTheme()
   const router = useRouter()
   const labels = useLabels()
