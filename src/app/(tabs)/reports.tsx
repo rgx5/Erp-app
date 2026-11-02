@@ -19,6 +19,8 @@ import { AreaChart, Donut, HBars, Legend } from '@/ui/charts'
 import { T } from '@/ui/Text'
 import { ChartColumn, Clock, Download, Lock, Percent, Receipt, Rupee, TrendingUp, Users } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopReports } from '@/ui/desktop/Reports'
 
 type RangeId = 'today' | 'yesterday' | '7d' | 'month' | 'lastmonth' | 'custom'
 
@@ -55,6 +57,12 @@ function bounds(id: RangeId, customFrom: string, customTo: string, now: number):
 const rangeTitle = (from: number, to: number) => (startOfDay(from) === startOfDay(to) ? fmtDate(from) : `${fmtDayShort(from)} – ${fmtDate(to)}`)
 
 export default function Reports() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopReports />
+  return <MobileReports />
+}
+
+function MobileReports() {
   const { c } = useTheme()
   const router = useRouter()
   const labels = useLabels()

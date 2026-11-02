@@ -29,8 +29,16 @@ import { ChevronRight, Pause, Plus, ReceiptText, ScanBarcode, Trash, UserPlus } 
 import { ask, toast } from '@/ui/overlays'
 import { soft } from '@/ui/feedback'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopPos } from '@/ui/desktop/Pos'
 
 export default function Sell() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopPos />
+  return <MobileSell />
+}
+
+function MobileSell() {
   const { c, radius } = useTheme()
   const router = useRouter()
   const labels = useLabels()
