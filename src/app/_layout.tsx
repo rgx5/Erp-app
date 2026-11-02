@@ -11,9 +11,11 @@ import { bootApp } from '@/data/auth'
 import { startSync, stopSync } from '@/data/runtime'
 import { watchAppLock } from '@/data/lock'
 import { useApp } from '@/data/store'
+import { DesktopSidebar } from '@/features/DesktopSidebar'
+import { LockScreen } from '@/features/LockScreen'
+import { useBreakpoint } from '@/ui/layout'
 import { ThemeProvider, useTheme } from '@/ui/theme'
 import { DialogHost, ToastHost } from '@/ui/overlays'
-import { LockScreen } from '@/features/LockScreen'
 import '@/modules/all'
 
 void SplashScreen.preventAutoHideAsync()
@@ -23,6 +25,10 @@ function Shell() {
   const ready = useApp((s) => s.ready)
   const mode = useApp((s) => s.workspace?.mode)
   const locked = useApp((s) => s.locked)
+  // Signed into a business (not the welcome/onboarding/who-is-this screens) — the sidebar belongs to the whole
+  // app from here, not just the five tabs, so it stays put in Bills, a module, Settings, anywhere.
+  const signedIn = useApp((s) => !!s.workspace && !!s.session)
+  const { isDesktop } = useBreakpoint()
 
   // Background sync runs only for a business connected to a server.
   useEffect(() => {
@@ -31,16 +37,25 @@ function Shell() {
     return () => stopSync()
   }, [ready, mode])
 
+  const stack = (
+    <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right', contentStyle: { backgroundColor: c.bg }, gestureEnabled: true }}>
+      <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
+      <Stack.Screen name="welcome" options={{ animation: 'fade' }} />
+      <Stack.Screen name="sell/checkout" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
+      <Stack.Screen name="sell/done" options={{ gestureEnabled: false, animation: 'fade' }} />
+      <Stack.Screen name="scan" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
+    </Stack>
+  )
+
   return (
     <View style={{ flex: 1, backgroundColor: c.bg }}>
       <StatusBar style={c.isDark ? 'light' : 'dark'} />
-      <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right', contentStyle: { backgroundColor: c.bg }, gestureEnabled: true }}>
-        <Stack.Screen name="(tabs)" options={{ animation: 'fade' }} />
-        <Stack.Screen name="welcome" options={{ animation: 'fade' }} />
-        <Stack.Screen name="sell/checkout" options={{ presentation: 'modal', animation: 'slide_from_bottom' }} />
-        <Stack.Screen name="sell/done" options={{ gestureEnabled: false, animation: 'fade' }} />
-        <Stack.Screen name="scan" options={{ presentation: 'fullScreenModal', animation: 'fade' }} />
-      </Stack>
+      {isDesktop && signedIn ? (
+        <View style={{ flex: 1, flexDirection: 'row' }}>
+          <DesktopSidebar />
+          <View style={{ flex: 1 }}>{stack}</View>
+        </View>
+      ) : stack}
       <ToastHost />
       <DialogHost />
       {locked ? <LockScreen /> : null}
