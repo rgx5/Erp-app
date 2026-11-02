@@ -19,3 +19,9 @@ npm-debug.*
 /android
 /ios
 coverage/
+
+# Desktop app (Electron) — generated, never committed
+desktop/node_modules/
+desktop/web-build/
+desktop/release/
+desktop/out/

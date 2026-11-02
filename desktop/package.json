@@ -1,0 +1,25 @@
+{
+  "name": "onesync-erp-desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "OneSyncERP for Windows, macOS and Linux — the same app as the phone and the browser, in a window of its own.",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^45.2.1",
+    "electron-builder": "^26.18.0"
+  },
+  "build": {
+    "appId": "com.onesync.erp.desktop",
+    "productName": "OneSyncERP",
+    "directories": { "output": "release" },
+    "files": ["main.js", "preload.js", "web-build/**/*"],
+    "win": { "target": "nsis", "icon": "build/icon.ico" },
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true },
+    "mac": { "target": "dmg", "icon": "build/icon.icns", "category": "public.app-category.business" },
+    "linux": { "target": ["AppImage", "deb"], "icon": "build/icon.png", "category": "Office" }
+  }
+}

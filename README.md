@@ -66,6 +66,25 @@ eas build --profile production             # Play Store AAB / App Store build
 Set the app name, `com.onesync.erp` bundle id / package and icons in `app.json` and `assets/` to your own before
 publishing.
 
+## Desktop app
+
+The same app — same screens, same data, same sync — as a window of its own on Windows, macOS and Linux. It is not a
+separate codebase: `desktop/main.js` is a thin Electron shell that serves the exact web build (`npx expo export
+--platform web`) from a small local server and opens it in a window. Below `src/ui/layout.tsx`'s breakpoint, the
+screens already lay themselves out for a wide window — a permanent side navigation instead of the bottom tab bar,
+content centred in a readable column instead of stretched edge to edge — so nothing in `src/` is desktop-specific.
+
+```bash
+npx expo export --platform web --output-dir desktop/web-build
+cd desktop && npm install
+npm start                 # run it locally
+npm run dist               # build an installer for the current OS (electron-builder; output in desktop/release/)
+```
+
+Installable builds for all three OSes come from the "Desktop apps" GitHub Actions workflow (same pattern as the
+Android APK build): run it from the Actions tab, or push to a `ccr-*` branch, then download from the
+`desktop-latest` release.
+
 ## Project layout
 
 ```
@@ -78,6 +97,7 @@ src/
   industries/   Industry packs (data, not code)
 docs/           Architecture, API contract, industries, design, roadmap
 scripts/        gen-golden.ts — regenerates the parity fixtures from the reference implementation
+desktop/        The Electron shell for the Windows / macOS / Linux build (see "Desktop app" above)
 ```
 
 ## Verification status

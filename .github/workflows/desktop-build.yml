@@ -1,0 +1,94 @@
+name: Desktop apps
+
+# Builds installable OneSyncERP desktop apps for Windows, macOS and Linux. It is the same web build the browser
+# gets (desktop/main.js just serves it from a small local server inside a window) — no separate app to keep in
+# sync. These are unsigned test builds (no Apple/Microsoft signing certificate), so:
+#   Windows   SmartScreen warns "Windows protected your PC" → More info → Run anyway
+#   macOS     Gatekeeper refuses to open it → right-click the app → Open → Open
+# Run it from the Actions tab ("Run workflow"), or it runs on every push to a ccr-* branch / main. Download from
+# the run's Artifacts, or from the "desktop-latest" pre-release on the Releases page.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, 'ccr-*']
+
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            label: windows
+            glob: 'desktop/release/*.exe'
+          - os: macos-latest
+            label: macos
+            glob: 'desktop/release/*.dmg'
+          - os: ubuntu-latest
+            label: linux
+            glob: |
+              desktop/release/*.AppImage
+              desktop/release/*.deb
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Export the web build (the one thing the desktop shell displays)
+        run: npx expo export --platform web --output-dir desktop/web-build
+      - run: npm ci
+        working-directory: desktop
+      - name: Build the installer
+        working-directory: desktop
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false' # no signing certificate yet — build unsigned rather than fail
+        run: npx electron-builder --publish=never
+      - name: Name the file(s) with the commit
+        id: name
+        shell: bash
+        run: |
+          SHORT=$(git rev-parse --short HEAD)
+          mkdir -p out
+          shopt -s nullglob
+          for f in ${{ matrix.glob }}; do
+            [ -f "$f" ] || continue
+            base=$(basename "$f")
+            ext="${base##*.}"
+            name="${base%.*}"
+            cp "$f" "out/onesync-erp-desktop-${{ matrix.label }}-$SHORT-${name// /-}.${ext}"
+          done
+      - uses: actions/upload-artifact@v4
+        with:
+          name: onesync-erp-desktop-${{ matrix.label }}
+          path: out/*
+          retention-days: 30
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: onesync-erp-desktop-*
+          merge-multiple: true
+      - name: Publish to the desktop-latest pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release delete desktop-latest --cleanup-tag --yes || true
+          gh release create desktop-latest * --prerelease --target "$GITHUB_SHA" \
+            --title "OneSyncERP – latest desktop test build" \
+            --notes "Unsigned test build of $GITHUB_SHA. Windows: SmartScreen → More info → Run anyway. macOS: right-click the app → Open → Open (first run only). Linux: either file; AppImage needs no install (chmod +x, then run it), .deb installs normally."

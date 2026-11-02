@@ -3,7 +3,8 @@ const expo = require('eslint-config-expo/flat');
 
 module.exports = defineConfig([
   expo,
-  { ignores: ['dist/*', '.export-check/*', '.export-web/*', 'scripts/*', 'node_modules/*'] },
+  // desktop/ is a small, standalone Node/Electron package (its own process, its own concerns) — not part of the Expo app.
+  { ignores: ['dist/*', '.export-check/*', '.export-web/*', 'scripts/*', 'node_modules/*', 'desktop/**'] },
   {
     rules: {
       'react-hooks/exhaustive-deps': 'warn',

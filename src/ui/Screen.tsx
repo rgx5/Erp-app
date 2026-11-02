@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { T } from './Text'
 import { IconButton } from './Button'
 import { ChevronLeft } from './icons'
+import { CONTENT_MAX_WIDTH, useBreakpoint } from './layout'
 import { useTheme } from './theme'
 
 export interface ScreenProps {
@@ -32,6 +33,7 @@ export function Screen({ title, subtitle, large, back, right, header, children, 
   const { c } = useTheme()
   const insets = useSafeAreaInsets()
   const router = useRouter()
+  const { isDesktop } = useBreakpoint()
   const goBack = typeof back === 'function' ? back : () => (router.canGoBack() ? router.back() : router.replace('/'))
 
   const head = header ?? (title !== undefined || back || right ? (
@@ -69,8 +71,10 @@ export function Screen({ title, subtitle, large, back, right, header, children, 
     <View style={[{ flex: 1, paddingHorizontal: padded ? 20 : 0 }, contentStyle]}>{children}</View>
   )
 
-  return (
-    <View style={{ flex: 1, backgroundColor: c.bg, paddingTop: insets.top }}>
+  // On a wide window the page sits in a centred column (like any desktop app) instead of stretching edge to edge;
+  // a phone keeps using the full width exactly as before.
+  const page = (
+    <View style={{ flex: 1 }}>
       {head}
       {body}
       {footer ? (
@@ -78,6 +82,11 @@ export function Screen({ title, subtitle, large, back, right, header, children, 
           {footer}
         </View>
       ) : null}
+    </View>
+  )
+  return (
+    <View style={{ flex: 1, backgroundColor: c.bg, paddingTop: insets.top }}>
+      {isDesktop ? <View style={{ flex: 1, width: '100%', maxWidth: CONTENT_MAX_WIDTH, alignSelf: 'center' }}>{page}</View> : page}
     </View>
   )
 }
