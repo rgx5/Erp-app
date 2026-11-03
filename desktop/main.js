@@ -54,7 +54,14 @@ async function createWindow() {
   mainWindow.on('closed', () => { mainWindow = null })
 
   // An outbound link (a shared invoice, WhatsApp) opens in the person's real browser, not a second app window.
-  mainWindow.webContents.setWindowOpenHandler(({ url }) => { shell.openExternal(url); return { action: 'deny' } })
+  // The one exception is a blank popup the app opens itself to print a receipt or invoice into (see
+  // printHtmlOnWeb in src/features/share.ts) — that has to become a real window here, or there is nothing for
+  // its own window.print() to act on and nothing prints at all.
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url === 'about:blank') return { action: 'allow' }
+    shell.openExternal(url)
+    return { action: 'deny' }
+  })
 
   app.on('before-quit', () => server.close())
 }
