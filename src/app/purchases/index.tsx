@@ -16,11 +16,19 @@ import { EmptyState, StatTile } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { ChevronRight, HandCoins, Plus, Truck, UserPlus } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopPurchases } from '@/ui/desktop/Purchases'
 
 type Tab = 'receipts' | 'suppliers'
 
 /** Goods received from suppliers, and what is still owed to them. */
 export default function Purchases() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopPurchases />
+  return <MobilePurchases />
+}
+
+function MobilePurchases() {
   const { c } = useTheme()
   const router = useRouter()
   const canBuy = useCan('purchases')

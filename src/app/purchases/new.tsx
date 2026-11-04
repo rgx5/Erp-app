@@ -25,6 +25,8 @@ import { Plus, ScanBarcode, Trash, UserPlus } from '@/ui/icons'
 import { toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
 import { PanelSlot } from '@/modules/PanelSlot'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopNewPurchase } from '@/ui/desktop/NewPurchase'
 
 type PayMode = 'full' | 'later' | 'part'
 
@@ -55,6 +57,7 @@ export default function NewPurchase() {
   const [toPrice, setToPrice] = useState<{ purchaseId: string; variants: VariantView[] } | null>(null)
   const seeded = useRef(false)
   const poRef = useRef<string | undefined>(undefined)
+  const { isDesktop } = useBreakpoint()
 
   const byId = useMemo(() => new Map(views.map((v) => [v.id, v])), [views])
 
@@ -122,6 +125,29 @@ export default function NewPurchase() {
   }
 
   const done = () => { const id = toPrice?.purchaseId; setToPrice(null); if (id) router.replace({ pathname: '/purchases/[id]', params: { id } }) }
+
+  if (isDesktop) {
+    return (
+      <>
+        <DesktopNewPurchase
+          labels={labels} suppliers={suppliers} supplierId={supplierId} setSupplierId={setSupplierId}
+          lines={lines} patch={patch} onRemoveLine={(variantId) => setLines((ls) => ls.filter((x) => x.variantId !== variantId))}
+          byId={byId} built={built}
+          invoiceRef={invoiceRef} setInvoiceRef={setInvoiceRef} invoiceTotal={invoiceTotal} setInvoiceTotal={setInvoiceTotal}
+          date={date} setDate={setDate} notes={notes} setNotes={setNotes}
+          ext={ext} onSetExt={(moduleId, value) => setExtAll((cur) => ({ ...cur, [moduleId]: value }))} onSetPanelQty={(variantId, qty) => patch(variantId, { qty: String(qty) })}
+          payMode={payMode} setPayMode={setPayMode} part={part} setPart={setPart}
+          total={total} paid={paid} check={check} zeroCost={zeroCost}
+          errors={errors} tried={tried} busy={busy}
+          onAddItem={() => setPicking(true)} onScan={scan} onNewSupplier={() => setNewSupplier(true)} onSave={save}
+        />
+        <ItemPicker visible={picking} onClose={() => setPicking(false)} picked={picked} onPick={(v) => { addVariant(v); toast(`${v.productName}${variantLabel(v.size, v.color) ? ` · ${variantLabel(v.size, v.color)}` : ''} added`, 'ok') }}
+          title={`Add ${labels.item.toLowerCase()}`} subtitle="Tap to add — tap again for one more" />
+        <SupplierSheet visible={newSupplier} onClose={() => setNewSupplier(false)} onSaved={(s) => setSupplierId(s.id)} />
+        <PriceSheet variants={toPrice?.variants ?? []} onClose={done} />
+      </>
+    )
+  }
 
   return (
     <Screen title="Receive stock" subtitle={built.items.length ? `${built.items.length} ${built.items.length === 1 ? 'line' : 'lines'} · ${inr(total)}` : 'Goods from a supplier'} back

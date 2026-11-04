@@ -18,6 +18,8 @@ import { KV, ListRow, Notice, Section, StatTile } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { Banknote, HandCoins, Printer, Truck } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopPurchaseDetail } from '@/ui/desktop/PurchaseDetail'
 
 /** One goods receipt: what came in, at what cost, and what is still owed. */
 export default function PurchaseDetail() {
@@ -31,6 +33,7 @@ export default function PurchaseDetail() {
   const users = useList('users')
   const views = useVariantViews()
   const byId = useMemo(() => new Map(views.map((v) => [v.id, v])), [views])
+  const { isDesktop } = useBreakpoint()
 
   if (!canBuy) return <Screen title="Receipt" back><T tone="mute">Purchases are for the owner and managers.</T></Screen>
   if (!purchase) return <Screen title="Not found" back><T tone="mute">This receipt is no longer here.</T></Screen>
@@ -46,6 +49,15 @@ export default function PurchaseDetail() {
       return v ? [{ name: v.productName, variant: variantLabel(v.size, v.color), sku: v.sku, barcode: v.barcode, price: v.price, mrp: v.mrp, copies: Math.max(1, Math.round(i.qty)) }] : []
     })
     void printHtml(labelsHtml(items, { store: store.name, widthMm: 62, heightMm: 36, perRow: 3, showMrp: true, showStore: true }))
+  }
+
+  if (isDesktop) {
+    return (
+      <DesktopPurchaseDetail
+        purchase={purchase} supplier={supplier} byId={byId} due={due} check={check} by={by} qtyTotal={qtyTotal}
+        onPrintLabels={printLabels}
+      />
+    )
   }
 
   return (

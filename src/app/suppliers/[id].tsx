@@ -16,6 +16,8 @@ import { T } from '@/ui/Text'
 import { HandCoins, Pencil, Phone, Truck } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
 import { PanelSlot } from '@/modules/PanelSlot'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopSupplierDetail } from '@/ui/desktop/SupplierDetail'
 
 /** A supplier: what you owe, what you've bought, and every receipt from them. */
 export default function SupplierDetail() {
@@ -26,6 +28,7 @@ export default function SupplierDetail() {
   const supplier = useApp((s) => s.data.suppliers[id])
   const all = useList('purchases')
   const [editing, setEditing] = useState(false)
+  const { isDesktop } = useBreakpoint()
 
   const mine = useMemo(() => all.filter((p) => p.supplierId === id).sort((a, b) => b.date - a.date), [all, id])
 
@@ -36,6 +39,15 @@ export default function SupplierDetail() {
   const bought = mine.reduce((s, p) => s + p.total, 0)
   const call = () => void Linking.openURL(`tel:${supplier.phone}`)
   const nudge = () => void whatsApp(`Hello ${supplier.name}, `, supplier.phone)
+
+  if (isDesktop) {
+    return (
+      <>
+        <DesktopSupplierDetail supplier={supplier} mine={mine} owed={owed} bought={bought} onCall={call} onWhatsapp={nudge} onEdit={() => setEditing(true)} />
+        <SupplierSheet visible={editing} onClose={() => setEditing(false)} supplier={supplier} />
+      </>
+    )
+  }
 
   return (
     <Screen title={supplier.name} subtitle={supplier.gstin || supplier.phone || 'Supplier'} back
