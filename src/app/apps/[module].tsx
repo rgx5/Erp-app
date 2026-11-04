@@ -9,16 +9,21 @@ import { Badge, Group } from '@/ui/primitives'
 import { T } from '@/ui/Text'
 import { Layers } from '@/ui/icons'
 import { toneColor, useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopModulePage } from '@/ui/desktop/ModulePage'
 
 /** One app's page: its features, grouped by section. Modules fill this by registering features — they never write this screen. */
 export default function ModulePage() {
   const { c } = useTheme()
   const router = useRouter()
+  const { isDesktop } = useBreakpoint()
   const { module: id } = useLocalSearchParams<{ module: string }>()
   const mods = useVisibleModules()
   const data = useApp((s) => s.data)
   const m = mods.find((x) => x.id === id)
   if (!m) return <Screen title="Not available" back><EmptyState icon={<Layers size={26} color={c.primary} />} title="This app is not available here" hint="Your role, industry or server may not include it." /></Screen>
+
+  if (isDesktop) return <DesktopModulePage m={m} data={data} onOpen={(to) => router.push(to as never)} />
 
   const sections = new Map<string, typeof m.visible>()
   for (const f of m.visible) sections.set(f.section ?? 'Features', [...(sections.get(f.section ?? 'Features') ?? []), f])
