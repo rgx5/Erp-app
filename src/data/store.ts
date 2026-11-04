@@ -40,11 +40,13 @@ export interface Prefs {
   /** Ask for fingerprint / face / device PIN when the app opens or returns after being away. */
   appLock: boolean
   haptics: boolean
+  /** Desktop only: the sidebar shows icons alone, with a tooltip on hover instead of a label. */
+  sidebarCollapsed: boolean
 }
 // Defaults to light rather than 'system' — an ERP people stare at all day reads as a professional, consistent tool
 // when it always opens the same way, rather than flipping to dark because the OS happens to be in dark mode. Dark
 // is still one tap away in Settings for anyone who wants it.
-export const DEFAULT_PREFS: Prefs = { theme: 'light', appLock: false, haptics: true }
+export const DEFAULT_PREFS: Prefs = { theme: 'light', appLock: false, haptics: true, sidebarCollapsed: false }
 
 interface AppStore {
   ready: boolean

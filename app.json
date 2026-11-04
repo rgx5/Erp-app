@@ -20,7 +20,7 @@
     "android": {
       "package": "com.onesync.erp",
       "adaptiveIcon": {
-        "backgroundColor": "#0B1220",
+        "backgroundColor": "#0049F9",
         "foregroundImage": "./assets/adaptive-icon.png",
         "monochromeImage": "./assets/adaptive-icon-mono.png"
       },

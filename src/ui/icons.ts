@@ -91,6 +91,8 @@ export { default as PackageCheck } from 'lucide-react-native/icons/package-check
 export { default as PackagePlus } from 'lucide-react-native/icons/package-plus'
 export { default as PackageSearch } from 'lucide-react-native/icons/package-search'
 export { default as Palette } from 'lucide-react-native/icons/palette'
+export { default as PanelLeftClose } from 'lucide-react-native/icons/panel-left-close'
+export { default as PanelLeftOpen } from 'lucide-react-native/icons/panel-left-open'
 export { default as Pause } from 'lucide-react-native/icons/pause'
 export { default as Pencil } from 'lucide-react-native/icons/pencil'
 export { default as Percent } from 'lucide-react-native/icons/percent'
