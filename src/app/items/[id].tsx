@@ -28,7 +28,9 @@ import { Boxes, ChevronRight, More, Package, Pencil, Printer, Rupee, Tags, Trash
 import { ask, toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
 import { goBack } from '@/ui/nav'
+import { useBreakpoint } from '@/ui/layout'
 import { PanelSlot } from '@/modules/PanelSlot'
+import { DesktopItemDetail } from '@/ui/desktop/ItemDetail'
 
 const MOVE_TONE: Record<string, 'primary' | 'success' | 'warning' | 'default'> = { sale: 'primary', purchase: 'success', return: 'success', adjust: 'warning', audit: 'warning', opening: 'default', transfer: 'default' }
 
@@ -47,6 +49,7 @@ export default function ItemDetail() {
   const purchases = useList('purchases')
   const suppliers = useList('suppliers')
   const users = useList('users')
+  const { isDesktop } = useBreakpoint()
 
   const [openVariant, setOpenVariant] = useState<VariantView | null>(null)
   const [adjusting, setAdjusting] = useState<VariantView | null>(null)
@@ -73,6 +76,7 @@ export default function ItemDetail() {
     const priced = variants.filter((v) => v.price > 0 && (v.avgCost ?? v.cost) > 0)
     return priced.length ? priced.reduce((s, v) => s + marginPct(v.price, v.avgCost ?? v.cost), 0) / priced.length : 0
   })()
+  const canDelete = !hasHistory(useApp.getState().data, product.id)
 
   function addOptions() {
     try {
@@ -99,6 +103,25 @@ export default function ItemDetail() {
   const printAll = () => {
     const items: LabelItem[] = variants.map((v) => ({ name: v.productName, variant: variantLabel(v.size, v.color), sku: v.sku, barcode: v.barcode, price: v.price, mrp: v.mrp, copies: Math.max(1, Math.round(v.stock)) }))
     void printHtml(labelsHtml(items, { store: store.name, widthMm: 62, heightMm: 36, perRow: 3, showMrp: true, showStore: true }))
+  }
+
+  if (isDesktop) {
+    return (
+      <>
+        <DesktopItemDetail
+          product={product} row={row} cat={cat} colors={colors} sample={sample} avgMargin={avgMargin}
+          variants={variants} recent={recent} receipts={receipts} ids={ids} suppliers={suppliers}
+          labels={labels} canEdit={canEdit} canBuy={canBuy} canDelete={canDelete} sizesMode={sizesMode}
+          o1={o1} o2={o2} setO1={setO1} setO2={setO2} addOptions={addOptions}
+          onEdit={() => setEditing(true)} onPriceAll={() => setPriceAll(true)} onPrintAll={printAll}
+          onArchive={archive} onDelete={remove} onOpenVariant={setOpenVariant}
+        />
+        <VariantSheet variant={openVariant ? variants.find((v) => v.id === openVariant.id) ?? openVariant : null} onClose={() => setOpenVariant(null)} onAdjust={setAdjusting} />
+        <AdjustSheet variant={adjusting ? variants.find((v) => v.id === adjusting.id) ?? adjusting : null} onClose={() => setAdjusting(null)} />
+        <EditSheet visible={editing} onClose={() => setEditing(false)} productId={product.id} />
+        <PriceAllSheet visible={priceAll} onClose={() => setPriceAll(false)} productId={product.id} />
+      </>
+    )
   }
 
   return (
@@ -193,7 +216,7 @@ export default function ItemDetail() {
         <View style={{ paddingBottom: 6 }}>
           <Tap onPress={() => { setMenu(false); setEditing(true) }} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 }}><Pencil size={20} color={c.ink} /><T v="bodyStrong" style={{ flex: 1 }}>Edit details</T><ChevronRight size={18} color={c.inkMute} /></Tap>
           <Tap onPress={archive} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 }}><Package size={20} color={c.ink} /><T v="bodyStrong" style={{ flex: 1 }}>{product.active === false ? 'Restore from archive' : 'Archive'}</T></Tap>
-          {!hasHistory(useApp.getState().data, product.id) ? <Tap onPress={remove} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 }}><Trash size={20} color={c.danger} /><T v="bodyStrong" tone="danger" style={{ flex: 1 }}>Delete</T></Tap> : <T v="caption" tone="mute" style={{ paddingVertical: 10 }}>This item has sales or stock history, so it can be archived but not deleted.</T>}
+          {canDelete ? <Tap onPress={remove} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 14 }}><Trash size={20} color={c.danger} /><T v="bodyStrong" tone="danger" style={{ flex: 1 }}>Delete</T></Tap> : <T v="caption" tone="mute" style={{ paddingVertical: 10 }}>This item has sales or stock history, so it can be archived but not deleted.</T>}
         </View>
       </Sheet>
     </Screen>
