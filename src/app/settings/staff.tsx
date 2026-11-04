@@ -18,12 +18,15 @@ import { T } from '@/ui/Text'
 import { Plus } from '@/ui/icons'
 import { toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopStaff } from '@/ui/desktop/SettingsScreens'
 
 const ROLES: Role[] = ['owner', 'manager', 'cashier']
 
 /** The people who use this business: what each can do, their PIN, and their staff number for crediting sales. */
 export default function Staff() {
   const { c } = useTheme()
+  const { isDesktop } = useBreakpoint()
   const allowed = useCanSettings()
   const labels = useLabels()
   const users = useList('users')
@@ -34,6 +37,12 @@ export default function Staff() {
   const sorted = useMemo(() => [...users].sort((a, b) => Number(b.active) - Number(a.active) || ROLES.indexOf(a.role) - ROLES.indexOf(b.role) || a.name.localeCompare(b.name)), [users])
 
   if (!allowed) return <SettingsLocked title="Staff & roles" />
+
+  const staffSheet = <StaffSheet person={editing} isSelf={editing !== null && editing !== 'new' && editing.id === me} onClose={() => setEditing(null)} />
+
+  if (isDesktop) {
+    return <DesktopStaff sorted={sorted} me={me} labels={labels} onNew={() => setEditing('new')} onEdit={setEditing} staffSheet={staffSheet} />
+  }
 
   return (
     <Screen title="Staff & roles" subtitle={`${users.filter((u) => u.active).length} active`} back right={<IconButton label="Add person" tone="dark" onPress={() => setEditing('new')}><Plus size={22} color={c.bg} /></IconButton>}>
@@ -55,7 +64,7 @@ export default function Staff() {
           ))}
         </Card>
       </View>
-      <StaffSheet person={editing} isSelf={editing !== null && editing !== 'new' && editing.id === me} onClose={() => setEditing(null)} />
+      {staffSheet}
     </Screen>
   )
 }

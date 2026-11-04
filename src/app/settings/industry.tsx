@@ -13,10 +13,13 @@ import { T } from '@/ui/Text'
 import { Check } from '@/ui/icons'
 import { ask, toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopIndustry } from '@/ui/desktop/SettingsScreens'
 
 /** Change the words the app uses for this business. Nothing in the books changes: no prices, stock, tax or history. */
 export default function IndustrySettings() {
   const { c } = useTheme()
+  const { isDesktop } = useBreakpoint()
   const allowed = useCanSettings()
   const current = useIndustry()
 
@@ -37,6 +40,8 @@ export default function IndustrySettings() {
     perform((_s, ctx) => ({ changes: updateSettings({ industry: p.id }, ctx) }))
     toast(`Now set up for ${p.name}`, 'ok')
   }
+
+  if (isDesktop) return <DesktopIndustry current={current} onChoose={choose} />
 
   return (
     <Screen title="Industry" subtitle="Choose the words that fit your business" back>

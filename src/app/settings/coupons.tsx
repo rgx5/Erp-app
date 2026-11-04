@@ -17,6 +17,8 @@ import { T } from '@/ui/Text'
 import { Plus, Ticket } from '@/ui/icons'
 import { toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopCoupons } from '@/ui/desktop/SettingsScreens'
 
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 
@@ -31,6 +33,7 @@ function statusOf(c: Coupon, used: number, now = Date.now()): Status {
 /** Discount codes: a percentage or a flat amount, with an optional minimum bill, expiry date and usage limit. */
 export default function Coupons() {
   const { c } = useTheme()
+  const { isDesktop } = useBreakpoint()
   const allowed = useCanSettings()
   const coupons = useList('coupons')
   const bills = useList('bills')
@@ -44,6 +47,12 @@ export default function Coupons() {
   const sorted = useMemo(() => [...coupons].sort((a, b) => Number(b.active) - Number(a.active) || b.createdAt - a.createdAt), [coupons])
 
   if (!allowed) return <SettingsLocked title="Coupons" />
+
+  const couponSheet = <CouponSheet coupon={editing} onClose={() => setEditing(null)} />
+
+  if (isDesktop) {
+    return <DesktopCoupons sorted={sorted} used={used} statusOf={statusOf} onNew={() => setEditing('new')} onEdit={setEditing} couponSheet={couponSheet} inr0={inr0} fmtDate={fmtDate} />
+  }
 
   return (
     <Screen title="Coupons" back right={<IconButton label="New coupon" tone="dark" onPress={() => setEditing('new')}><Plus size={22} color={c.bg} /></IconButton>}>
@@ -64,7 +73,7 @@ export default function Coupons() {
       ) : (
         <EmptyState icon={<Ticket size={26} color={c.primary} />} title="No coupons yet" hint="Create a code like DIWALI10 that cashiers can apply at checkout." action="Create a coupon" onAction={() => setEditing('new')} />
       )}
-      <CouponSheet coupon={editing} onClose={() => setEditing(null)} />
+      {couponSheet}
     </Screen>
   )
 }

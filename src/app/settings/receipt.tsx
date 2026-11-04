@@ -17,11 +17,14 @@ import { T } from '@/ui/Text'
 import { Printer } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
 import { goBack } from '@/ui/nav'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopReceiptSettings } from '@/ui/desktop/SettingsScreens'
 
 /** How the printed or shared receipt looks: paper width, wording, and which extra lines it carries. */
 export default function ReceiptSettings() {
   const { c } = useTheme()
   const router = useRouter()
+  const { isDesktop } = useBreakpoint()
   const allowed = useCanSettings()
   const store = useStore()
   const base = receiptOptions(store)
@@ -53,6 +56,17 @@ export default function ReceiptSettings() {
     if (ok) goBack(router)
   }
   const testPrint = () => void printHtml(billPrintHtml({ bill: sampleBill(draft), store: draft }, opts))
+
+  if (isDesktop) {
+    return (
+      <DesktopReceiptSettings
+        format={format} setFormat={setFormat} width={width} setWidth={setWidth} autoPrint={autoPrint} setAutoPrint={setAutoPrint}
+        policy={policy} setPolicy={setPolicy} windowDays={windowDays} setWindowDays={setWindowDays} footer={footer} setFooter={setFooter}
+        showTax={showTax} setShowTax={setShowTax} showHsn={showHsn} setShowHsn={setShowHsn} showSavings={showSavings} setShowSavings={setShowSavings}
+        showLoyalty={showLoyalty} setShowLoyalty={setShowLoyalty} draft={draft} opts={opts} dirty={dirty} onSave={save} onTestPrint={testPrint}
+      />
+    )
+  }
 
   return (
     <Screen title="Receipts" back footer={<Button label="Save changes" size="lg" block disabled={!dirty} onPress={save} />}>

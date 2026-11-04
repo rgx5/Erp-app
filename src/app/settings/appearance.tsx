@@ -10,12 +10,15 @@ import { T } from '@/ui/Text'
 import { Contrast, Moon, Sun } from '@/ui/icons'
 import { toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopAppearanceSettings } from '@/ui/desktop/SettingsScreens'
 
 type ThemePref = 'system' | 'light' | 'dark'
 
 /** Look and feel for this phone, plus the app lock. These stay on the phone — they are not part of the business. */
 export default function Appearance() {
   const { c } = useTheme()
+  const { isDesktop } = useBreakpoint()
   const prefs = useApp((s) => s.prefs)
   const setPrefs = useApp((s) => s.setPrefs)
   const [bio, setBio] = useState<boolean | null>(null)
@@ -26,6 +29,16 @@ export default function Appearance() {
     if (!on) { await setPrefs({ appLock: false }); return }
     // Prove it works before relying on it — otherwise a lock the phone cannot open would lock the owner out.
     if (await unlock('Turn on app lock')) { await setPrefs({ appLock: true }); toast('App lock is on', 'ok') } else toast('Could not confirm — app lock stays off', 'err')
+  }
+
+  if (isDesktop) {
+    return (
+      <DesktopAppearanceSettings
+        theme={prefs.theme} setTheme={(theme) => void setPrefs({ theme })}
+        haptics={prefs.haptics} setHaptics={(haptics) => void setPrefs({ haptics })}
+        appLock={prefs.appLock} bio={bio} onToggleLock={(v) => void toggleLock(v)}
+      />
+    )
   }
 
   return (

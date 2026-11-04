@@ -17,6 +17,8 @@ import { T } from '@/ui/Text'
 import { Plus, Tags, Trash } from '@/ui/icons'
 import { ask, toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopCategories } from '@/ui/desktop/SettingsScreens'
 
 const summary = (cat: Category, count: number, itemWord: string) => {
   const cfg = cat.config ?? {}
@@ -32,6 +34,7 @@ const summary = (cat: Category, count: number, itemWord: string) => {
 /** Categories decide how their items are sold — unit, fractions, GST, stock counting — so a new item only needs a name and a price. */
 export default function Categories() {
   const { c } = useTheme()
+  const { isDesktop } = useBreakpoint()
   const allowed = useCanSettings()
   const pack = useIndustry()
   const labels = useLabels()
@@ -55,6 +58,14 @@ export default function Categories() {
 
   if (!allowed) return <SettingsLocked title="Categories" />
 
+  const categorySheet = (
+    <CategorySheet category={editing} groupsList={groups.map((g) => g.name).filter(Boolean)} itemCount={editing && editing !== 'new' ? counts.get(editing.id) ?? 0 : 0} onClose={() => setEditing(null)} />
+  )
+
+  if (isDesktop) {
+    return <DesktopCategories groups={groups} counts={counts} labels={labels} onNew={() => setEditing('new')} onEdit={setEditing} categorySheet={categorySheet} />
+  }
+
   return (
     <Screen title="Categories" subtitle={`${categories.length} ${categories.length === 1 ? 'category' : 'categories'}`} back
       right={<IconButton label="New category" tone="dark" onPress={() => setEditing('new')}><Plus size={22} color={c.bg} /></IconButton>}>
@@ -71,7 +82,7 @@ export default function Categories() {
       ) : (
         <EmptyState icon={<Tags size={26} color={c.primary} />} title="No categories yet" hint={`Categories keep ${labels.items.toLowerCase()} organised and decide how each one is sold.`} action="Add a category" onAction={() => setEditing('new')} />
       )}
-      <CategorySheet category={editing} groupsList={groups.map((g) => g.name).filter(Boolean)} itemCount={editing && editing !== 'new' ? counts.get(editing.id) ?? 0 : 0} onClose={() => setEditing(null)} />
+      {categorySheet}
     </Screen>
   )
 }

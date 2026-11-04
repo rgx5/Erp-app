@@ -11,6 +11,8 @@ import { ListRow, Notice, Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { Boxes, ChartColumn, Check, Receipt, ShieldCheck, Truck, Users, Wallet } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopAbout } from '@/ui/desktop/SettingsScreens'
 
 const MODULES = [
   { icon: Receipt, title: 'Billing', sub: 'Fast checkout, GST, returns, held bills, receipts' },
@@ -24,9 +26,12 @@ const MODULES = [
 /** Version, the industry set-up in use, and what this app is built on. */
 export default function About() {
   const { c } = useTheme()
+  const { isDesktop } = useBreakpoint()
   const pack = useIndustry()
   const ws = useApp((s) => s.workspace)
   const version = Constants.expoConfig?.version ?? '0.1.0'
+
+  if (isDesktop) return <DesktopAbout pack={pack} version={version} demo={!!ws?.demo} />
 
   return (
     <Screen title="About" back>

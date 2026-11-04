@@ -20,6 +20,8 @@ import { Cloud, Database, Refresh } from '@/ui/icons'
 import { toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
 import { MoveToServerSheet } from '@/features/MoveToServer'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopSync } from '@/ui/desktop/SettingsScreens'
 
 const ENTITY: Partial<Record<SyncEntity, string>> = {
   bill: 'Sale', billReturn: 'Return', customer: 'Customer', customerUpdate: 'Customer edit', product: 'New item', productUpdate: 'Item edit', productDelete: 'Item removal',
@@ -34,6 +36,7 @@ const host = (url?: string) => (url ?? '').replace(/^https?:\/\//, '').replace(/
 export default function SyncScreen() {
   const { c } = useTheme()
   const router = useRouter()
+  const { isDesktop } = useBreakpoint()
   const ws = useApp((s) => s.workspace)
   const sync = useApp((s) => s.sync)
   const outbox = useApp((s) => s.outbox)
@@ -57,6 +60,29 @@ export default function SyncScreen() {
   async function retry() {
     setBusy(true)
     try { await retryRejected(); toast('Trying again', 'info') } finally { setBusy(false) }
+  }
+
+  const syncSheets = (
+    <>
+      <MoveToServerSheet visible={moving} onClose={() => setMoving(false)} />
+      <SignInSheet visible={signIn} email={ws?.loginEmail ?? ''} onClose={() => setSignIn(false)} onDone={() => { setSignIn(false); void run() }} />
+    </>
+  )
+
+  if (isDesktop) {
+    return (
+      <DesktopSync
+        connected={connected} statusLabel={status.label} statusDetail={status.detail} statusCalm={status.calm}
+        StatusIcon={status.Icon} statusTone={status.tone} authenticated={sync.authenticated} loginEmail={ws?.loginEmail}
+        lastError={sync.lastError ?? undefined} busy={busy} syncBusy={sync.busy} onSyncNow={run} onSignIn={() => setSignIn(true)}
+        businessName={ws?.name ?? ''} serverHost={host(ws?.apiUrl)} signedInAs={user?.name ?? '—'} deviceTag={ws?.deviceTag}
+        prefix={prefix} pending={sync.pending} oldestPendingAt={sync.oldestPendingAt} lastSyncedAt={sync.lastSyncedAt}
+        lastPulledAt={sync.lastPulledAt} rejected={rejected}
+        entityLabel={(o) => (o.entity === 'mut' ? `Change to ${String((o.payload as { coll?: string }).coll ?? 'a record')}` : ENTITY[o.entity] ?? o.entity)}
+        onRetryRejected={retry} startedAt={ws?.createdAt} billsCount={bills.length} productsCount={products.length} customersCount={customers.length}
+        onGoToBackup={() => router.push('/settings/data')} onMoveToServer={() => setMoving(true)} syncSheets={syncSheets}
+      />
+    )
   }
 
   return (
@@ -136,8 +162,7 @@ export default function SyncScreen() {
           </>
         )}
       </View>
-      <MoveToServerSheet visible={moving} onClose={() => setMoving(false)} />
-      <SignInSheet visible={signIn} email={ws?.loginEmail ?? ''} onClose={() => setSignIn(false)} onDone={() => { setSignIn(false); void run() }} />
+      {syncSheets}
     </Screen>
   )
 }

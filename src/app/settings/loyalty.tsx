@@ -13,11 +13,14 @@ import { Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { useTheme } from '@/ui/theme'
 import { goBack } from '@/ui/nav'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopLoyaltySettings } from '@/ui/desktop/SettingsScreens'
 
 /** Loyalty points, the discount a cashier may give, and the stock and cost rules that apply everywhere. */
 export default function LoyaltySettings() {
   const { c } = useTheme()
   const router = useRouter()
+  const { isDesktop } = useBreakpoint()
   const allowed = useCanSettings()
   const store = useStore()
 
@@ -46,6 +49,16 @@ export default function LoyaltySettings() {
     setTried(true)
     if (Object.values(errors).some(Boolean)) return
     if (saveSettings({ loyaltyEarnPct: e, loyaltyRedeemValue: r, maxCashierDiscountPct: m, lowStockDefault: Math.floor(l), costBasis: basis })) goBack(router)
+  }
+
+  if (isDesktop) {
+    return (
+      <DesktopLoyaltySettings
+        earn={earn} setEarn={setEarn} redeem={redeem} setRedeem={setRedeem} maxDisc={maxDisc} setMaxDisc={setMaxDisc}
+        low={low} setLow={setLow} basis={basis} setBasis={setBasis} errors={errors} tried={tried} dirty={dirty} onSave={save}
+        points={points} worth={worth} earnPct={e} inr={inr}
+      />
+    )
   }
 
   return (

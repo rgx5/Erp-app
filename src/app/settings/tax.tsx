@@ -14,6 +14,8 @@ import { T } from '@/ui/Text'
 import { Plus, Trash } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
 import { goBack } from '@/ui/nav'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopTaxSettings } from '@/ui/desktop/SettingsScreens'
 
 interface Tier { upto: string; rate: string }
 const MAX_TIERS = 5
@@ -23,6 +25,7 @@ const TOP = Number.MAX_SAFE_INTEGER
 export default function TaxSettings() {
   const { c } = useTheme()
   const router = useRouter()
+  const { isDesktop } = useBreakpoint()
   const allowed = useCanSettings()
   const store = useStore()
 
@@ -60,6 +63,18 @@ export default function TaxSettings() {
     setTried(true)
     if (bad) return
     if (saveSettings({ priceIncludesTax: inclusive, slabs })) goBack(router)
+  }
+  const removeTier = (i: number) => setTiers((ts) => ts.filter((_, j) => j !== i))
+
+  if (isDesktop) {
+    return (
+      <DesktopTaxSettings
+        inclusive={inclusive} setInclusive={setInclusive} tiers={tiers} updateTier={update} removeTier={removeTier}
+        addTier={add} canAddTier={tiers.length < MAX_TIERS} topRate={topRate} setTopRate={setTopRate}
+        rowErrors={rowErrors} topError={topError} tried={tried} sample={sample} setSample={setSample} demo={demo}
+        dirty={dirty} onSave={save} inr={inr}
+      />
+    )
   }
 
   return (

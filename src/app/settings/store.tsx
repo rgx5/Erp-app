@@ -10,12 +10,15 @@ import { Screen } from '@/ui/Screen'
 import { Notice, Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { goBack } from '@/ui/nav'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopStoreSettings } from '@/ui/desktop/SettingsScreens'
 
 const GSTIN_RE = /^[0-9A-Z]{15}$/
 
 /** Name, address and GSTIN — what prints at the top of every receipt and tax invoice. */
 export default function StoreSettingsScreen() {
   const router = useRouter()
+  const { isDesktop } = useBreakpoint()
   const allowed = useCanSettings()
   const store = useStore()
   const pack = useIndustry()
@@ -52,6 +55,17 @@ export default function StoreSettingsScreen() {
       gstin: gstin.trim().toUpperCase(), invoicePrefix: prefix.trim(), ...(connected ? {} : { nextInvoiceNo: Number(nextNo) }),
     })
     if (ok) goBack(router)
+  }
+
+  if (isDesktop) {
+    return (
+      <DesktopStoreSettings
+        name={name} setName={setName} tagline={tagline} setTagline={setTagline} address={address} setAddress={setAddress}
+        city={city} setCity={setCity} phone={phone} setPhone={setPhone} email={email} setEmail={setEmail}
+        gstin={gstin} setGstin={setGstin} prefix={prefix} setPrefix={setPrefix} nextNo={nextNo} setNextNo={setNextNo}
+        connected={connected} taglinePlaceholder={pack.demo.tagline} tried={tried} errors={errors} dirty={dirty} onSave={save}
+      />
+    )
   }
 
   return (

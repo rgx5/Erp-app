@@ -22,11 +22,14 @@ import { T } from '@/ui/Text'
 import { Download, Trash, Upload } from '@/ui/icons'
 import { ask, tell, toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopDataSettings } from '@/ui/desktop/SettingsScreens'
 
 /** Back up everything to a file, restore from one (offline businesses), or remove the business from this phone. */
 export default function DataScreen() {
   const { c } = useTheme()
   const router = useRouter()
+  const { isDesktop } = useBreakpoint()
   const allowed = useCanSettings()
   const ws = useApp((s) => s.workspace)
   const pack = useIndustry()
@@ -87,6 +90,23 @@ export default function DataScreen() {
     if (ok) { await signOut(); router.replace('/welcome') }
   }
 
+  const eraseSheet = (
+    <EraseSheet visible={erase} name={ws?.name ?? ''} onClose={() => setErase(false)} onConfirm={async () => { await signOut(); router.replace('/welcome') }} />
+  )
+
+  if (isDesktop) {
+    return (
+      <DesktopDataSettings
+        local={local} wsName={ws?.name ?? ''} industryName={pack.name}
+        storedWhere={local ? 'On this phone only' : 'On the server, copy on this phone'}
+        startedAt={ws ? fmtDate(ws.createdAt) : '—'}
+        billsCount={bills.length} productsCount={products.length} customersCount={customers.length}
+        busy={busy} onExport={exportBackup} onRestore={restore} onLeave={leave}
+        eraseSheet={eraseSheet}
+      />
+    )
+  }
+
   return (
     <Screen title="Data & backup" back>
       <View style={{ paddingBottom: 12 }}>
@@ -124,7 +144,7 @@ export default function DataScreen() {
           </Card>
         </Section>
       </View>
-      <EraseSheet visible={erase} name={ws?.name ?? ''} onClose={() => setErase(false)} onConfirm={async () => { await signOut(); router.replace('/welcome') }} />
+      {eraseSheet}
     </Screen>
   )
 }
