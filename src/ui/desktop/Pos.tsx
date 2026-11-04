@@ -19,12 +19,13 @@ import { CustomerPicker } from '@/features/CustomerPicker'
 import { VariantPicker } from '@/features/VariantPicker'
 import { openScanner } from '@/features/scanBus'
 import { printHtml, whatsApp } from '@/features/share'
+import { useFocusMode } from '@/features/focusMode'
 import { Stepper, type InputRef } from '@/ui/Inputs'
 import { T } from '@/ui/Text'
 import { fonts, useTheme } from '@/ui/theme'
 import { ask, toast } from '@/ui/overlays'
 import { soft, success } from '@/ui/feedback'
-import { Banknote, Check, Close, CreditCard, Pause, Phone, Printer, Scan, Search as SearchIcon, Share, Trash, UserPlus } from '@/ui/icons'
+import { Banknote, Check, Close, CreditCard, Maximize, Minimize, Pause, Phone, Printer, Scan, Search as SearchIcon, Share, Trash, UserPlus } from '@/ui/icons'
 import { receiptAddOns, paymentMethodList } from '@/modules/registry'
 import { DataTable, DeskButton, DeskPage, KeyHint, Pill, SplitPane, Toolbar, cellNum, cellText, dtext } from './kit'
 
@@ -56,7 +57,13 @@ export function DesktopPos() {
   const [showCustomer, setShowCustomer] = useState(false)
   const [showHeld, setShowHeld] = useState(false)
   const [charging, setCharging] = useState(false)
+  const [searchFocused, setSearchFocused] = useState(false)
+  const focusMode = useFocusMode((s) => s.on)
   const searchRef = useRef<InputRef>(null)
+
+  // The sidebar belongs to the whole app, not to one screen, so leaving the counter — however that happens —
+  // always gives it back rather than leaving some other screen stuck full-width.
+  useEffect(() => () => useFocusMode.getState().set(false), [])
 
   const index = useMemo(() => buildIndex(variants), [variants])
   const parsed = useMemo(() => parseQuery(q), [q])
@@ -168,6 +175,7 @@ export function DesktopPos() {
     function onKeyDown(e: KeyboardEvent) {
       if (e.key === 'F2') { e.preventDefault(); searchRef.current?.focus() }
       else if (e.key === 'F4' && lines.length) { e.preventDefault(); setCharging(true) }
+      else if (e.key === 'F11') { e.preventDefault(); useFocusMode.getState().set(!useFocusMode.getState().on) }
     }
     window.addEventListener('keydown', onKeyDown)
     return () => window.removeEventListener('keydown', onKeyDown)
@@ -194,33 +202,44 @@ export function DesktopPos() {
               <DeskButton label={customer ? customer.name : 'Customer'} icon={<UserPlus size={14} color={c.ink} />} onPress={() => setShowCustomer(true)} />
               <DeskButton label={held.length ? `Parked (${held.length})` : 'Parked'} icon={<Pause size={14} color={c.ink} />} onPress={() => setShowHeld(true)} />
               {lines.length ? <DeskButton label="Clear" tone="danger" icon={<Trash size={14} color={c.danger} />} onPress={clearCart} /> : null}
+              <DeskButton
+                label={focusMode ? 'Exit full screen' : 'Full screen'}
+                hint="F11"
+                icon={focusMode ? <Minimize size={14} color={c.ink} /> : <Maximize size={14} color={c.ink} />}
+                onPress={() => useFocusMode.getState().set(!focusMode)}
+              />
             </>
           }
         />
       }
     >
-      <SplitPane widths={['flex', 400]}>
+      <SplitPane widths={['flex', 420]}>
         {/* Left: search / catalogue */}
         <View style={{ flex: 1 }}>
-          <View style={{ padding: 14, gap: 8, borderBottomWidth: 1, borderBottomColor: c.line, backgroundColor: c.surface }}>
+          <View style={{ padding: 16, gap: 10, borderBottomWidth: 1, borderBottomColor: c.line, backgroundColor: c.surface }}>
             <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
-              <View style={{ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, height: 38, paddingHorizontal: 12, borderRadius: 6, borderWidth: 1, borderColor: c.lineStrong, backgroundColor: c.bg }}>
-                <SearchIcon size={15} color={c.inkMute} />
+              <View style={{
+                flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, height: 44, paddingHorizontal: 14, borderRadius: 8,
+                borderWidth: 1.5, borderColor: searchFocused ? c.primary : c.lineStrong, backgroundColor: c.bg,
+              }}>
+                <SearchIcon size={17} color={searchFocused ? c.primary : c.inkMute} />
                 <TextInput
                   ref={searchRef}
                   value={q}
                   onChangeText={onType}
                   onSubmitEditing={onSearchSubmit}
+                  onFocus={() => setSearchFocused(true)}
+                  onBlur={() => setSearchFocused(false)}
                   onKeyPress={(e) => { if (e.nativeEvent.key === 'Escape') setQ('') }}
-                  placeholder={`Scan or search ${labels.items.toLowerCase()}`}
+                  placeholder={`Scan or search ${labels.items.toLowerCase()} — name, SKU or barcode`}
                   placeholderTextColor={c.inkMute}
                   autoFocus
                   autoCorrect={false}
                   autoCapitalize="none"
                   returnKeyType="search"
-                  style={{ flex: 1, minWidth: 0, color: c.ink, fontFamily: fonts.body, fontSize: 13.5, paddingVertical: 0, outlineWidth: 0 }}
+                  style={{ flex: 1, minWidth: 0, color: c.ink, fontFamily: fonts.body, fontSize: 14.5, paddingVertical: 0, outlineWidth: 0 }}
                 />
-                {q ? <Pressable onPress={() => setQ('')} accessibilityLabel="Clear search"><Close size={15} color={c.inkMute} /></Pressable> : <KeyHint k="ESC" />}
+                {q ? <Pressable onPress={() => setQ('')} accessibilityLabel="Clear search"><Close size={16} color={c.inkMute} /></Pressable> : <KeyHint k="ESC" />}
               </View>
               <KeyHint k="F2" />
               <DeskButton label="Scan" icon={<Scan size={14} color={c.ink} />} onPress={scan} />
@@ -228,7 +247,7 @@ export function DesktopPos() {
             {parsed.qty !== 1 ? <Pill tone="primary" label={`Adding ${fmtQty(parsed.qty)} of each`} /> : null}
           </View>
 
-          <View style={{ flex: 1 }}>
+          <View style={{ flex: 1, margin: 14, backgroundColor: c.surface, borderWidth: 1, borderColor: c.line, borderRadius: 8, overflow: 'hidden' }}>
             {searching ? (
               <DataTable
                 emptyLabel={`Nothing found for “${parsed.term}”`}
@@ -246,13 +265,13 @@ export function DesktopPos() {
                   { key: 'stock', label: 'Stock', width: 110, align: 'right', render: (r) => r.variants.some((v) => v.trackStock) ? <Pill tone={r.totalStock > 0 ? 'success' : 'danger'} label={r.totalStock > 0 ? fmtQtyUnit(r.totalStock, r.variants[0]) : 'Out'} /> : cellText('—') },
                 ]}
               />
-            ) : !lines.length ? (
+            ) : (
               <DataTable
                 emptyLabel="No sales yet — your catalogue will show its best sellers here"
                 rows={popular.map((g) => ({ id: g.id, g }))}
                 onRowPress={({ g }) => (g.variants.length === 1 ? add(g.variants[0].id) : setPicker(g))}
                 columns={[
-                  { key: 'name', label: 'Popular items', render: ({ g }) => cellText(g.name) },
+                  { key: 'name', label: 'Popular items — click to add', render: ({ g }) => cellText(g.name) },
                   { key: 'price', label: 'Price', width: 110, align: 'right', render: ({ g }) => {
                     const price = Math.min(...g.variants.map((v) => v.price).filter((p) => p > 0), Infinity)
                     return cellNum(Number.isFinite(price) ? inr0(price) : '—')
@@ -265,19 +284,15 @@ export function DesktopPos() {
                   } },
                 ]}
               />
-            ) : (
-              <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-                <T style={[dtext.cell, { color: c.inkMute }]}>Keep scanning or searching — the running bill is on the right.</T>
-              </View>
             )}
           </View>
         </View>
 
         {/* Right: running cart */}
         <View style={{ flex: 1 }}>
-          <View style={{ flex: 1 }}>
+          <View style={{ flex: 1, margin: 14, marginBottom: 0, backgroundColor: c.surface, borderWidth: 1, borderColor: c.line, borderRadius: 8, overflow: 'hidden' }}>
             <DataTable
-              emptyLabel="Cart is empty"
+              emptyLabel="Cart is empty — scan or search on the left to start a bill"
               rows={lines.map((l) => ({ ...l, id: l.variantId }))}
               columns={[
                 { key: 'name', label: 'Item', render: (l) => {
@@ -312,7 +327,7 @@ export function DesktopPos() {
             />
           </View>
 
-          <View style={{ padding: 14, gap: 8, borderTopWidth: 1, borderTopColor: c.line, backgroundColor: c.surface }}>
+          <View style={{ margin: 14, padding: 16, gap: 10, backgroundColor: c.surface, borderWidth: 1, borderColor: c.line, borderRadius: 8 }}>
             <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
               <T style={[dtext.tiny, { color: c.inkMute }]}>{itemCount} {itemCount === 1 ? 'line' : 'lines'} · {unitsLabel}</T>
               {totals.itemDiscount + totals.billDiscount > 0 ? <T style={[dtext.tiny, { color: c.success }]}>Saved {inr0(totals.itemDiscount + totals.billDiscount)}</T> : null}
@@ -323,11 +338,12 @@ export function DesktopPos() {
                 <T style={dtext.cell}>{inr(totals.taxTotal)}</T>
               </View>
             ) : null}
+            <View style={{ height: 1, backgroundColor: c.line }} />
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
               <T style={dtext.title}>Total</T>
               <T style={dtext.kpi}>{inr(totals.total, 0)}</T>
             </View>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 2 }}>
               <View style={{ flex: 1 }}><DeskButton label="Hold" onPress={hold} disabled={!lines.length} /></View>
               <View style={{ flex: 1 }}><DeskButton label="Charge" tone="primary" hint="F4" onPress={() => setCharging(true)} disabled={!lines.length} /></View>
             </View>

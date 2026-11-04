@@ -12,6 +12,7 @@ import { startSync, stopSync } from '@/data/runtime'
 import { watchAppLock } from '@/data/lock'
 import { useApp } from '@/data/store'
 import { DesktopSidebar } from '@/features/DesktopSidebar'
+import { useFocusMode } from '@/features/focusMode'
 import { LockScreen } from '@/features/LockScreen'
 import { useBreakpoint } from '@/ui/layout'
 import { ThemeProvider, useTheme } from '@/ui/theme'
@@ -29,6 +30,7 @@ function Shell() {
   // app from here, not just the five tabs, so it stays put in Bills, a module, Settings, anywhere.
   const signedIn = useApp((s) => !!s.workspace && !!s.session)
   const { isDesktop } = useBreakpoint()
+  const focusMode = useFocusMode((s) => s.on)
 
   // Background sync runs only for a business connected to a server.
   useEffect(() => {
@@ -52,7 +54,7 @@ function Shell() {
       <StatusBar style={c.isDark ? 'light' : 'dark'} />
       {isDesktop && signedIn ? (
         <View style={{ flex: 1, flexDirection: 'row' }}>
-          <DesktopSidebar />
+          {focusMode ? null : <DesktopSidebar />}
           <View style={{ flex: 1 }}>{stack}</View>
         </View>
       ) : stack}

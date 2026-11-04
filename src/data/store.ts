@@ -41,7 +41,10 @@ export interface Prefs {
   appLock: boolean
   haptics: boolean
 }
-export const DEFAULT_PREFS: Prefs = { theme: 'system', appLock: false, haptics: true }
+// Defaults to light rather than 'system' — an ERP people stare at all day reads as a professional, consistent tool
+// when it always opens the same way, rather than flipping to dark because the OS happens to be in dark mode. Dark
+// is still one tap away in Settings for anyone who wants it.
+export const DEFAULT_PREFS: Prefs = { theme: 'light', appLock: false, haptics: true }
 
 interface AppStore {
   ready: boolean
