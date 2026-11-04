@@ -9,9 +9,17 @@ import { Logo } from '@/features/Logo'
 import { Tap } from '@/ui/primitives'
 import { T } from '@/ui/Text'
 import { ArrowRight, Cloud, Sparkles, WifiOff } from '@/ui/icons'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopWelcome } from '@/ui/desktop/Welcome'
 
 /** First launch. Three honest doors: connect a real business, explore a demo, or start fresh — all of which work offline. */
 export default function Welcome() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopWelcome />
+  return <MobileWelcome />
+}
+
+function MobileWelcome() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   return (
