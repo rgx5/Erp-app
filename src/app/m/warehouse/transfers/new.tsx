@@ -15,6 +15,8 @@ import { T } from '@/ui/Text'
 import { Plus, Trash } from '@/ui/icons'
 import { toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopNewTransfer } from '@/ui/desktop/WarehouseNewTransfer'
 
 interface Line { variantId: string; qty: string }
 
@@ -22,6 +24,7 @@ interface Line { variantId: string; qty: string }
 export default function NewTransfer() {
   const { c } = useTheme()
   const router = useRouter()
+  const { isDesktop } = useBreakpoint()
   const can = useCan('warehouse')
   const data = useData()
   const [fromId, setFrom] = useState('main')
@@ -44,6 +47,16 @@ export default function NewTransfer() {
       toast(`${r.transfer.no} sent`, 'ok')
       router.replace({ pathname: '/m/warehouse/transfers/[id]', params: { id: r.transfer.id } })
     } catch (e) { toast(e instanceof OpError ? e.message : 'Could not send', 'err'); setBusy(false) }
+  }
+
+  if (isDesktop) {
+    return (
+      <DesktopNewTransfer
+        data={data} fromId={fromId} setFrom={setFrom} toId={toId} setTo={setTo} lines={lines} patch={patch}
+        onRemoveLine={(id) => setLines(lines.filter((x) => x.variantId !== id))} adding={adding} setAdding={setAdding}
+        onAdd={add} notes={notes} setNotes={setNotes} busy={busy} onSend={send}
+      />
+    )
   }
 
   return (

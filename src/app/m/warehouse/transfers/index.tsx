@@ -13,11 +13,19 @@ import { EmptyState } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { ArrowLeftRight, ChevronRight, Plus } from '@/ui/icons'
 import { useTheme, type Tone } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopTransfers } from '@/ui/desktop/WarehouseTransfers'
 
 const TONE: Record<TransferStatus, Tone> = { in_transit: 'accent', partial: 'warning', received: 'success', closed_short: 'danger' }
 
 /** Transfers: stock sent between places and whether it has arrived. */
 export default function Transfers() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopTransfers />
+  return <MobileTransfers />
+}
+
+function MobileTransfers() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('warehouse')

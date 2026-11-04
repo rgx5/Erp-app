@@ -17,6 +17,8 @@ import { T } from '@/ui/Text'
 import { Trash } from '@/ui/icons'
 import { toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopNewWriteOff } from '@/ui/desktop/WarehouseNewWriteOff'
 
 interface Line { key: string; variantId: string; qty: string; batchId: string; serial: string; locationId: string }
 const REASONS = Object.keys(REASON_LABEL) as WriteOffReason[]
@@ -25,6 +27,7 @@ const REASONS = Object.keys(REASON_LABEL) as WriteOffReason[]
 export default function NewWriteOff() {
   const { c } = useTheme()
   const router = useRouter()
+  const { isDesktop } = useBreakpoint()
   const can = useCan('warehouse')
   const data = useData()
   const [reason, setReason] = useState<WriteOffReason>('damage')
@@ -46,6 +49,16 @@ export default function NewWriteOff() {
       toast(`${r.writeOff.no} posted`, 'ok')
       router.replace({ pathname: '/m/warehouse/writeoffs/[id]', params: { id: r.writeOff.id } })
     } catch (e) { toast(e instanceof OpError ? e.message : 'Could not post', 'err'); setBusy(false) }
+  }
+
+  if (isDesktop) {
+    return (
+      <DesktopNewWriteOff
+        data={data} reason={reason} setReason={setReason} lines={lines} patch={patch}
+        onRemoveLine={(key) => setLines(lines.filter((x) => x.key !== key))} adding={adding} setAdding={setAdding}
+        onAdd={add} hasPlaces={hasPlaces} notes={notes} setNotes={setNotes} total={writeOffTotal(costs)} busy={busy} onPost={post}
+      />
+    )
   }
 
   return (

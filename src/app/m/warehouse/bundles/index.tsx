@@ -13,9 +13,17 @@ import { EmptyState, ListRow } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { Package, Plus } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopBundles } from '@/ui/desktop/WarehouseBundles'
 
 /** Kits and combos: one item at the counter that takes several off the shelf. */
 export default function Bundles() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopBundles />
+  return <MobileBundles />
+}
+
+function MobileBundles() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('warehouse')

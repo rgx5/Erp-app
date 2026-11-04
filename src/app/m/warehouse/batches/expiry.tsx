@@ -16,11 +16,19 @@ import { T } from '@/ui/Text'
 import { Hourglass } from '@/ui/icons'
 import { ask, toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopExpiry } from '@/ui/desktop/WarehouseExpiry'
 
 const WINDOWS: Array<[number, string]> = [[-1, 'Expired'], [30, '30 days'], [60, '60 days'], [90, '90 days'], [Infinity, 'All dated']]
 
 /** Expiry report: what has expired and what will, with the value at risk; expired stock can be written off in one step. */
 export default function Expiry() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopExpiry />
+  return <MobileExpiry />
+}
+
+function MobileExpiry() {
   const { c } = useTheme()
   const router = useRouter()
   const canSee = useCan('stock')

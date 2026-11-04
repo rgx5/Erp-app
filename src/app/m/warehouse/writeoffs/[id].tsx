@@ -10,15 +10,19 @@ import { Screen } from '@/ui/Screen'
 import { Card, Group } from '@/ui/primitives'
 import { KV, ListRow } from '@/ui/blocks'
 import { T } from '@/ui/Text'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopWriteOffDetail } from '@/ui/desktop/WarehouseWriteOffDetail'
 
 /** A posted write-off: it is final; a mistake is corrected by receiving the stock back. */
 export default function WriteOffPage() {
   const { id } = useLocalSearchParams<{ id: string }>()
+  const { isDesktop } = useBreakpoint()
   const can = useCan('warehouse')
   const data = useData()
   const w = data.writeOffs[id]
   if (!can) return <Screen title="Write-off" back><T tone="mute">Write-offs are for the owner and managers.</T></Screen>
   if (!w) return <Screen title="Not found" back><T tone="mute">This write-off is no longer here.</T></Screen>
+  if (isDesktop) return <DesktopWriteOffDetail writeOff={w} data={data} />
   return (
     <Screen title={w.no} subtitle={`${REASON_LABEL[w.reason]} · ${fmtDateTime(w.date)}`} back>
       <View style={{ gap: 14, paddingBottom: 20 }}>

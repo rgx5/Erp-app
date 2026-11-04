@@ -13,9 +13,17 @@ import { EmptyState, ListRow, Section, StatTile } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { Plus, Trash } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopWriteOffs } from '@/ui/desktop/WarehouseWriteOffs'
 
 /** Write-offs: damage, expiry, samples and losses at cost, with the total lost in a period. */
 export default function WriteOffs() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopWriteOffs />
+  return <MobileWriteOffs />
+}
+
+function MobileWriteOffs() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('warehouse')

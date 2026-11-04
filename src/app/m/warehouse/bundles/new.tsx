@@ -17,6 +17,8 @@ import { T } from '@/ui/Text'
 import { Trash } from '@/ui/icons'
 import { toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopNewBundle } from '@/ui/desktop/WarehouseNewBundle'
 
 interface Part { variantId: string; qty: string }
 
@@ -25,6 +27,7 @@ export default function NewBundle() {
   const { c } = useTheme()
   const router = useRouter()
   const { id } = useLocalSearchParams<{ id?: string }>()
+  const { isDesktop } = useBreakpoint()
   const can = useCan('warehouse')
   const data = useData()
   const categories = useList('categories')
@@ -47,6 +50,19 @@ export default function NewBundle() {
         : createBundle(s, { name, categoryId, components, price: Number(price) || 0 }, ctx)))
       toast(`${r.bundle.name} saved`, 'ok'); router.back()
     } catch (e) { toast(e instanceof OpError ? e.message : 'Could not save', 'err') }
+  }
+
+  if (isDesktop) {
+    return (
+      <DesktopNewBundle
+        data={data} isEditing={!!existing} name={name} setName={setName} categories={categories} categoryId={categoryId} setCategoryId={setCategoryId}
+        parts={parts} setPartQty={(variantId, qty) => setParts(parts.map((x) => (x.variantId === variantId ? { ...x, qty } : x)))}
+        onRemovePart={(variantId) => setParts(parts.filter((x) => x.variantId !== variantId))}
+        adding={adding} setAdding={setAdding}
+        onAdd={(v) => { if (v) setParts((ps) => (ps.some((x) => x.variantId === v) ? ps : [...ps, { variantId: v, qty: '1' }])); setAdding('') }}
+        price={price} setPrice={setPrice} active={active} setActive={setActive} econ={econ} hasComponents={components.length > 0} onSave={save}
+      />
+    )
   }
 
   return (

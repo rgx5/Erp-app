@@ -19,11 +19,19 @@ import { T } from '@/ui/Text'
 import { PackageSearch, Plus } from '@/ui/icons'
 import { toast } from '@/ui/overlays'
 import { useTheme, type Tone } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopSerials } from '@/ui/desktop/WarehouseSerials'
 
 const STATUS: Record<SerialStatus, [string, Tone]> = { in_stock: ['In stock', 'success'], sold: ['Sold', 'primary'], returned: ['Returned', 'accent'], written_off: ['Written off', 'danger'] }
 
 /** Serial / IMEI look-up: type or scan the number (or its last digits) to see the unit, who bought it and its warranty. */
 export default function Serials() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopSerials />
+  return <MobileSerials />
+}
+
+function MobileSerials() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('pos')

@@ -10,9 +10,17 @@ import { Screen } from '@/ui/Screen'
 import { Card } from '@/ui/primitives'
 import { T } from '@/ui/Text'
 import { toast } from '@/ui/overlays'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopWarehouseTracking } from '@/ui/desktop/WarehouseTracking'
 
 /** Which items need a batch number and expiry, or a serial number and warranty, when they come in and go out. */
 export default function Tracking() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopWarehouseTracking />
+  return <MobileTracking />
+}
+
+function MobileTracking() {
   const can = useCan('warehouse')
   const data = useData()
   const products = useList('products')

@@ -19,9 +19,17 @@ import { T } from '@/ui/Text'
 import { Scale } from '@/ui/icons'
 import { ask, toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopWarehouseUnits } from '@/ui/desktop/WarehouseUnits'
 
 /** Bigger units of an item (box of 12, carton of 48) with an optional pack price. Receiving and selling can then use them. */
 export default function Units() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopWarehouseUnits />
+  return <MobileUnits />
+}
+
+function MobileUnits() {
   const { c } = useTheme()
   const { productId: preset } = useLocalSearchParams<{ productId?: string }>()
   const can = useCan('warehouse')

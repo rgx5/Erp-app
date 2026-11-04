@@ -19,11 +19,14 @@ import { T } from '@/ui/Text'
 import { Truck } from '@/ui/icons'
 import { ask, toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopTransferDetail } from '@/ui/desktop/WarehouseTransferDetail'
 
 /** One transfer: what was sent, what has arrived, and the way to receive the rest (or close it short). */
 export default function TransferPage() {
   const { c } = useTheme()
   const { id } = useLocalSearchParams<{ id: string }>()
+  const { isDesktop } = useBreakpoint()
   const can = useCan('warehouse')
   const data = useData()
   const receipts = useList('transferReceipts')
@@ -46,6 +49,16 @@ export default function TransferPage() {
   const partial = () => run(p.lines.map((l) => ({ variantId: l.variantId, qty: Number(got[l.variantId]) || 0 })).filter((l) => l.qty > 0), false)
   async function closeShort() {
     if (await ask({ title: `Close ${t!.no} short?`, message: `${p.outstandingTotal} units that have not arrived will be written off as lost in transit.`, confirm: 'Close transfer', danger: true })) run([], true)
+  }
+
+  if (isDesktop) {
+    return (
+      <DesktopTransferDetail
+        transfer={t} data={data} progress={p} open={open} receipts={receipts}
+        receiving={receiving} setReceiving={setReceiving} got={got} setGot={setGot}
+        onReceiveAll={all} onReceivePart={partial} onCloseShort={closeShort}
+      />
+    )
   }
 
   return (

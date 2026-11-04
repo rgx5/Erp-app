@@ -12,9 +12,17 @@ import { Group } from '@/ui/primitives'
 import { ListRow, Section, StatTile } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopWarehouseHome } from '@/ui/desktop/WarehouseHome'
 
 /** Warehouse home: a few numbers and the way into each part. */
 export default function WarehouseHome() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopWarehouseHome />
+  return <MobileWarehouseHome />
+}
+
+function MobileWarehouseHome() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('warehouse')

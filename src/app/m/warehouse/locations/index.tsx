@@ -17,11 +17,19 @@ import { T } from '@/ui/Text'
 import { Plus, Warehouse } from '@/ui/icons'
 import { toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopLocations } from '@/ui/desktop/WarehouseLocations'
 
 const TYPE: Record<LocationType, string> = { warehouse: 'Godown', shelf: 'Shelf', counter: 'Counter' }
 
 /** Godowns, shelves and counters, with what each holds. Main is the built-in place for stock that is not anywhere else. */
 export default function Locations() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopLocations />
+  return <MobileLocations />
+}
+
+function MobileLocations() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('warehouse')

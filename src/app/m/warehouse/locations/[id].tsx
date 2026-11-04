@@ -18,11 +18,14 @@ import { T } from '@/ui/Text'
 import { Boxes } from '@/ui/icons'
 import { toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopLocationDetail } from '@/ui/desktop/WarehouseLocationDetail'
 
 /** What is at one place; set an opening or corrected count for an item there; rename or switch the place off. */
 export default function LocationPage() {
   const { c } = useTheme()
   const { id } = useLocalSearchParams<{ id: string }>()
+  const { isDesktop } = useBreakpoint()
   const can = useCan('warehouse')
   const data = useData()
   const [editing, setEditing] = useState(false)
@@ -38,6 +41,19 @@ export default function LocationPage() {
     try { fn(); toast(ok, 'ok') } catch (e) { toast(e instanceof OpError ? e.message : 'Could not save', 'err') }
   }
   const saveCount = () => run(() => { perform((s, ctx) => setLocationStock(s, { variantId, locationId: id, qty: Number(qty) }, ctx)); setCounting(false); setQty(''); setVariantId('') }, 'Count saved')
+
+  if (isDesktop) {
+    return (
+      <DesktopLocationDetail
+        id={id} name={locationName(data, id)} loc={loc} isMainLocation={isMain(id)} rows={rows}
+        editing={editing} setEditing={setEditing} counting={counting} setCounting={setCounting}
+        variantId={variantId} setVariantId={setVariantId} qty={qty} setQty={setQty} stockHere={stockAt(data, variantId, id)}
+        onSaveLocation={(d) => run(() => { perform((s, ctx) => saveLocation(s, d, id, ctx)); setEditing(false) }, 'Saved')}
+        onToggleActive={() => run(() => perform((s, ctx) => setLocationActive(s, id, !loc!.active, ctx)), loc?.active ? 'Switched off' : 'Switched on')}
+        onSaveCount={saveCount}
+      />
+    )
+  }
 
   return (
     <Screen title={locationName(data, id)} subtitle={isMain(id) ? 'Stock that is not at any other place' : loc?.active ? undefined : 'Switched off'} back

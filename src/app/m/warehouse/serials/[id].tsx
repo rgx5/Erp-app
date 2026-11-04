@@ -13,11 +13,14 @@ import { Badge, Card } from '@/ui/primitives'
 import { KV, Notice, Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { ask, toast } from '@/ui/overlays'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopSerialDetail } from '@/ui/desktop/WarehouseSerialDetail'
 
 /** One unit: where it came from, who bought it, how long its warranty runs, and its history. */
 export default function SerialPage() {
   const router = useRouter()
   const { id } = useLocalSearchParams<{ id: string }>()
+  const { isDesktop } = useBreakpoint()
   const can = useCan('pos')
   const canEdit = useCan('warehouse')
   const data = useData()
@@ -29,6 +32,16 @@ export default function SerialPage() {
   async function takeBack() {
     if (!(await ask({ title: `Take ${s!.serial} back?`, message: 'Use this when the customer returned this unit. The item’s stock comes back through the return on the bill; this puts the unit back on the shelf.', confirm: 'Back on the shelf' }))) return
     try { perform((st, ctx) => setSerialStatus(st, s!.id, 'in_stock', 'TAKEN BACK', ctx)); toast('Back in stock', 'ok') } catch (e) { toast(e instanceof OpError ? e.message : 'Could not save', 'err') }
+  }
+
+  if (isDesktop) {
+    return (
+      <DesktopSerialDetail
+        serial={s} view={v} canEdit={canEdit} hasBill={!!(s.billId && data.bills[s.billId])}
+        onOpenBill={() => router.push({ pathname: '/bills/[id]', params: { id: s.billId! } })}
+        onTakeBack={takeBack}
+      />
+    )
   }
 
   return (

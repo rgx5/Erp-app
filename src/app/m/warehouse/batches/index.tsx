@@ -17,9 +17,17 @@ import { T } from '@/ui/Text'
 import { Layers, Plus } from '@/ui/icons'
 import { toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopBatches } from '@/ui/desktop/WarehouseBatches'
 
 /** Batch-wise stock: each item's batches with quantity and expiry, soonest first. */
 export default function Batches() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopBatches />
+  return <MobileBatches />
+}
+
+function MobileBatches() {
   const { c } = useTheme()
   const canSee = useCan('stock')
   const canEdit = useCan('warehouse')
