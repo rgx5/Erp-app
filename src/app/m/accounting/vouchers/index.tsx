@@ -15,10 +15,13 @@ import { EmptyState } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { ChevronRight, Plus, ReceiptText } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopVouchers } from '@/ui/desktop/AccountingVouchers'
 
 /** Receipts, payments, journals and contras entered by hand. */
 export default function Vouchers() {
   const { c } = useTheme()
+  const { isDesktop } = useBreakpoint()
   const router = useRouter()
   const can = useCan('accounting')
   const vouchers = useList('vouchers')
@@ -30,6 +33,10 @@ export default function Vouchers() {
     return vouchers.filter((v) => (!type || v.type === type) && (!n || v.no.toLowerCase().includes(n) || v.narration.toLowerCase().includes(n))).sort((a, b) => b.date - a.date || b.createdAt - a.createdAt)
   }, [vouchers, q, type])
   if (!can) return <Screen title="Vouchers" back><T tone="mute">Vouchers are for the owner and managers.</T></Screen>
+  if (isDesktop) {
+    const total = rows.reduce((s, v) => s + voucherDebit(v.lines), 0)
+    return <DesktopVouchers q={q} setQ={setQ} type={type} setType={setType} rows={rows} isReversed={(v) => isReversed(data, v)} total={total} />
+  }
   return (
     <Screen title="Vouchers" subtitle={`${vouchers.length} entries`} back scroll={false}
       right={<IconButton label="New voucher" tone="dark" onPress={() => router.push('/m/accounting/vouchers/new')}><Plus size={22} color={c.bg} /></IconButton>}>

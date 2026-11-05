@@ -14,10 +14,13 @@ import { EmptyState } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { ChevronRight, Users } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopParties } from '@/ui/desktop/AccountingParties'
 
 /** Who owes us and whom we owe, from the books. A tap opens the person's ledger. */
 export default function PartiesPage() {
   const { c } = useTheme()
+  const { isDesktop } = useBreakpoint()
   const router = useRouter()
   const can = useCan('accounting')
   const data = useApp((s) => s.data)
@@ -32,6 +35,7 @@ export default function PartiesPage() {
   }, [ledger, data, type, q, names])
   const total = rows.reduce((s, r) => s + r.balance, 0)
   if (!can) return <Screen title="Party ledgers" back><T tone="mute">The books are for the owner and managers.</T></Screen>
+  if (isDesktop) return <DesktopParties kind={type} setKind={setType} q={q} setQ={setQ} rows={rows} total={total} />
   return (
     <Screen title="Party ledgers" subtitle={type === 'customer' ? 'What customers owe' : 'What we owe suppliers'} back scroll={false}>
       <View style={{ gap: 12, paddingBottom: 10 }}>

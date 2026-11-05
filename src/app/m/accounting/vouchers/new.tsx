@@ -22,6 +22,8 @@ import { T } from '@/ui/Text'
 import { Close } from '@/ui/icons'
 import { toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopNewVoucher } from '@/ui/desktop/AccountingNewVoucher'
 
 type Kind = 'receipt' | 'payment' | 'journal' | 'contra'
 type Counter = 'customer' | 'supplier' | 'account'
@@ -32,6 +34,7 @@ const MODES: Array<{ value: MoneyMode; label: string }> = [{ value: 'cash', labe
 /** A hand-made entry: money received, money paid, a transfer between cash and bank, or a journal between any accounts. */
 export default function NewVoucher() {
   const { c } = useTheme()
+  const { isDesktop } = useBreakpoint()
   const router = useRouter()
   const params = useLocalSearchParams<{ type?: string; partyType?: string; partyId?: string }>()
   const can = useCan('accounting')
@@ -91,6 +94,20 @@ export default function NewVoucher() {
 
   const upd = (i: number, patch: Partial<JLine>) => setJl((a) => a.map((x, k) => (k === i ? { ...x, ...patch } : x)))
   const counterOptions: Array<{ value: Counter; label: string }> = [{ value: 'customer', label: 'Customer' }, { value: 'supplier', label: 'Supplier' }, { value: 'account', label: 'Other account' }]
+
+  if (isDesktop) {
+    return (
+      <DesktopNewVoucher
+        kind={kind} setKind={setKind} date={date} setDate={setDate} narration={narration} setNarration={setNarration}
+        amount={amount} setAmount={setAmount} mode={mode} setMode={setMode}
+        effective={effective} counter={counter} setCounter={setCounter} partyId={partyId} setPartyId={setPartyId} partyOptions={partyOptions}
+        account={account} setAccount={setAccount} from={from} setFrom={setFrom} to={to} setTo={setTo}
+        jl={jl} upd={upd} addLine={() => setJl((a) => [...a, { account: '', debit: '', credit: '', partyId: '' }])} removeLine={(i) => setJl((a) => a.filter((_, k) => k !== i))}
+        resolveAccount={(code) => resolveAccount(ledger.chart, code)} customers={customers} suppliers={suppliers}
+        journalLines={journalLines} voucherDebit={voucherDebit} voucherCredit={voucherCredit} diff={diff} busy={busy} onSave={save}
+      />
+    )
+  }
 
   return (
     <Screen title="New voucher" back footer={<Button label="Post voucher" size="lg" block loading={busy} onPress={save} />}>

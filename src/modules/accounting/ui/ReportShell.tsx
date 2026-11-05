@@ -12,22 +12,28 @@ import { EmptyState } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { Download, FileText, Printer } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopReportShell } from '@/ui/desktop/AccountingReports'
 import { tableHtml, toCsvRows, type Table } from '../report-html'
 import { PeriodBar } from './PeriodBar'
 import type { PeriodState } from './hooks'
 import { TableView } from './TableView'
 
-/** The frame of every statement: period, the table, and Export / Print / PDF. The table is the single source for all three. */
-export function ReportShell({ title, subtitle, period, table, links, children, emptyHint = 'Nothing was booked in this period.', footerNote, hideTable }: {
+export interface ReportShellProps {
   title: string; subtitle?: string; period?: PeriodState; table: Table; links?: Array<string | undefined>; children?: React.ReactNode; emptyHint?: string; footerNote?: React.ReactNode
   /** The children already show the rows (the day book groups them by day); the table still feeds the exports. */
   hideTable?: boolean
-}) {
+}
+
+/** The frame of every statement: period, the table, and Export / Print / PDF. The table is the single source for all three. */
+export function ReportShell({ title, subtitle, period, table, links, children, emptyHint = 'Nothing was booked in this period.', footerNote, hideTable }: ReportShellProps) {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('accounting')
   const store = useStore()
+  const { isDesktop } = useBreakpoint()
   if (!can) return <Screen title={title} back><T tone="mute">The books are for the owner and managers.</T></Screen>
+  if (isDesktop) return <DesktopReportShell title={title} subtitle={subtitle} period={period} table={table} links={links} emptyHint={emptyHint} footerNote={footerNote}>{children}</DesktopReportShell>
   const name = store?.name ?? 'OneSyncERP'
   return (
     <Screen title={title} subtitle={subtitle ?? table.subtitle} back>

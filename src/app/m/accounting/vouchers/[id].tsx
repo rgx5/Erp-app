@@ -18,10 +18,13 @@ import { T } from '@/ui/Text'
 import { Undo } from '@/ui/icons'
 import { ask, toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopVoucherDetail } from '@/ui/desktop/AccountingVoucherDetail'
 
 /** One voucher: its lines, and — if it was a mistake — a reversal. */
 export default function VoucherPage() {
   const { c } = useTheme()
+  const { isDesktop } = useBreakpoint()
   const router = useRouter()
   const { id } = useLocalSearchParams<{ id: string }>()
   const can = useCan('accounting')
@@ -39,6 +42,19 @@ export default function VoucherPage() {
     try { const r = perform((s, ctx) => reverseVoucher(s, v!.id, ctx)); toast('Reversed', 'ok'); router.replace({ pathname: '/m/accounting/vouchers/[id]', params: { id: r.voucher.id } }) }
     catch (e) { toast(e instanceof OpError ? e.message : 'Could not reverse it', 'err') }
   }
+
+  if (isDesktop) {
+    const lineRows = v.lines.map((l, i) => {
+      const acc = resolveAccount(ledger.chart, l.account)
+      return { id: String(i), accountLabel: acc ? `${acc.code}  ${acc.name}` : l.account, partyName: l.party ? partyName(l.party.type, l.party.id) : undefined, debit: l.debit ?? 0, credit: l.credit ?? 0 }
+    })
+    const canReverse = !reversed && !v.reversesId && v.type !== 'closing'
+    return (
+      <DesktopVoucherDetail voucher={v} original={original} reversed={reversed} locked={isLocked(data, v.date)} lineRows={lineRows} canReverse={canReverse}
+        onReverse={() => void reverse()} />
+    )
+  }
+
   return (
     <Screen title={v.no} subtitle={VOUCHER_LABEL[v.type]} back footer={!reversed && !v.reversesId && v.type !== 'closing' ? <Button label="Reverse this voucher" kind="danger" size="lg" block icon={<Undo size={18} color={c.danger} />} onPress={reverse} /> : undefined}>
       <View style={{ gap: 14, paddingBottom: 14 }}>

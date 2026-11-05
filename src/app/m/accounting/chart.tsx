@@ -22,6 +22,8 @@ import { T } from '@/ui/Text'
 import { BookOpen, Plus, Trash } from '@/ui/icons'
 import { ask, toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopChart } from '@/ui/desktop/AccountingChart'
 
 interface Draft { id?: string; code: string; name: string; type: AccountType; opening: string; active: boolean; direct: boolean; system: boolean }
 const blank: Draft = { code: '', name: '', type: 'expense', opening: '', active: true, direct: false, system: false }
@@ -29,6 +31,7 @@ const blank: Draft = { code: '', name: '', type: 'expense', opening: '', active:
 /** The chart of accounts: every account documents post to, with its balance. Built-in accounts can be renamed and switched off. */
 export default function ChartPage() {
   const { c } = useTheme()
+  const { isDesktop } = useBreakpoint()
   const router = useRouter()
   const can = useCan('accounting')
   const ledger = useLedger()
@@ -59,6 +62,45 @@ export default function ChartPage() {
     if (run((s, ctx) => deleteAccount(s, draft.id!, ctx), 'Account deleted')) setDraft(null)
   }
 
+  const editSheet = (
+    <Sheet visible={!!draft} onClose={() => setDraft(null)} title={draft?.id ? 'Edit account' : 'New account'} full
+      footer={<Button label="Save" size="lg" block onPress={save} />}>
+      {draft ? (
+        <View style={{ gap: 14, paddingBottom: 16 }}>
+          <Field label="Number" value={draft.code} onChangeText={(code) => setDraft({ ...draft, code })} keyboardType="number-pad" editable={!draft.system} hint={draft.system ? 'The number of a built-in account stays fixed.' : 'The number you know it by, like 6500.'} />
+          <Field label="Name" value={draft.name} onChangeText={(name) => setDraft({ ...draft, name })} />
+          {draft.system ? <T v="caption" tone="mute">Kind: {TYPE_LABEL[draft.type]} (fixed for built-in accounts)</T> : (
+            <View style={{ gap: 6 }}>
+              <T v="label" tone="soft">KIND</T>
+              <Segmented compact value={draft.type} options={TYPE_ORDER.map((t) => ({ value: t, label: TYPE_LABEL[t] }))} onChange={(type) => setDraft({ ...draft, type })} />
+            </View>
+          )}
+          {draft.type === 'expense' ? <SwitchRow title="Direct cost" subtitle="Counted in cost of sales, above gross profit" value={draft.direct} onChange={(direct) => setDraft({ ...draft, direct })} /> : null}
+          <MoneyField label="Opening balance" value={draft.opening} onChange={(opening) => setDraft({ ...draft, opening })} hint={`On the ${isDebitNormal(draft.type) ? 'debit' : 'credit'} side. Leave empty if the books start from zero.`} />
+          <SwitchRow title="In use" subtitle="Switched-off accounts are hidden from voucher forms" value={draft.active} onChange={(active) => setDraft({ ...draft, active })} />
+          {draft.id ? <Button label="View ledger" kind="outline" block onPress={() => { const id = draft.id!; setDraft(null); router.push({ pathname: '/m/accounting/ledger/[id]', params: { id } }) }} /> : null}
+          {draft.id && !draft.system ? <Button label="Delete account" kind="danger" block icon={<Trash size={18} color={c.danger} />} onPress={remove} /> : null}
+        </View>
+      ) : null}
+    </Sheet>
+  )
+
+  if (isDesktop) {
+    return (
+      <>
+        <DesktopChart
+          persisted={ledger.persisted} sections={sections} missing={missing} total={ledger.chart.length}
+          balanceOf={(a) => onNormalSide(a, closingSigned(ledger, a.id))}
+          onSeed={() => run((s, ctx) => seedChart(s, ctx), 'Chart of accounts saved')}
+          onSyncExpenseAccounts={() => run((s, ctx) => syncExpenseAccounts(s, ctx), 'Accounts added')}
+          onNewAccount={() => setDraft(blank)} onEditAccount={edit}
+          onOpenLedger={(id) => router.push({ pathname: '/m/accounting/ledger/[id]', params: { id } })}
+        />
+        {editSheet}
+      </>
+    )
+  }
+
   return (
     <Screen title="Chart of accounts" subtitle={ledger.persisted ? `${ledger.chart.length} accounts` : 'Not set up yet'} back scroll={false}
       right={ledger.persisted ? <IconButton label="New account" tone="dark" onPress={() => setDraft(blank)}><Plus size={22} color={c.bg} /></IconButton> : undefined}>
@@ -83,26 +125,7 @@ export default function ChartPage() {
           )
         }} />
 
-      <Sheet visible={!!draft} onClose={() => setDraft(null)} title={draft?.id ? 'Edit account' : 'New account'} full
-        footer={<Button label="Save" size="lg" block onPress={save} />}>
-        {draft ? (
-          <View style={{ gap: 14, paddingBottom: 16 }}>
-            <Field label="Number" value={draft.code} onChangeText={(code) => setDraft({ ...draft, code })} keyboardType="number-pad" editable={!draft.system} hint={draft.system ? 'The number of a built-in account stays fixed.' : 'The number you know it by, like 6500.'} />
-            <Field label="Name" value={draft.name} onChangeText={(name) => setDraft({ ...draft, name })} />
-            {draft.system ? <T v="caption" tone="mute">Kind: {TYPE_LABEL[draft.type]} (fixed for built-in accounts)</T> : (
-              <View style={{ gap: 6 }}>
-                <T v="label" tone="soft">KIND</T>
-                <Segmented compact value={draft.type} options={TYPE_ORDER.map((t) => ({ value: t, label: TYPE_LABEL[t] }))} onChange={(type) => setDraft({ ...draft, type })} />
-              </View>
-            )}
-            {draft.type === 'expense' ? <SwitchRow title="Direct cost" subtitle="Counted in cost of sales, above gross profit" value={draft.direct} onChange={(direct) => setDraft({ ...draft, direct })} /> : null}
-            <MoneyField label="Opening balance" value={draft.opening} onChange={(opening) => setDraft({ ...draft, opening })} hint={`On the ${isDebitNormal(draft.type) ? 'debit' : 'credit'} side. Leave empty if the books start from zero.`} />
-            <SwitchRow title="In use" subtitle="Switched-off accounts are hidden from voucher forms" value={draft.active} onChange={(active) => setDraft({ ...draft, active })} />
-            {draft.id ? <Button label="View ledger" kind="outline" block onPress={() => { const id = draft.id!; setDraft(null); router.push({ pathname: '/m/accounting/ledger/[id]', params: { id } }) }} /> : null}
-            {draft.id && !draft.system ? <Button label="Delete account" kind="danger" block icon={<Trash size={18} color={c.danger} />} onPress={remove} /> : null}
-          </View>
-        ) : null}
-      </Sheet>
+      {editSheet}
     </Screen>
   )
 }

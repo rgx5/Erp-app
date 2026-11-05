@@ -17,10 +17,13 @@ import { T } from '@/ui/Text'
 import { Lock, Plus, Unlock } from '@/ui/icons'
 import { ask, toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopYears } from '@/ui/desktop/AccountingYears'
 
 /** Financial years and period locks. A lock says "nothing on or before this day may be posted"; closing a year moves its profit to equity and locks it. */
 export default function YearsPage() {
   const { c } = useTheme()
+  const { isDesktop } = useBreakpoint()
   const can = useCan('accounting')
   const owner = useCan('accountingLock')
   const years = useList('financialYears').sort((a, b) => b.start - a.start)
@@ -56,6 +59,42 @@ export default function YearsPage() {
     if (run((s, ctx) => addPeriodLock(s, endOfDay(d), lockSheet.note, ctx), 'Period locked')) setLockSheet(null)
   }
 
+  const openLockSheet = () => setLockSheet({ date: toInputDate(Date.now()), note: '' })
+  const unlockLatest = () => run((s, ctx) => removeLatestLock(s, ctx), 'Unlocked')
+  const editYear = (y: typeof years[number]) => setYearSheet({ id: y.id, label: y.label, start: toInputDate(y.start), end: toInputDate(y.end) })
+
+  const sheets = (
+    <>
+      <Sheet visible={!!yearSheet} onClose={() => setYearSheet(null)} title={yearSheet?.id ? 'Edit financial year' : 'New financial year'} footer={<Button label="Save" size="lg" block icon={<Plus size={18} color={c.onPrimary} />} onPress={saveYear} />}>
+        {yearSheet ? (
+          <View style={{ gap: 14, paddingBottom: 16 }}>
+            <Field label="Name" value={yearSheet.label} onChangeText={(label) => setYearSheet({ ...yearSheet, label })} />
+            <Field label="Starts" value={yearSheet.start} onChangeText={(start) => setYearSheet({ ...yearSheet, start })} placeholder="YYYY-MM-DD" autoCapitalize="none" />
+            <Field label="Ends" value={yearSheet.end} onChangeText={(end) => setYearSheet({ ...yearSheet, end })} placeholder="YYYY-MM-DD" autoCapitalize="none" />
+          </View>
+        ) : null}
+      </Sheet>
+      <Sheet visible={!!lockSheet} onClose={() => setLockSheet(null)} title="Lock a period" footer={<Button label="Lock" size="lg" block icon={<Lock size={18} color={c.onPrimary} />} onPress={saveLock} />}>
+        {lockSheet ? (
+          <View style={{ gap: 14, paddingBottom: 16 }}>
+            <Field label="Lock everything up to and including" value={lockSheet.date} onChangeText={(date) => setLockSheet({ ...lockSheet, date })} placeholder="YYYY-MM-DD" autoCapitalize="none" />
+            <Field label="Note" value={lockSheet.note} onChangeText={(note) => setLockSheet({ ...lockSheet, note })} placeholder="For example, September filed" />
+          </View>
+        ) : null}
+      </Sheet>
+    </>
+  )
+
+  if (isDesktop) {
+    return (
+      <>
+        <DesktopYears through={through} owner={owner} years={years} locks={locks} onNewYear={newYear} onEditYear={editYear}
+          onCloseYear={(id, label) => void close(id, label)} onDeleteYear={(id, label) => void remove(id, label)} onLockPeriod={openLockSheet} onUnlockLatest={unlockLatest} />
+        {sheets}
+      </>
+    )
+  }
+
   return (
     <Screen title="Years & locks" back>
       <View style={{ gap: 14, paddingBottom: 24 }}>
@@ -67,8 +106,8 @@ export default function YearsPage() {
           <T v="caption" tone="mute">Vouchers dated on or before the lock are refused — on every phone and on the server.</T>
           {owner ? (
             <View style={{ flexDirection: 'row', gap: 10, marginTop: 6 }}>
-              <View style={{ flex: 1 }}><Button label="Lock a period" kind="outline" block icon={<Lock size={18} color={c.ink} />} onPress={() => setLockSheet({ date: toInputDate(Date.now()), note: '' })} /></View>
-              {locks.length ? <View style={{ flex: 1 }}><Button label="Unlock latest" kind="outline" block icon={<Unlock size={18} color={c.ink} />} onPress={() => run((s, ctx) => removeLatestLock(s, ctx), 'Unlocked')} /></View> : null}
+              <View style={{ flex: 1 }}><Button label="Lock a period" kind="outline" block icon={<Lock size={18} color={c.ink} />} onPress={openLockSheet} /></View>
+              {locks.length ? <View style={{ flex: 1 }}><Button label="Unlock latest" kind="outline" block icon={<Unlock size={18} color={c.ink} />} onPress={unlockLatest} /></View> : null}
             </View>
           ) : <T v="caption" tone="warning">Only the owner can lock or unlock a period.</T>}
         </Card>
@@ -83,7 +122,7 @@ export default function YearsPage() {
               <KV k="Runs" v={`${fmtDate(y.start)} – ${fmtDate(y.end)}`} />
               {y.status === 'open' && owner ? (
                 <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
-                  <View style={{ flex: 1 }}><Button label="Edit" kind="outline" block onPress={() => setYearSheet({ id: y.id, label: y.label, start: toInputDate(y.start), end: toInputDate(y.end) })} /></View>
+                  <View style={{ flex: 1 }}><Button label="Edit" kind="outline" block onPress={() => editYear(y)} /></View>
                   <View style={{ flex: 1 }}><Button label="Close year" kind="danger" block onPress={() => void close(y.id, y.label)} /></View>
                   <Button label="Delete" kind="ghost" onPress={() => void remove(y.id, y.label)} />
                 </View>
@@ -108,23 +147,7 @@ export default function YearsPage() {
         ) : null}
       </View>
 
-      <Sheet visible={!!yearSheet} onClose={() => setYearSheet(null)} title={yearSheet?.id ? 'Edit financial year' : 'New financial year'} footer={<Button label="Save" size="lg" block icon={<Plus size={18} color={c.onPrimary} />} onPress={saveYear} />}>
-        {yearSheet ? (
-          <View style={{ gap: 14, paddingBottom: 16 }}>
-            <Field label="Name" value={yearSheet.label} onChangeText={(label) => setYearSheet({ ...yearSheet, label })} />
-            <Field label="Starts" value={yearSheet.start} onChangeText={(start) => setYearSheet({ ...yearSheet, start })} placeholder="YYYY-MM-DD" autoCapitalize="none" />
-            <Field label="Ends" value={yearSheet.end} onChangeText={(end) => setYearSheet({ ...yearSheet, end })} placeholder="YYYY-MM-DD" autoCapitalize="none" />
-          </View>
-        ) : null}
-      </Sheet>
-      <Sheet visible={!!lockSheet} onClose={() => setLockSheet(null)} title="Lock a period" footer={<Button label="Lock" size="lg" block icon={<Lock size={18} color={c.onPrimary} />} onPress={saveLock} />}>
-        {lockSheet ? (
-          <View style={{ gap: 14, paddingBottom: 16 }}>
-            <Field label="Lock everything up to and including" value={lockSheet.date} onChangeText={(date) => setLockSheet({ ...lockSheet, date })} placeholder="YYYY-MM-DD" autoCapitalize="none" />
-            <Field label="Note" value={lockSheet.note} onChangeText={(note) => setLockSheet({ ...lockSheet, note })} placeholder="For example, September filed" />
-          </View>
-        ) : null}
-      </Sheet>
+      {sheets}
     </Screen>
   )
 }
