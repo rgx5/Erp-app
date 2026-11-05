@@ -20,6 +20,8 @@ import { Plus, Trash } from '@/ui/icons'
 import { T } from '@/ui/Text'
 import { toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopNewSupplierInvoice } from '@/ui/desktop/NewSupplierInvoice'
 
 interface Line { description: string; hsn: string; taxable: string; rate: number }
 const blank = (): Line => ({ description: '', hsn: '', taxable: '', rate: 18 })
@@ -28,6 +30,7 @@ const blank = (): Line => ({ description: '', hsn: '', taxable: '', rate: 18 })
 export default function NewPurchaseInvoice() {
   const { c } = useTheme()
   const router = useRouter()
+  const { isDesktop } = useBreakpoint()
   const params = useLocalSearchParams<{ purchaseId?: string }>()
   const can = useCan('purchases')
   const data = useApp((s) => s.data)
@@ -68,6 +71,19 @@ export default function NewPurchaseInvoice() {
       }, ctx))
       toast(`${r.invoice.no} · ${inr(r.invoice.total, 0)}`, 'ok'); router.back()
     } catch (e) { toast(e instanceof OpError ? e.message : 'Could not record the invoice', 'err'); setBusy(false) }
+  }
+
+  if (isDesktop) {
+    return (
+      <DesktopNewSupplierInvoice
+        suppliers={suppliers} supplierId={supplierId} onSupplierChange={(v) => { setSupplierId(v); setPurchaseId('') }} supplier={supplier}
+        kind={kind} setKind={setKind} head={head} setHead={setHead} purchaseId={purchaseId} setPurchaseId={setPurchaseId} receipts={receipts}
+        invoiceNo={invoiceNo} setInvoiceNo={setInvoiceNo} invDate={invDate} setInvDate={setInvDate} invDateOk={dateOk(invDate)} due={due} setDue={setDue} dueOk={dateOk(due)}
+        lines={lines} setLine={setLine} onAddLine={() => setLines([...lines, blank()])} onRemoveLine={(i) => setLines(lines.filter((_, k) => k !== i))}
+        gstRates={GST_RATES} printed={printed} setPrinted={setPrinted} blocked={blocked} setBlocked={setBlocked} itcBlocks={ITC_BLOCKS} itcBlockLabel={ITC_BLOCK_LABEL}
+        note={note} setNote={setNote} inter={inter} drafts={drafts} t={t} sum={sum} itc={itc} busy={busy} canSave={!!supplierId && !!drafts.length} onSave={save}
+      />
+    )
   }
 
   return (

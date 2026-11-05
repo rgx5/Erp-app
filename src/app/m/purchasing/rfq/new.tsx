@@ -17,11 +17,14 @@ import { Plus, Trash } from '@/ui/icons'
 import { T } from '@/ui/Text'
 import { toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopNewRfq } from '@/ui/desktop/NewRfq'
 
 /** A request for quotation: the items and quantities wanted, and the suppliers to ask. */
 export default function NewRfq() {
   const { c } = useTheme()
   const router = useRouter()
+  const { isDesktop } = useBreakpoint()
   const can = useCan('purchases')
   const suppliers = useList('suppliers')
   const views = useVariantViews()
@@ -43,6 +46,21 @@ export default function NewRfq() {
       toast(`${r.rfq.no} created`, 'ok')
       router.replace({ pathname: '/m/purchasing/rfq/[id]', params: { id: r.rfq.id } })
     } catch (e) { toast(e instanceof OpError ? e.message : 'Could not create the request', 'err'); setBusy(false) }
+  }
+
+  if (isDesktop) {
+    return (
+      <>
+        <DesktopNewRfq
+          title={title} setTitle={setTitle} lines={lines} setQty={(id, v) => setLines(lines.map((x) => (x.variantId === id ? { ...x, qty: v } : x)))}
+          onRemoveLine={(id) => setLines(lines.filter((x) => x.variantId !== id))} byId={byId} suppliers={suppliers} ids={ids}
+          toggleSupplier={(id) => setIds(ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id])}
+          closes={closes} setCloses={setCloses} closesOk={dateOk(closes)} notes={notes} setNotes={setNotes} busy={busy}
+          onAddItem={() => setPicking(true)} onSave={save}
+        />
+        <ItemPicker visible={picking} onClose={() => setPicking(false)} onPick={(v) => setLines((cur) => (cur.some((l) => l.variantId === v.id) ? cur : [...cur, { variantId: v.id, qty: '1' }]))} picked={new Set(lines.map((l) => l.variantId))} title="Add item to the request" />
+      </>
+    )
   }
 
   return (

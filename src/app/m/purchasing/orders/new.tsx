@@ -21,6 +21,8 @@ import { Plus, Trash, UserPlus } from '@/ui/icons'
 import { goBack } from '@/ui/nav'
 import { toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopNewPurchaseOrder } from '@/ui/desktop/NewPurchaseOrder'
 
 interface Line { variantId: string; qty: string; cost: string }
 
@@ -43,6 +45,7 @@ export default function NewPurchaseOrder() {
   const [newSupplier, setNewSupplier] = useState(false)
   const [busy, setBusy] = useState(false)
   const byId = useMemo(() => new Map(views.map((v) => [v.id, v])), [views])
+  const { isDesktop } = useBreakpoint()
 
   const items = lines.map((l) => ({ variantId: l.variantId, qty: Number(l.qty) || 0, cost: Number(l.cost) || 0 })).filter((l) => l.qty > 0)
   const total = poTotal(items)
@@ -66,6 +69,21 @@ export default function NewPurchaseOrder() {
   const pick = (variantId: string) => {
     const v = byId.get(variantId)
     setLines((cur) => cur.some((l) => l.variantId === variantId) ? cur : [...cur, { variantId, qty: '1', cost: v && v.cost > 0 ? String(v.cost) : '' }])
+  }
+
+  if (isDesktop) {
+    return (
+      <>
+        <DesktopNewPurchaseOrder
+          editing={!!existing} no={existing?.no} suppliers={suppliers} supplierId={supplierId} setSupplierId={setSupplierId}
+          lines={lines} setQty={(id, v) => setLines(lines.map((x) => (x.variantId === id ? { ...x, qty: v } : x)))} setCost={(id, v) => setLines(lines.map((x) => (x.variantId === id ? { ...x, cost: v } : x)))}
+          onRemoveLine={(id) => setLines(lines.filter((x) => x.variantId !== id))} byId={byId} expected={expected} setExpected={setExpected} dateOk={dateOk}
+          notes={notes} setNotes={setNotes} total={total} busy={busy} onAddItem={() => setPicking(true)} onNewSupplier={() => setNewSupplier(true)} onSave={save}
+        />
+        <ItemPicker visible={picking} onClose={() => setPicking(false)} onPick={(v) => pick(v.id)} picked={new Set(lines.map((l) => l.variantId))} title="Add item to the order" />
+        <SupplierSheet visible={newSupplier} onClose={() => setNewSupplier(false)} onSaved={(s) => setSupplierId(s.id)} />
+      </>
+    )
   }
 
   return (

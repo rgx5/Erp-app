@@ -19,9 +19,17 @@ import { Download, ReceiptText } from '@/ui/icons'
 import { T } from '@/ui/Text'
 import { ask, toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopSupplierInvoices } from '@/ui/desktop/SupplierInvoices'
 
 /** Supplier invoices and the GST input credit they carry: what can be claimed, what is blocked, and what is closing soon. */
 export default function Invoices() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopSupplierInvoices />
+  return <MobileInvoices />
+}
+
+function MobileInvoices() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('purchases')

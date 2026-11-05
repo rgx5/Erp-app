@@ -15,9 +15,17 @@ import { PackagePlus } from '@/ui/icons'
 import { T } from '@/ui/Text'
 import { ask, toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopLandedCosts } from '@/ui/desktop/LandedCosts'
 
 /** Freight, duty and handling already spread into item costs. A mistake is cancelled and entered again. */
 export default function LandedCosts() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopLandedCosts />
+  return <MobileLandedCosts />
+}
+
+function MobileLandedCosts() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('purchases')

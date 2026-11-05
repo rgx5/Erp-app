@@ -18,9 +18,17 @@ import { Tags, Trash } from '@/ui/icons'
 import { T } from '@/ui/Text'
 import { toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopSupplierPrices } from '@/ui/desktop/SupplierPrices'
 
 /** What each supplier charges for each item (with quantity breaks and validity), used to suggest costs on orders. */
 export default function SupplierPrices() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopSupplierPrices />
+  return <MobileSupplierPrices />
+}
+
+function MobileSupplierPrices() {
   const { c } = useTheme()
   const can = useCan('purchases')
   const data = useApp((s) => s.data)

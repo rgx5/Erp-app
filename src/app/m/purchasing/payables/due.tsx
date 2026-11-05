@@ -17,11 +17,19 @@ import { Calendar, Download } from '@/ui/icons'
 import { T } from '@/ui/Text'
 import { toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopPayablesDue } from '@/ui/desktop/PayablesDue'
 
 const TITLE: Record<DueWhen, string> = { overdue: 'Overdue', soon: 'Due soon', later: 'Coming up' }
 
 /** Payment reminders: every bill to pay, soonest first — late ones, those falling due in the warning window, and the rest. */
 export default function DueReminders() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopPayablesDue />
+  return <MobileDueReminders />
+}
+
+function MobileDueReminders() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('purchases')

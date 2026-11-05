@@ -17,10 +17,13 @@ import { Card, Chip } from '@/ui/primitives'
 import { KV, Notice, Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { toast } from '@/ui/overlays'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopPaySupplier } from '@/ui/desktop/PaySupplier'
 
 /** Pay a supplier. The oldest bills are settled first; anything over is kept as an advance with them. */
 export default function PaySupplier() {
   const router = useRouter()
+  const { isDesktop } = useBreakpoint()
   const params = useLocalSearchParams<{ supplierId?: string; amount?: string }>()
   const can = useCan('purchases')
   const data = useApp((s) => s.data)
@@ -52,6 +55,17 @@ export default function PaySupplier() {
       toast(e instanceof OpError ? e.message : 'Could not record the payment', 'err')
       setSaving(false)
     }
+  }
+
+  if (isDesktop) {
+    return (
+      <DesktopPaySupplier
+        suppliers={suppliers} supplierId={supplierId} onSupplierChange={(v) => { setSupplierId(v); setAmount('') }} dues={dues}
+        amount={amount} setAmount={setAmount} amt={amt} open={open} allocations={split.allocations} advance={split.advance}
+        mode={mode} onModeChange={(v) => { setMode(v); setRef('') }} modeOptions={MODE_OPTIONS} refHint={REF_HINT} ref={ref} setRef={setRef}
+        date={date} setDate={setDate} dateOk={dateOk(date)} note={note} setNote={setNote} busy={saving} canSave={!!supplierId && amt > 0} onSave={save}
+      />
+    )
   }
 
   return (

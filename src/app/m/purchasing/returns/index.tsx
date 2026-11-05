@@ -15,9 +15,17 @@ import { Undo } from '@/ui/icons'
 import { T } from '@/ui/Text'
 import { ask, toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopPurchaseReturns } from '@/ui/desktop/PurchaseReturns'
 
 /** Debit notes: goods sent back to suppliers and the credit they gave. A mistake is cancelled, never edited. */
 export default function Returns() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopPurchaseReturns />
+  return <MobileReturns />
+}
+
+function MobileReturns() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('purchases')

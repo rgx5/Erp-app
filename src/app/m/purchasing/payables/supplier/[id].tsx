@@ -22,11 +22,14 @@ import { T } from '@/ui/Text'
 import { Download, MessageCircle, Pencil, Share as ShareIcon } from '@/ui/icons'
 import { ask, toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopSupplierLedger } from '@/ui/desktop/SupplierLedger'
 
 /** One supplier's account: what is owed and by when, their terms, payments made, and the ledger. */
 export default function SupplierLedger() {
   const { c } = useTheme()
   const router = useRouter()
+  const { isDesktop } = useBreakpoint()
   const { id } = useLocalSearchParams<{ id: string }>()
   const can = useCan('purchases')
   const data = useApp((s) => s.data)
@@ -55,6 +58,19 @@ export default function SupplierLedger() {
   async function cancel(paymentId: string, no: string) {
     if (!(await ask({ title: `Cancel ${no}?`, message: 'What it settled becomes owed again. Use this for a bounced cheque or a wrong entry.', confirm: 'Cancel payment', danger: true }))) return
     try { perform((s, ctx) => reversePayment(s, paymentId, '', ctx)); toast(`${no} cancelled`, 'ok') } catch (e) { toast(e instanceof OpError ? e.message : 'Could not cancel', 'err') }
+  }
+
+  if (isDesktop) {
+    return (
+      <DesktopSupplierLedger
+        supplier={supplier} net={net} open={open} payments={payments} cancelled={cancelled} statement={statement}
+        creditDays={creditDaysFor(data, id)} termsNote={terms?.notes} editing={editing} setEditing={setEditing} days={days} setDays={setDays} notes={notes} setNotes={setNotes}
+        onOpenEditor={openEditor} onSaveTerms={saveTerms} onCancelPayment={(pid, no) => void cancel(pid, no)} onAdvice={(pmt) => void whatsApp(paymentAdviceText(data, pmt), supplier.phone)}
+        onPay={() => router.push({ pathname: '/m/purchasing/payables/pay', params: { supplierId: id, ...(net > 0 ? { amount: String(net) } : {}) } })}
+        onExportCsv={() => void shareFile(csvFileName(`ledger ${supplier.name}`), statementCsv(data, statement)).catch(() => toast('Could not export', 'err'))}
+        onShare={() => void Share.share({ message: statementText(data, statement) })}
+      />
+    )
   }
 
   return (

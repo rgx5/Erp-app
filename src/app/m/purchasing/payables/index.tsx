@@ -12,9 +12,17 @@ import { EmptyState, KV, ListRow, Section, StatTile } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { Banknote, Clock, HandCoins } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopPayables } from '@/ui/desktop/Payables'
 
 /** What the business owes its suppliers, who is owed most, and what to pay next. */
 export default function PayablesHome() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopPayables />
+  return <MobilePayablesHome />
+}
+
+function MobilePayablesHome() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('purchases')

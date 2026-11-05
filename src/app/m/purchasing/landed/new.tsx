@@ -17,6 +17,8 @@ import { Card, Chip } from '@/ui/primitives'
 import { KV, Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { toast } from '@/ui/overlays'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopNewLandedCost } from '@/ui/desktop/NewLandedCost'
 
 interface Row { kind: ChargeKind; amount: string; gst: string; itc: boolean }
 const KINDS = Object.keys(CHARGE_LABEL) as ChargeKind[]
@@ -24,6 +26,7 @@ const KINDS = Object.keys(CHARGE_LABEL) as ChargeKind[]
 /** Freight, duty and handling for one goods receipt, spread over its items so each item's cost includes them. */
 export default function NewLandedCost() {
   const router = useRouter()
+  const { isDesktop } = useBreakpoint()
   const params = useLocalSearchParams<{ purchaseId?: string }>()
   const can = useCan('purchases')
   const data = useApp((s) => s.data)
@@ -50,6 +53,16 @@ export default function NewLandedCost() {
       const r = perform((s, ctx) => recordLandedCost(s, { purchaseId, charges, basis, payeeId: billed ? payeeId || undefined : undefined, mode: billed ? undefined : mode, note }, ctx))
       toast(`${r.landed.no} · ${inr(r.landed.total, 0)} added to cost`, 'ok'); router.back()
     } catch (e) { toast(e instanceof OpError ? e.message : 'Could not record the charges', 'err'); setBusy(false) }
+  }
+
+  if (isDesktop) {
+    return (
+      <DesktopNewLandedCost
+        data={data} receipts={receipts} purchaseId={purchaseId} setPurchaseId={setPurchaseId} rows={rows} setRow={setRow} kinds={KINDS} chargeLabel={CHARGE_LABEL}
+        basis={basis} setBasis={setBasis} billed={billed} setBilled={setBilled} suppliers={suppliers} payeeId={payeeId} setPayeeId={setPayeeId}
+        mode={mode} setMode={setMode} modeOptions={MODE_OPTIONS} note={note} setNote={setNote} total={total} canSave={!!purchaseId && !!charges.length} busy={busy} onSave={save}
+      />
+    )
   }
 
   return (

@@ -19,10 +19,13 @@ import { Card, Chip } from '@/ui/primitives'
 import { KV, Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { toast } from '@/ui/overlays'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopNewPurchaseReturn } from '@/ui/desktop/NewPurchaseReturn'
 
 /** Send goods back to a supplier. Choosing the receipt they came in on limits the quantities and fills their cost. */
 export default function NewReturn() {
   const router = useRouter()
+  const { isDesktop } = useBreakpoint()
   const params = useLocalSearchParams<{ supplierId?: string; purchaseId?: string }>()
   const can = useCan('purchases')
   const data = useApp((s) => s.data)
@@ -54,6 +57,18 @@ export default function NewReturn() {
       const r = perform((s, ctx) => recordPurchaseReturn(s, { supplierId, purchaseId: purchaseId || undefined, reason, note, items, refund: Number(refund) || 0, refundMode: Number(refund) > 0 ? refundMode : undefined }, ctx))
       toast(`${r.debitNote.no} · ${inr(r.debitNote.total, 0)}`, 'ok'); router.back()
     } catch (e) { toast(e instanceof OpError ? e.message : 'Could not record the return', 'err'); setBusy(false) }
+  }
+
+  if (isDesktop) {
+    return (
+      <DesktopNewPurchaseReturn
+        data={data} suppliers={suppliers} supplierId={supplierId} onSupplierChange={(v) => { setSupplierId(v); setPurchaseId(''); setQty({}) }}
+        receipts={receipts} purchaseId={purchaseId} onPurchaseChange={(v) => { setPurchaseId(v); setQty({}) }} grn={grn} back={back} byId={byId}
+        qty={qty} setQty={(id, v) => setQty({ ...qty, [id]: v })} rate={rate} setRate={setRate} gstRates={GST_RATES}
+        reason={reason} setReason={setReason} reasonLabel={REASON_LABEL} refund={refund} setRefund={setRefund} refundMode={refundMode} setRefundMode={setRefundMode}
+        modeOptions={MODE_OPTIONS} note={note} setNote={setNote} items={items} totals={totals} busy={busy} onSave={save}
+      />
+    )
   }
 
   return (

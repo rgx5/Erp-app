@@ -17,11 +17,14 @@ import { KV, Notice, Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { ask, toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopRfqDetail } from '@/ui/desktop/RfqDetail'
 
 /** One request: who replied, the prices side by side with the cheapest marked, and awarding it into draft purchase orders. */
 export default function RfqPage() {
   const { c } = useTheme()
   const router = useRouter()
+  const { isDesktop } = useBreakpoint()
   const { id } = useLocalSearchParams<{ id: string }>()
   const can = useCan('purchases')
   const data = useApp((s) => s.data)
@@ -64,6 +67,17 @@ export default function RfqPage() {
   async function close() {
     if (!(await ask({ title: 'Close this request?', confirm: 'Close', danger: true }))) return
     try { perform((s, ctx) => closeRfq(s, rfq!.id, ctx)) } catch (e) { toast(e instanceof OpError ? e.message : 'Could not close', 'err') }
+  }
+
+  if (isDesktop) {
+    return (
+      <DesktopRfqDetail
+        rfq={rfq} data={data} quotes={quotes} cmp={cmp} asking={asking} setAsking={setAsking} prices={prices} setPrices={setPrices}
+        freight={freight} setFreight={setFreight} lead={lead} setLead={setLead} byId={byId}
+        onStartQuote={startQuote} onSaveQuote={saveQuote} onAward={(mode, sid) => void award(mode, sid)} onClose={() => void close()}
+        onSeeOrders={() => router.replace('/m/purchasing/orders')}
+      />
+    )
   }
 
   return (

@@ -17,9 +17,17 @@ import { T } from '@/ui/Text'
 import { ChartColumn, Download } from '@/ui/icons'
 import { toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopPayablesAgeing } from '@/ui/desktop/PayablesAgeing'
 
 /** Payables ageing: what is owed to suppliers, grouped by how late it is. */
 export default function PayablesAgeing() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopPayablesAgeing />
+  return <MobilePayablesAgeing />
+}
+
+function MobilePayablesAgeing() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('reports')

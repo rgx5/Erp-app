@@ -11,10 +11,13 @@ import { Screen } from '@/ui/Screen'
 import { Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { toast } from '@/ui/overlays'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopPurchasingSettings } from '@/ui/desktop/PurchasingSettings'
 
 /** Approval rules (who may approve how much), the usual days to pay suppliers, and how early to warn about payments. */
 export default function PurchasingSettings() {
   const router = useRouter()
+  const { isDesktop } = useBreakpoint()
   const can = useCan('settings')
   const cur = useApp((s) => settingsOf(s.data))
   const [on, setOn] = useState(cur.approvalsOn)
@@ -32,6 +35,10 @@ export default function PurchasingSettings() {
       }, ctx))
       toast('Saved', 'ok'); router.back()
     } catch (e) { toast(e instanceof OpError ? e.message : 'Could not save', 'err') }
+  }
+
+  if (isDesktop) {
+    return <DesktopPurchasingSettings on={on} setOn={setOn} above={above} setAbove={setAbove} manager={manager} setManager={setManager} days={days} setDays={setDays} remind={remind} setRemind={setRemind} onSave={save} />
   }
 
   return (

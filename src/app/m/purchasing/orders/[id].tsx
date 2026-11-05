@@ -23,6 +23,8 @@ import { T } from '@/ui/Text'
 import { Check, Pencil, Send, Trash, Truck, Close } from '@/ui/icons'
 import { ask, toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopPurchaseOrderDetail } from '@/ui/desktop/PurchaseOrderDetail'
 
 /** One purchase order: its lines with how much has arrived, and what you can do next. */
 export default function PurchaseOrderPage() {
@@ -38,6 +40,7 @@ export default function PurchaseOrderPage() {
   const user = useUser()
   const [rejecting, setRejecting] = useState(false)
   const [reason, setReason] = useState('')
+  const { isDesktop } = useBreakpoint()
 
   if (!canBuy) return <Screen title="Purchase order" back><T tone="mute">Purchase orders are for the owner and managers.</T></Screen>
   if (!order) return <Screen title="Not found" back><T tone="mute">This purchase order is no longer here.</T></Screen>
@@ -73,6 +76,18 @@ export default function PurchaseOrderPage() {
   function receive() {
     usePurchaseDraft.getState().set({ supplierId: order!.supplierId, poId: order!.id, lines: order!.items.filter((i) => remaining(i) > 0).map((i) => ({ variantId: i.variantId, qty: remaining(i), cost: i.cost })) })
     router.push({ pathname: '/purchases/new', params: { draft: '1' } })
+  }
+
+  if (isDesktop) {
+    return (
+      <DesktopPurchaseOrderDetail
+        order={order} supplier={supplier} receipts={receipts} byId={byId} data={data} open={open} late={late} settings={settings}
+        aState={aState} sendCheck={sendCheck} mayDecide={mayDecide} log={log} got={got} want={want}
+        rejecting={rejecting} setRejecting={setRejecting} reason={reason} setReason={setReason}
+        onChange={change} onApprove={() => decide('approved')} onOpenReject={() => setRejecting(true)} onTurnDown={turnDown} onCancel={() => void cancel()} onRemove={() => void remove()} onReceive={receive}
+        onEdit={() => router.push({ pathname: '/m/purchasing/orders/new', params: { id: order.id } })}
+      />
+    )
   }
 
   return (

@@ -11,9 +11,17 @@ import { EmptyState, ListRow, Notice, Section } from '@/ui/blocks'
 import { ClipboardCheck } from '@/ui/icons'
 import { T } from '@/ui/Text'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopPurchaseApprovals } from '@/ui/desktop/PurchaseApprovals'
 
 /** Purchase orders waiting for a yes, and which of them the signed-in person may decide. */
 export default function Approvals() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopPurchaseApprovals />
+  return <MobileApprovals />
+}
+
+function MobileApprovals() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('purchases')

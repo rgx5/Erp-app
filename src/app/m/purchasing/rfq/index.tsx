@@ -11,9 +11,17 @@ import { EmptyState, ListRow } from '@/ui/blocks'
 import { PackageSearch } from '@/ui/icons'
 import { T } from '@/ui/Text'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopRfqs } from '@/ui/desktop/Rfqs'
 
 /** Requests for quotation: ask several suppliers the same question and compare their answers. */
 export default function Rfqs() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopRfqs />
+  return <MobileRfqs />
+}
+
+function MobileRfqs() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('purchases')

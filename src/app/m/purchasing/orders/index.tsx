@@ -15,11 +15,19 @@ import { EmptyState } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { ChevronRight, ClipboardList, Plus } from '@/ui/icons'
 import { useTheme, type Tone } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopPurchaseOrders } from '@/ui/desktop/PurchaseOrders'
 
 const TONE: Record<PoStatus, Tone> = { draft: 'default', sent: 'primary', partial: 'warning', received: 'success', cancelled: 'danger' }
 
 /** Purchase orders: what has been asked of suppliers and how much has arrived. */
 export default function PurchaseOrders() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopPurchaseOrders />
+  return <MobilePurchaseOrders />
+}
+
+function MobilePurchaseOrders() {
   const { c } = useTheme()
   const router = useRouter()
   const canBuy = useCan('purchases')
