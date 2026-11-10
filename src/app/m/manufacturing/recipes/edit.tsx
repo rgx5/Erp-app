@@ -19,6 +19,8 @@ import { T } from '@/ui/Text'
 import { Plus, Trash } from '@/ui/icons'
 import { ask, toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopEditRecipe } from '@/ui/desktop/EditRecipe'
 
 interface L { variantId: string; qty: string; unit: string; wastage: string; customerSupplied: boolean; buy: boolean }
 interface Chk { label: string; critical: boolean }
@@ -54,6 +56,7 @@ export default function EditRecipe() {
     return costRecipe(data, r)
   }, [data, draft, out, existing])
   const price = out ? data.variants[out]?.price ?? 0 : 0
+  const { isDesktop } = useBreakpoint()
 
   if (!can) return <Screen title="Recipe" back><T tone="mute">Recipes and costs are for the owner and managers.</T></Screen>
 
@@ -67,6 +70,30 @@ export default function EditRecipe() {
     } catch (e) { toast(e instanceof OpError ? e.message : 'Could not save the recipe', 'err'); setBusy(false) }
   }
   const run = (fn: (s: DataState, ctx: OpCtx) => { changes: Changes }, done: string) => { try { perform(fn); toast(done, 'ok'); router.back() } catch (e) { toast(e instanceof OpError ? e.message : 'Could not do that', 'err') } }
+
+  const picker = (
+    <ItemPicker visible={!!picking} onClose={() => setPicking(null)} title={picking === 'out' ? 'What does it make?' : 'Add an ingredient or part'}
+      onPick={(v) => {
+        if (picking === 'out') setOut(v.id)
+        else setLines((cur) => (cur.some((x) => x.variantId === v.id) ? cur : [...cur, { variantId: v.id, qty: '1', unit: stockUnitOf(data, v.id), wastage: '0', customerSupplied: false, buy: false }]))
+      }} picked={new Set(lines.map((l) => l.variantId))} />
+  )
+
+  if (isDesktop) {
+    return (
+      <>
+        <DesktopEditRecipe
+          data={data} existing={existing} name={name} setName={setName} out={out} onPickOutput={() => setPicking('out')} outQty={outQty} setOutQty={setOutQty}
+          yieldPct={yieldPct} setYieldPct={setYieldPct} lines={lines} patch={patch} onRemoveLine={(variantId) => setLines(lines.filter((x) => x.variantId !== variantId))}
+          onAddLine={() => setPicking('line')} labour={labour} setLabour={setLabour} overhead={overhead} setOverhead={setOverhead} checks={checks} setChecks={setChecks}
+          notes={notes} setNotes={setNotes} cost={cost} price={price} busy={busy} onSave={save}
+          onToggleActive={() => existing && run((s, ctx) => setRecipeActive(s, existing.id, !existing.active, ctx), 'Done')}
+          onDelete={async () => { if (existing && await ask({ title: 'Delete this recipe?', confirm: 'Delete', cancel: 'Keep' })) run((s, ctx) => deleteRecipe(s, existing.id, ctx), 'Deleted') }}
+        />
+        {picker}
+      </>
+    )
+  }
 
   return (
     <Screen title={existing ? existing.code : 'New recipe'} back footer={<Button label="Save recipe" size="lg" block loading={busy} onPress={save} />}>
@@ -147,11 +174,7 @@ export default function EditRecipe() {
           </Section>
         ) : null}
       </View>
-      <ItemPicker visible={!!picking} onClose={() => setPicking(null)} title={picking === 'out' ? 'What does it make?' : 'Add an ingredient or part'}
-        onPick={(v) => {
-          if (picking === 'out') setOut(v.id)
-          else setLines((cur) => (cur.some((x) => x.variantId === v.id) ? cur : [...cur, { variantId: v.id, qty: '1', unit: stockUnitOf(data, v.id), wastage: '0', customerSupplied: false, buy: false }]))
-        }} picked={new Set(lines.map((l) => l.variantId))} />
+      {picker}
     </Screen>
   )
 }

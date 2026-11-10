@@ -18,11 +18,19 @@ import { T } from '@/ui/Text'
 import { BanknoteDown, BanknoteUp, Clock, Lock, Unlock } from '@/ui/icons'
 import { toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopShifts } from '@/ui/desktop/Shifts'
 
 type Sheeted = null | 'open' | 'in' | 'out' | 'close'
 
 /** Your till: open it with a float, put cash in or take it out, and close it by counting the drawer. */
 export default function Shifts() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopShifts />
+  return <MobileShifts />
+}
+
+function MobileShifts() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('pos')

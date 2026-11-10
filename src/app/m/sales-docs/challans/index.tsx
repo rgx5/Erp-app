@@ -16,11 +16,19 @@ import { EmptyState } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { ChevronRight, Plus, Truck } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopChallans } from '@/ui/desktop/Challans'
 
 type Filter = '' | 'out' | ChallanStatus
 
 /** Delivery challans: goods packed, on the way and delivered, with who is carrying them. */
 export default function Challans() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopChallans />
+  return <MobileChallans />
+}
+
+function MobileChallans() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('pos')

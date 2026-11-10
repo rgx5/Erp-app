@@ -25,6 +25,8 @@ import { T } from '@/ui/Text'
 import { BanknoteDown, BanknoteUp, CheckCircle, Close, Pencil, Printer, Receipt, Send, Share, Trash, Truck } from '@/ui/icons'
 import { ask, toast } from '@/ui/overlays'
 import { useTheme, type Tone } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopOrderDetail } from '@/ui/desktop/OrderDetail'
 
 type Mode = PaymentInput['mode']
 const MODES: Array<{ value: Mode; label: string }> = [{ value: 'cash', label: 'Cash' }, { value: 'upi', label: 'UPI' }, { value: 'card', label: 'Card' }, { value: 'bank', label: 'Bank' }]
@@ -49,6 +51,7 @@ export default function OrderPage() {
   const [amount, setAmount] = useState('')
   const [mode, setMode] = useState<Mode>('cash')
   const [ref, setRef] = useState('')
+  const { isDesktop } = useBreakpoint()
 
   if (!can) return <Screen title="Order" back><T tone="mute">Orders are for people who use the billing counter.</T></Screen>
   if (!order) return <Screen title="Not found" back><T tone="mute">This order is no longer here.</T></Screen>
@@ -88,6 +91,25 @@ export default function OrderPage() {
     try { perform((s, ctx) => deleteSalesOrder(s, order!.id, ctx)); router.back() } catch (e) { toast(e instanceof OpError ? e.message : 'Could not delete', 'err') }
   }
   const party = { name: customer?.name ?? 'Customer', phone: customer?.phone, address: customer?.address, gstin: customer?.gstin }
+
+  if (isDesktop) {
+    return (
+      <DesktopOrderDetail
+        order={order} data={data} customer={customer} money={money} open={open} now={now} plan={plan} history={history} sent={sent} toSend={toSend} late={late}
+        canEdit={open && money.applied === 0}
+        sheet={sheet} amount={amount} setAmount={setAmount} mode={mode} setMode={setMode} ref={ref} setRef={setRef}
+        onOpenSheet={openSheet} onCloseSheet={() => setSheet(null)} onTake={take} onGiveBack={giveBack} onCancelIt={cancelIt} onCancelAsk={cancelAsk}
+        onReady={ready} onBill={bill} onDelete={remove}
+        onOpenBill={() => order.billId && router.push({ pathname: '/bills/[id]', params: { id: order.billId } })}
+        onOpenChallan={(id) => router.push({ pathname: '/m/sales-docs/challans/[id]', params: { id } })}
+        onWhatsApp={() => whatsApp(orderText(order, store, party.name, money), party.phone)}
+        onPdf={() => sharePdf(orderHtml(order, store, party, money), `${order.no}.pdf`)}
+        onPrint={() => printHtml(orderHtml(order, store, party, money))}
+        onEdit={() => router.push({ pathname: '/m/sales-docs/orders/new', params: { id: order.id } })}
+        onNewChallan={() => router.push({ pathname: '/m/sales-docs/challans/new', params: { orderId: order.id } })}
+      />
+    )
+  }
 
   return (
     <Screen title={order.no} subtitle={customer?.name ?? 'Customer'} back

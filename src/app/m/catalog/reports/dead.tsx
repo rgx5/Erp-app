@@ -11,11 +11,19 @@ import { Badge, Card, Chip } from '@/ui/primitives'
 import { EmptyState, KV, ListRow } from '@/ui/blocks'
 import { Check } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopDeadStock } from '@/ui/desktop/CatalogDeadStock'
 
 const WINDOWS = [30, 60, 90, 180, 365]
 
 /** Stock that has stopped selling: money sitting on a shelf. */
 export default function DeadStockScreen() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopDeadStock />
+  return <MobileDeadStockScreen />
+}
+
+function MobileDeadStockScreen() {
   const { c } = useTheme()
   const can = useCan('stock')
   const data = useApp((s) => s.data)

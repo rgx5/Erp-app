@@ -20,6 +20,8 @@ import { T } from '@/ui/Text'
 import { Download, FileSpreadsheet, Upload } from '@/ui/icons'
 import { ask, toast } from '@/ui/overlays'
 import { useTheme, type Tone } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopBulkItems } from '@/ui/desktop/CatalogBulkItems'
 
 const TONE: Record<ImportAction, Tone> = { create: 'success', update: 'primary', same: 'default', error: 'danger' }
 const WORD: Record<ImportAction, string> = { create: 'New', update: 'Update', same: 'No change', error: 'Refused' }
@@ -27,6 +29,12 @@ const SHOWN = 150
 
 /** Bring items in from a spreadsheet, or take them out to one. Every row is checked and shown before anything is written. */
 export default function BulkItems() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopBulkItems />
+  return <MobileBulkItems />
+}
+
+function MobileBulkItems() {
   const { c } = useTheme()
   const can = useCan('inventory')
   const data = useApp((s) => s.data)

@@ -12,9 +12,17 @@ import { EmptyState, Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { ClipboardCheck } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopQuality } from '@/ui/desktop/Quality'
 
 /** Quality: orders waiting for inspection or rework, and the latest inspections. Inspecting happens on the work order. */
 export default function Quality() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopQuality />
+  return <MobileQuality />
+}
+
+function MobileQuality() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('inventory')

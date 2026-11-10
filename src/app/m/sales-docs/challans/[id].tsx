@@ -21,6 +21,8 @@ import { T } from '@/ui/Text'
 import { CheckCircle, Pencil, Printer, Send, Share, Trash, Truck } from '@/ui/icons'
 import { ask, toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopChallanDetail } from '@/ui/desktop/ChallanDetail'
 
 /** One delivery challan: the steps it has been through, the transport details, and the next step. */
 export default function ChallanPage() {
@@ -37,6 +39,7 @@ export default function ChallanPage() {
   const [driver, setDriver] = useState('')
   const [tracking, setTracking] = useState('')
   const [proof, setProof] = useState('')
+  const { isDesktop } = useBreakpoint()
 
   if (!can) return <Screen title="Challan" back><T tone="mute">Challans are for people who use the billing counter.</T></Screen>
   if (!ch) return <Screen title="Not found" back><T tone="mute">This challan is no longer here.</T></Screen>
@@ -55,6 +58,21 @@ export default function ChallanPage() {
   async function remove() {
     if (!(await ask({ title: `Delete ${ch!.no}?`, confirm: 'Delete', danger: true }))) return
     try { perform((s, ctx) => deleteChallan(s, ch!.id, ctx)); router.back() } catch (e) { toast(e instanceof OpError ? e.message : 'Could not delete', 'err') }
+  }
+
+  if (isDesktop) {
+    return (
+      <DesktopChallanDetail
+        ch={ch} next={next} order={order} bill={bill}
+        sheet={sheet} vehicle={vehicle} setVehicle={setVehicle} driver={driver} setDriver={setDriver} tracking={tracking} setTracking={setTracking} proof={proof} setProof={setProof}
+        onOpenStep={openStep} onCloseSheet={() => setSheet(false)} onStep={step} onDelete={remove}
+        onOpenBill={() => bill && router.push({ pathname: '/bills/[id]', params: { id: bill.id } })}
+        onWhatsApp={() => whatsApp(challanText(ch, store), ch.partyPhone)}
+        onPdf={() => sharePdf(challanHtml(ch, store), `${ch.no}.pdf`)}
+        onPrint={() => printHtml(challanHtml(ch, store))}
+        onEdit={() => router.push({ pathname: '/m/sales-docs/challans/new', params: { id: ch.id } })}
+      />
+    )
   }
 
   return (

@@ -17,10 +17,13 @@ import { Screen } from '@/ui/Screen'
 import { Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { toast } from '@/ui/overlays'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopNewPlan } from '@/ui/desktop/NewPlan'
 
 /** A recurring invoice or an AMC contract. Edits one when given `?id=`. */
 export default function NewPlan() {
   const router = useRouter()
+  const { isDesktop } = useBreakpoint()
   const { id: editId, kind: presetKind } = useLocalSearchParams<{ id?: string; kind?: string }>()
   const can = useCan('salesDocs')
   const store = useStore()
@@ -54,6 +57,17 @@ export default function NewPlan() {
       toast(e instanceof OpError ? e.message : 'Could not save the plan', 'err')
       setBusy(false)
     }
+  }
+
+  if (isDesktop) {
+    return (
+      <DesktopNewPlan
+        title={existing ? `Edit ${existing.no}` : 'New recurring plan'} isExisting={!!existing} kind={kind} setKind={setKind} customerId={customerId} setCustomerId={setCustomerId}
+        doc={doc} frequency={frequency} setFrequency={setFrequency} start={start} setStart={setStart} end={end} setEnd={setEnd} locked={locked}
+        payMode={payMode} setPayMode={setPayMode} hasOnAccount={hasOnAccount()} coverage={coverage} setCoverage={setCoverage} notes={notes} setNotes={setNotes}
+        each={each} busy={busy} onSave={save}
+      />
+    )
   }
 
   return (

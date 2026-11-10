@@ -19,6 +19,8 @@ import { T } from '@/ui/Text'
 import { Check } from '@/ui/icons'
 import { ask, toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopJobDetail } from '@/ui/desktop/JobDetail'
 
 /** One customer job: stages, the customer's material, the work order behind it, and handing it over. */
 export default function JobScreen() {
@@ -36,6 +38,7 @@ export default function JobScreen() {
   const [qty, setQty] = useState('')
   const [recipeId, setRecipeId] = useState('')
   const [settle, setSettle] = useState<{ id: string; kind: 'use' | 'return'; qty: string } | null>(null)
+  const { isDesktop } = useBreakpoint()
 
   if (!can) return <Screen title="Job" back><T tone="mute">Customer jobs are taken at the counter.</T></Screen>
   if (!j) return <Screen title="Job" back><T tone="mute">This job is not here any more.</T></Screen>
@@ -44,6 +47,23 @@ export default function JobScreen() {
 
   const run = (fn: (s: DataState, ctx: OpCtx) => { changes: Changes }, ok: string, after?: () => void) => {
     try { perform(fn); toast(ok, 'ok'); after?.() } catch (e) { toast(e instanceof OpError ? e.message : 'Could not do that', 'err') }
+  }
+
+  if (isDesktop) {
+    return (
+      <DesktopJobDetail
+        j={j} data={data} wo={wo} canFloor={canFloor} recipes={recipes} recipeId={recipeId} setRecipeId={setRecipeId} finished={finished}
+        matSheet={matSheet} setMatSheet={setMatSheet} desc={desc} setDesc={setDesc} unit={unit} setUnit={setUnit} qty={qty} setQty={setQty}
+        settle={settle} setSettle={setSettle}
+        onToggleStage={(i, done) => run((s, ctx) => setJobStage(s, j.id, i, done, ctx), done ? 'Stage done' : 'Reopened')}
+        onLinkRecipe={() => run((s, ctx) => linkJobToRecipe(s, j.id, recipeId, ctx), 'Work order created')}
+        onOpenWorkOrder={() => wo && router.push({ pathname: '/m/manufacturing/orders/[id]', params: { id: wo.id } } as never)}
+        onSaveMaterial={() => run((s, ctx) => receiveCustomerMaterial(s, j.id, { description: desc, unit, qty: Number(qty) || 0 }, ctx), 'Recorded', () => { setMatSheet(false); setDesc(''); setQty('') })}
+        onSettle={() => settle && run((s, ctx) => settleCustomerMaterial(s, j.id, settle.id, settle.kind, Number(settle.qty) || 0, ctx), 'Recorded', () => setSettle(null))}
+        onDeliver={() => run((s, ctx) => deliverJob(s, j.id, {}, ctx), 'Delivered')}
+        onCancel={async () => { if (await ask({ title: 'Cancel this job?', confirm: 'Cancel job', cancel: 'Keep' })) run((s, ctx) => cancelJob(s, j.id, ctx), 'Cancelled') }}
+      />
+    )
   }
 
   return (

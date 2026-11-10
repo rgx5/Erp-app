@@ -16,11 +16,19 @@ import { Check, TrendingUp } from '@/ui/icons'
 import { toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
 import { listOf } from '@/data/state'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopForecast } from '@/ui/desktop/CatalogForecast'
 
 const HORIZONS = [7, 14, 30, 60]
 
 /** What is expected to sell, and the reorder levels that follow from it. */
 export default function Forecast() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopForecast />
+  return <MobileForecast />
+}
+
+function MobileForecast() {
   const { c } = useTheme()
   const can = useCan('reports')
   const canSet = useCan('inventory')

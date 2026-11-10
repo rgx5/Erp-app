@@ -17,11 +17,19 @@ import { Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { Plus, Printer, Trash } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopPrintLabels } from '@/ui/desktop/CatalogPrintLabels'
 
 interface Line { variantId: string; copies: string }
 
 /** Print price labels in one of the label designs: pick the items, how many of each, and print. */
 export default function PrintLabels() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopPrintLabels />
+  return <MobilePrintLabels />
+}
+
+function MobilePrintLabels() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('inventory')

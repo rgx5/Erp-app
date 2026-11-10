@@ -6,7 +6,8 @@ import { perform, useApp, useCan } from '@/data/store'
 import { LABEL_FIELDS, LABEL_PRESETS, qrPayload, templateProblem } from '@/modules/catalog/labels'
 import { catalogSettings } from '@/modules/catalog/logic'
 import { deleteLabelTemplate, saveCatalogSettings, saveLabelTemplate } from '@/modules/catalog/ops'
-import type { LabelField, LabelTemplate } from '@/modules/catalog/types'
+import type { LabelTemplate } from '@/modules/catalog/types'
+import { blank, Mock, num, SAMPLE, type Draft } from '@/modules/catalog/ui/LabelMock'
 import { NoAccess } from '@/modules/catalog/ui/common'
 import { Button, IconButton } from '@/ui/Button'
 import { Field, NumberField, Segmented } from '@/ui/Inputs'
@@ -18,38 +19,17 @@ import { T } from '@/ui/Text'
 import { Plus, QrCode } from '@/ui/icons'
 import { ask, toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
-
-type Draft = Omit<LabelTemplate, 'id' | 'createdAt'>
-const blank = (): Draft => ({ name: '', widthMm: 50, heightMm: 30, perRow: 1, paper: 'roll', fields: ['name', 'variant', 'price'], code: 'bars', qrText: '{barcode}' })
-const num = (s: string) => Number(s.replace(',', '.'))
-
-const SAMPLE = { name: 'Cotton Kurta', variant: 'M / Blue', brand: 'Fab India', sku: 'KU-101-BLU-M', barcode: '2100000000015', hsn: '6104', price: 799, mrp: 999 }
-
-/** A rough picture of the label at its real proportions (the print has the real bars). */
-function Mock({ t, store }: { t: Draft; store: string }) {
-  const { c } = useTheme()
-  const scale = Math.min(260 / t.widthMm, 150 / t.heightMm)
-  const has = (f: LabelField) => t.fields.includes(f)
-  return (
-    <View style={{ alignSelf: 'center', width: t.widthMm * scale, height: t.heightMm * scale, borderWidth: 1, borderColor: c.lineStrong, borderStyle: 'dashed', borderRadius: 6, padding: 6, backgroundColor: '#fff', flexDirection: t.code === 'qr' ? 'row' : 'column', alignItems: 'center', justifyContent: 'center', gap: 4, overflow: 'hidden' }}>
-      {t.code === 'qr' ? <View style={{ width: Math.min(t.heightMm * scale - 12, t.widthMm * scale * 0.4), aspectRatio: 1, backgroundColor: '#222', borderRadius: 3 }} /> : null}
-      <View style={{ alignItems: t.code === 'qr' ? 'flex-start' : 'center', flexShrink: 1 }}>
-        {has('store') ? <T v="micro" style={{ color: '#444' }}>{store.toUpperCase()}</T> : null}
-        {has('name') ? <T v="micro" style={{ color: '#000', fontWeight: '700' }} numberOfLines={1}>{SAMPLE.name}</T> : null}
-        {has('variant') ? <T v="micro" style={{ color: '#333' }}>{SAMPLE.variant}</T> : null}
-        {has('brand') ? <T v="micro" style={{ color: '#333' }}>{SAMPLE.brand}</T> : null}
-        {has('sku') ? <T v="micro" style={{ color: '#000' }}>{SAMPLE.sku}</T> : null}
-        {has('hsn') ? <T v="micro" style={{ color: '#000' }}>HSN {SAMPLE.hsn}</T> : null}
-        {t.code === 'bars' ? <View style={{ height: Math.max(8, t.heightMm * scale * 0.25), width: t.widthMm * scale * 0.7, backgroundColor: '#222', marginVertical: 2, opacity: 0.85 }} /> : null}
-        {has('barcodeText') ? <T v="micro" style={{ color: '#000' }}>{SAMPLE.barcode}</T> : null}
-        {has('price') || has('mrp') ? <T v="micro" style={{ color: '#000' }}>{has('mrp') ? `MRP ₹${SAMPLE.mrp}  ` : ''}{has('price') ? `₹${SAMPLE.price}` : ''}</T> : null}
-      </View>
-    </View>
-  )
-}
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopLabelTemplates } from '@/ui/desktop/CatalogLabelTemplates'
 
 /** Label designs: the sizes and contents of price tags, shelf labels and QR labels. */
 export default function LabelTemplates() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopLabelTemplates />
+  return <MobileLabelTemplates />
+}
+
+function MobileLabelTemplates() {
   const { c } = useTheme()
   const can = useCan('inventory')
   const stored = useList('labelTemplates')

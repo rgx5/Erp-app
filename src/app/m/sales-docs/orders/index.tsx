@@ -16,11 +16,19 @@ import { EmptyState, StatTile } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { ChevronRight, ClipboardList, Plus, Wallet } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopOrders } from '@/ui/desktop/Orders'
 
 type Filter = 'open' | 'ready' | 'layaway' | 'late' | 'delivered' | 'cancelled' | ''
 
 /** Sales orders, advance bookings and layaway plans: what customers are waiting for and what they have paid so far. */
 export default function Orders() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopOrders />
+  return <MobileOrders />
+}
+
+function MobileOrders() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('pos')

@@ -12,9 +12,17 @@ import { EmptyState } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { ChevronRight, Layers, Plus } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopRecipes } from '@/ui/desktop/Recipes'
 
 /** Recipes (bills of materials) with what one unit costs to make today. */
 export default function Recipes() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopRecipes />
+  return <MobileRecipes />
+}
+
+function MobileRecipes() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('manufacturing')

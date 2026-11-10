@@ -15,9 +15,17 @@ import { T } from '@/ui/Text'
 import { Cloud, Image as ImageIcon } from '@/ui/icons'
 import { toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopCatalogFiles } from '@/ui/desktop/CatalogFiles'
 
 /** Every photo and file attached to an item, and whether it has reached the server. */
 export default function CatalogFiles() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopCatalogFiles />
+  return <MobileCatalogFiles />
+}
+
+function MobileCatalogFiles() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('inventory')

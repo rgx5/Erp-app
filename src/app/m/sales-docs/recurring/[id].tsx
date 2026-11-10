@@ -18,6 +18,8 @@ import { T } from '@/ui/Text'
 import { Pause, Pencil, Play, Receipt, Trash } from '@/ui/icons'
 import { ask, toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopPlanDetail } from '@/ui/desktop/PlanDetail'
 
 /** One recurring plan or AMC: what it bills, the dates ahead, and the invoices it has made. */
 export default function PlanPage() {
@@ -29,6 +31,7 @@ export default function PlanPage() {
   const sub = useList('subscriptions').find((x) => x.id === id)
   const customers = useList('customers')
   const bills = useList('bills')
+  const { isDesktop } = useBreakpoint()
 
   if (!can) return <Screen title="Plan" back><T tone="mute">Recurring billing is for the owner and managers.</T></Screen>
   if (!sub) return <Screen title="Not found" back><T tone="mute">This plan is no longer here.</T></Screen>
@@ -51,6 +54,17 @@ export default function PlanPage() {
   async function remove() {
     if (!(await ask({ title: `Delete ${sub!.no}?`, confirm: 'Delete', danger: true }))) return
     try { perform((s, ctx) => deleteSubscription(s, sub!.id, ctx)); router.back() } catch (e) { toast(e instanceof OpError ? e.message : 'Could not delete', 'err') }
+  }
+
+  if (isDesktop) {
+    return (
+      <DesktopPlanDetail
+        sub={sub} customer={customer} each={each} due={due} made={made} schedule={scheduleAhead(sub, 6)} now={now}
+        onGenerate={generate} onToggle={toggle} onDelete={remove}
+        onEdit={() => router.push({ pathname: '/m/sales-docs/recurring/new', params: { id: sub.id } })}
+        onOpenBill={(id) => router.push({ pathname: '/bills/[id]', params: { id } })}
+      />
+    )
   }
 
   return (

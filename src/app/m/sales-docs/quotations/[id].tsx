@@ -25,6 +25,8 @@ import { T } from '@/ui/Text'
 import { CheckCircle, Pencil, Printer, Receipt, Send, Share, Trash } from '@/ui/icons'
 import { ask, toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopQuotationDetail } from '@/ui/desktop/QuotationDetail'
 
 /** One quotation: what was offered, where it stands, and the one tap that turns it into a bill. */
 export default function QuotationPage() {
@@ -37,6 +39,7 @@ export default function QuotationPage() {
   const bills = useList('bills')
   const [extending, setExtending] = useState(false)
   const [until, setUntil] = useState('')
+  const { isDesktop } = useBreakpoint()
 
   if (!can) return <Screen title="Quotation" back><T tone="mute">Quotations are for people who use the billing counter.</T></Screen>
   if (!q) return <Screen title="Not found" back><T tone="mute">This quotation is no longer here.</T></Screen>
@@ -61,6 +64,24 @@ export default function QuotationPage() {
   async function remove() {
     if (!(await ask({ title: `Delete ${q!.no}?`, confirm: 'Delete', danger: true }))) return
     try { perform((s, ctx) => deleteQuotation(s, q!.id, ctx)); router.back() } catch (e) { toast(e instanceof OpError ? e.message : 'Could not delete', 'err') }
+  }
+
+  if (isDesktop) {
+    return (
+      <DesktopQuotationDetail
+        q={q} store={store} status={status} t={t} bill={bill} left={left}
+        canEdit={canEditQuote(q)} canConvert={canConvertQuote(q)}
+        extending={extending} until={until} setUntil={setUntil}
+        onOpenExtend={() => { setUntil(toInputDate(Date.now() + 7 * 86_400_000)); setExtending(true) }}
+        onCloseExtend={() => setExtending(false)} onExtend={extend}
+        onMove={move} onConvert={convert} onDelete={remove}
+        onOpenBill={() => bill && router.push({ pathname: '/bills/[id]', params: { id: bill.id } })}
+        onWhatsApp={() => whatsApp(quotationText(q, store), q.partyPhone)}
+        onPdf={() => sharePdf(quotationHtml(q, store, now), `${q.no}.pdf`)}
+        onPrint={() => printHtml(quotationHtml(q, store, now))}
+        onEdit={() => router.push({ pathname: '/m/sales-docs/quotations/new', params: { id: q.id } })}
+      />
+    )
   }
 
   return (

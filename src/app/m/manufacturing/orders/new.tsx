@@ -15,10 +15,13 @@ import { Card } from '@/ui/primitives'
 import { KV, Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { toast } from '@/ui/overlays'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopNewWorkOrder } from '@/ui/desktop/NewWorkOrder'
 
 /** Plan a work order: pick a recipe and a quantity and see what it needs and costs before saving. */
 export default function NewWorkOrder() {
   const router = useRouter()
+  const { isDesktop } = useBreakpoint()
   const { recipeId: preset } = useLocalSearchParams<{ recipeId?: string }>()
   const can = useCan('inventory')
   const data = useApp((s) => s.data)
@@ -44,6 +47,15 @@ export default function NewWorkOrder() {
       router.replace({ pathname: '/m/manufacturing/orders/[id]', params: { id: r.workOrder.id } } as never)
     } catch (e) { toast(e instanceof OpError ? e.message : 'Could not plan the order', 'err'); setBusy(false) }
   }
+  if (isDesktop) {
+    return (
+      <DesktopNewWorkOrder
+        data={data} recipes={recipes} recipeId={recipeId} setRecipeId={setRecipeId} qty={qty} setQty={setQty} due={due} setDue={setDue}
+        dueOk={dueOk} notes={notes} setNotes={setNotes} need={need} cost={cost} busy={busy} onSave={save}
+      />
+    )
+  }
+
   return (
     <Screen title="New work order" back footer={<Button label="Plan order" size="lg" block loading={busy} onPress={save} />}>
       <View style={{ gap: 14, paddingBottom: 14 }}>

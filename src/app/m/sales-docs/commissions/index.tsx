@@ -15,11 +15,19 @@ import { EmptyState, KV, StatTile } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { Download, Sliders, Target } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopCommissions } from '@/ui/desktop/Commissions'
 
 type Period = 'this' | 'last' | 'year'
 
 /** What each salesperson sold, against their target, and the commission it earns. */
 export default function Commissions() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopCommissions />
+  return <MobileCommissions />
+}
+
+function MobileCommissions() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('salesDocs')

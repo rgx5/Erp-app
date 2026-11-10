@@ -17,12 +17,20 @@ import { T } from '@/ui/Text'
 import { Plus, Target } from '@/ui/icons'
 import { ask, toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopCommissionSetup } from '@/ui/desktop/CommissionSetup'
 
 const describe = (r: CommissionRule) => `${r.basis === 'pct' ? `${r.rate}% of sales` : `${inr(r.rate)} per piece`}${r.slabs?.length ? ` · ${r.slabs.length} slab${r.slabs.length === 1 ? '' : 's'}` : ''}`
 const thisMonth = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}` }
 
 /** Commission rules (who earns what, on what) and the monthly sales targets. */
 export default function CommissionSetup() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopCommissionSetup />
+  return <MobileCommissionSetup />
+}
+
+function MobileCommissionSetup() {
   const { c } = useTheme()
   const can = useCan('salesDocs')
   const rules = useList('commissionRules')

@@ -12,9 +12,17 @@ import { Card } from '@/ui/primitives'
 import { EmptyState, KV, ListRow } from '@/ui/blocks'
 import { Layers } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopValuation } from '@/ui/desktop/CatalogValuation'
 
 /** What the stock on hand is worth, at cost and at selling price. */
 export default function StockValuation() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopValuation />
+  return <MobileStockValuation />
+}
+
+function MobileStockValuation() {
   const { c } = useTheme()
   const can = useCan('stock')
   const data = useApp((s) => s.data)

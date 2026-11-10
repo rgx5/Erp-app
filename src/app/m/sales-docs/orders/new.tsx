@@ -18,6 +18,8 @@ import { Card } from '@/ui/primitives'
 import { KV, Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { toast } from '@/ui/overlays'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopNewOrder } from '@/ui/desktop/NewOrder'
 
 const DAY = 86_400_000
 type Mode = PaymentInput['mode']
@@ -25,6 +27,7 @@ type Mode = PaymentInput['mode']
 /** An order, advance booking or layaway: the customer, the goods being kept aside, and what is paid now. Edits an open order when given `?id=`. */
 export default function NewOrder() {
   const router = useRouter()
+  const { isDesktop } = useBreakpoint()
   const { id: editId, customerId: presetCustomer } = useLocalSearchParams<{ id?: string; customerId?: string }>()
   const can = useCan('pos')
   const store = useStore()
@@ -73,6 +76,17 @@ export default function NewOrder() {
       toast(e instanceof OpError ? e.message : 'Could not save the order', 'err')
       setBusy(false)
     }
+  }
+
+  if (isDesktop) {
+    return (
+      <DesktopNewOrder
+        title={existing ? `Edit ${existing.no}` : 'New order'} customerId={customerId} setCustomerId={setCustomerId} doc={doc} discount={discount} total={total}
+        plan={plan} setPlan={setPlan} count={count} setCount={setCount} every={every} setEvery={setEvery} first={first} setFirst={setFirst} instalments={instalments}
+        isExisting={!!existing} advance={advance} setAdvance={setAdvance} mode={mode} setMode={setMode} expected={expected} setExpected={setExpected}
+        notes={notes} setNotes={setNotes} busy={busy} onSave={save}
+      />
+    )
   }
 
   return (

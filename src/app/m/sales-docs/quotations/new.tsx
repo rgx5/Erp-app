@@ -16,10 +16,13 @@ import { Screen } from '@/ui/Screen'
 import { Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { toast } from '@/ui/overlays'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopNewQuotation } from '@/ui/desktop/NewQuotation'
 
 /** A quotation: who it is for, what is offered at what price, and until when. Edits one when given `?id=`. */
 export default function NewQuotation() {
   const router = useRouter()
+  const { isDesktop } = useBreakpoint()
   const { id: editId } = useLocalSearchParams<{ id?: string }>()
   const can = useCan('pos')
   const store = useStore()
@@ -51,6 +54,17 @@ export default function NewQuotation() {
       toast(e instanceof OpError ? e.message : 'Could not save the quotation', 'err')
       setBusy(false)
     }
+  }
+
+  if (isDesktop) {
+    return (
+      <DesktopNewQuotation
+        title={existing ? `Edit ${existing.no}` : 'New quotation'} customerId={customerId} setCustomerId={setCustomerId}
+        name={name} setName={setName} phone={phone} setPhone={setPhone} doc={doc} discount={discount}
+        until={until} setUntil={setUntil} notes={notes} setNotes={setNotes} terms={terms} setTerms={setTerms}
+        total={total} busy={busy} onSave={save}
+      />
+    )
   }
 
   return (

@@ -14,9 +14,17 @@ import { T } from '@/ui/Text'
 import { Camera, Close } from '@/ui/icons'
 import { toast } from '@/ui/overlays'
 import { goBack } from '@/ui/nav'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopCatalogCamera } from '@/ui/desktop/CatalogCamera'
 
 /** Takes a photo of an item with the camera and attaches it. The picture is kept on the phone first; uploading is a separate step. */
 export default function CatalogCamera() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopCatalogCamera />
+  return <MobileCatalogCamera />
+}
+
+function MobileCatalogCamera() {
   const router = useRouter()
   const insets = useSafeAreaInsets()
   const { productId } = useLocalSearchParams<{ productId: string }>()

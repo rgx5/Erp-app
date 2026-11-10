@@ -20,6 +20,8 @@ import { KV, Notice, Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { ask, toast } from '@/ui/overlays'
 import type { Tone } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopWorkOrderDetail } from '@/ui/desktop/WorkOrderDetail'
 
 const TONE: Record<string, Tone> = { planned: 'default', in_progress: 'primary', done: 'success', cancelled: 'danger' }
 type Mode = null | 'issue' | 'return' | 'inspect' | 'receive' | 'complete'
@@ -47,6 +49,7 @@ export default function WorkOrderScreen() {
   const checks = useMemo(() => (wo ? checksOf(data, wo.id) : []), [data, wo])
   const p = useMemo(() => (wo ? progressOf(wo, entries) : null), [wo, entries])
   const pos = useMemo(() => qualityPosition(checks, entries), [checks, entries])
+  const { isDesktop } = useBreakpoint()
 
   if (!can) return <Screen title="Work order" back><T tone="mute">Work orders are for the owner, managers and stock keepers.</T></Screen>
   if (!wo || !p) return <Screen title="Work order" back><T tone="mute">This work order is not here any more.</T></Screen>
@@ -66,6 +69,29 @@ export default function WorkOrderScreen() {
     else if (m === 'inspect') { setMarks(Object.fromEntries(wo.checklist.map((c) => [c.id, true]))); setChecked(String(pos.rework > 0 ? pos.rework : Math.max(0, wo.qty - pos.passed))); setRejected(''); setRecheck(false) }
     else if (m === 'receive' || m === 'complete') { const g = pos.availableGood || p.remaining; setGood(String(wo.checklist.length ? pos.availableGood : g)); setScrap(String(pos.pendingScrap || '')); setLabour(''); setOverhead(''); setQtys({}) }
     setMode(m)
+  }
+
+  if (isDesktop) {
+    return (
+      <DesktopWorkOrderDetail
+        wo={wo} data={data} entries={entries} checks={checks} p={p} pos={pos} rows={rows} miss={miss} childOrders={children} open={open}
+        mode={mode} qtys={qtys} setQtys={setQtys} good={good} setGood={setGood} scrap={scrap} setScrap={setScrap}
+        checked={checked} setChecked={setChecked} rejected={rejected} setRejected={setRejected} action={action} setAction={setAction}
+        recheck={recheck} setRecheck={setRecheck} marks={marks} setMarks={setMarks} labour={labour} setLabour={setLabour} overhead={overhead} setOverhead={setOverhead}
+        onOpenSheet={openSheet} onCloseSheet={() => setMode(null)}
+        onStart={(issueNow) => run((s, ctx) => startWorkOrder(s, wo.id, ctx, issueNow ? undefined : { issueNow: false }), 'Started')}
+        onPlanShortfall={() => run((s, ctx) => planShortfallOrders(s, wo.id, ctx), 'Planned')}
+        onIssueOrReturn={() => run((s, ctx) => (mode === 'issue' ? issueMaterials(s, wo.id, lines(rows), ctx) : returnMaterials(s, wo.id, lines(rows), ctx)), mode === 'issue' ? 'Issued' : 'Returned')}
+        onInspect={() => run((s, ctx) => recordQuality(s, wo.id, { results: wo.checklist.map((ck) => ({ itemId: ck.id, pass: marks[ck.id] !== false })), qtyChecked: Number(checked) || 0, qtyRejected: Number(rejected) || 0, rejectAction: action, recheck }, ctx), 'Inspection saved')}
+        onReceiveOrComplete={() => {
+          const d = { goodQty: Number(good) || 0, scrapQty: Number(scrap) || 0, ...(labour ? { labour: Number(labour) } : {}), ...(overhead ? { overhead: Number(overhead) } : {}) }
+          if (mode === 'complete') run((s, ctx) => completeWorkOrder(s, wo.id, { ...d, returns: lines(rows) }, ctx), 'Order finished')
+          else run((s, ctx) => receiveOutput(s, wo.id, d, ctx), 'Goods received')
+        }}
+        onClose={() => run((s, ctx) => closeWorkOrder(s, wo.id, ctx), 'Order closed')}
+        onCancel={async () => { if (await ask({ title: 'Cancel this order?', message: wo.status === 'in_progress' ? 'Unused material goes back on the shelf.' : undefined, confirm: 'Cancel order', cancel: 'Keep' })) run((s, ctx) => cancelWorkOrder(s, wo.id, ctx), 'Cancelled') }}
+      />
+    )
   }
 
   return (

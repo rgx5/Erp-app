@@ -18,11 +18,19 @@ import { T } from '@/ui/Text'
 import { Plus, Sliders } from '@/ui/icons'
 import { ask, toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopCustomFields } from '@/ui/desktop/CatalogCustomFields'
 
 const TYPES = (Object.keys(FIELD_TYPE_LABEL) as CustomFieldType[]).map((t) => ({ value: t, label: FIELD_TYPE_LABEL[t] }))
 
 /** The extra fields this business keeps on its items. */
 export default function CustomFields() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopCustomFields />
+  return <MobileCustomFields />
+}
+
+function MobileCustomFields() {
   const { c } = useTheme()
   const can = useCan('inventory')
   const defs = useList('customFields')

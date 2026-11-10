@@ -10,12 +10,20 @@ import { Screen } from '@/ui/Screen'
 import { Card, Chip } from '@/ui/primitives'
 import { KV, Section, StatTile } from '@/ui/blocks'
 import { T } from '@/ui/Text'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopProductionReports } from '@/ui/desktop/ProductionReports'
 
 type Tab = 'cost' | 'yield' | 'wip'
 const PERIODS: Array<[number, string]> = [[7, '7 days'], [30, '30 days'], [90, '90 days'], [365, 'Year']]
 
 /** Production reports: cost per unit and variance, yield and wastage, and work in progress. */
 export default function ProductionReports() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopProductionReports />
+  return <MobileProductionReports />
+}
+
+function MobileProductionReports() {
   const params = useLocalSearchParams<{ tab?: string }>()
   const can = useCan('manufacturing')
   const data = useApp((s) => s.data)

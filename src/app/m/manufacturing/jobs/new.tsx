@@ -16,10 +16,13 @@ import { Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { Plus } from '@/ui/icons'
 import { toast } from '@/ui/overlays'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopNewJob } from '@/ui/desktop/NewJob'
 
 /** A customer's order: what, how many, by when, their measurements and the stages it goes through. */
 export default function NewJob() {
   const router = useRouter()
+  const { isDesktop } = useBreakpoint()
   const can = useCan('pos')
   const customers = useList('customers')
   const recipes = useList('recipes').filter((r) => r.active)
@@ -51,6 +54,17 @@ export default function NewJob() {
       router.replace({ pathname: '/m/manufacturing/jobs/[id]', params: { id: r.job.id } } as never)
     } catch (e) { toast(e instanceof OpError ? e.message : 'Could not save the job', 'err'); setBusy(false) }
   }
+  if (isDesktop) {
+    return (
+      <DesktopNewJob
+        customers={customers} recipes={recipes} canRecipe={canRecipe} kind={kind} setKind={setKind} customerId={customerId} setCustomerId={setCustomerId}
+        title={title} setTitle={setTitle} qty={qty} setQty={setQty} charge={charge} setCharge={setCharge} due={due} setDue={setDue} dueOk={dueOk}
+        stages={stages} setStages={setStages} recipeId={recipeId} setRecipeId={setRecipeId} salesOrderId={salesOrderId} setSalesOrderId={setSalesOrderId}
+        meas={meas} setMeas={setMeas} notes={notes} setNotes={setNotes} busy={busy} onSave={save}
+      />
+    )
+  }
+
   return (
     <Screen title="New job" back footer={<Button label="Save job" size="lg" block loading={busy} onPress={save} />}>
       <View style={{ gap: 14, paddingBottom: 14 }}>

@@ -14,11 +14,19 @@ import { EmptyState } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { ChevronRight, ClipboardList, Plus } from '@/ui/icons'
 import { useTheme, type Tone } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopWorkOrders } from '@/ui/desktop/WorkOrders'
 
 const TONE: Record<WoStatus, Tone> = { planned: 'default', in_progress: 'primary', done: 'success', cancelled: 'danger' }
 
 /** Work orders: what is planned, on the floor, and finished. */
 export default function WorkOrders() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopWorkOrders />
+  return <MobileWorkOrders />
+}
+
+function MobileWorkOrders() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('inventory')

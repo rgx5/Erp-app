@@ -19,6 +19,8 @@ import { T } from '@/ui/Text'
 import { Plus, Trash } from '@/ui/icons'
 import { toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopNewChallan } from '@/ui/desktop/NewChallan'
 
 interface Row { line: ChallanLine; qty: string }
 
@@ -26,6 +28,7 @@ interface Row { line: ChallanLine; qty: string }
 export default function NewChallan() {
   const { c } = useTheme()
   const router = useRouter()
+  const { isDesktop } = useBreakpoint()
   const { id: editId, orderId } = useLocalSearchParams<{ id?: string; orderId?: string }>()
   const can = useCan('pos')
   const challans = useList('challans')
@@ -50,6 +53,10 @@ export default function NewChallan() {
 
   if (!can) return <Screen title="Challan" back><T tone="mute">Challans are for people who use the billing counter.</T></Screen>
   const linked = existing?.orderId ?? orderId
+  const picker = (
+    <ItemPicker visible={picking} onClose={() => setPicking(false)} picked={new Set(rows.map((r) => r.line.variantId ?? ''))} title="Add item to the challan"
+      onPick={(v) => setRows((cur) => (cur.some((r) => r.line.variantId === v.id) ? cur : [...cur, { line: { variantId: v.id, name: `${v.productName}${variantLabel(v.size, v.color) ? ` (${variantLabel(v.size, v.color)})` : ''}`, sku: v.sku, qty: 1, ...(v.unit && v.unit !== 'pc' ? { unit: v.unit } : {}) }, qty: '1' }]))} />
+  )
 
   function save() {
     setBusy(true)
@@ -62,6 +69,20 @@ export default function NewChallan() {
       toast(e instanceof OpError ? e.message : 'Could not save the challan', 'err')
       setBusy(false)
     }
+  }
+
+  if (isDesktop) {
+    return (
+      <>
+        <DesktopNewChallan
+          title={existing ? `Edit ${existing.no}` : 'New challan'} order={order} customerId={customerId} setCustomerId={setCustomerId}
+          name={name} setName={setName} phone={phone} setPhone={setPhone} address={address} setAddress={setAddress}
+          rows={rows} setRows={setRows} linked={linked} vehicle={vehicle} setVehicle={setVehicle} driver={driver} setDriver={setDriver}
+          tracking={tracking} setTracking={setTracking} notes={notes} setNotes={setNotes} busy={busy} onAddItem={() => setPicking(true)} onSave={save}
+        />
+        {picker}
+      </>
+    )
   }
 
   return (
@@ -107,8 +128,7 @@ export default function NewChallan() {
           </View>
         </Section>
       </View>
-      <ItemPicker visible={picking} onClose={() => setPicking(false)} picked={new Set(rows.map((r) => r.line.variantId ?? ''))} title="Add item to the challan"
-        onPick={(v) => setRows((cur) => (cur.some((r) => r.line.variantId === v.id) ? cur : [...cur, { line: { variantId: v.id, name: `${v.productName}${variantLabel(v.size, v.color) ? ` (${variantLabel(v.size, v.color)})` : ''}`, sku: v.sku, qty: 1, ...(v.unit && v.unit !== 'pc' ? { unit: v.unit } : {}) }, qty: '1' }]))} />
+      {picker}
     </Screen>
   )
 }

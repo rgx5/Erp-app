@@ -12,9 +12,17 @@ import { EmptyState, KV, ListRow, Section } from '@/ui/blocks'
 import { HBars } from '@/ui/charts'
 import { Hourglass } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopAgeing } from '@/ui/desktop/CatalogAgeing'
 
 /** How long today’s stock has been on the shelf, at cost. */
 export default function StockAgeingScreen() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopAgeing />
+  return <MobileStockAgeingScreen />
+}
+
+function MobileStockAgeingScreen() {
   const { c } = useTheme()
   const can = useCan('stock')
   const data = useApp((s) => s.data)

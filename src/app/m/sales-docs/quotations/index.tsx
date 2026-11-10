@@ -18,11 +18,19 @@ import { EmptyState, StatTile } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { ChevronRight, FileText, Plus } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopQuotations } from '@/ui/desktop/Quotations'
 
 type Filter = '' | 'open' | QuoteStatus
 
 /** Quotations: what has been offered to customers, what is still open and what turned into a bill. */
 export default function Quotations() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopQuotations />
+  return <MobileQuotations />
+}
+
+function MobileQuotations() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('pos')

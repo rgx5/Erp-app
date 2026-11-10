@@ -14,11 +14,19 @@ import { EmptyState } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { ChevronRight, Plus, Scissors } from '@/ui/icons'
 import { useTheme, type Tone } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopJobs } from '@/ui/desktop/Jobs'
 
 const TONE: Record<JobStatus, Tone> = { received: 'default', in_production: 'primary', ready: 'success', delivered: 'default', cancelled: 'danger' }
 
 /** Customers' orders: made to order, and job work on their own material. */
 export default function Jobs() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopJobs />
+  return <MobileJobs />
+}
+
+function MobileJobs() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('pos')

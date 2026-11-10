@@ -19,11 +19,19 @@ import { T } from '@/ui/Text'
 import { Check, ClipboardList, Settings } from '@/ui/icons'
 import { toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopReorder } from '@/ui/desktop/CatalogReorder'
 
 interface Over { off?: boolean; qty?: string; supplierId?: string }
 
 /** What to order now, grouped by supplier. Choose what to include, adjust quantities, and make draft purchase orders. */
 export default function Reorder() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopReorder />
+  return <MobileReorder />
+}
+
+function MobileReorder() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('purchases')

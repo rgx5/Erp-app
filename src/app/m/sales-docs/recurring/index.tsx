@@ -14,11 +14,19 @@ import { EmptyState, Notice } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { ChevronRight, Plus, Repeat } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopRecurring } from '@/ui/desktop/Recurring'
 
 type Filter = '' | 'subscription' | 'amc' | 'paused'
 
 /** Recurring invoices and AMC contracts: what bills itself on a schedule, and what is due now. */
 export default function Recurring() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopRecurring />
+  return <MobileRecurring />
+}
+
+function MobileRecurring() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('salesDocs')

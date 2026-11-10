@@ -15,9 +15,17 @@ import { KV, Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { Printer, Send, Share } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopShiftReport } from '@/ui/desktop/ShiftReport'
 
 /** One shift's report: where the drawer started, what moved, what it should hold and what was counted. */
 export default function ShiftReport() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopShiftReport />
+  return <MobileShiftReport />
+}
+
+function MobileShiftReport() {
   const { c } = useTheme()
   const { id } = useLocalSearchParams<{ id: string }>()
   const can = useCan('pos')

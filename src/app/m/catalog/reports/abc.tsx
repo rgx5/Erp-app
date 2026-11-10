@@ -12,6 +12,8 @@ import { Badge, Card, Chip } from '@/ui/primitives'
 import { EmptyState, KV, ListRow } from '@/ui/blocks'
 import { ChartColumn } from '@/ui/icons'
 import { useTheme, type Tone } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopAbc } from '@/ui/desktop/CatalogAbc'
 
 const PERIODS = [30, 90, 180, 365]
 const TONE: Record<AbcClass, Tone> = { A: 'success', B: 'primary', C: 'default' }
@@ -19,6 +21,12 @@ const MEANING: Record<AbcClass, string> = { A: 'the few that make most of your s
 
 /** ABC analysis: which items make the business. */
 export default function AbcScreen() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopAbc />
+  return <MobileAbcScreen />
+}
+
+function MobileAbcScreen() {
   const { c } = useTheme()
   const can = useCan('reports')
   const profitOk = useCan('viewProfit')

@@ -21,6 +21,8 @@ import { T } from '@/ui/Text'
 import { Camera, Cloud, Image as ImageIcon, Paperclip, Star, Trash } from '@/ui/icons'
 import { ask, toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopItemCatalog } from '@/ui/desktop/CatalogItemDetail'
 
 const kb = (n: number) => (n >= 1_048_576 ? `${(n / 1_048_576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`)
 
@@ -41,6 +43,7 @@ export default function ItemCatalog() {
   const [busy, setBusy] = useState(false)
   const online = !!uploadTarget()
 
+  const { isDesktop } = useBreakpoint()
   if (!can) return <NoAccess title="Photos & details" who="the owner and managers" />
   if (!product) return <Screen title="Photos & details" back><T tone="mute">This item no longer exists.</T></Screen>
 
@@ -75,6 +78,18 @@ export default function ItemCatalog() {
       perform((s, ctx) => setCustomValues(s, id, draft, ctx))
       setDraft({}); toast('Saved', 'ok')
     } catch (e) { toast(e instanceof OpError ? e.message : 'Could not save', 'err') }
+  }
+
+  if (isDesktop) {
+    return (
+      <DesktopItemCatalog
+        product={product} mine={mine} defs={defs} saved={saved} draft={draft} setDraft={setDraft} open={open} setOpen={setOpen}
+        busy={busy} online={online} dirty={dirty}
+        onAttach={(kind) => void attach(kind)} onRemove={(a) => void remove(a)} onUpload={(a) => void upload(a)}
+        onMakePrimary={(a) => { perform((s) => setPrimaryPhoto(s, a.id)); setOpen(null) }}
+        onSaveFields={saveFields}
+      />
+    )
   }
 
   return (
