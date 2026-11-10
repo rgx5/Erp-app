@@ -17,6 +17,8 @@ import { useTheme } from '@/ui/theme'
 import { expirePackage, reverseUse, setPackageFrozen } from '@/modules/services/ops'
 import { isReversible, packageStatus, remainingValue, sessionsLeft, STATUS_LABEL, usesOf } from '@/modules/services/logic/packages'
 import { act, Denied, PACKAGE_TONE } from '@/modules/services/ui/common'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopPackageDetail } from '@/ui/desktop/ServicesPackageDetail'
 
 const USE_LABEL = { use: 'Used', reversal: 'Given back', expiry: 'Lapsed' } as const
 
@@ -29,6 +31,7 @@ export default function PackageView() {
   const manager = useCan('servicesManage')
   const data = useApp((s) => s.data)
   const now = Date.now()
+  const { isDesktop } = useBreakpoint()
   const p = data.customerPackages?.[id]
   const [note, setNote] = useState('')
   const [freezing, setFreezing] = useState<boolean | null>(null)
@@ -50,6 +53,18 @@ export default function PackageView() {
   function reverse() {
     if (!reason.trim()) return
     if (act((s, ctx) => reverseUse(s, reverseId!, reason, ctx), 'Session given back')) { setReverseId(null); setReason('') }
+  }
+
+  if (isDesktop) {
+    const reversibleIds = new Set(uses.filter((u) => isReversible(data, u)).map((u) => u.id))
+    return (
+      <DesktopPackageDetail
+        p={p} customer={customer} uses={uses} now={now} manager={manager} reversibleIds={reversibleIds}
+        freeze={freeze} lapse={lapse}
+        note={note} setNote={setNote} freezing={freezing} setFreezing={setFreezing}
+        reverseId={reverseId} setReverseId={setReverseId} reason={reason} setReason={setReason} reverse={reverse}
+      />
+    )
   }
 
   return (

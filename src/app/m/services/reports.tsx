@@ -25,6 +25,8 @@ import {
 import { visitLog, VISIT_LABEL } from '@/modules/services/logic/visits'
 import { listOf } from '@/data/state'
 import { Denied, JOB_TONE, PACKAGE_TONE, useTeam, VISIT_TONE } from '@/modules/services/ui/common'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopServicesReports } from '@/ui/desktop/ServicesReports'
 
 type Tab = 'appointments' | 'utilisation' | 'packages' | 'jobs' | 'projects' | 'timesheets' | 'visits'
 const TABS: Array<[Tab, string]> = [['appointments', 'Appointments'], ['utilisation', 'Utilisation'], ['packages', 'Packages'], ['jobs', 'Repairs'], ['projects', 'Projects'], ['timesheets', 'Timesheets'], ['visits', 'Visits']]
@@ -32,6 +34,12 @@ const RANGED: Tab[] = ['appointments', 'utilisation', 'timesheets', 'visits']
 
 /** Every Services report, one screen with a tab per topic — the numbers plus a CSV to hand to the accountant. */
 export default function ServiceReports() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopServicesReports />
+  return <MobileServiceReports />
+}
+
+function MobileServiceReports() {
   const { c } = useTheme()
   const params = useLocalSearchParams<{ tab?: string }>()
   const can = useCan('services')

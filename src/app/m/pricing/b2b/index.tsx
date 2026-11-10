@@ -23,9 +23,17 @@ import { T } from '@/ui/Text'
 import { ChevronLeft, ChevronRight, Download, FileText, Settings } from '@/ui/icons'
 import { toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopB2BHome } from '@/ui/desktop/PricingB2B'
 
 /** GST invoices to businesses: the register for the month, and each invoice's e-invoice / e-way bill status. */
 export default function B2BHome() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopB2BHome />
+  return <MobileB2BHome />
+}
+
+function MobileB2BHome() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('pricing')

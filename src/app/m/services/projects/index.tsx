@@ -13,12 +13,20 @@ import type { Tone } from '@/ui/theme'
 import { projectBoard, PROJECT_LABEL } from '@/modules/services/logic/projects'
 import { Denied } from '@/modules/services/ui/common'
 import type { ProjectStatus } from '@/modules/services/types'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopServicesProjects } from '@/ui/desktop/ServicesProjects'
 
 const TONE: Record<ProjectStatus, Tone> = { active: 'primary', on_hold: 'warning', completed: 'success', cancelled: 'default' }
 type Filter = ProjectStatus | 'all'
 
 /** Projects: tasks, hours worked, and what is billed and what is still owed. */
 export default function Projects() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopServicesProjects />
+  return <MobileProjects />
+}
+
+function MobileProjects() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('services')

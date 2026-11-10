@@ -20,6 +20,8 @@ import { packagePlanLabel, usableFor } from '@/modules/services/logic/packages'
 import { billAppointment, completeWithPackage, markReminded, setAppointmentStatus } from '@/modules/services/ops'
 import { act, APPT_TONE, Denied, shareText, useShopName, whatsApp } from '@/modules/services/ui/common'
 import type { ApptStatus } from '@/modules/services/types'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopAppointmentDetail } from '@/ui/desktop/ServicesAppointmentDetail'
 
 type Mode = 'cash' | 'upi' | 'card' | 'due'
 
@@ -31,6 +33,7 @@ export default function AppointmentView() {
   const can = useCan('services')
   const data = useApp((s) => s.data)
   const shop = useShopName()
+  const { isDesktop } = useBreakpoint()
   const a = data.appointments?.[id]
   const [reason, setReason] = useState('')
   const [to, setTo] = useState<ApptStatus | null>(null)
@@ -58,6 +61,20 @@ export default function AppointmentView() {
   function bill_() {
     const r = act((s, ctx) => billAppointment(s, a!.id, [{ mode, amount: total }], ctx), 'Billed')
     if (r) { setPaying(false); router.push({ pathname: '/bills/[id]', params: { id: r.bill.id } } as never) }
+  }
+  function useForPackage(packageId: string) { if (act((s, ctx) => completeWithPackage(s, a!.id, packageId, ctx), 'Session used')) toast('Done', 'ok') }
+
+  if (isDesktop) {
+    return (
+      <DesktopAppointmentDetail
+        a={a} res={res} bill={bill} total={total} pkgs={pkgs} paid={paid} hasDue={hasDue}
+        reminder={reminder} confirmation={confirmationText(data, a, shop)} missed={missedText(a, shop)} phone={phone}
+        move={move} sendReminder={sendReminder}
+        reason={reason} setReason={setReason} to={to} setTo={setTo}
+        paying={paying} setPaying={setPaying} mode={mode} setMode={setMode} billAppt={bill_}
+        onUsePackage={useForPackage}
+      />
+    )
   }
 
   return (

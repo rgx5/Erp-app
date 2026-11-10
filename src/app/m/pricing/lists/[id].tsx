@@ -19,6 +19,8 @@ import { T } from '@/ui/Text'
 import { Plus, Trash } from '@/ui/icons'
 import { ask, toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopPriceListDetail } from '@/ui/desktop/PricingListDetail'
 
 /** One price list: how it prices items by default, the items that have their own price on it, and who is on it. */
 export default function PriceListPage() {
@@ -49,6 +51,7 @@ export default function PriceListPage() {
     return ids.map((vid) => ({ vid, v: byId.get(vid), saved: own.find((x) => x.variantId === vid)?.price })).filter((r) => r.v)
   }, [own, edits, byId])
   const people = existing ? customers.filter((x) => x.priceListId === existing.id) : []
+  const { isDesktop } = useBreakpoint()
 
   if (!can) return <Screen title="Price list" back><T tone="mute">Price lists are for the owner and managers.</T></Screen>
   if (id && id !== 'new' && !existing) return <Screen title="Not found" back><T tone="mute">This price list is no longer here.</T></Screen>
@@ -81,6 +84,30 @@ export default function PriceListPage() {
     try { perform((s, ctx) => deletePriceList(s, existing.id, ctx)); router.back() } catch (e) { fail(e, 'Could not delete') }
   }
   const dirty = Object.keys(edits).length > 0
+
+  function removeCustomer(customerId: string) {
+    try { perform((s, ctx) => assignPriceList(s, customerId, '', ctx)) } catch (e) { fail(e, 'Could not change') }
+  }
+  function pickItem(v: { id: string; price: number; mrp: number; cost: number }) {
+    setEdits((cur) => (v.id in cur ? cur : { ...cur, [v.id]: String(round2(listPrice(existing ?? rule, { price: v.price, mrp: v.mrp, cost: v.cost }))) }))
+  }
+
+  if (isDesktop) {
+    return (
+      <DesktopPriceListDetail
+        existing={existing} busy={busy}
+        name={name} setName={setName} tier={tier} setTier={setTier} basis={basis} setBasis={setBasis}
+        pct={pct} setPct={setPct} roundTo={roundTo} setRoundTo={setRoundTo} active={active} setActive={setActive} notes={notes} setNotes={setNotes}
+        rule={rule}
+        rows={rows.map((r) => ({ id: r.vid, vid: r.vid, v: r.v!, saved: r.saved }))} edits={edits}
+        setEdit={(vid, t) => setEdits({ ...edits, [vid]: t })} clearEdit={(vid) => setEdits({ ...edits, [vid]: '' })} dirty={dirty}
+        people={people}
+        picking={picking} setPicking={setPicking}
+        onSave={save} onSavePrices={savePrices} onRemove={() => void remove()} onRemoveCustomer={removeCustomer}
+        onPickItem={pickItem}
+      />
+    )
+  }
 
   return (
     <Screen title={existing ? existing.name : 'New price list'} back footer={<Button label={existing ? 'Save list' : 'Create list'} size="lg" block loading={busy} onPress={save} disabled={!name.trim()} />}>

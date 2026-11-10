@@ -9,6 +9,8 @@ import { settingsOf } from '@/modules/services/logic/settings'
 import { saveProject } from '@/modules/services/ops'
 import type { ProjectBilling } from '@/modules/services/types'
 import { act, CustomerField, DateField, dayText, dayValue, Denied } from '@/modules/services/ui/common'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopProjectForm } from '@/ui/desktop/ServicesProjectForm'
 
 /** A new project (or editing one): what it is, who pays, and how it is billed. */
 export default function ProjectForm() {
@@ -27,6 +29,7 @@ export default function ProjectForm() {
   const [startDate, setStartDate] = useState(cur?.startDate ? dayText(cur.startDate) : '')
   const [dueDate, setDueDate] = useState(cur?.dueDate ? dayText(cur.dueDate) : '')
   const [notes, setNotes] = useState(cur?.notes ?? '')
+  const { isDesktop } = useBreakpoint()
 
   if (!can) return <Denied title="Project" who="Projects are for people who work at the counter." />
 
@@ -36,6 +39,16 @@ export default function ProjectForm() {
       ...(dayValue(startDate) !== undefined ? { startDate: dayValue(startDate) } : {}), ...(dayValue(dueDate) !== undefined ? { dueDate: dayValue(dueDate) } : {}),
     }, cur?.id, ctx), cur ? 'Saved' : 'Project started')
     if (r) router.replace({ pathname: '/m/services/projects/[id]', params: { id: r.project.id } })
+  }
+
+  if (isDesktop) {
+    return (
+      <DesktopProjectForm
+        cur={cur} name={name} setName={setName} customerId={customerId} setCustomerId={setCustomerId} billing={billing} setBilling={setBilling}
+        hourlyRate={hourlyRate} setHourlyRate={setHourlyRate} fixedAmount={fixedAmount} setFixedAmount={setFixedAmount} budgetHours={budgetHours} setBudgetHours={setBudgetHours}
+        startDate={startDate} setStartDate={setStartDate} dueDate={dueDate} setDueDate={setDueDate} notes={notes} setNotes={setNotes} onSave={save}
+      />
+    )
   }
 
   return (

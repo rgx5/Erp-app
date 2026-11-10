@@ -12,12 +12,20 @@ import { EmptyState, ListRow, Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { Plus, Tags } from '@/ui/icons'
 import { useTheme, type Tone } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopPriceLists } from '@/ui/desktop/PricingLists'
 
 const TONE: Record<Tier, Tone> = { retail: 'default', wholesale: 'primary', dealer: 'accent' }
 const BASIS = { price: 'selling price', mrp: 'MRP', cost: 'cost' } as const
 
 /** Price lists: retail, wholesale and dealer prices, and who buys on each. */
 export default function PriceLists() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopPriceLists />
+  return <MobilePriceLists />
+}
+
+function MobilePriceLists() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('pricing')

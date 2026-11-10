@@ -15,11 +15,19 @@ import { settingsOf } from '@/modules/services/logic/settings'
 import { removeServiceItem, saveServiceItem, saveServiceSettings } from '@/modules/services/ops'
 import type { ServiceItem } from '@/modules/services/types'
 import { act, Denied, TimeField, useVariantChoices, VariantSelect } from '@/modules/services/ui/common'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopServicesSettings } from '@/ui/desktop/ServicesSettings'
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 /** The shop's hours and booking rules, and how long each service takes. */
 export default function ServiceSettings() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopServicesSettings />
+  return <MobileServiceSettings />
+}
+
+function MobileServiceSettings() {
   const { c } = useTheme()
   const can = useCan('servicesManage')
   const data = useApp((s) => s.data)

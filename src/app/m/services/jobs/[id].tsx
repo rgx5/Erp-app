@@ -23,6 +23,8 @@ import { billJobCard, issuePart, returnPart, setJobLines, setJobStatus } from '@
 import { PhotoStrip } from '@/modules/services/ui/Photos'
 import type { JobLine, JobStatus } from '@/modules/services/types'
 import { act, Denied, JOB_TONE, useShopName, VariantSelect, whatsApp, shareText } from '@/modules/services/ui/common'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopJobDetail } from '@/ui/desktop/ServicesJobDetail'
 
 type Mode = 'cash' | 'upi' | 'card' | 'due'
 const MOVE_LABEL: Partial<Record<JobStatus, string>> = { estimated: 'Give estimate', approved: 'Approve', rejected: 'Refuse', in_work: 'Start work', ready: 'Mark ready', cancelled: 'Cancel' }
@@ -36,6 +38,7 @@ export default function JobView() {
   const data = useApp((s) => s.data)
   const shop = useShopName()
   const now = Date.now()
+  const { isDesktop } = useBreakpoint()
   const cur = data.jobCards?.[id]
 
   const [lines, setLines] = useState<JobLine[]>(cur?.lines ?? [])
@@ -59,8 +62,11 @@ export default function JobView() {
   const hasDue = paymentMethodList().some((m) => m.id === 'due') && !!cur.customerId
 
   function patch(lineId: string, p: Partial<JobLine>) { setLines((ls) => ls.map((l) => (l.id === lineId ? { ...l, ...p } : l))) }
+  function removeLine(lineId: string) { setLines((ls) => ls.filter((l) => l.id !== lineId)) }
   function addLabour() { setLines((ls) => [...ls, { id: newId('jl', now), kind: 'labour', name: '', qty: 1, price: 0 }]) }
   function saveLines() { const r = act((s, ctx) => setJobLines(s, cur!.id, lines, ctx), 'Estimate saved'); if (r) setLines(r.job.lines) }
+  function onIssuePart(lineId: string) { const remaining = toIssue(cur!).find((x) => x.line.id === lineId)?.remaining ?? 0; act((s, ctx) => issuePart(s, cur!.id, lineId, Number(issueQty[lineId] ?? remaining) || 0, ctx), 'Taken from stock') }
+  function onReturnPart(lineId: string) { const issued = cur!.lines.find((l) => l.id === lineId)?.issued ?? 0; act((s, ctx) => returnPart(s, cur!.id, lineId, Number(returnQty[lineId] ?? issued) || 0, ctx), 'Returned to stock') }
 
   function move(to: JobStatus) {
     if (to === 'approved') { setApprovedBy(''); setApproving(true); return }
@@ -74,6 +80,22 @@ export default function JobView() {
   function bill() {
     const r = act((s, ctx) => billJobCard(s, cur!.id, [{ mode, amount: totals.total }], ctx, { receivedBy }), 'Billed')
     if (r) { setBilling(false); router.push({ pathname: '/bills/[id]', params: { id: r.bill.id } } as never) }
+  }
+
+  if (isDesktop) {
+    return (
+      <DesktopJobDetail
+        cur={cur} data={data} shop={shop} now={now}
+        lines={lines} patch={patch} removeLine={removeLine} addLabour={addLabour} saveLines={saveLines} dirty={dirty}
+        issueQty={issueQty} setIssueQty={setIssueQty} returnQty={returnQty} setReturnQty={setReturnQty}
+        move={move}
+        approving={approving} setApproving={setApproving} approvedBy={approvedBy} setApprovedBy={setApprovedBy} approve={approve}
+        rejecting={rejecting} setRejecting={setRejecting} reason={reason} setReason={setReason} reject={reject}
+        delivering={delivering} setDelivering={setDelivering} receivedBy={receivedBy} setReceivedBy={setReceivedBy} deliver={deliver}
+        billing={billing} setBilling={setBilling} mode={mode} setMode={setMode} bill={bill}
+        onIssue={onIssuePart} onReturn={onReturnPart} hasDue={hasDue}
+      />
+    )
   }
 
   return (

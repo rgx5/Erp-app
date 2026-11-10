@@ -12,11 +12,19 @@ import { useTheme } from '@/ui/theme'
 import { isLate, isOpenJob, jobAgeDays, JOB_LABEL, jobBoard, jobTotals, KIND_LABEL } from '@/modules/services/logic/jobs'
 import { listOf } from '@/data/state'
 import { Denied, JOB_TONE } from '@/modules/services/ui/common'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopServicesJobs } from '@/ui/desktop/ServicesJobs'
 
 type Filter = 'open' | 'ready' | 'all'
 
 /** Job cards: repairs and work orders in for intake, estimate, work, and pickup. */
 export default function Jobs() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopServicesJobs />
+  return <MobileJobs />
+}
+
+function MobileJobs() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('services')

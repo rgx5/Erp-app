@@ -13,9 +13,17 @@ import { Bell, MessageCircle } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
 import { apptTitle, overdueBookings, reminderText, remindersDue } from '@/modules/services/logic/appointments'
 import { markReminded, setAppointmentStatus } from '@/modules/services/ops'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopServicesReminders } from '@/ui/desktop/ServicesReminders'
 
 /** Reminders to send (WhatsApp opens with the text ready — you press send) and bookings that passed without anyone arriving. */
 export default function Reminders() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopServicesReminders />
+  return <MobileReminders />
+}
+
+function MobileReminders() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('services')

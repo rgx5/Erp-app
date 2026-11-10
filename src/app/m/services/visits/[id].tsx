@@ -19,6 +19,8 @@ import { PhotoStrip } from '@/modules/services/ui/Photos'
 import { SignaturePad, SignatureView } from '@/modules/services/ui/Signature'
 import type { VisitSignature } from '@/modules/services/types'
 import { act, Denied, useShopName, VISIT_TONE, whatsApp, shareText } from '@/modules/services/ui/common'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopVisitDetail } from '@/ui/desktop/ServicesVisitDetail'
 
 /** A field visit: check in, write the report, get it signed, and finish. */
 export default function VisitView() {
@@ -29,6 +31,7 @@ export default function VisitView() {
   const data = useApp((s) => s.data)
   const shop = useShopName()
   const now = Date.now()
+  const { isDesktop } = useBreakpoint()
   const v = data.fieldVisits?.[id]
 
   const [place, setPlace] = useState('')
@@ -58,6 +61,22 @@ export default function VisitView() {
   }
   function complete(packageId?: string) { act((s, ctx) => completeVisit(s, v!.id, ctx, packageId ? { packageId } : {}), 'Visit completed') }
   function doCancel() { if (act((s, ctx) => cancelVisit(s, v!.id, reason, ctx), 'Cancelled')) setCancelling(false) }
+
+  if (isDesktop) {
+    return (
+      <DesktopVisitDetail
+        v={v} now={now} shop={shop} techName={data.users[v.userId]?.name ?? '—'} pkgs={pkgs}
+        place={place} setPlace={setPlace} checking={checking} setChecking={setChecking} doCheckIn={doCheckIn}
+        summary={summary} setSummary={setSummary} workDone={workDone} setWorkDone={setWorkDone}
+        issues={issues} setIssues={setIssues} nextSteps={nextSteps} setNextSteps={setNextSteps}
+        notes={notes} setNotes={setNotes} photos={photos} setPhotos={setPhotos} saveReport={saveReport}
+        sigKind={sigKind} setSigKind={setSigKind} sigName={sigName} setSigName={setSigName}
+        strokes={strokes} setStrokes={setStrokes} saveSignature={saveSignature}
+        complete={complete}
+        cancelling={cancelling} setCancelling={setCancelling} reason={reason} setReason={setReason} doCancel={doCancel}
+      />
+    )
+  }
 
   return (
     <Screen title={v.no} subtitle={v.partyName} back

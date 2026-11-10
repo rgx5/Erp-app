@@ -20,6 +20,8 @@ import { T } from '@/ui/Text'
 import { Plus, Trash } from '@/ui/icons'
 import { ask, toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopPromotionForm } from '@/ui/desktop/PricingPromotionForm'
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const dateOk = (t: string) => !t || /^\d{4}-\d{2}-\d{2}$/.test(t)
@@ -58,6 +60,7 @@ export default function PromotionPage() {
   const [picking, setPicking] = useState<'scope' | 'bundle' | null>(null)
   const [busy, setBusy] = useState(false)
   const byId = useMemo(() => new Map(views.map((v) => [v.id, v])), [views])
+  const { isDesktop } = useBreakpoint()
 
   if (!can) return <Screen title="Promotion" back><T tone="mute">Promotions are for the owner and managers.</T></Screen>
   if (id && id !== 'new' && !existing) return <Screen title="Not found" back><T tone="mute">This promotion is no longer here.</T></Screen>
@@ -94,6 +97,27 @@ export default function PromotionPage() {
     ...(scope.categoryIds ?? []).map((k) => categories.find((x) => x.id === k)?.name ?? k),
     ...(scope.variantIds ?? []).map((v) => byId.get(v)?.productName ?? v),
   ]
+
+  if (isDesktop) {
+    return (
+      <DesktopPromotionForm
+        existing={existing} kind={kind} busy={busy} problem={problem}
+        name={name} setName={setName} active={active} setActive={setActive}
+        priority={priority} setPriority={setPriority} retailOnly={retailOnly} setRetailOnly={setRetailOnly}
+        from={from} setFrom={setFrom} to={to} setTo={setTo} dateOk={dateOk}
+        days={days} setDays={setDays} start={start} setStart={setStart} end={end} setEnd={setEnd}
+        scope={scope} toggle={toggle} setScopeAll={(v) => setScope(v ? { all: true } : {})}
+        buyQty={buyQty} setBuyQty={setBuyQty} getQty={getQty} setGetQty={setGetQty} getPct={getPct} setGetPct={setGetPct}
+        sameItem={sameItem} setSameItem={setSameItem}
+        offType={offType} setOffType={setOffType} offValue={offValue} setOffValue={setOffValue}
+        items={items} setItems={setItems} bundlePrice={bundlePrice} setBundlePrice={setBundlePrice} normal={normal}
+        categories={categories} byId={byId} scopeNames={scopeNames}
+        picking={picking} setPicking={setPicking}
+        onPick={(v) => { if (picking === 'bundle') setItems((cur) => (cur.some((x) => x.variantId === v.id) ? cur : [...cur, { variantId: v.id, qty: '1' }])); else toggle('variantIds', v.id) }}
+        onSave={save} onRemove={() => void remove()}
+      />
+    )
+  }
 
   return (
     <Screen title={existing ? existing.name : `New ${PROMO_LABEL[kind].toLowerCase()}`} back footer={<Button label="Save promotion" size="lg" block loading={busy} onPress={save} disabled={!!problem && !!name} />}>

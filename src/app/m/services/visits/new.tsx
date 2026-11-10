@@ -9,6 +9,8 @@ import { Screen } from '@/ui/Screen'
 import { toast } from '@/ui/overlays'
 import { saveVisit } from '@/modules/services/ops'
 import { act, CustomerField, DateField, dayText, Denied, momentOf, TimeField, timeText, useTeam } from '@/modules/services/ui/common'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopVisitForm } from '@/ui/desktop/ServicesVisitForm'
 
 /** Plans a visit to a customer's place for someone on the team. */
 export default function VisitForm() {
@@ -34,6 +36,7 @@ export default function VisitForm() {
 
   const projects = listOf(data.projects ?? {}).filter((x) => x.status === 'active')
   const jobs = listOf(data.jobCards ?? {}).filter((x) => x.status !== 'delivered' && x.status !== 'cancelled')
+  const { isDesktop } = useBreakpoint()
 
   if (!can) return <Denied title="Field visit" who="Field visits are for people who work at the counter." />
   if (cur && cur.status !== 'planned') return <Denied title={cur.no} who="Only a planned visit can be changed." />
@@ -45,6 +48,17 @@ export default function VisitForm() {
       customerId, partyName: name, partyPhone: phone, address, purpose, plannedAt, notes, ...(userId ? { userId } : {}), ...(projectId ? { projectId } : {}), ...(jobCardId ? { jobCardId } : {}),
     }, cur?.id, ctx), cur ? 'Saved' : 'Visit planned')
     if (r) router.replace({ pathname: '/m/services/visits/[id]', params: { id: r.visit.id } })
+  }
+
+  if (isDesktop) {
+    return (
+      <DesktopVisitForm
+        cur={cur} customerId={customerId} setCustomerId={setCustomerId} name={name} setName={setName} phone={phone} setPhone={setPhone}
+        address={address} setAddress={setAddress} purpose={purpose} setPurpose={setPurpose} team={team} userId={userId} setUserId={setUserId}
+        day={day} setDay={setDay} time={time} setTime={setTime} projects={projects} projectId={projectId} setProjectId={setProjectId}
+        jobs={jobs} jobCardId={jobCardId} setJobCardId={setJobCardId} notes={notes} setNotes={setNotes} onSave={save}
+      />
+    )
   }
 
   return (

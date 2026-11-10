@@ -17,6 +17,8 @@ import { canEditAppt, noShowProblem } from '@/modules/services/logic/appointment
 import { activeResources, bufferOf, canDo, durationOf, freeSlots } from '@/modules/services/logic/calendar'
 import { saveAppointment } from '@/modules/services/ops'
 import { act, CustomerField, DateField, Denied, dayText, dayValue, momentOf, TimeField, timeText, VariantSelect } from '@/modules/services/ui/common'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopAppointmentForm } from '@/ui/desktop/ServicesAppointmentForm'
 
 interface Row { variantId: string; name: string; price: string; duration: string }
 
@@ -39,6 +41,7 @@ export default function AppointmentForm() {
   const [time, setTime] = useState(p.start && new Date(startMs).getHours() === 0 && !cur ? '' : timeText(startMs))
   const [notes, setNotes] = useState(cur?.notes ?? '')
   const [override, setOverride] = useState(false)
+  const { isDesktop } = useBreakpoint()
 
   const resources = activeResources(data).filter((r) => canDo(r, rows.map((x) => x.variantId)))
   useEffect(() => { if (resourceId && !resources.some((r) => r.id === resourceId) && rows.length) setResourceId('') }, [rows.length]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -59,6 +62,18 @@ export default function AppointmentForm() {
       services: rows.map((x) => ({ variantId: x.variantId, price: Number(x.price) || 0, durationMin: Number(x.duration) || undefined })),
     }, cur?.id, ctx), cur ? 'Appointment changed' : 'Booked')
     if (r) router.replace({ pathname: '/m/services/appointments/[id]', params: { id: r.appointment.id } })
+  }
+
+  if (isDesktop) {
+    return (
+      <DesktopAppointmentForm
+        cur={cur} customerId={customerId} setCustomerId={setCustomerId} name={name} setName={setName} phone={phone} setPhone={setPhone}
+        rows={rows} setRows={setRows} onAddService={(v, ch) => setRows([...rows, { variantId: v, name: ch.name, price: String(ch.price), duration: String(durationOf(data, v)) }])}
+        resources={resources} resourceId={resourceId} setResourceId={setResourceId} day={day} setDay={setDay} time={time} setTime={setTime}
+        notes={notes} setNotes={setNotes} manager={manager} override={override} setOverride={setOverride}
+        warn={warn} slots={slots} minutes={minutes} total={total} onSave={save}
+      />
+    )
   }
 
   return (

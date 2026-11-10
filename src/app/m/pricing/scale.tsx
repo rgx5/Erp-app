@@ -18,6 +18,8 @@ import { KV, Notice, Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { toast } from '@/ui/overlays'
 import type { VariantView } from '@/domain/views'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopScaleBarcodes } from '@/ui/desktop/PricingScale'
 
 const KINDS: Array<{ value: ScaleValueKind; label: string }> = [
   { value: 'weight_g', label: 'Grams' }, { value: 'weight_10g', label: '10 g' }, { value: 'price_rupees', label: '₹' }, { value: 'price_paise', label: 'Paise' },
@@ -25,6 +27,12 @@ const KINDS: Array<{ value: ScaleValueKind; label: string }> = [
 
 /** Weighing-scale and price-embedded barcodes: how the labels are laid out, a tester, and a label maker. */
 export default function ScaleBarcodes() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopScaleBarcodes />
+  return <MobileScaleBarcodes />
+}
+
+function MobileScaleBarcodes() {
   const can = useCan('pricing')
   const saved = useApp((s) => s.data.pricingSettings?.settings?.scale)
   const data = useApp((s) => s.data)

@@ -19,6 +19,8 @@ import { Badge, Card } from '@/ui/primitives'
 import { KV, Notice, Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { ask, toast } from '@/ui/overlays'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopB2BBillPage } from '@/ui/desktop/PricingB2BBill'
 
 const STOPS = 'This app stops at the file. Upload it on the government portal; it cannot be registered from here.'
 
@@ -28,8 +30,16 @@ export default function B2BBill() {
   const can = useCan('pricing')
   const bill = useApp((s) => s.data.bills[billId])
   const [tab, setTab] = useState<'einvoice' | 'eway'>('einvoice')
+  const { isDesktop } = useBreakpoint()
   if (!can) return <Screen title="GST invoice" back><T tone="mute">GST invoices are for the owner and managers.</T></Screen>
   if (!bill) return <Screen title="Not found" back><T tone="mute">This bill is no longer here.</T></Screen>
+  if (isDesktop) {
+    return (
+      <DesktopB2BBillPage bill={bill} tab={tab} setTab={setTab}>
+        {tab === 'einvoice' ? <EInvoice billId={bill.id} /> : <Eway billId={bill.id} />}
+      </DesktopB2BBillPage>
+    )
+  }
   return (
     <Screen title={bill.no} subtitle={`${fmtDate(bill.date)} · ${inr(Math.abs(bill.total))}`} back>
       <View style={{ gap: 14, paddingBottom: 24 }}>

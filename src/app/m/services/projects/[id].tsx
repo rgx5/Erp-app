@@ -20,6 +20,8 @@ import { deleteTask, deleteTime, editTime, invoiceFixedFee, invoiceTimesheet, lo
 import { paymentMethodList } from '@/modules/registry'
 import type { ProjectStatus, ProjectTask, TaskStatus, TimeEntry } from '@/modules/services/types'
 import { act, DateField, dayText, dayValue, Denied, useTeam } from '@/modules/services/ui/common'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopProjectDetail } from '@/ui/desktop/ServicesProjectDetail'
 
 const STATUS_TONE: Record<ProjectStatus, Tone> = { active: 'primary', on_hold: 'warning', completed: 'success', cancelled: 'default' }
 const TASK_TONE: Record<TaskStatus, Tone> = { todo: 'default', doing: 'warning', done: 'success' }
@@ -63,6 +65,7 @@ export default function ProjectView() {
   const [label, setLabel] = useState('')
 
   const team = useTeam()
+  const { isDesktop } = useBreakpoint()
   if (!can) return <Denied title="Project" who="Projects are for people who work at the counter." />
   if (!p) return <Screen title="Not found" back><T tone="mute">This project is no longer here.</T></Screen>
   const summary = projectSummary(data, p, now)
@@ -107,6 +110,31 @@ export default function ProjectView() {
   function invoiceFee() {
     const r = act((s, ctx) => invoiceFixedFee(s, p!.id, Number(amount) || 0, label, [{ mode, amount: Number(amount) || 0 }], ctx), 'Billed')
     if (r) { setInvoicing(false); router.push({ pathname: '/bills/[id]', params: { id: r.bill.id } } as never) }
+  }
+  function setProjectStatus_(s: ProjectStatus) { act((st, ctx) => setProjectStatus(st, p!.id, s, ctx)) }
+  function cycleTaskStatus(t: ProjectTask) { act((s, ctx) => setTaskStatus(s, t.id, TASK_NEXT[t.status], ctx)) }
+
+  if (isDesktop) {
+    return (
+      <DesktopProjectDetail
+        p={p} data={data} now={now} team={team}
+        tasks={tasks} myTimerHere={myTimerHere} mine={mine} hasDue={hasDue}
+        startTask_={startTask_} openTask={openTask} saveTask_={saveTask_} deleteTask_={deleteTask_} cycleTaskStatus={cycleTaskStatus}
+        editTask={editTask} setEditTask={setEditTask} taskTitle={taskTitle} setTaskTitle={setTaskTitle} taskAssignee={taskAssignee} setTaskAssignee={setTaskAssignee}
+        taskHours={taskHours} setTaskHours={setTaskHours} taskDue={taskDue} setTaskDue={setTaskDue} taskBillable={taskBillable} setTaskBillable={setTaskBillable}
+        doStart={doStart} doStop={doStop}
+        starting={starting} setStarting={setStarting} startTask={startTask} setStartTask={setStartTask}
+        startBillable={startBillable} setStartBillable={setStartBillable} startNote={startNote} setStartNote={setStartNote}
+        openNewEntry={openNewEntry} openEntry={openEntry} saveEntry={saveEntry} deleteEntry={deleteEntry}
+        editEntry={editEntry} setEditEntry={setEditEntry}
+        entryDate={entryDate} setEntryDate={setEntryDate} entryMin={entryMin} setEntryMin={setEntryMin}
+        entryTask={entryTask} setEntryTask={setEntryTask} entryBillable={entryBillable} setEntryBillable={setEntryBillable} entryNote={entryNote} setEntryNote={setEntryNote}
+        billHours={billHours} invoiceFee={invoiceFee}
+        billing={billing} setBilling={setBilling} mode={mode} setMode={setMode}
+        invoicing={invoicing} setInvoicing={setInvoicing} amount={amount} setAmount={setAmount} label={label} setLabel={setLabel}
+        setProjectStatus_={setProjectStatus_}
+      />
+    )
   }
 
   return (

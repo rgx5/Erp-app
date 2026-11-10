@@ -17,12 +17,20 @@ import { T } from '@/ui/Text'
 import { Layers, Plus, Trash } from '@/ui/icons'
 import { ask, toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopQuantityBreaks } from '@/ui/desktop/PricingBreaks'
 
 interface Step { minQty: string; kind: 'pct' | 'price'; value: string }
 const TARGET_LABEL: Record<BreakTarget, string> = { variant: 'One item', product: 'A product (all sizes)', category: 'A category', all: 'Everything' }
 
 /** Quantity breaks: the more a customer buys, the less each costs. */
 export default function QuantityBreaks() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopQuantityBreaks />
+  return <MobileQuantityBreaks />
+}
+
+function MobileQuantityBreaks() {
   const { c } = useTheme()
   const can = useCan('pricing')
   const rules = useList('qtyBreakRules')

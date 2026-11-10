@@ -16,11 +16,19 @@ import { settingsOf } from '@/modules/services/logic/settings'
 import { deleteResource, saveResource } from '@/modules/services/ops'
 import type { ResourceKind, ServiceResource } from '@/modules/services/types'
 import { act, Denied, TimeField, useTeam, useVariantChoices } from '@/modules/services/ui/common'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopServicesResources } from '@/ui/desktop/ServicesResources'
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
 /** The columns of the calendar: staff and resources, with their own hours, days off and the services they do. */
 export default function Resources() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopServicesResources />
+  return <MobileResources />
+}
+
+function MobileResources() {
   const { c } = useTheme()
   const can = useCan('servicesManage')
   const data = useApp((s) => s.data)

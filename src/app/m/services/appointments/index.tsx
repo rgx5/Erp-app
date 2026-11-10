@@ -17,6 +17,8 @@ import { blockBox, dayBoard, weekBoard } from '@/modules/services/logic/calendar
 import { addDays, minutesLabel, sameDay } from '@/modules/services/logic/time'
 import { Denied, timeText } from '@/modules/services/ui/common'
 import type { Appointment, ApptStatus } from '@/modules/services/types'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopServicesAppointments } from '@/ui/desktop/ServicesAppointments'
 
 const PX = 1.1 // pixels per minute: a 30-minute booking is 33 high
 const COL = 150
@@ -24,6 +26,12 @@ const GUTTER = 46
 
 /** The calendar: one day with a column per person or resource, or a week at a glance. */
 export default function Appointments() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopServicesAppointments />
+  return <MobileAppointments />
+}
+
+function MobileAppointments() {
   const { c, radius } = useTheme()
   const router = useRouter()
   const can = useCan('services')

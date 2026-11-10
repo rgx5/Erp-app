@@ -13,11 +13,19 @@ import { useTheme } from '@/ui/theme'
 import { missedVisits, VISIT_LABEL } from '@/modules/services/logic/visits'
 import { Denied, VISIT_TONE } from '@/modules/services/ui/common'
 import type { VisitStatus } from '@/modules/services/types'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopServicesVisits } from '@/ui/desktop/ServicesVisits'
 
 type Filter = VisitStatus | 'all'
 
 /** Field visits: plan, check in, the report and the signature. */
 export default function Visits() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopServicesVisits />
+  return <MobileVisits />
+}
+
+function MobileVisits() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('services')

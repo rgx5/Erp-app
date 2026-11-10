@@ -11,6 +11,8 @@ import { IDENTIFIER_LABEL, KIND_LABEL, READING_LABEL } from '@/modules/services/
 import { PhotoStrip } from '@/modules/services/ui/Photos'
 import type { JobKind } from '@/modules/services/types'
 import { act, CustomerField, DateField, dayText, dayValue, Denied, useTeam } from '@/modules/services/ui/common'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopJobForm } from '@/ui/desktop/ServicesJobForm'
 
 const KINDS: JobKind[] = ['device', 'vehicle', 'appliance', 'other']
 
@@ -21,6 +23,7 @@ export default function JobForm() {
   const can = useCan('services')
   const data = useApp((s) => s.data)
   const team = useTeam()
+  const { isDesktop } = useBreakpoint()
   const cur = p.id ? data.jobCards?.[p.id] : undefined
 
   const [customerId, setCustomerId] = useState<string | null>(cur?.customerId ?? null)
@@ -47,6 +50,18 @@ export default function JobForm() {
       ...(assignedTo ? { assignedTo } : {}), ...(dayValue(promised) !== undefined ? { promisedAt: dayValue(promised) } : {}),
     }, cur?.id, ctx), cur ? 'Saved' : 'Job taken in')
     if (r) router.replace({ pathname: '/m/services/jobs/[id]', params: { id: r.job.id } })
+  }
+
+  if (isDesktop) {
+    return (
+      <DesktopJobForm
+        cur={cur} customerId={customerId} setCustomerId={setCustomerId} name={name} setName={setName} phone={phone} setPhone={setPhone}
+        kind={kind} setKind={setKind} title={title} setTitle={setTitle} identifier={identifier} setIdentifier={setIdentifier}
+        reading={reading} setReading={setReading} accessories={accessories} setAccessories={setAccessories} condition={condition} setCondition={setCondition}
+        problem={problem} setProblem={setProblem} photos={photos} setPhotos={setPhotos} team={team} assignedTo={assignedTo} setAssignedTo={setAssignedTo}
+        promised={promised} setPromised={setPromised} notes={notes} setNotes={setNotes} onSave={save}
+      />
+    )
   }
 
   return (

@@ -17,6 +17,8 @@ import { T } from '@/ui/Text'
 import { BadgePercent, Plus } from '@/ui/icons'
 import { toast } from '@/ui/overlays'
 import { useTheme, type Tone } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopPromotions } from '@/ui/desktop/PricingPromotions'
 
 const STATUS: Record<ReturnType<typeof promoStatus>, { label: string; tone: Tone }> = {
   running: { label: 'Running', tone: 'success' }, scheduled: { label: 'Scheduled', tone: 'primary' }, ended: { label: 'Ended', tone: 'default' }, off: { label: 'Off', tone: 'warning' },
@@ -28,6 +30,12 @@ const KIND_HINT: Record<PromoKind, string> = {
 
 /** Promotions: what is on, what each has taken off. */
 export default function Promotions() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopPromotions />
+  return <MobilePromotions />
+}
+
+function MobilePromotions() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('pricing')

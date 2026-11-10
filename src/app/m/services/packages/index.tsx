@@ -18,12 +18,20 @@ import { packagePlanLabel, packageStatus, planLine, STATUS_LABEL } from '@/modul
 import { sellPackage, savePlan } from '@/modules/services/ops'
 import type { PackageMode, PackagePlan, PackageStatus } from '@/modules/services/types'
 import { act, CustomerField, Denied, PACKAGE_TONE, useVariantChoices } from '@/modules/services/ui/common'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopServicesPackages } from '@/ui/desktop/ServicesPackages'
 
 type Filter = PackageStatus | 'all'
 const MODES: PackageMode[] = ['cash', 'upi', 'card', 'bank']
 
 /** The packages a customer has bought, the plans on offer, and the way to sell one. */
 export default function Packages() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopServicesPackages />
+  return <MobilePackages />
+}
+
+function MobilePackages() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('services')
