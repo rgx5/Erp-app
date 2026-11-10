@@ -10,6 +10,8 @@ import { Card, Chip } from '@/ui/primitives'
 import { Notice, Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { toast } from '@/ui/overlays'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopCampaignNew } from '@/ui/desktop/CrmCampaigns'
 import { buildAudience, MERGE_FIELDS, TEMPLATES, unknownFields } from '@/modules/crm/campaigns'
 import { createCampaign } from '@/modules/crm/ops'
 import { PRESET_SEGMENTS } from '@/modules/crm/segments'
@@ -36,6 +38,7 @@ export default function CampaignNew() {
     const a = buildAudience(data, audience, template, channel, Date.now())
     return a ? { n: a.recipients.length, noPhone: a.noPhone.length, optedOut: a.optedOut.length, sample: a.recipients[0]?.text ?? '' } : null
   }, [data, audience, template, channel])
+  const { isDesktop } = useBreakpoint()
 
   if (!can) return <Screen title="New campaign" back><T tone="mute">Campaigns are for the owner and managers.</T></Screen>
   const bad = unknownFields(template)
@@ -46,6 +49,11 @@ export default function CampaignNew() {
       router.replace({ pathname: '/m/crm/campaigns/[id]', params: { id: r.campaign.id } })
     } catch (e) { failWith(e) }
   }
+
+  if (isDesktop) {
+    return <DesktopCampaignNew name={name} setName={setName} channel={channel} setChannel={setChannel} audience={audience} setAudience={setAudience} template={template} setTemplate={setTemplate} audienceOptions={options} preview={preview} onSave={save} />
+  }
+
   return (
     <Screen title="New campaign" back footer={<Button label={preview ? `Build ${preview.n} messages` : 'Build messages'} size="lg" block onPress={save} />}>
       <View style={{ gap: 14, paddingBottom: 12 }}>

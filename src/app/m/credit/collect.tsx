@@ -20,6 +20,8 @@ import { T } from '@/ui/Text'
 import { ChevronRight, UserPlus } from '@/ui/icons'
 import { toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopCollect } from '@/ui/desktop/CreditCollect'
 
 /** Receive money from a customer against what they owe. The oldest bills are settled first; anything over is kept as an advance. */
 export default function Collect() {
@@ -42,6 +44,7 @@ export default function Collect() {
   const open = useMemo(() => dues?.bills.filter((b) => b.outstanding > 0) ?? [], [dues])
   const amt = round2(Number(amount) || 0)
   const split = useMemo(() => allocateOldestFirst(open, amt), [open, amt])
+  const { isDesktop } = useBreakpoint()
 
   if (!can) return <Screen title="Collect payment" back><T tone="mute">Taking payments on account is for the owner, managers and cashiers.</T></Screen>
 
@@ -56,6 +59,19 @@ export default function Collect() {
       toast(e instanceof OpError ? e.message : 'Could not record the payment', 'err')
       setSaving(false)
     }
+  }
+
+  if (isDesktop) {
+    return (
+      <>
+        <DesktopCollect
+          customer={customer} onPickCustomer={() => setPicking(true)} dues={dues} amount={amount} setAmount={setAmount}
+          mode={mode} setMode={setMode} ref={ref} setRef={setRef} note={note} setNote={setNote} open={open} split={split}
+          amt={amt} saving={saving} canSave={!!customerId && amt > 0} onSave={save}
+        />
+        <CustomerPicker visible={picking} onClose={() => setPicking(false)} selectedId={customerId} onPick={(cu) => setCustomerId(cu?.id ?? null)} />
+      </>
+    )
   }
 
   return (

@@ -13,9 +13,17 @@ import { EmptyState, StatTile } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { ChevronRight, Gift, Plus, Wallet } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopGiftCards } from '@/ui/desktop/CreditGiftcards'
 
 /** Gift cards and vouchers: sell one, see what is left on each and what the shop still owes card holders. */
 export default function GiftCards() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopGiftCards />
+  return <MobileGiftCards />
+}
+
+function MobileGiftCards() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('collections')

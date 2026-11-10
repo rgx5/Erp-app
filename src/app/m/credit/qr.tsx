@@ -15,12 +15,20 @@ import { T } from '@/ui/Text'
 import { MessageCircle, Share as ShareIcon } from '@/ui/icons'
 import { toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopUpiQr } from '@/ui/desktop/CreditQr'
 
 /**
  * A UPI QR code for an exact amount, and the same payment as a link to send. It is the standard UPI deep link, so any UPI app pays it.
  * The app cannot see whether the payer completed it — check the UPI app / SMS for the credit, then record the payment.
  */
 export default function UpiQr() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopUpiQr />
+  return <MobileUpiQr />
+}
+
+function MobileUpiQr() {
   const { c } = useTheme()
   const router = useRouter()
   const params = useLocalSearchParams<{ amount?: string; note?: string; ref?: string; customerId?: string }>()

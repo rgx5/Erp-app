@@ -9,6 +9,8 @@ import { EmptyState, Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { ListTodo, Plus } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopTasks } from '@/ui/desktop/CrmTasks'
 import { taskCounts, taskState, type TaskState } from '@/modules/crm/tasks'
 import { TaskRow, TaskSheet } from '@/modules/crm/ui/Work'
 
@@ -19,6 +21,12 @@ const GROUPS: Array<{ state: TaskState; title: string }> = [
 
 /** Everyone's tasks and reminders in the order to do them. */
 export default function Tasks() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopTasks />
+  return <MobileTasks />
+}
+
+function MobileTasks() {
   const { c } = useTheme()
   const can = useCan('customers')
   const tasks = useApp((s) => s.data.crmTasks)

@@ -14,6 +14,8 @@ import { T } from '@/ui/Text'
 import { Download, Megaphone, Pencil, Trash, Users } from '@/ui/icons'
 import { ask } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopSegmentView } from '@/ui/desktop/CrmSegments'
 import { deleteSegment } from '@/modules/crm/ops'
 import { segmentCsv, segmentFigures } from '@/modules/crm/reports'
 import { describeSegment, matchCtx, resolveAudience, segmentMembers } from '@/modules/crm/segments'
@@ -37,6 +39,8 @@ export default function SegmentView() {
     return { m, members, fig: segmentFigures(members, data, now) }
   }, [data, aud, now])
 
+  const { isDesktop } = useBreakpoint()
+
   if (!can) return <Screen title="Segment" back><T tone="mute">Segments are for people who use the billing counter.</T></Screen>
   if (!aud || !view) return <Screen title="Not found" back><T tone="mute">This segment is no longer here.</T></Screen>
   const custom = id !== 'all' && !id.startsWith('preset:')
@@ -44,6 +48,18 @@ export default function SegmentView() {
   async function remove() {
     if (!(await ask({ title: 'Delete this segment?', message: 'Customers are not affected. Campaigns already built from it keep their lists.', confirm: 'Delete', danger: true }))) return
     try { perform((s, ctx) => deleteSegment(s, id, ctx)); router.back() } catch (e) { failWith(e) }
+  }
+  function doExport() { void shareFile(csvFileName(`segment ${aud!.name}`), segmentCsv(view!.members, view!.m.stats, now)) }
+
+  if (isDesktop) {
+    return (
+      <DesktopSegmentView
+        id={id} name={aud.name} description={describeSegment(aud.def)} custom={custom} manage={manage}
+        count={view.fig.count} reachable={view.fig.reachable} spend={view.fig.spend}
+        members={view.members.map((m) => { const s = statsOf(view.m.stats, m.id); return { id: m.id, name: m.name, phone: m.phone, optOutMarketing: m.optOutMarketing, spend: s.spend, lastAt: s.lastAt } })}
+        onExport={doExport} onDelete={() => void remove()}
+      />
+    )
   }
 
   return (

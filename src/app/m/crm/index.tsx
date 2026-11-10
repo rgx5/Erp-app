@@ -10,6 +10,8 @@ import { ListRow, Section, StatTile } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { ChartPie, Gift, Handshake, ListTodo, Megaphone, MessageSquare, Settings, Star, Ticket, Users } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopCrmHome } from '@/ui/desktop/Crm'
 import { npsSummary } from '@/modules/crm/feedback'
 import { pipelineSummary } from '@/modules/crm/leads'
 import { crmAlerts } from '@/modules/crm/reports'
@@ -18,6 +20,12 @@ import { ticketSummary } from '@/modules/crm/tickets'
 
 /** Customers & CRM: what needs attention today, and the way into segments, leads, tasks, campaigns, tickets and feedback. */
 export default function CrmHome() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopCrmHome />
+  return <MobileCrmHome />
+}
+
+function MobileCrmHome() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('customers')

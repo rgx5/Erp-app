@@ -18,6 +18,8 @@ import { T } from '@/ui/Text'
 import { ChevronRight, UserPlus } from '@/ui/icons'
 import { toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopTopup } from '@/ui/desktop/CreditTopup'
 
 /** A customer pays money in and gets the same amount as store credit, to spend on any bill. */
 export default function Topup() {
@@ -32,6 +34,7 @@ export default function Topup() {
   const [picking, setPicking] = useState(false)
   const customer = customers.find((x) => x.id === customerId) ?? null
   const amt = round2(Number(amount) || 0)
+  const { isDesktop } = useBreakpoint()
 
   if (!can) return <Screen title="Store-credit top-up" back><T tone="mute">Top-ups are for the owner, managers and cashiers.</T></Screen>
 
@@ -41,6 +44,15 @@ export default function Topup() {
       const r = perform((s, ctx) => topUpStoreCredit(s, { customerId, amount: amt, mode, ref }, ctx))
       toast(`${r.topup.no} · ${inr(amt, 0)} added as store credit`, 'ok'); router.back()
     } catch (e) { toast(e instanceof OpError ? e.message : 'Could not add the credit', 'err') }
+  }
+
+  if (isDesktop) {
+    return (
+      <>
+        <DesktopTopup customer={customer} onPickCustomer={() => setPicking(true)} amount={amount} setAmount={setAmount} mode={mode} setMode={setMode} ref={ref} setRef={setRef} amt={amt} canSave={!!customerId && amt > 0} onSave={save} />
+        <CustomerPicker visible={picking} onClose={() => setPicking(false)} selectedId={customerId} onPick={(cu) => setCustomerId(cu?.id ?? null)} />
+      </>
+    )
   }
 
   return (

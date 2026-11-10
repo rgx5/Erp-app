@@ -15,6 +15,8 @@ import { EmptyState, StatTile } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { ChevronRight, Download, Handshake, Plus } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopLeads } from '@/ui/desktop/CrmLeads'
 import { followUpState, isOpenLead, pipelineSummary, STAGES, STAGE_LABEL } from '@/modules/crm/leads'
 import { leadsCsv } from '@/modules/crm/reports'
 import type { LeadStage } from '@/modules/crm/types'
@@ -24,6 +26,12 @@ type Filter = 'open' | 'due' | LeadStage
 
 /** Leads and the sales pipeline: who is interested, how far along, and who to follow up today. */
 export default function Leads() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopLeads />
+  return <MobileLeads />
+}
+
+function MobileLeads() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('customers')

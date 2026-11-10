@@ -11,10 +11,18 @@ import { EmptyState, ListRow } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { Megaphone, Plus } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopCampaigns } from '@/ui/desktop/CrmCampaigns'
 import { campaignProgress, sendsOf } from '@/modules/crm/campaigns'
 
 /** Campaigns: a message built for a segment and worked through one customer at a time. */
 export default function Campaigns() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopCampaigns />
+  return <MobileCampaigns />
+}
+
+function MobileCampaigns() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('crm')

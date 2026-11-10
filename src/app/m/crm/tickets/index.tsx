@@ -13,6 +13,8 @@ import { EmptyState, StatTile } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { ChevronRight, Download, Plus, Ticket } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopTickets } from '@/ui/desktop/CrmTickets'
 import { ticketsCsv } from '@/modules/crm/reports'
 import { isOpenTicket, KIND_LABEL, slaLabel, slaState, STATUS_LABEL, ticketSummary } from '@/modules/crm/tickets'
 import type { TicketKind } from '@/modules/crm/types'
@@ -22,6 +24,12 @@ type Filter = 'open' | 'late' | 'settled' | TicketKind
 
 /** Complaints, after-sales requests and warranty claims, most urgent first. */
 export default function Tickets() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopTickets />
+  return <MobileTickets />
+}
+
+function MobileTickets() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('customers')

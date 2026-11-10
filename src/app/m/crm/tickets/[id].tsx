@@ -13,6 +13,8 @@ import { KV, Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { MessageCircle, Phone } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopTicketView } from '@/ui/desktop/CrmTickets'
 import { assignTicket, moveTicket, setTicketPriority } from '@/modules/crm/ops'
 import { settingsOf } from '@/modules/crm/settings'
 import { isOpenTicket, KIND_LABEL, nextStatuses, OUTCOME_LABEL, PRIORITY_LABEL, slaLabel, slaState, STATUS_LABEL, warrantyCover } from '@/modules/crm/tickets'
@@ -33,6 +35,7 @@ export default function TicketView() {
   const [note, setNote] = useState('')
   const [resolution, setResolution] = useState('')
   const [outcome, setOutcome] = useState<WarrantyOutcome | ''>('')
+  const { isDesktop } = useBreakpoint()
 
   if (!can) return <Screen title="Ticket" back><T tone="mute">Tickets are for people who use the billing counter.</T></Screen>
   if (!t) return <Screen title="Not found" back><T tone="mute">This ticket is no longer here.</T></Screen>
@@ -41,6 +44,8 @@ export default function TicketView() {
   const bill = t.billId ? data.bills[t.billId] : undefined
   const cover = bill && t.kind === 'warranty' ? warrantyCover(bill.date, settingsOf(data).warrantyMonths, t.openedAt) : null
   const team = Object.values(data.users).filter((u) => u.active)
+
+  if (isDesktop) return <DesktopTicketView t={t} bill={bill} cover={cover} team={team} />
 
   function go() {
     try {

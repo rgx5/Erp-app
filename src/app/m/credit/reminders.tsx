@@ -13,9 +13,17 @@ import { T } from '@/ui/Text'
 import { Bell, MessageCircle, Send, Share as ShareIcon } from '@/ui/icons'
 import { toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopReminders } from '@/ui/desktop/CreditReminders'
 
 /** Customers who are past their due date, each with a ready message to send on WhatsApp or SMS. */
 export default function Reminders() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopReminders />
+  return <MobileReminders />
+}
+
+function MobileReminders() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('collections')

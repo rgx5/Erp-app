@@ -11,6 +11,8 @@ import { Screen } from '@/ui/Screen'
 import { Notice } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { toast } from '@/ui/overlays'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopTicketNew } from '@/ui/desktop/CrmTickets'
 import { saveTicket } from '@/modules/crm/ops'
 import { settingsOf } from '@/modules/crm/settings'
 import { KIND_LABEL, PRIORITY_LABEL, warrantyCover } from '@/modules/crm/tickets'
@@ -36,6 +38,7 @@ export default function TicketNew() {
   const bills = useMemo(() => (customerId ? listOf(data.bills).filter((b) => b.customerId === customerId && !b.refundOfBillId && b.status !== 'held').sort((a, b) => b.date - a.date).slice(0, 40) : []), [data.bills, customerId])
   const bill = billId ? data.bills[billId] : undefined
   const cover = bill && kind === 'warranty' ? warrantyCover(bill.date, cfg.warrantyMonths, Date.now()) : null
+  const { isDesktop } = useBreakpoint()
 
   if (!can) return <Screen title="New ticket" back><T tone="mute">Tickets are for people who use the billing counter.</T></Screen>
   function save() {
@@ -45,6 +48,20 @@ export default function TicketNew() {
       router.replace({ pathname: '/m/crm/tickets/[id]', params: { id: r.ticket.id } })
     } catch (e) { failWith(e) }
   }
+
+  if (isDesktop) {
+    return (
+      <DesktopTicketNew
+        kind={kind} setKind={setKind} customerId={customerId} onCustomerChange={(cu) => { setCustomerId(cu?.id); setBillId('') }}
+        partyName={partyName} setPartyName={setPartyName} billId={billId}
+        onBillChange={(v) => { setBillId(v); const b = data.bills[v]; if (b && !itemName) setItemName(b.items[0]?.name ?? '') }}
+        itemName={itemName} setItemName={setItemName} serial={serial} setSerial={setSerial} subject={subject} setSubject={setSubject}
+        description={description} setDescription={setDescription} priority={priority} setPriority={setPriority} bills={bills}
+        cover={cover} warrantyMonths={cfg.warrantyMonths} slaHours={cfg.slaHours} onSave={save}
+      />
+    )
+  }
+
   return (
     <Screen title="New ticket" back footer={<Button label="Open ticket" size="lg" block onPress={save} />}>
       <View style={{ gap: 14, paddingBottom: 12 }}>

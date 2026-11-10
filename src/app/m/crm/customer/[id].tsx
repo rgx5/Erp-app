@@ -13,6 +13,8 @@ import { T } from '@/ui/Text'
 import { Gift, Plus } from '@/ui/icons'
 import { toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopCustomerCrm } from '@/ui/desktop/CrmCustomer'
 import { applyReferral, ensureReferralCode, setCustomerTags, setMarketingOptOut } from '@/modules/crm/ops'
 import { referralInvite } from '@/modules/crm/referrals'
 import { settingsOf } from '@/modules/crm/settings'
@@ -37,6 +39,7 @@ export default function CustomerCrm() {
   const cfg = settingsOf(data)
   const mem = useMemo(() => membershipOf(statsOf(statsByCustomer(data), id), now, cfg), [data, id, now, cfg])
   const tickets = useMemo(() => ticketsOfCustomer(data, id), [data, id])
+  const { isDesktop } = useBreakpoint()
 
   if (!can) return <Screen title="Customer" back><T tone="mute">This is for people who use the billing counter.</T></Screen>
   if (!customer) return <Screen title="Not found" back><T tone="mute">This customer is no longer here.</T></Screen>
@@ -50,8 +53,18 @@ export default function CustomerCrm() {
       await Share.share({ message: referralInvite(data.store?.name ?? 'our shop', customer!.name, r.code, cfg.refereeCredit) })
     } catch (e) { failWith(e) }
   }
-  function useCode() {
-    try { const r = perform((s, ctx) => applyReferral(s, id, code, ctx)); toast(`Referred by ${r.referrer.name}`, 'ok'); setCode('') } catch (e) { failWith(e) }
+  function useCode(enteredCode: string = code) {
+    try { const r = perform((s, ctx) => applyReferral(s, id, enteredCode, ctx)); toast(`Referred by ${r.referrer.name}`, 'ok'); setCode('') } catch (e) { failWith(e) }
+  }
+  const toggleMarketing = (allow: boolean) => { try { perform((s, ctx) => setMarketingOptOut(s, id, !allow, ctx)) } catch (e) { failWith(e) } }
+
+  if (isDesktop) {
+    return (
+      <DesktopCustomerCrm
+        id={id} customer={customer} manage={manage} mem={mem} cfg={cfg} tickets={tickets} now={now} referrer={referrer}
+        onSetTags={setTags} onInvite={() => void invite()} onUseCode={useCode} onToggleMarketing={toggleMarketing}
+      />
+    )
   }
 
   return (

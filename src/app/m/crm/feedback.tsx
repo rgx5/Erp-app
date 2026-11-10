@@ -13,6 +13,8 @@ import { T } from '@/ui/Text'
 import { MessageCircle, Star } from '@/ui/icons'
 import { toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopFeedback } from '@/ui/desktop/CrmFeedback'
 import { awaitingFeedback, feedbackList, feedbackRequest, isLowScore, npsClass, npsSummary } from '@/modules/crm/feedback'
 import { captureFeedback } from '@/modules/crm/ops'
 import { failWith } from '@/modules/crm/ui/forms'
@@ -21,6 +23,12 @@ const range = (a: number, b: number) => Array.from({ length: b - a + 1 }, (_, i)
 
 /** Ratings after a sale: record what a customer said, ask the ones who were not asked, and watch the score. */
 export default function Feedback() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopFeedback />
+  return <MobileFeedback />
+}
+
+function MobileFeedback() {
   const { c } = useTheme()
   const can = useCan('customers')
   const data = useApp((s) => s.data)

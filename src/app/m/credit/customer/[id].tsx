@@ -21,6 +21,8 @@ import { T } from '@/ui/Text'
 import { Download, MessageCircle, Pencil, QrCode, Send, Share as ShareIcon } from '@/ui/icons'
 import { toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopCustomerAccount } from '@/ui/desktop/CreditCustomer'
 
 /** One customer's credit account: what they owe and by when, their terms, a reminder, and the statement. */
 export default function CustomerAccount() {
@@ -44,6 +46,7 @@ export default function CustomerAccount() {
   const open = (dues?.bills ?? []).filter((b) => b.outstanding > 0).sort((a, b) => a.dueDate - b.dueDate)
   const statement = useMemo(() => customerStatement(data, id, now - 90 * DAY, now), [data, id, now])
   const reminder = useMemo(() => buildReminder(data, id, now, {}, rec), [data, id, now, rec])
+  const { isDesktop } = useBreakpoint()
 
   if (!can) return <Screen title="Credit account" back><T tone="mute">Credit accounts are for the owner, managers and cashiers.</T></Screen>
   if (!customer) return <Screen title="Not found" back><T tone="mute">This customer is no longer here.</T></Screen>
@@ -53,13 +56,25 @@ export default function CustomerAccount() {
     setDays(String(terms?.creditDays ?? st.creditDays)); setLimit(terms?.creditLimit ? String(terms.creditLimit) : ''); setBlocked(!!terms?.blocked); setNotes(terms?.notes ?? '')
     setEditing(true)
   }
-  function saveTerms() {
+  function saveTerms(d: { creditLimit: number; creditDays: number; blocked: boolean; notes: string } = { creditLimit: Number(limit) || 0, creditDays: Number(days), blocked, notes }) {
     try {
-      perform((s, ctx) => saveCustomerTerms(s, id, { creditLimit: Number(limit) || 0, creditDays: Number(days), blocked, notes }, ctx))
+      perform((s, ctx) => saveCustomerTerms(s, id, d, ctx))
       toast('Credit terms saved', 'ok'); setEditing(false)
     } catch (e) { toast(e instanceof OpError ? e.message : 'Could not save', 'err') }
   }
   const open_ = (url: string | null) => { if (url) Linking.openURL(url).catch(() => toast('Could not open the app', 'err')); else toast('This customer has no usable phone number', 'err') }
+
+  if (isDesktop) {
+    return (
+      <DesktopCustomerAccount
+        id={id} customer={customer} canTerms={canTerms} now={now} st={st} open={open} statement={statement} reminder={reminder}
+        statementShareText={statementText(data, statement)}
+        initialDays={String(terms?.creditDays ?? st.creditDays)} initialLimit={terms?.creditLimit ? String(terms.creditLimit) : ''}
+        initialBlocked={!!terms?.blocked} initialNotes={terms?.notes ?? ''}
+        onSaveTerms={saveTerms} onExportCsv={() => void shareFile(csvFileName(`statement ${customer.name}`), statementCsv(data, statement)).catch(() => toast('Could not export', 'err'))}
+      />
+    )
+  }
 
   return (
     <Screen title={customer.name} subtitle="Credit account" back

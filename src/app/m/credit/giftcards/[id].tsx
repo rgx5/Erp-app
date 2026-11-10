@@ -20,6 +20,8 @@ import { T } from '@/ui/Text'
 import { Plus, Share as ShareIcon, XCircle } from '@/ui/icons'
 import { ask, toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopGiftCardPage } from '@/ui/desktop/CreditGiftcards'
 
 const WORD = { issue: 'Loaded', redeem: 'Spent', refund: 'Refunded' } as const
 
@@ -34,6 +36,8 @@ export default function GiftCardPage() {
   const [adding, setAdding] = useState(false)
   const [amount, setAmount] = useState('')
   const [mode, setMode] = useState<CollectionMode>('cash')
+
+  const { isDesktop } = useBreakpoint()
 
   if (!can) return <Screen title="Gift card" back><T tone="mute">Gift cards are for the owner, managers and cashiers.</T></Screen>
   if (!card) return <Screen title="Not found" back><T tone="mute">This gift card is no longer here.</T></Screen>
@@ -50,6 +54,16 @@ export default function GiftCardPage() {
   async function cancel() {
     if (!(await ask({ title: `Cancel ${card!.code}?`, message: `${inr(balance, 0)} on it can no longer be spent.`, confirm: 'Cancel card', danger: true }))) return
     try { perform((s, ctx) => cancelGiftCard(s, card!.id, ctx)); toast('Card cancelled', 'ok') } catch (e) { toast(e instanceof OpError ? e.message : 'Could not cancel', 'err') }
+  }
+
+  if (isDesktop) {
+    return (
+      <DesktopGiftCardPage
+        card={card} shop={shop} balance={balance} expired={expired} txns={txns} customerName={data.customers[card.customerId ?? '']?.name}
+        adding={adding} setAdding={setAdding} amount={amount} setAmount={setAmount} mode={mode} setMode={setMode}
+        onRecharge={recharge} onCancel={() => void cancel()}
+      />
+    )
   }
 
   return (

@@ -10,10 +10,18 @@ import { ListRow, Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { Plus, Users } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopSegments } from '@/ui/desktop/CrmSegments'
 import { defOf, describeSegment, matchCtx, matchesSegment, PRESET_SEGMENTS } from '@/modules/crm/segments'
 
 /** Ready-made and saved segments, each with how many customers are in it today. */
 export default function Segments() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopSegments />
+  return <MobileSegments />
+}
+
+function MobileSegments() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('customers')

@@ -18,6 +18,8 @@ import { KV, Notice } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopReturnOnAccount } from '@/ui/desktop/CreditReturn'
 
 /**
  * Return goods from a bill that is still partly unpaid. What the customer owes comes down first; only what was really paid is
@@ -38,6 +40,7 @@ export default function ReturnOnAccount() {
   const lines = Object.entries(qty).map(([variantId, q]) => ({ variantId, qty: q })).filter((l) => l.qty > 0)
   const plan = useMemo(() => (bill ? planReturn(bill, creditNotesFor(bills, bill.id), lines) : null), [bill, bills, qty]) // eslint-disable-line react-hooks/exhaustive-deps
   const owed = bill?.customerId ? receivables(data).byCustomer[bill.customerId]?.bills.find((b) => b.billId === bill.id)?.outstanding ?? 0 : 0
+  const { isDesktop } = useBreakpoint()
 
   if (!can) return <Screen title="Return goods" back><T tone="mute">Returns are for people who can take sales.</T></Screen>
   if (!bill) return <Screen title="Not found" back><T tone="mute">This bill is no longer here.</T></Screen>
@@ -49,6 +52,10 @@ export default function ReturnOnAccount() {
       toast(`${r.creditNote.no} — ${inr(r.reducedDue, 0)} off what is owed${r.cashRefund ? `, ${inr(r.cashRefund, 0)} back in cash` : ''}`, 'ok')
       router.back()
     } catch (e) { toast(e instanceof OpError ? e.message : 'Could not process the return', 'err') }
+  }
+
+  if (isDesktop) {
+    return <DesktopReturnOnAccount bill={bill} owed={owed} qty={qty} setQty={setQty} reason={reason} setReason={setReason} reasonOptions={pack.returnReasons} plan={plan} against={against} onSave={submit} />
   }
 
   return (

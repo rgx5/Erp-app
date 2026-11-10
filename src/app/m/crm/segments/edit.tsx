@@ -12,6 +12,8 @@ import { T } from '@/ui/Text'
 import { Close, Plus } from '@/ui/icons'
 import { toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopSegmentEdit } from '@/ui/desktop/CrmSegments'
 import { saveSegment } from '@/modules/crm/ops'
 import { describeRule, segmentProblem } from '@/modules/crm/segments'
 import { settingsOf } from '@/modules/crm/settings'
@@ -56,6 +58,7 @@ export default function SegmentEdit() {
   const [when, setWhen] = useState<DatePeriod>('month')
   const [text, setText] = useState('')
   const [negate, setNegate] = useState(false)
+  const { isDesktop } = useBreakpoint()
 
   if (!can) return <Screen title="Segment" back><T tone="mute">Segments are for the owner and managers.</T></Screen>
 
@@ -88,6 +91,11 @@ export default function SegmentEdit() {
   }
 
   const minMax = kind === 'spend' || kind === 'orders' || kind === 'recency'
+
+  if (isDesktop) {
+    return <DesktopSegmentEdit existing={existing} name={name} setName={setName} match={match} setMatch={setMatch} rules={rules} setRules={setRules} note={note} setNote={setNote} tiers={tiers} onSave={save} />
+  }
+
   return (
     <Screen title={existing ? 'Edit segment' : 'New segment'} back footer={<Button label="Save segment" size="lg" block onPress={save} />}>
       <View style={{ gap: 14, paddingBottom: 12 }}>

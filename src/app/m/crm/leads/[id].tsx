@@ -15,6 +15,8 @@ import { T } from '@/ui/Text'
 import { Check, MessageCircle, Pencil, Phone, Trash } from '@/ui/icons'
 import { ask, toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopLeadView } from '@/ui/desktop/CrmLeads'
 import { followUpState, isOpenLead, stagesFrom, STAGE_LABEL } from '@/modules/crm/leads'
 import { convertLead, deleteLead, moveLead, setFollowUp } from '@/modules/crm/ops'
 import { DateField, dateText, dateValue, failWith } from '@/modules/crm/ui/forms'
@@ -33,11 +35,14 @@ export default function LeadView() {
   const [reason, setReason] = useState('')
   const [follow, setFollow] = useState('')
   const [dating, setDating] = useState(false)
+  const { isDesktop } = useBreakpoint()
 
   if (!can) return <Screen title="Lead" back><T tone="mute">Leads are for people who use the billing counter.</T></Screen>
   if (!lead) return <Screen title="Not found" back><T tone="mute">This lead is no longer here.</T></Screen>
   const open = isOpenLead(lead)
   const f = followUpState(lead, Date.now())
+
+  if (isDesktop) return <DesktopLeadView lead={lead} shop={shop} open={open} f={f} />
 
   const move = (stage: Parameters<typeof moveLead>[2], why = '') => {
     try { perform((s, ctx) => moveLead(s, lead.id, stage, ctx, why)); setLosing(false); setReason('') } catch (e) { failWith(e) }

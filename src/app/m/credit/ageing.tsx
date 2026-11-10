@@ -17,9 +17,17 @@ import { T } from '@/ui/Text'
 import { ChartColumn, Download } from '@/ui/icons'
 import { toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopAgeing } from '@/ui/desktop/CreditAgeing'
 
 /** Receivables ageing: what customers owe, grouped by how late it is. */
 export default function Ageing() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopAgeing />
+  return <MobileAgeing />
+}
+
+function MobileAgeing() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('reports')

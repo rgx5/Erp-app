@@ -11,6 +11,8 @@ import { T } from '@/ui/Text'
 import { Close, Plus } from '@/ui/icons'
 import { toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopCrmSettings } from '@/ui/desktop/CrmSettings'
 import { saveCrmSettings } from '@/modules/crm/ops'
 import { settingsOf } from '@/modules/crm/settings'
 import { failWith } from '@/modules/crm/ui/forms'
@@ -33,6 +35,7 @@ export default function CrmSettingsScreen() {
   const [points, setPoints] = useState(String(cur.referrerPoints))
   const [friend, setFriend] = useState(String(cur.refereeCredit))
   const [minBill, setMinBill] = useState(String(cur.referralMinBill))
+  const { isDesktop } = useBreakpoint()
 
   if (!can) return <Screen title="CRM settings" back><T tone="mute">These settings are for the owner and managers.</T></Screen>
   const set = (i: number, patch: Partial<TierRow>) => setTiers(tiers.map((t, j) => (j === i ? { ...t, ...patch } : t)))
@@ -46,6 +49,19 @@ export default function CrmSettingsScreen() {
       toast('Saved', 'ok'); router.back()
     } catch (e) { failWith(e) }
   }
+
+  if (isDesktop) {
+    return (
+      <DesktopCrmSettings
+        high={high} setHigh={setHigh} normal={normal} setNormal={setNormal} low={low} setLow={setLow}
+        warranty={warranty} setWarranty={setWarranty} window={window} setWindow={setWindow} tiers={tiers} setTiers={setTiers}
+        credit={credit} setCredit={setCredit} points={points} setPoints={setPoints} friend={friend} setFriend={setFriend}
+        minBill={minBill} setMinBill={setMinBill} standardTiers={cur.tiers.map((t) => ({ name: t.name, minSpend: String(t.minSpend), perk: t.perk }))}
+        onSave={save}
+      />
+    )
+  }
+
   return (
     <Screen title="CRM settings" back footer={<Button label="Save" size="lg" block onPress={save} />}>
       <View style={{ gap: 14, paddingBottom: 12 }}>

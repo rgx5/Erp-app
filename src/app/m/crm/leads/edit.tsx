@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useMemo, useState } from 'react'
 import { View } from 'react-native'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { perform, useApp, useCan } from '@/data/store'
@@ -8,6 +8,8 @@ import { Screen } from '@/ui/Screen'
 import { Chip } from '@/ui/primitives'
 import { T } from '@/ui/Text'
 import { toast } from '@/ui/overlays'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopLeadEdit } from '@/ui/desktop/CrmLeads'
 import { saveLead } from '@/modules/crm/ops'
 import { DateField, dateText, dateValue, failWith } from '@/modules/crm/ui/forms'
 
@@ -19,7 +21,8 @@ export default function LeadEdit() {
   const { id } = useLocalSearchParams<{ id?: string }>()
   const can = useCan('customers')
   const existing = useApp((s) => (id ? s.data.crmLeads?.[id] : undefined))
-  const users = useApp((s) => Object.values(s.data.users).filter((u) => u.active))
+  const allUsers = useApp((s) => s.data.users)
+  const users = useMemo(() => Object.values(allUsers).filter((u) => u.active), [allUsers])
   const [name, setName] = useState(existing?.name ?? '')
   const [phone, setPhone] = useState(existing?.phone ?? '')
   const [email, setEmail] = useState(existing?.email ?? '')
@@ -28,6 +31,7 @@ export default function LeadEdit() {
   const [follow, setFollow] = useState(dateText(existing?.nextFollowUp))
   const [notes, setNotes] = useState(existing?.notes ?? '')
   const [assignee, setAssignee] = useState(existing?.assignedTo ?? '')
+  const { isDesktop } = useBreakpoint()
 
   if (!can) return <Screen title="Lead" back><T tone="mute">Leads are for people who use the billing counter.</T></Screen>
   function save() {
@@ -37,6 +41,17 @@ export default function LeadEdit() {
       if (existing) router.back(); else router.replace({ pathname: '/m/crm/leads/[id]', params: { id: r.lead.id } })
     } catch (e) { failWith(e) }
   }
+
+  if (isDesktop) {
+    return (
+      <DesktopLeadEdit
+        existing={existing} name={name} setName={setName} phone={phone} setPhone={setPhone} email={email} setEmail={setEmail}
+        source={source} setSource={setSource} value={value} setValue={setValue} follow={follow} setFollow={setFollow}
+        notes={notes} setNotes={setNotes} assignee={assignee} setAssignee={setAssignee} users={users} onSave={save}
+      />
+    )
+  }
+
   return (
     <Screen title={existing ? 'Edit lead' : 'New lead'} back footer={<Button label="Save lead" size="lg" block onPress={save} />}>
       <View style={{ gap: 14, paddingBottom: 12 }}>

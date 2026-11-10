@@ -13,6 +13,8 @@ import { T } from '@/ui/Text'
 import { Gift } from '@/ui/icons'
 import { toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopReferrals } from '@/ui/desktop/CrmReferrals'
 import { ensureReferralCode, rewardReferral } from '@/modules/crm/ops'
 import { referralInvite, referralRows, topReferrers } from '@/modules/crm/referrals'
 import { settingsOf } from '@/modules/crm/settings'
@@ -21,6 +23,12 @@ import { failWith } from '@/modules/crm/ui/forms'
 
 /** Referral rewards waiting to be given, who brought whom, and the membership tiers customers have reached. */
 export default function Referrals() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopReferrals />
+  return <MobileReferrals />
+}
+
+function MobileReferrals() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('customers')

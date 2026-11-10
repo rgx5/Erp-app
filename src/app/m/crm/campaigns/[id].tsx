@@ -10,6 +10,8 @@ import { T } from '@/ui/Text'
 import { Check, MessageCircle, Send, Trash, Undo } from '@/ui/icons'
 import { ask, toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopCampaignView } from '@/ui/desktop/CrmCampaigns'
 import { campaignProgress, linkFor, nextPending, sendsOf } from '@/modules/crm/campaigns'
 import { deleteCampaign, markSend } from '@/modules/crm/ops'
 import type { CampaignSend, SendStatus } from '@/modules/crm/types'
@@ -26,9 +28,11 @@ export default function CampaignView() {
   const [awaiting, setAwaiting] = useState<string | null>(null)
   const sends = useMemo(() => sendsOf(data, id), [data, id])
   const prog = campaignProgress(sends)
+  const { isDesktop } = useBreakpoint()
 
   if (!can) return <Screen title="Campaign" back><T tone="mute">Campaigns are for the owner and managers.</T></Screen>
   if (!camp) return <Screen title="Not found" back><T tone="mute">This campaign is no longer here.</T></Screen>
+  if (isDesktop) return <DesktopCampaignView camp={camp} sends={sends} />
   const current = sends.find((s) => s.id === awaiting && s.status === 'pending') ?? null
 
   async function open(s: CampaignSend) {

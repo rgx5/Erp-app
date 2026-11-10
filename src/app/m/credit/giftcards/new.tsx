@@ -18,6 +18,8 @@ import { Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { toast } from '@/ui/overlays'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopNewGiftCard } from '@/ui/desktop/CreditGiftcards'
 
 /** Sell a gift card or voucher: the value is loaded on a new code and the money is taken now. */
 export default function NewGiftCard() {
@@ -36,6 +38,7 @@ export default function NewGiftCard() {
   const customer = customers.find((x) => x.id === customerId) ?? null
   const amt = round2(Number(value) || 0)
   const dateOk = !expires || /^\d{4}-\d{2}-\d{2}$/.test(expires)
+  const { isDesktop } = useBreakpoint()
 
   if (!can) return <Screen title="Sell a gift card" back><T tone="mute">Gift cards are for the owner, managers and cashiers.</T></Screen>
 
@@ -46,6 +49,15 @@ export default function NewGiftCard() {
       void Share.share({ message: `${shop} gift card for ${inr(amt, 0)}. Code: ${r.card.code}${r.card.expiresAt ? ` (valid till ${expires})` : ''}. Show this code at the counter to use it.` })
       router.replace({ pathname: '/m/credit/giftcards/[id]', params: { id: r.card.id } })
     } catch (e) { toast(e instanceof OpError ? e.message : 'Could not issue the card', 'err') }
+  }
+
+  if (isDesktop) {
+    return (
+      <>
+        <DesktopNewGiftCard value={value} setValue={setValue} mode={mode} setMode={setMode} code={code} setCode={setCode} expires={expires} setExpires={setExpires} note={note} setNote={setNote} customer={customer} onPickCustomer={() => setPicking(true)} amt={amt} dateOk={dateOk} onSave={save} />
+        <CustomerPicker visible={picking} onClose={() => setPicking(false)} selectedId={customerId} onPick={(cu) => setCustomerId(cu?.id ?? null)} />
+      </>
+    )
   }
 
   return (

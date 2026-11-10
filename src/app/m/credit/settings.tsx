@@ -12,6 +12,8 @@ import { Screen } from '@/ui/Screen'
 import { Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { toast } from '@/ui/overlays'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopCreditSettings } from '@/ui/desktop/CreditSettings'
 
 /** The shop's UPI id (for QR codes and links), the usual days to pay, and the wording of reminders. */
 export default function CreditSettingsScreen() {
@@ -23,6 +25,7 @@ export default function CreditSettingsScreen() {
   const [payee, setPayee] = useState(cur?.payeeName ?? shop)
   const [days, setDays] = useState(String(cur?.defaultDays ?? 30))
   const [tone, setTone] = useState<CreditSettings['reminderTone']>(cur?.reminderTone ?? 'polite')
+  const { isDesktop } = useBreakpoint()
 
   if (!can) return <Screen title="Credit settings" back><T tone="mute">Credit settings are for the owner and managers.</T></Screen>
   const upiBad = !!upiId.trim() && !isUpiId(upiId)
@@ -32,6 +35,10 @@ export default function CreditSettingsScreen() {
       perform((s, ctx) => saveCreditSettings(s, { upiId, payeeName: payee, defaultDays: Number(days), reminderTone: tone }, ctx))
       toast('Saved', 'ok'); router.back()
     } catch (e) { toast(e instanceof OpError ? e.message : 'Could not save', 'err') }
+  }
+
+  if (isDesktop) {
+    return <DesktopCreditSettings upiId={upiId} setUpiId={setUpiId} payee={payee} setPayee={setPayee} days={days} setDays={setDays} tone={tone} setTone={setTone} upiBad={upiBad} onSave={save} />
   }
 
   return (

@@ -14,9 +14,17 @@ import { EmptyState, StatTile } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { Bell, ChartColumn, ChevronRight, Gift, HandCoins, Plus } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopCreditHome } from '@/ui/desktop/Credit'
 
 /** Credit & dues: what customers owe, who is late, and the way into each account. */
 export default function CreditHome() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopCreditHome />
+  return <MobileCreditHome />
+}
+
+function MobileCreditHome() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('collections')
