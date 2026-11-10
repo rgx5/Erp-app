@@ -16,11 +16,14 @@ import { EmptyState, StatTile } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { Plus, Receipt } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopClaims } from '@/ui/desktop/HrClaims'
 
 /** Expense claims: staff submit, a manager approves (for all or part), and the business pays it back. */
 export default function Claims() {
   const { c } = useTheme()
   const router = useRouter()
+  const { isDesktop } = useBreakpoint()
   const isHr = useCan('hr')
   const canPay = useCan('payroll')
   const isSelf = useCan('hrSelf')
@@ -36,6 +39,23 @@ export default function Claims() {
 
   if (!isHr && !isSelf) return <Denied title="Expense claims" who="Claims are for staff and managers." />
   const tone = (s: ClaimRow['status']) => (s === 'paid' ? 'success' : s === 'approved' ? 'primary' : s === 'pending' ? 'warning' : 'default') as 'success' | 'primary' | 'warning' | 'default'
+
+  if (isDesktop) {
+    return (
+      <DesktopClaims
+        isHr={isHr} canPay={canPay} shown={shown} employeeName={(id) => data.employees?.[id]?.name ?? 'Former staff'} toPay={claimsToPay(all)}
+        filter={filter} setFilter={setFilter} deciding={deciding} setDeciding={setDeciding} amount={amount} setAmount={setAmount} note={note} setNote={setNote}
+        paying={paying} setPaying={setPaying} mode={mode} setMode={setMode}
+        onNew={() => router.push('/m/hr/claims/new')}
+        onOpenReview={(r) => { setDeciding(r); setAmount(String(r.claim.amount)); setNote('') }}
+        onReject={() => { if (deciding && act((s, ctx) => decideClaim(s, deciding.claim.id, 'rejected', undefined, note, ctx), 'Rejected')) setDeciding(null) }}
+        onApprove={() => { if (deciding && act((s, ctx) => decideClaim(s, deciding.claim.id, 'approved', Number(amount), note, ctx), 'Approved')) setDeciding(null) }}
+        onOpenPay={(r) => setPaying(r)}
+        onConfirmPay={() => { if (paying && act((s, ctx) => reimburseClaim(s, paying.claim.id, { mode }, ctx), 'Paid back')) setPaying(null) }}
+        onCancel={(id) => act((s, ctx) => cancelClaim(s, id, ctx), 'Cancelled')}
+      />
+    )
+  }
 
   return (
     <Screen title="Expense claims" back right={<Button label="Claim" size="sm" icon={<Plus size={16} color={c.onPrimary} />} onPress={() => router.push('/m/hr/claims/new')} />}>

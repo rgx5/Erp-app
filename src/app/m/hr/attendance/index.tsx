@@ -19,9 +19,17 @@ import { EmptyState } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { CalendarDays, ChevronLeft, ChevronRight, Clock } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopAttendanceHome } from '@/ui/desktop/HrAttendance'
 
 /** Attendance: punch in and out, and (for managers) who is in on any day. */
 export default function AttendanceHome() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopAttendanceHome />
+  return <MobileAttendanceHome />
+}
+
+function MobileAttendanceHome() {
   const { c } = useTheme()
   const router = useRouter()
   const isHr = useCan('hr')

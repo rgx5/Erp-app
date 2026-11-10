@@ -16,10 +16,13 @@ import { Sheet } from '@/ui/Sheet'
 import { Badge, Card, Chip } from '@/ui/primitives'
 import { KV, Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopCandidate } from '@/ui/desktop/HrCandidate'
 
 /** A candidate: details, stage, interviews, and hiring. */
 export default function CandidatePage() {
   const router = useRouter()
+  const { isDesktop } = useBreakpoint()
   const { id, openingId } = useLocalSearchParams<{ id?: string; openingId?: string }>()
   const can = useCan('hr')
   const { data, now } = useHr()
@@ -53,6 +56,23 @@ export default function CandidatePage() {
   const move = (stage: CandidateStage) => {
     if (stage === 'offer') { setOfferPay(cur?.offeredPay ? String(cur.offeredPay) : expected); setOffer(true); return }
     act((s, ctx) => moveCandidate(s, id!, stage, ctx), `Moved to ${STAGE_LABEL[stage]}`)
+  }
+
+  if (isDesktop) {
+    return (
+      <DesktopCandidate
+        cur={cur} opening={opening} name={name} setName={setName} phone={phone} setPhone={setPhone} email={email} setEmail={setEmail}
+        source={source} setSource={setSource} expected={expected} setExpected={setExpected} notes={notes} setNotes={setNotes}
+        iv={iv} setIv={setIv} ivDate={ivDate} setIvDate={setIvDate} ivTime={ivTime} setIvTime={setIvTime} ivWith={ivWith} setIvWith={setIvWith}
+        ivNote={ivNote} setIvNote={setIvNote} ivRating={ivRating} setIvRating={setIvRating} offer={offer} setOffer={setOffer} offerPay={offerPay} setOfferPay={setOfferPay}
+        hire={hire} setHire={setHire} joinDate={joinDate} setJoinDate={setJoinDate} off={off} setOff={setOff} weekdays={WEEKDAYS}
+        onSave={save} onMove={move}
+        onSaveInterview={() => { const t = atTime(ivDate, ivTime); if (act((s, ctx) => addInterview(s, id!, { at: t, with: ivWith, mode: 'in person', note: ivNote, rating: ivRating || undefined }, ctx), 'Interview saved')) setIv(false) }}
+        onSaveOffer={() => { if (act((s, ctx) => moveCandidate(s, id!, 'offer', ctx, Number(offerPay) || undefined), 'Offer made')) setOffer(false) }}
+        onHire={() => { const r = act((s, ctx) => hireCandidate(s, id!, { joinDate, weeklyOff: off }, ctx), 'Hired'); if (r) { setHire(false); router.replace({ pathname: '/m/hr/employees/[id]', params: { id: r.employee.id } } as never) } }}
+        onOpenEmployee={() => router.push({ pathname: '/m/hr/employees/[id]', params: { id: cur!.employeeId! } } as never)}
+      />
+    )
   }
 
   return (

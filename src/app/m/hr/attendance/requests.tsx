@@ -13,9 +13,17 @@ import { EmptyState } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { ClipboardCheck } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopAttendanceRequests } from '@/ui/desktop/HrAttendanceRequests'
 
 /** Requests to fix a day's attendance: approve (the day counts as present) or reject. */
 export default function RegularisationRequests() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopAttendanceRequests />
+  return <MobileRegularisationRequests />
+}
+
+function MobileRegularisationRequests() {
   const { c } = useTheme()
   const isHr = useCan('hr')
   const isSelf = useCan('hrSelf')

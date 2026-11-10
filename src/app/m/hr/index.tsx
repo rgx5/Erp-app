@@ -17,9 +17,17 @@ import { T } from '@/ui/Text'
 import { CalendarCheck, Clock, Users, WalletCards } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
 import { can as roleCan } from '@/domain/permissions'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopHrHome } from '@/ui/desktop/HrHome'
 
 /** People & payroll: today at a glance, and the way into each part. */
 export default function HrHome() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopHrHome />
+  return <MobileHrHome />
+}
+
+function MobileHrHome() {
   const { c } = useTheme()
   const router = useRouter()
   const isHr = useCan('hr')

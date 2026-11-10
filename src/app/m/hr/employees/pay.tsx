@@ -13,11 +13,14 @@ import { Notice, Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { Trash } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopEmployeePay } from '@/ui/desktop/HrEmployeePay'
 
 /** How a person is paid: pay type and amounts, allowances, PF/ESI/PT/TDS, overtime and bank details. */
 export default function PayTerms() {
   const { c } = useTheme()
   const router = useRouter()
+  const { isDesktop } = useBreakpoint()
   const { id } = useLocalSearchParams<{ id: string }>()
   const can = useCan('payroll')
   const { data } = useHr()
@@ -52,6 +55,18 @@ export default function PayTerms() {
       bank: { holder, bankName, account, ifsc, upi }, pan, uan, esiNo, notes: '',
     }, ctx), 'Pay terms saved')
     if (r) router.back()
+  }
+
+  if (isDesktop) {
+    return (
+      <DesktopEmployeePay
+        employeeName={e.name} payType={payType} setPayType={setPayType} basic={basic} setBasic={setBasic} allow={allow} setAllow={setAllow}
+        pf={pf} setPf={setPf} esi={esi} setEsi={setEsi} pt={pt} setPt={setPt} tds={tds} setTds={setTds} tdsFixed={tdsFixed} setTdsFixed={setTdsFixed}
+        ot={ot} setOt={setOt} holder={holder} setHolder={setHolder} bankName={bankName} setBankName={setBankName} account={account} setAccount={setAccount}
+        ifsc={ifsc} setIfsc={setIfsc} upi={upi} setUpi={setUpi} pan={pan} setPan={setPan} uan={uan} setUan={setUan} esiNo={esiNo} setEsiNo={setEsiNo}
+        ratesNote={RATES_NOTE} onSave={save}
+      />
+    )
   }
 
   return (

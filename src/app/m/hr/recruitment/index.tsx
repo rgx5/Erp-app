@@ -13,9 +13,17 @@ import { EmptyState } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { Briefcase, ChevronRight, Plus, UserPlus } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopRecruitment } from '@/ui/desktop/HrRecruitment'
 
 /** Openings and the candidates at each stage. */
 export default function Recruitment() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopRecruitment />
+  return <MobileRecruitment />
+}
+
+function MobileRecruitment() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('hr')

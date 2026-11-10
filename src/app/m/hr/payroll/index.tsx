@@ -20,11 +20,15 @@ import { EmptyState, KV, Notice, Section, StatTile } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { Download, Settings, WalletCards } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { addMonths } from '@/modules/hr/logic/ymd'
+import { DesktopPayroll } from '@/ui/desktop/HrPayroll'
 
 /** The monthly payroll: preview from attendance, run it, pay it, hand the bank a file. */
 export default function PayrollHome() {
   const { c } = useTheme()
   const router = useRouter()
+  const { isDesktop } = useBreakpoint()
   const can = useCan('payroll')
   const { data, now } = useHr()
   const [month, setMonth] = useState(ymOf(now))
@@ -55,6 +59,25 @@ export default function PayrollHome() {
     if (!bank) return
     if (bank.missing.length) await tell('Some people have no bank details', `${bank.missing.join(', ')} will be left out of the file. Add their account or UPI id in Pay terms.`)
     if (bank.people) await shareFile(csvFileName(`salary-${month}`), toCsv(bank.rows))
+  }
+  function confirmPaid() {
+    if (act((s, ctx) => paySalaries(s, month, { mode, ref }, ctx), 'Marked as paid')) setPaying(false)
+  }
+
+  if (isDesktop) {
+    return (
+      <DesktopPayroll
+        month={month} onPrevMonth={() => setMonth(addMonths(month, -1))} onNextMonth={() => setMonth(addMonths(month, 1))}
+        totals={totals} ready={ready} blocked={blocked} done={done} unpaid={unpaid} warnCount={warnCount} ratesNote={RATES_NOTE}
+        preview={preview} setPreview={setPreview} paying={paying} setPaying={setPaying} mode={mode} setMode={setMode} ref={ref} setRef={setRef}
+        onRun={() => void run()} onOpenPaying={() => setPaying(true)} onConfirmPaid={confirmPaid} onExportBank={() => void exportBank()}
+        onOpenSettings={() => router.push('/m/hr/payroll/settings')}
+        onOpenSlip={(id) => router.push({ pathname: '/m/hr/payroll/[id]', params: { id } } as never)}
+        onOpenAdjustments={() => router.push({ pathname: '/m/hr/payroll/adjustments', params: { month } } as never)}
+        onOpenRegister={() => router.push('/m/hr/reports/payroll')}
+        onOpenStatutory={() => router.push('/m/hr/reports/statutory')}
+      />
+    )
   }
 
   return (

@@ -4,7 +4,9 @@ import { useLocalSearchParams } from 'expo-router'
 import { inr } from '@/domain/money'
 import { useCan } from '@/data/store'
 import { consumedAdjustmentIds } from '@/modules/hr/logic/slips'
-import { labelYM, ymOf } from '@/modules/hr/logic/ymd'
+import { addMonths, labelYM, ymOf } from '@/modules/hr/logic/ymd'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopPayrollAdjustments } from '@/ui/desktop/HrPayrollAdjustments'
 import { deleteAdjustment, postIncentives, saveAdjustment } from '@/modules/hr/payrollOps'
 import type { AdjustmentKind, YM } from '@/modules/hr/types'
 import { act, Denied, EmployeeSelect, MonthBar, useHr } from '@/modules/hr/ui/common'
@@ -23,6 +25,7 @@ const KINDS: Array<{ value: AdjustmentKind; label: string }> = [{ value: 'incent
 /** One-off amounts for a month’s payslips: incentives, bonuses, fines. Each is used by exactly one payslip. */
 export default function Adjustments() {
   const { c } = useTheme()
+  const { isDesktop } = useBreakpoint()
   const params = useLocalSearchParams<{ month?: string }>()
   const can = useCan('payroll')
   const { data, now } = useHr()
@@ -37,6 +40,25 @@ export default function Adjustments() {
   const employees = Object.values(data.employees ?? {}).filter((e) => e.active).sort((a, b) => a.name.localeCompare(b.name))
 
   if (!can) return <Denied title="Adjustments" who="Pay adjustments are for the owner and managers with payroll access." />
+
+  async function deleteOne(id: string) {
+    if (!used.has(id) && await ask({ title: 'Delete this adjustment?', confirm: 'Delete', cancel: 'Keep' })) act((s, ctx) => deleteAdjustment(s, id, ctx), 'Deleted')
+  }
+
+  if (isDesktop) {
+    return (
+      <DesktopPayrollAdjustments
+        month={month} onPrevMonth={() => setMonth(addMonths(month, -1))} onNextMonth={() => setMonth(addMonths(month, 1))}
+        list={list} employeeName={(id) => data.employees?.[id]?.name ?? 'Former staff'} used={used}
+        open={open} setOpen={setOpen} empId={empId} setEmpId={setEmpId} employees={employees} kind={kind} setKind={setKind} label={label} setLabel={setLabel} amount={amount} setAmount={setAmount}
+        onNew={() => { setEmpId(''); setKind('bonus'); setLabel(''); setAmount(''); setOpen(true) }}
+        onSave={() => { if (act((s, ctx) => saveAdjustment(s, { employeeId: empId, month, kind, label, amount: Number(amount), note: '' }, undefined, ctx), 'Saved')) setOpen(false) }}
+        onDelete={(id) => void deleteOne(id)}
+        onPostIncentives={() => act((s, ctx) => postIncentives(s, month, ctx), 'Added to payroll')}
+      />
+    )
+  }
+
   return (
     <Screen title="Pay adjustments" back right={<Button label="Add" size="sm" icon={<Plus size={16} color={c.onPrimary} />} onPress={() => { setEmpId(''); setKind('bonus'); setLabel(''); setAmount(''); setOpen(true) }} />}>
       <View style={{ gap: 14, paddingBottom: 28 }}>

@@ -13,10 +13,13 @@ import { Group } from '@/ui/primitives'
 import { EmptyState, ListRow } from '@/ui/blocks'
 import { CalendarCheck, Plus } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopLeaveTypes } from '@/ui/desktop/HrLeaveTypes'
 
 /** Casual, sick, earned, unpaid… how many days a year, how they accrue, and what carries over. */
 export default function LeaveTypes() {
   const { c } = useTheme()
+  const { isDesktop } = useBreakpoint()
   const can = useCan('hr')
   const { data } = useHr()
   const [editing, setEditing] = useState<{ id?: string } | null>(null)
@@ -33,6 +36,20 @@ export default function LeaveTypes() {
   if (!can) return <Denied title="Leave types" who="Leave types are for the owner and managers." />
   const open = (t?: LeaveType) => { setName(t?.name ?? ''); setCode(t?.code ?? ''); setDays(String(t?.daysPerYear ?? 12)); setAccrual(t?.accrual ?? 'monthly'); setCarry(String(t?.carryForwardMax ?? 0)); setPaid(t?.paid ?? true); setNegative(t?.allowNegative ?? false); setActive(t?.active ?? true); setEditing({ id: t?.id }) }
   const save = () => { if (act((s, ctx) => saveLeaveType(s, { name, code, daysPerYear: Number(days) || 0, accrual, carryForwardMax: Number(carry) || 0, paid, allowNegative: negative, active }, editing?.id, ctx), 'Saved')) setEditing(null) }
+  async function remove() {
+    if (editing?.id && await ask({ title: 'Delete this leave type?', confirm: 'Delete', cancel: 'Keep' }) && act((s, ctx) => deleteLeaveType(s, editing.id!, ctx), 'Deleted')) setEditing(null)
+  }
+
+  if (isDesktop) {
+    return (
+      <DesktopLeaveTypes
+        list={list} editing={editing} name={name} setName={setName} code={code} setCode={setCode} days={days} setDays={setDays}
+        accrual={accrual} setAccrual={setAccrual} carry={carry} setCarry={setCarry} paid={paid} setPaid={setPaid} negative={negative} setNegative={setNegative}
+        active={active} setActive={setActive} onOpen={open} onClose={() => setEditing(null)} onSave={save} onDelete={() => void remove()}
+        onSeed={() => act((s, ctx) => seedLeaveTypes(s, ctx), 'Leave types added')}
+      />
+    )
+  }
 
   return (
     <Screen title="Leave types" back right={<Button label="New" size="sm" icon={<Plus size={16} color={c.onPrimary} />} onPress={() => open()} />}>

@@ -13,9 +13,17 @@ import { EmptyState, StatTile } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { ChevronRight, HandCoins, Plus } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopAdvances } from '@/ui/desktop/HrAdvances'
 
 /** Advances and loans given to staff, and how much is still to come back. */
 export default function Advances() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopAdvances />
+  return <MobileAdvances />
+}
+
+function MobileAdvances() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('payroll')

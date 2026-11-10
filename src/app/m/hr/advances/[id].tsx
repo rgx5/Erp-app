@@ -17,10 +17,13 @@ import { Sheet } from '@/ui/Sheet'
 import { Card, Chip } from '@/ui/primitives'
 import { KV, Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopAdvanceDetail } from '@/ui/desktop/HrAdvanceDetail'
 
 /** One advance or loan: what is left, what payroll took, and paying back by hand or writing off. */
 export default function AdvancePage() {
   const can = useCan('payroll')
+  const { isDesktop } = useBreakpoint()
   const { id } = useLocalSearchParams<{ id: string }>()
   const { data } = useHr()
   const [open, setOpen] = useState(false)
@@ -32,6 +35,19 @@ export default function AdvancePage() {
   const a = st.advance
   const slips = livePayslips(data).filter((p) => p.recoveries.some((r) => r.advanceId === id))
   const repays = Object.values(data.staffRepayments ?? {}).filter((r) => r.advanceId === id)
+
+  if (isDesktop) {
+    return (
+      <DesktopAdvanceDetail
+        advance={a} employeeName={data.employees?.[a.employeeId]?.name} recovered={st.recovered} repaid={st.repaid} balance={st.balance} emi={st.emi}
+        slips={slips} repays={repays} open={open} setOpen={setOpen} amount={amount} setAmount={setAmount} mode={mode} setMode={setMode}
+        onOpenRepay={() => { setAmount(String(st.balance)); setOpen(true) }}
+        onConfirmRepay={() => { if (act((s, ctx) => repayAdvance(s, id, { amount: Number(amount), mode }, ctx), 'Recorded')) setOpen(false) }}
+        onWriteOff={async () => { if (await ask({ title: `Write off ${inr(st.balance, 0)}?`, message: 'It becomes an expense and the staff member owes nothing.', confirm: 'Write off', cancel: 'Keep' })) act((s, ctx) => writeOffAdvance(s, id, 'Written off', ctx), 'Written off') }}
+      />
+    )
+  }
+
   return (
     <Screen title={a.no} subtitle={data.employees?.[a.employeeId]?.name} back>
       <View style={{ gap: 14, paddingBottom: 28 }}>

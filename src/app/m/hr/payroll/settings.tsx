@@ -15,6 +15,8 @@ import { Notice, Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { Trash } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopPayrollSettings } from '@/ui/desktop/HrPayrollSettings'
 
 type SlabRow = { upTo: string; v: string }
 const toRows = (list: Array<{ upTo: number | null; amount?: number; ratePct?: number }>, key: 'amount' | 'ratePct'): SlabRow[] => list.map((s) => ({ upTo: s.upTo === null ? '' : String(s.upTo), v: String(s[key] ?? 0) }))
@@ -24,6 +26,7 @@ const fromRows = (rows: SlabRow[]) => rows.map((r) => ({ upTo: r.upTo.trim() ===
 export default function PayrollSettings() {
   const { c } = useTheme()
   const router = useRouter()
+  const { isDesktop } = useBreakpoint()
   const can = useCan('payroll')
   const { data } = useHr()
   const cur = hrSettings(data)
@@ -74,6 +77,17 @@ export default function PayrollSettings() {
       </View>
     </Section>
   )
+
+  if (isDesktop) {
+    return (
+      <DesktopPayrollSettings
+        s={s} set={set as (k: string) => (v: string) => void} pfCap={pfCap} setPfCap={setPfCap} pfBasis={pfBasis} setPfBasis={setPfBasis}
+        daysBasis={daysBasis} setDaysBasis={setDaysBasis} weekoffPaid={weekoffPaid} setWeekoffPaid={setWeekoffPaid} round={round} setRound={setRound}
+        needGeo={needGeo} setNeedGeo={setNeedGeo} off={off} setOff={setOff} pt={pt} setPt={setPt} tds={tds} setTds={setTds}
+        weekdays={WEEKDAYS} ratesNote={RATES_NOTE} onSave={save} onReset={reset}
+      />
+    )
+  }
 
   return (
     <Screen title="Payroll settings" back footer={<Button label="Save" size="lg" block onPress={save} />}>

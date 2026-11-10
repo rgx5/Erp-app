@@ -22,6 +22,8 @@ import { KV, ListRow, Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { Check, FilePlus, Pencil, Trash, WalletCards } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopEmployeeDetail } from '@/ui/desktop/HrEmployeeDetail'
 
 const KINDS: Array<{ value: DocKind; label: string }> = [
   { value: 'aadhaar', label: 'Aadhaar' }, { value: 'pan', label: 'PAN' }, { value: 'passport', label: 'Passport' }, { value: 'licence', label: 'Licence' },
@@ -32,6 +34,7 @@ const KINDS: Array<{ value: DocKind; label: string }> = [
 export default function EmployeePage() {
   const { c } = useTheme()
   const router = useRouter()
+  const { isDesktop } = useBreakpoint()
   const { id } = useLocalSearchParams<{ id: string }>()
   const can = useCan('hr')
   const canPay = useCan('payroll')
@@ -61,6 +64,29 @@ export default function EmployeePage() {
   function addDoc() {
     const r = act((s, ctx) => saveEmployeeDoc(s, { employeeId: id, kind, title: title || KINDS.find((k) => k.value === kind)!.label, number, issuedOn: issued || undefined, expiresOn: expires || undefined, note: '' }, undefined, ctx), 'Document saved')
     if (r) { setDocOpen(false); setTitle(''); setNumber(''); setIssued(''); setExpires('') }
+  }
+  async function deleteDoc(docId: string) {
+    if (await ask({ title: 'Delete this document?', confirm: 'Delete', cancel: 'Keep' })) act((s, ctx) => deleteEmployeeDoc(s, docId, ctx), 'Deleted')
+  }
+  function doExit() {
+    if (act((s, ctx) => exitEmployee(s, id, exitDate, ctx), 'Marked as left')) setExitOpen(false)
+  }
+
+  if (isDesktop) {
+    return (
+      <DesktopEmployeeDetail
+        e={e} m={m} balances={balances} docs={docs} slips={slips} pay={pay} owed={owed} userName={userName} month={month} canPay={canPay} today={today}
+        docOpen={docOpen} setDocOpen={setDocOpen} kind={kind} setKind={setKind} title={title} setTitle={setTitle} number={number} setNumber={setNumber}
+        issued={issued} setIssued={setIssued} expires={expires} setExpires={setExpires} onAddDoc={addDoc} onDeleteDoc={(docId) => void deleteDoc(docId)}
+        exitOpen={exitOpen} setExitOpen={setExitOpen} exitDate={exitDate} setExitDate={setExitDate} onExit={doExit}
+        onReactivate={() => act((s, ctx) => reactivateEmployee(s, id, ctx), 'Back on the staff')}
+        onToggleOnboarding={(i) => act((s, ctx) => toggleOnboarding(s, id, i, ctx))}
+        onEdit={() => router.push({ pathname: '/m/hr/employees/edit', params: { id } } as never)}
+        onOpenPay={() => router.push({ pathname: '/m/hr/employees/pay', params: { id } } as never)}
+        onOpenSlip={(slipId) => router.push({ pathname: '/m/hr/payroll/[id]', params: { id: slipId } } as never)}
+        onOpenFullMonth={() => router.push({ pathname: '/m/hr/attendance/month', params: { employeeId: id } } as never)}
+      />
+    )
   }
 
   return (

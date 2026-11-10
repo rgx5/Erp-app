@@ -12,10 +12,13 @@ import { Screen } from '@/ui/Screen'
 import { Chip } from '@/ui/primitives'
 import { Notice } from '@/ui/blocks'
 import { T } from '@/ui/Text'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopNewLeave } from '@/ui/desktop/HrLeaveNew'
 
 /** Ask for leave (or, for a manager, enter it for someone). */
 export default function NewLeave() {
   const router = useRouter()
+  const { isDesktop } = useBreakpoint()
   const isHr = useCan('hr')
   const isSelf = useCan('hrSelf')
   const { data, idx, me, now } = useHr()
@@ -38,6 +41,17 @@ export default function NewLeave() {
     const r = act((s, ctx) => requestLeave(s, { employeeId: empId, typeId, from, to: half ? from : to, half: half || undefined, reason }, ctx), 'Request sent')
     if (r) router.back()
   }
+
+  if (isDesktop) {
+    return (
+      <DesktopNewLeave
+        isHr={isHr} empId={empId} setEmpId={setEmpId} employees={employees} typeId={typeId} setTypeId={setTypeId} types={types}
+        from={from} setFrom={setFrom} to={to} setTo={setTo} half={half} setHalf={setHalf} reason={reason} setReason={setReason}
+        days={days} hasEmployee={!!emp} onSave={save}
+      />
+    )
+  }
+
   return (
     <Screen title="Ask for leave" back footer={<Button label={days ? `Ask for ${days} ${days === 1 ? 'day' : 'days'}` : 'Send request'} size="lg" block onPress={save} />}>
       <View style={{ gap: 14, paddingBottom: 12 }}>

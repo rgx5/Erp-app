@@ -8,10 +8,13 @@ import { act, Denied, useHr } from '@/modules/hr/ui/common'
 import { Button } from '@/ui/Button'
 import { Field, NumberField, Segmented } from '@/ui/Inputs'
 import { Screen } from '@/ui/Screen'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopOpening } from '@/ui/desktop/HrOpening'
 
 /** An opening: the job, how many people, and whether it is open, on hold or closed. */
 export default function OpeningForm() {
   const router = useRouter()
+  const { isDesktop } = useBreakpoint()
   const { id } = useLocalSearchParams<{ id?: string }>()
   const can = useCan('hr')
   const { data } = useHr()
@@ -30,6 +33,15 @@ export default function OpeningForm() {
     if (!r) return
     if (cur && status !== cur.status && !act((s, ctx) => setOpeningStatus(s, cur.id, status, ctx))) return
     router.back()
+  }
+
+  if (isDesktop) {
+    return (
+      <DesktopOpening
+        isEdit={!!cur} title={title} setTitle={setTitle} department={department} setDepartment={setDepartment} positions={positions} setPositions={setPositions}
+        location={location} setLocation={setLocation} pay={pay} setPay={setPay} desc={desc} setDesc={setDesc} status={status} setStatus={setStatus} onSave={save}
+      />
+    )
   }
   return (
     <Screen title={cur ? 'Edit opening' : 'New opening'} back footer={<Button label="Save" size="lg" block onPress={save} />}>

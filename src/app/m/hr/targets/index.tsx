@@ -18,11 +18,15 @@ import { EmptyState, KV, Notice } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { Target } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { addMonths } from '@/modules/hr/logic/ymd'
+import { DesktopTargets } from '@/ui/desktop/HrTargets'
 
 /** Sales by each person (from the bills they are named on) against their target, with the incentive that earns. */
 export default function Targets() {
   const { c } = useTheme()
   const router = useRouter()
+  const { isDesktop } = useBreakpoint()
   const can = useCan('hr')
   const canPay = useCan('payroll')
   const { data, now } = useHr()
@@ -35,6 +39,21 @@ export default function Targets() {
 
   if (!can) return <Denied title="Targets" who="Targets and incentives are for the owner and managers." />
   const unlinked = rows.filter((r) => !r.employee.userId)
+
+  if (isDesktop) {
+    return (
+      <DesktopTargets
+        month={month} onPrevMonth={() => setMonth(addMonths(month, -1))} onNextMonth={() => setMonth(addMonths(month, 1))}
+        rows={rows} unlinkedNote={unlinked.length ? `${unlinked.length} not linked to a sign-in — ${unlinked.map((r) => r.employee.name).join(', ')}: bills cannot name them as the salesperson until their employee profile is linked to a sign-in account.` : null}
+        canPay={canPay} unpostedCount={unposted.length} editing={editing} setEditing={setEditing} amount={amount} setAmount={setAmount}
+        onOpenEdit={(r) => { setEditing(r); setAmount(r.target ? String(r.target) : '') }}
+        onSave={() => { if (editing && act((s, ctx) => saveTarget(s, { employeeId: editing.employee.id, month, amount: Number(amount) || 0 }, ctx), 'Target saved')) setEditing(null) }}
+        onPostIncentives={() => act((s, ctx) => postIncentives(s, month, ctx), 'Added to payroll')}
+        onOpenPlans={() => router.push('/m/hr/targets/plans')}
+      />
+    )
+  }
+
   return (
     <Screen title="Targets & incentives" back>
       <View style={{ gap: 14, paddingBottom: 28 }}>

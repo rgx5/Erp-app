@@ -21,11 +21,14 @@ import { KV, Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { FileText, MessageCircle, Printer } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopPayslip } from '@/ui/desktop/HrPayslip'
 
 /** One payslip: the lines, print / PDF / WhatsApp, mark paid, or void. */
 export default function PayslipPage() {
   const { c } = useTheme()
   const router = useRouter()
+  const { isDesktop } = useBreakpoint()
   const { id } = useLocalSearchParams<{ id: string }>()
   const can = useCan('payroll')
   const { data } = useHr()
@@ -45,6 +48,19 @@ export default function PayslipPage() {
   const pay = data.employeePay?.[slip.employeeId]
   const html = () => payslipHtml(slip!, store, emp, pay)
   const file = csvFileName(`payslip-${slip.employeeName}-${slip.month}`, 'pdf')
+
+  if (isDesktop) {
+    return (
+      <DesktopPayslip
+        slip={slip} voided={voided} paid={paid} emp={emp} pay={pay} payouts={payoutsOf(data, slip.id)}
+        paying={paying} setPaying={setPaying} voiding={voiding} setVoiding={setVoiding} mode={mode} setMode={setMode} ref={ref} setRef={setRef} why={why} setWhy={setWhy}
+        onPrint={() => void printHtml(html())} onPdf={() => void sharePdf(html(), file)}
+        onWhatsapp={() => void whatsApp(`${slip.employeeName}, your salary for ${labelYM(slip.month)}: gross ${inr(slip.gross, 0)}, deductions ${inr(slip.totalDeductions, 0)}, net ${inr(slip.net, 0)}.`, emp?.phone)}
+        onConfirmPaid={() => { if (act((s, ctx) => paySalary(s, slip.id, { mode, ref }, ctx), 'Marked as paid')) setPaying(false) }}
+        onConfirmVoid={() => { if (act((s, ctx) => voidPayslip(s, slip.id, why, ctx), 'Payslip voided')) { setVoiding(false); router.back() } }}
+      />
+    )
+  }
 
   return (
     <Screen title={slip.employeeName} subtitle={`${labelYM(slip.month)} · ${slip.no}`} back>

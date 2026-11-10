@@ -17,11 +17,14 @@ import { EmptyState, KV } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { CalendarCheck, Plus } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopLeave } from '@/ui/desktop/HrLeave'
 
 /** Leave: requests (and their answers), and what each person has left. */
 export default function LeaveHome() {
   const { c } = useTheme()
   const router = useRouter()
+  const { isDesktop } = useBreakpoint()
   const isHr = useCan('hr')
   const isSelf = useCan('hrSelf')
   const { data, idx, me, now } = useHr()
@@ -39,6 +42,22 @@ export default function LeaveHome() {
 
   if (!isHr && !isSelf) return <Denied title="Leave" who="Leave is for staff and managers." />
   const types = Object.values(data.leaveTypes ?? {}).filter((t) => t.active && t.paid)
+
+  if (isDesktop) {
+    return (
+      <DesktopLeave
+        tab={tab} setTab={setTab}
+        rows={rows.map((r) => ({ r, status: idx.leaveStatus.get(r.id) ?? 'pending', dec: deciding(by.get(r.id)), typeName: data.leaveTypes?.[r.typeId]?.name ?? 'Leave', employeeName: data.employees?.[r.employeeId]?.name ?? 'Former staff' }))}
+        isHr={isHr} empId={empId} setEmpId={setEmpId} employees={employees} emp={emp} balances={balances} types={types} now={now}
+        grant={grant} setGrant={setGrant} gType={gType} setGType={setGType} gDays={gDays} setGDays={setGDays} gReason={gReason} setGReason={setGReason}
+        onDecide={(id, decision) => act((s, ctx) => decideLeave(s, id, decision, '', ctx), decision === 'approved' ? 'Approved' : decision === 'rejected' ? 'Rejected' : 'Cancelled')}
+        onOpenGrant={() => { setGType(types[0].id); setGDays(''); setGReason(''); setGrant(true) }}
+        onSaveGrant={() => { if (emp && act((s, ctx) => grantLeave(s, { employeeId: emp.id, typeId: gType, days: Number(gDays), date: ymdOf(now), reason: gReason }, ctx), 'Balance changed')) setGrant(false) }}
+        onNew={() => router.push('/m/hr/leave/new')}
+        onOpenTypes={() => router.push('/m/hr/leave/types')}
+      />
+    )
+  }
 
   return (
     <Screen title="Leave" back right={<Button label="Ask" size="sm" icon={<Plus size={16} color={c.onPrimary} />} onPress={() => router.push('/m/hr/leave/new')} />}>

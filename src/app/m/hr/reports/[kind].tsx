@@ -16,6 +16,8 @@ import { Screen } from '@/ui/Screen'
 import { Notice } from '@/ui/blocks'
 import { Download } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopHrReport } from '@/ui/desktop/HrReport'
 
 const KINDS: Record<string, { title: string; perm: 'hr' | 'payroll'; monthly: boolean }> = {
   attendance: { title: 'Attendance sheet', perm: 'hr', monthly: true },
@@ -30,6 +32,12 @@ const KINDS: Record<string, { title: string; perm: 'hr' | 'payroll'; monthly: bo
 
 /** Every people report: a table on the screen, exportable as CSV, a print or a PDF. */
 export default function HrReport() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopHrReport />
+  return <MobileHrReport />
+}
+
+function MobileHrReport() {
   const { c } = useTheme()
   const { kind } = useLocalSearchParams<{ kind: string }>()
   const def = KINDS[kind]

@@ -14,11 +14,14 @@ import { EmptyState, ListRow, Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { Plus, Target, Trash } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopTargetPlans } from '@/ui/desktop/HrTargetPlans'
 
 /** How sales turn into incentive pay: a rate, better rates at higher achievement, a bonus for hitting target. */
 export default function Plans() {
   const { c } = useTheme()
   const can = useCan('payroll')
+  const { isDesktop } = useBreakpoint()
   const { data } = useHr()
   const [editing, setEditing] = useState<{ id?: string } | null>(null)
   const [name, setName] = useState('')
@@ -44,6 +47,21 @@ export default function Plans() {
     }, editing?.id, ctx), 'Plan saved')
     if (ok) setEditing(null)
   }
+  async function remove() {
+    if (editing?.id && await ask({ title: 'Delete this plan?', confirm: 'Delete', cancel: 'Keep' }) && act((s, ctx) => deleteIncentivePlan(s, editing.id!, ctx), 'Deleted')) setEditing(null)
+  }
+
+  if (isDesktop) {
+    return (
+      <DesktopTargetPlans
+        list={list} employeeName={(id) => data.employees?.[id]?.name ?? 'Former staff'} editing={editing} name={name} setName={setName}
+        empId={empId} setEmpId={setEmpId} employees={employees} base={base} setBase={setBase} slabs={slabs} setSlabs={setSlabs}
+        bonus={bonus} setBonus={setBonus} minSales={minSales} setMinSales={setMinSales} cap={cap} setCap={setCap} active={active} setActive={setActive}
+        onOpen={open} onClose={() => setEditing(null)} onSave={save} onDelete={() => void remove()}
+      />
+    )
+  }
+
   return (
     <Screen title="Incentive plans" back right={<Button label="New" size="sm" icon={<Plus size={16} color={c.onPrimary} />} onPress={() => open()} />}>
       <View style={{ gap: 14, paddingBottom: 28 }}>

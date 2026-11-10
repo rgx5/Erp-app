@@ -11,12 +11,15 @@ import { Field, MoneyField } from '@/ui/Inputs'
 import { Screen } from '@/ui/Screen'
 import { Chip } from '@/ui/primitives'
 import { Section } from '@/ui/blocks'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopNewClaim } from '@/ui/desktop/HrClaimNew'
 
 const COMMON = ['Travel', 'Food', 'Fuel', 'Stationery', 'Repairs', 'Phone', 'Other']
 
 /** Claim money spent for the business. */
 export default function NewClaim() {
   const router = useRouter()
+  const { isDesktop } = useBreakpoint()
   const isHr = useCan('hr')
   const isSelf = useCan('hrSelf')
   const { data, me, now } = useHr()
@@ -36,6 +39,17 @@ export default function NewClaim() {
   function save() {
     if (act((s, ctx) => submitClaim(s, { employeeId: empId, date, category, amount: Number(amount), description, ref }, ctx), 'Claim sent')) router.back()
   }
+
+  if (isDesktop) {
+    return (
+      <DesktopNewClaim
+        isHr={isHr} empId={empId} setEmpId={setEmpId} employees={employees} amount={amount} setAmount={setAmount} cats={cats}
+        category={category} setCategory={setCategory} description={description} setDescription={setDescription} date={date} setDate={setDate}
+        ref={ref} setRef={setRef} onSave={save}
+      />
+    )
+  }
+
   return (
     <Screen title="Expense claim" back footer={<Button label="Send claim" size="lg" block onPress={save} />}>
       <View style={{ gap: 14, paddingBottom: 12 }}>

@@ -15,14 +15,27 @@ import { EmptyState, ListRow, Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { CalendarDays, Clock, Plus, Trash } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DeskPage, DeskSegmented, Toolbar } from '@/ui/desktop/kit'
+import { DesktopHolidaysTab, DesktopRosterTab, DesktopShiftsTab } from '@/ui/desktop/HrShifts'
 
 type Tab = 'shifts' | 'roster' | 'holidays'
 
 /** Shifts, the week's roster, and the holiday calendar. */
 export default function Shifts() {
   const can = useCan('hr')
+  const { isDesktop } = useBreakpoint()
   const [tab, setTab] = useState<Tab>('shifts')
   if (!can) return <Denied title="Shifts" who="Shifts, rosters and holidays are for the owner and managers." />
+
+  if (isDesktop) {
+    return (
+      <DeskPage toolbar={<Toolbar title="Shifts & holidays" right={<DeskSegmented<Tab> value={tab} onChange={setTab} options={[{ id: 'shifts', label: 'Shifts' }, { id: 'roster', label: 'Roster' }, { id: 'holidays', label: 'Holidays' }]} />} />}>
+        {tab === 'shifts' ? <ShiftsTab /> : tab === 'roster' ? <RosterTab /> : <HolidaysTab />}
+      </DeskPage>
+    )
+  }
+
   return (
     <Screen title="Shifts & holidays" back>
       <View style={{ gap: 14, paddingBottom: 28 }}>
@@ -46,6 +59,19 @@ function ShiftsTab() {
   const shifts = Object.values(data.workShifts ?? {}).sort((a, b) => a.start.localeCompare(b.start))
   const open = (s?: WorkShift) => { setName(s?.name ?? ''); setStart(s?.start ?? '09:00'); setEnd(s?.end ?? '18:00'); setBrk(String(s?.breakMins ?? 60)); setGrace(String(s?.graceMins ?? 10)); setActive(s?.active ?? true); setEditing({ id: s?.id }) }
   const save = () => { if (act((s, ctx) => saveShift(s, { name, start, end, breakMins: Number(brk) || 0, graceMins: Number(grace) || 0, active }, editing?.id, ctx), 'Shift saved')) setEditing(null) }
+  async function remove() {
+    if (editing?.id && await ask({ title: 'Delete this shift?', confirm: 'Delete', cancel: 'Keep' }) && act((s, ctx) => deleteShift(s, editing.id!, ctx), 'Deleted')) setEditing(null)
+  }
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) {
+    return (
+      <DesktopShiftsTab
+        shifts={shifts} editing={editing} name={name} setName={setName} start={start} setStart={setStart} end={end} setEnd={setEnd}
+        brk={brk} setBrk={setBrk} grace={grace} setGrace={setGrace} active={active} setActive={setActive}
+        onOpen={open} onClose={() => setEditing(null)} onSave={save} onDelete={() => void remove()}
+      />
+    )
+  }
   return (
     <>
       <Button label="New shift" kind="soft" icon={<Plus size={18} color={c.primary} />} onPress={() => open()} />
@@ -97,6 +123,18 @@ function RosterTab() {
   }
   function save() {
     if (act((s, ctx) => assignRoster(s, { employeeIds: ids, from: a, to: b, shiftId: shift, skipWeeklyOff: skip }, ctx), 'Roster saved')) setOpen(false)
+  }
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) {
+    return (
+      <DesktopRosterTab
+        from={from} onPrevWeek={() => setFrom(addDays(from, -7))} onNextWeek={() => setFrom(addDays(from, 7))}
+        people={people} shifts={shifts} days={days} cellOf={cellOf} weekdayLabels={WEEKDAYS}
+        open={open} setOpen={setOpen} ids={ids} setIds={setIds} a={a} setA={setA} b={b} setB={setB} shift={shift} setShift={setShift} skip={skip} setSkip={setSkip}
+        onOpenAssign={() => { setIds([]); setA(from); setB(addDays(from, 6)); setOpen(true) }}
+        onSave={save}
+      />
+    )
   }
   return (
     <>
@@ -152,6 +190,20 @@ function HolidaysTab() {
   const [date, setDate] = useState('')
   const [name, setName] = useState('')
   const list = Object.values(data.hrHolidays ?? {}).sort((a, b) => a.date.localeCompare(b.date))
+  async function removeHoliday(id: string, label: string) {
+    if (await ask({ title: `Remove ${label}?`, confirm: 'Remove', cancel: 'Keep' })) act((s, ctx) => deleteHoliday(s, id, ctx), 'Removed')
+  }
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) {
+    return (
+      <DesktopHolidaysTab
+        list={list} open={open} setOpen={setOpen} date={date} setDate={setDate} name={name} setName={setName}
+        onNew={() => { setDate(''); setName(''); setOpen(true) }}
+        onSave={() => { if (act((s, ctx) => saveHoliday(s, { date, name }, ctx), 'Holiday added')) setOpen(false) }}
+        onDelete={(id) => void removeHoliday(id, list.find((h) => h.id === id)?.name ?? 'this holiday')}
+      />
+    )
+  }
   return (
     <>
       <Button label="Add a holiday" kind="soft" icon={<Plus size={18} color={c.primary} />} onPress={() => { setDate(''); setName(''); setOpen(true) }} />

@@ -13,10 +13,13 @@ import { Screen } from '@/ui/Screen'
 import { Chip } from '@/ui/primitives'
 import { Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopNewAdvance } from '@/ui/desktop/HrAdvanceNew'
 
 /** Give an advance (taken back in one go) or a loan (taken back in instalments). */
 export default function NewAdvance() {
   const router = useRouter()
+  const { isDesktop } = useBreakpoint()
   const can = useCan('payroll')
   const { data, now } = useHr()
   const [empId, setEmpId] = useState('')
@@ -36,6 +39,17 @@ export default function NewAdvance() {
     const r = act((s, ctx) => issueAdvance(s, { employeeId: empId, kind, amount: Number(amount), mode, ref, installments: n, startMonth: start, note }, ctx), undefined)
     if (r) { router.back() }
   }
+
+  if (isDesktop) {
+    return (
+      <DesktopNewAdvance
+        empId={empId} setEmpId={setEmpId} employees={employees} kind={kind} setKind={setKind} amount={amount} setAmount={setAmount}
+        months={months} setMonths={setMonths} start={start} setStart={setStart} startOptions={[0, 1, 2].map((k) => addMonths(ymOf(now), k))}
+        mode={mode} setMode={setMode} ref={ref} setRef={setRef} note={note} setNote={setNote} emi={emi} n={n} onSave={save}
+      />
+    )
+  }
+
   return (
     <Screen title="Give an advance" back footer={<Button label={Number(amount) > 0 ? `Give ${inr(Number(amount), 0)}` : 'Give'} size="lg" block onPress={save} />}>
       <View style={{ gap: 14, paddingBottom: 12 }}>

@@ -13,9 +13,17 @@ import { EmptyState } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { ChevronRight, Plus, Users } from '@/ui/icons'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopEmployees } from '@/ui/desktop/HrEmployees'
 
 /** The staff list: who works here, and who is in today. */
 export default function Employees() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopEmployees />
+  return <MobileEmployees />
+}
+
+function MobileEmployees() {
   const { c } = useTheme()
   const router = useRouter()
   const can = useCan('hr')

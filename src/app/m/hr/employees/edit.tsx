@@ -11,10 +11,13 @@ import { Field, Segmented, Select } from '@/ui/Inputs'
 import { Screen } from '@/ui/Screen'
 import { Chip } from '@/ui/primitives'
 import { Section } from '@/ui/blocks'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopEmployeeEdit } from '@/ui/desktop/HrEmployeeEdit'
 
 /** Add an employee, or change one. */
 export default function EmployeeForm() {
   const router = useRouter()
+  const { isDesktop } = useBreakpoint()
   const { id } = useLocalSearchParams<{ id?: string }>()
   const can = useCan('hr')
   const { data, now } = useHr()
@@ -49,6 +52,19 @@ export default function EmployeeForm() {
       emergency: { name: emName, phone: emPhone, relation: emRel }, notes,
     }, id, ctx), id ? 'Saved' : 'Employee added')
     if (r) { if (id) router.back(); else router.replace({ pathname: '/m/hr/employees/[id]', params: { id: r.employee.id } } as never) }
+  }
+
+  if (isDesktop) {
+    return (
+      <DesktopEmployeeEdit
+        isNew={!cur} name={name} setName={setName} phone={phone} setPhone={setPhone} email={email} setEmail={setEmail}
+        designation={designation} setDesignation={setDesignation} department={department} setDepartment={setDepartment}
+        joinDate={joinDate} setJoinDate={setJoinDate} dob={dob} setDob={setDob} gender={gender} setGender={setGender}
+        address={address} setAddress={setAddress} userId={userId} setUserId={setUserId} shiftId={shiftId} setShiftId={setShiftId}
+        weeklyOff={weeklyOff} setWeeklyOff={setWeeklyOff} emName={emName} setEmName={setEmName} emPhone={emPhone} setEmPhone={setEmPhone}
+        emRel={emRel} setEmRel={setEmRel} notes={notes} setNotes={setNotes} weekdays={WEEKDAYS} shifts={shifts} users={users} onSave={save}
+      />
+    )
   }
 
   return (

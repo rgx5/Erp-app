@@ -16,9 +16,17 @@ import { Badge, Card, Tap } from '@/ui/primitives'
 import { KV, Section } from '@/ui/blocks'
 import { T } from '@/ui/Text'
 import { useTheme } from '@/ui/theme'
+import { useBreakpoint } from '@/ui/layout'
+import { DesktopAttendanceMonth } from '@/ui/desktop/HrAttendanceMonth'
 
 /** A month of attendance: everyone at a glance, or one person day by day (tap a day to mark it, or to ask for a fix). */
 export default function AttendanceMonth() {
+  const { isDesktop } = useBreakpoint()
+  if (isDesktop) return <DesktopAttendanceMonth />
+  return <MobileAttendanceMonth />
+}
+
+function MobileAttendanceMonth() {
   const { c } = useTheme()
   const params = useLocalSearchParams<{ employeeId?: string }>()
   const isHr = useCan('hr')
