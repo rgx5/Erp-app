@@ -107,6 +107,7 @@ Modules add their own (receivables, batch stock, ledger balances…) in their `r
 * Org isolation: every query carries `org_id`; there is a test that proves org A cannot read, write, or guess org B's ids.
 * The server stores documents **as the app computed them** (a bill's tax is not recomputed), the same trust model the
   Krishna server has. Collections can add `validate` rules; recomputing bills server-side is the next hardening step.
+  The full plan — NestJS migration, row-level security, audit trail, SSO, scaling — is in [SERVER-HARDENING.md](./SERVER-HARDENING.md).
 
 ## Running it
 
