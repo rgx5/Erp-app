@@ -2,6 +2,7 @@ import { type DynamicModule, Global, Module } from '@nestjs/common';
 import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { ENV, type Env } from './config/env.js';
 import { AuditModule } from './modules/audit/audit.controller.js';
+import { MasterDataModule } from './modules/masterdata/masterdata.controller.js';
 import { NumberingModule } from './modules/numbering/numbering.controller.js';
 import { IdentityModule } from './modules/identity/identity.module.js';
 import { OrganizationModule } from './modules/organization/organization.module.js';
@@ -32,6 +33,6 @@ export class CoreModule {
 @Module({})
 export class AppModule {
   static forRoot(env: Env): DynamicModule {
-    return { module: AppModule, imports: [CoreModule.forRoot(env), DatabaseModule, PlatformServicesModule, HealthModule, IdentityModule, OrganizationModule, AuditModule, NumberingModule] };
+    return { module: AppModule, imports: [CoreModule.forRoot(env), DatabaseModule, PlatformServicesModule, HealthModule, IdentityModule, OrganizationModule, AuditModule, NumberingModule, MasterDataModule] };
   }
 }

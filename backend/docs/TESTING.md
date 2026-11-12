@@ -1,6 +1,6 @@
 # Testing, RLS verification, performance
 
-`npm run test:all` = 48 unit tests + 135 integration tests, all green (the integration suite also passes with `TEST_HTTP_ADAPTER=node`). Integration tests create a fresh database per run, bootstrap roles,
+`npm run test:all` = 57 unit tests + 157 integration tests, all green (the integration suite also passes with `TEST_HTTP_ADAPTER=node`). Integration tests create a fresh database per run, bootstrap roles,
 migrate as `erp_migrator`, then connect as the real `erp_app` role.
 
 | suite | covers |
@@ -11,6 +11,7 @@ migrate as `erp_migrator`, then connect as the real `erp_app` role.
 | identity.int | sign-in and its uniform failures, lockout, rotating refresh + reuse detection, logout, password change, MFA (enrol, replay, recovery codes, encryption at rest), permissions applied on the next request, privilege-escalation and last-owner rules, optimistic locking, API keys (scope, revoke, expiry, wrong tenant), cross-tenant identity isolation, self-signup default-off |
 | platform-services.int | audit (who/what/request id, no secrets, rollback leaves nothing, append-only even for a superuser, tenant-scoped reads), idempotency (replay, conflict, 12 simultaneous duplicates -> one effect, failed request does not burn the key, tenant/caller scoping, expiry), outbox (commit-only publish, per-tenant delivery context, redelivery no-op, backoff, dead-letter, concurrent relays, background loop + clean shutdown) |
 | numbering.int | series config rules, consecutive numbers, **40 concurrent allocations -> no duplicate, no gap**, rollback returns the number, cancelled numbers kept and never reissued, per-registration/per-year independence, 16-char rule, append-only ledger |
+| masterdata.int | tenant defaults (INR, 44 units, no tax rates); exchange-rate resolution on a date; **tax-rate versioning with back-dated lookups, overlap refusal (API and raw SQL), immutability even for a superuser**; item rules (HSN/SAC, service, tracking, manufactured), frozen identity, search/pagination with literal wildcards, unit conversions; party GST-treatment rules, duplicate GSTIN/code, payment terms, default addresses; price lists (quantity breaks, effective dates, close-then-replace); permissions split (`tax:manage`, `pricing:manage`); cross-tenant references; audit/outbox/idempotent replay |
 | organization-api.int | full HTTP API on **both adapters**: validation, problem+json, If-Match, pagination, GST rules, platform token, health/readiness (503 when migrations behind), startup refusal for unsafe DB role |
 
 Not verified here: the Docker build and the GitHub Actions workflow (no Docker daemon in this sandbox; the workflow has not run yet).

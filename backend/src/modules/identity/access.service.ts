@@ -8,6 +8,7 @@ import { AppError, notFound, preconditionFailed, validationFailed } from '../../
 import { decodeCursor, type Page, toPage } from '../../platform/http/validation.js';
 import { AuditService } from '../../platform/services/audit.service.js';
 import { OutboxService } from '../../platform/services/outbox.service.js';
+import { seedTenantDefaults } from '../masterdata/seed.js';
 import { tenants } from '../organization/organization.schema.js';
 import { apiKeys, roles, sessions, userRoles, users } from './identity.schema.js';
 import type { CreateApiKeyInput, CreateRoleInput, CreateUserInput, ProvisionTenantInput, UpdateRoleInput, UpdateUserInput } from './identity.schemas.js';
@@ -65,6 +66,7 @@ export class AccessService {
         .values({ tenantId, id: userId, email: input.owner.email, displayName: input.owner.displayName, passwordHash })
         .returning();
       await tx.insert(userRoles).values({ tenantId, userId, roleId, grantedBy: userId });
+      await seedTenantDefaults(tx, tenantId);
       if (!tenant || !user) throw new Error('provisioning returned no rows');
       await this.note(tx, tenantId, 'tenant', 'provisioned', tenantId, { slug: tenant.slug, ownerUserId: user.id });
       return { tenant, user };

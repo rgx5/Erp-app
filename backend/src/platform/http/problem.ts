@@ -83,6 +83,8 @@ export function toProblem(error: unknown): { problem: Problem; log: 'none' | 'wa
     switch (pg.code) {
       case '23505':
         return { problem: problem(409, 'conflict', 'A record with the same unique value already exists', constraint), log: 'none' };
+      case '23P01': // exclusion constraint: overlapping effective-dated ranges
+        return { problem: problem(409, 'overlaps_existing', 'The effective period overlaps an existing one', constraint), log: 'none' };
       case '23503':
         return { problem: problem(422, 'reference_invalid', 'A referenced record does not exist', constraint), log: 'none' };
       case '23514':

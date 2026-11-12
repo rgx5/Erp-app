@@ -35,5 +35,9 @@ CREATE SCHEMA IF NOT EXISTS erp AUTHORIZATION erp_migrator;
 REVOKE ALL ON SCHEMA erp FROM PUBLIC;
 GRANT USAGE ON SCHEMA erp TO erp_app;
 
+-- Needed for effective-dating exclusion constraints ("no two overlapping periods for the same thing"). Installed by the admin,
+-- into the erp schema, because the public schema is closed to the application roles.
+CREATE EXTENSION IF NOT EXISTS btree_gist WITH SCHEMA erp;
+
 -- Nothing is granted to erp_app by default: each migration grants exactly what its tables need.
 ALTER DEFAULT PRIVILEGES FOR ROLE erp_migrator IN SCHEMA erp REVOKE EXECUTE ON FUNCTIONS FROM PUBLIC;

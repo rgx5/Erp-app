@@ -1,4 +1,4 @@
-# Architecture decisions (Slice 0 and Slice 1)
+# Architecture decisions (Slices 0-2)
 
 Each decision lists what was chosen, why, and what is deliberately deferred. Items marked **ASSUMPTION** are things
 I decided without a business rule from you; please confirm or correct them.
@@ -84,6 +84,15 @@ One series per **GST registration x document type x financial year** (no global 
 ## ADR-12 Ambient transactions
 `UnitOfWork.inTenant` nested inside another `inTenant` for the *same tenant* joins it; a different tenant, or a write inside a read-only transaction, throws. This is what lets idempotency, audit, outbox and numbering participate in one atomic unit without threading `tx` through every signature, and it is the base for the later posting operations.
 
+## ADR-13 Master data (Slice 2)
+Currencies, exchange rates, units, tax codes with effective-dated rates, items, payment terms, parties (customers / suppliers / subcontractors as roles of one record), party addresses, price lists. Principles:
+- **Effective dating is enforced by the database**: `EXCLUDE USING gist` (btree_gist, installed by the admin bootstrap into the `erp` schema) makes overlapping tax-rate or price periods impossible; a guard trigger lets a row be *closed* once and never rewritten or deleted. A rate change is one call: the open version is closed the day before the new one starts. Documents resolve the rate/price/exchange rate **for their own date**, so back-dated documents are right (`CatalogService.taxRateOn`, `PricingService.priceOn`, `CatalogService.rateOn`).
+- **Manufacturing from day one**: item types `raw_material, packing_material, semi_finished, finished_good, trading_good, consumable, service`; `is_manufactured` only for semi-finished/finished; batch/serial tracking only for stocked items; per-item unit conversions (box of 12 -> factor 12); subcontractor role on parties.
+- **Statutory checks live in both the API and the database**: HSN 4/6/8 digits, SAC 6 digits starting 99, GST UQC list for units, CGST = SGST = IGST/2, GSTIN format + check character, PAN inside GSTIN must match, registered treatments need a GSTIN and unregistered ones must not have one, PIN code only for Indian addresses.
+- **Item identity is frozen**: code, type and base unit cannot change after creation (database trigger), because stock, costing and BOMs will depend on them.
+- Money, quantities and rates are **decimal strings**, never floats. Exchange rates are immutable facts per date (correct by adding a new date); inverse rates are not derived.
+- New tenants are seeded with INR and the 44 statutory units. **Tax rates are not seeded** (they are tenant configuration; a wrong default silently mis-taxes documents).
+
 ## Assumptions to confirm
 1. GST registration types: regular, composition, SEZ, casual, non-resident, input-service-distributor, TDS/TCS deductor (check constraint list, easy to change).
 2. GSTIN: 15 chars, format regex, state code = first two digits, PAN inside GSTIN must equal the company PAN. State code validity table is not enforced. A GSTIN is unique per tenant.
@@ -95,6 +104,10 @@ One series per **GST registration x document type x financial year** (no global 
 8. Permission catalog (`organization`, `users`, `roles`, `api_keys`, `audit`, `numbering` read/write) is a starting set; the only built-in role is Owner. Other roles are tenant-defined.
 9. Session lengths: access 15 min, refresh 30 days, lockout 5 failures / 15 min (all configurable).
 10. Self-signup is OFF by default; tenants are provisioned by the platform operator.
+12. Master data: parties are one table with roles; GST treatments = registered_regular, registered_composition, sez, deemed_export, unregistered, consumer, overseas; one GSTIN per party; a party's state comes from its addresses (not checked against its GSTIN prefix yet).
+13. Items: no item categories/groups, brands, variants, barcodes or per-item costing method yet (costing method is decided with the inventory slice). Services are never stocked. Tax code on an item is optional.
+14. Tax: only IGST/CGST/SGST/cess percentages (cess ad-valorem only; specific-amount cess and composition-scheme flat rates are not modelled). Permissions `tax:manage` and `pricing:manage` are separate from `masterdata:write`.
+15. Price lists: one price per (list, item, unit, minimum quantity, period); customer-specific lists and discounts/schemes are not modelled yet.
 11. Retention: nothing is ever deleted by the runtime role (no DELETE grants), so sessions, idempotency keys, outbox and audit rows accumulate; archival/partitioning needs a separate maintenance role and a retention policy you must decide.
 
 ## Deferred on purpose (later slices, not decided here)
