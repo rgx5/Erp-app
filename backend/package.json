@@ -1,0 +1,62 @@
+{
+  "name": "@onesync/backend",
+  "version": "0.1.0",
+  "private": true,
+  "description": "OneSyncERP backend — a NestJS modular monolith on PostgreSQL",
+  "license": "UNLICENSED",
+  "type": "module",
+  "engines": {
+    "node": ">=22.22",
+    "npm": ">=11"
+  },
+  "packageManager": "npm@11.21.2",
+  "scripts": {
+    "build": "nest build",
+    "start": "node dist/main.js",
+    "start:dev": "nest start --watch",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "oxlint --type-aware src test scripts",
+    "test": "vitest run --config vitest.config.ts",
+    "test:integration": "vitest run --config vitest.config.integration.ts",
+    "test:all": "npm run test && npm run test:integration",
+    "db:migrate": "tsx src/db/cli.ts up",
+    "db:status": "tsx src/db/cli.ts status",
+    "perf": "tsx scripts/perf.ts",
+    "db:bootstrap": "tsx scripts/bootstrap-db.ts",
+    "openapi": "tsx scripts/export-openapi.ts"
+  },
+  "dependencies": {
+    "@fastify/static": "^10.1.10",
+    "@nestjs/common": "^12.4.2",
+    "@nestjs/core": "^12.4.2",
+    "@nestjs/platform-fastify": "^12.4.2",
+    "@nestjs/platform-node": "^12.4.2",
+    "@nestjs/swagger": "^12.1.1",
+    "@nestjs/terminus": "^12.1.0",
+    "drizzle-orm": "^0.45.4",
+    "fastify": "^5.12.8",
+    "pg": "^8.23.1",
+    "pino": "^10.4.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "uuid": "^14.0.3",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^12.0.12",
+    "@nestjs/schematics": "^12.0.13",
+    "@nestjs/testing": "^12.4.2",
+    "@types/autocannon": "^7.12.7",
+    "@types/node": "^26.6.6",
+    "@types/pg": "^8.23.1",
+    "@vitest/coverage-v8": "^5.1.0",
+    "autocannon": "^9.0.0",
+    "drizzle-kit": "^0.31.11",
+    "oxlint": "^1.93.0",
+    "oxlint-tsgolint": "^7.0.2006",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "vite": "^8.3.8",
+    "vitest": "^5.1.0"
+  }
+}

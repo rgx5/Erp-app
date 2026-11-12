@@ -1,0 +1,11 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": { "correctness": "error" },
+  "rules": {
+    "typescript/no-floating-promises": "error",
+    "typescript/no-explicit-any": "error",
+    "typescript/await-thenable": "error",
+    "typescript/no-misused-promises": "error"
+  },
+  "env": { "node": true, "es2024": true }
+}
