@@ -7,6 +7,10 @@ import { AccountingModule } from '../accounting/accounting.controller.js';
 import { CurrentPrincipal, type Principal, RequirePermissions, TenantId } from '../identity/principal.js';
 import { Recorder } from '../masterdata/helpers.js';
 import * as s from './inventory.schemas.js';
+import { CountsService } from './counts.service.js';
+import { StockOperationsController } from './operations.controller.js';
+import { ReservationsService } from './reservations.service.js';
+import { TransfersService } from './transfers.service.js';
 import { InventorySettingsService } from './settings.service.js';
 import { StockQueriesService } from './stock-queries.service.js';
 import { StockService } from './stock.service.js';
@@ -61,7 +65,7 @@ export class InventoryController {
     const { movement, results } = await this.stock.moveInTenant(a.tenantId, {
       companyId: b.companyId, movementType: b.movementType, postingDate: b.postingDate, description: b.description, offsetAccountId: b.offsetAccountId, allowControlOffset: false,
       source: { type: 'manual' }, postedBy: a.userId,
-      lines: b.lines.map((l) => ({ warehouseId: l.warehouseId, itemId: l.itemId, quantity: l.quantity, direction: b.movementType === 'issue' ? 'out' : b.movementType === 'adjustment' ? (l.direction as 'in' | 'out') : 'in', unitCost: l.unitCost, batchId: l.batchId, batch: l.batch, serialNos: l.serialNos })),
+      lines: b.lines.map((l) => ({ warehouseId: l.warehouseId, itemId: l.itemId, quantity: l.quantity, direction: b.movementType === 'issue' ? 'out' : b.movementType === 'adjustment' ? (l.direction as 'in' | 'out') : 'in', unitCost: l.unitCost, batchId: l.batchId, batch: l.batch, serialNos: l.serialNos, reservationId: l.reservationId })),
     });
     return { ...hide(movement), lines: results.map((r) => ({ ...hide(r.ledger), serialNos: r.serialNos })) };
   }
@@ -84,8 +88,8 @@ export class InventoryController {
 
 @Module({
   imports: [AccountingModule],
-  controllers: [InventoryController],
-  providers: [Recorder, InventorySettingsService, StockService, StockQueriesService],
-  exports: [StockService, StockQueriesService, InventorySettingsService],
+  controllers: [InventoryController, StockOperationsController],
+  providers: [Recorder, InventorySettingsService, StockService, StockQueriesService, ReservationsService, TransfersService, CountsService],
+  exports: [StockService, StockQueriesService, InventorySettingsService, ReservationsService, TransfersService, CountsService],
 })
 export class InventoryModule {}

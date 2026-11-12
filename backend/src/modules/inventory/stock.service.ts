@@ -13,7 +13,7 @@ import { items } from '../masterdata/masterdata.schema.js';
 import { businessLocations, warehouses } from '../organization/organization.schema.js';
 import { cost, costOf, divRound, qty, value, valueOf } from './decimal.js';
 import {
-  batchBalances, batches, companyStockSettings, inventoryAccounts, stockBalances, stockCounters, stockLayerConsumptions, stockLayers, stockLedger, stockLedgerSerials, stockMovements, stockSerials,
+  batchBalances, batches, companyStockSettings, inventoryAccounts, stockBalances, stockCounters, stockReservations, stockLayerConsumptions, stockLayers, stockLedger, stockLedgerSerials, stockMovements, stockSerials,
 } from './inventory.schema.js';
 
 export type MovementType = 'opening' | 'receipt' | 'issue' | 'adjustment' | 'transfer_dispatch' | 'transfer_receipt' | 'transfer_direct' | 'count_adjustment';
@@ -31,8 +31,13 @@ export interface MoveLine {
   batchId?: string | undefined;
   batch?: { batchNo: string; manufactureDate?: string | undefined; expiryDate?: string | undefined } | undefined;
   serialNos?: string[] | undefined;
-  /** For FIFO transfers: the cost layers consumed at the source, recreated at the destination with their own cost and date. */
-  layers?: { quantity: string; unitCost: string; receivedOn: string }[] | undefined;
+  /** An outgoing line consumes (part of) this reservation instead of competing with it for the stock. */
+  reservationId?: string | undefined;
+  /**
+   * For an incoming line of a transfer: the index of the outgoing line of the SAME movement whose exact value (and FIFO cost layers)
+   * it carries, so stock moves between warehouses at its cost with no revaluation and no GL entry.
+   */
+  carryFrom?: number | undefined;
 }
 
 export interface MoveRequest {
@@ -120,6 +125,11 @@ export class StockService {
           throw new AppError(422, 'serial_required', `${item.code} is serial tracked: give exactly one distinct serial number per unit`);
         }
       } else if (line.serialNos) throw new AppError(422, 'item_not_serial_tracked', `${item.code} is not serial tracked`);
+      if (line.carryFrom !== undefined) {
+        const source = request.lines[line.carryFrom];
+        if (!transfer || line.direction !== 'in' || !source || source.direction !== 'out' || source.itemId !== line.itemId || source.quantity !== line.quantity) throw new AppError(500, 'carry_invalid', 'Invalid transfer line pairing');
+      }
+      if (line.reservationId && line.direction !== 'out') throw validationFailed([{ path: at('reservationId'), message: 'Only an outgoing line can consume a reservation' }]);
     });
 
     // Number and header. The header is inserted first (ledger rows reference it); its journal link is filled in at the end.
@@ -140,11 +150,21 @@ export class StockService {
       'Stock movement',
     );
 
-    // Process lines in a fixed (warehouse, item) order so concurrent movements lock rows in the same order: no deadlocks.
-    const order = request.lines.map((line, index) => ({ line, index })).sort((a, b) => (a.line.warehouseId + a.line.itemId).localeCompare(b.line.warehouseId + b.line.itemId) || a.index - b.index);
+    // Lock every balance row up front in one fixed (warehouse, item) order, so concurrent movements (including transfers in opposite
+    // directions) can never deadlock. Then process outgoing lines before incoming ones: a transfer's incoming line carries the cost
+    // its outgoing line just produced.
+    const keys = [...new Set(request.lines.map((l) => `${l.warehouseId}|${l.itemId}`))].sort();
+    for (const key of keys) {
+      const [warehouseId, itemId] = key.split('|') as [string, string];
+      await tx.insert(stockBalances).values({ tenantId, companyId: request.companyId, warehouseId, itemId }).onConflictDoNothing();
+      await tx.select({ q: stockBalances.quantity }).from(stockBalances).where(and(eq(stockBalances.tenantId, tenantId), eq(stockBalances.warehouseId, warehouseId), eq(stockBalances.itemId, itemId))).for('update');
+    }
+    const order = request.lines
+      .map((line, index) => ({ line, index }))
+      .sort((a, b) => Number(a.line.direction === 'in') - Number(b.line.direction === 'in') || (a.line.warehouseId + a.line.itemId).localeCompare(b.line.warehouseId + b.line.itemId) || a.index - b.index);
     const results: LineResult[] = Array.from({ length: request.lines.length });
     for (const { line, index } of order) {
-      results[index] = await this.processLine(tx, tenantId, request, movement, index + 1, line, itemRows.get(line.itemId) as typeof items.$inferSelect, warehouseRows.get(line.warehouseId) as { allowNegativeStock: boolean });
+      results[index] = await this.processLine(tx, tenantId, request, movement, index + 1, line, itemRows.get(line.itemId) as typeof items.$inferSelect, warehouseRows.get(line.warehouseId) as { allowNegativeStock: boolean }, results);
     }
 
     const journalEntryId = await this.postToLedger(tx, tenantId, request, movement, results, itemRows);
@@ -154,7 +174,7 @@ export class StockService {
 
   // ---- one line -------------------------------------------------------------------------------------------------
   private async processLine(
-    tx: Tx, tenantId: string, request: MoveRequest, movement: MovementRow, lineNo: number, line: MoveLine, item: typeof items.$inferSelect, warehouse: { allowNegativeStock: boolean },
+    tx: Tx, tenantId: string, request: MoveRequest, movement: MovementRow, lineNo: number, line: MoveLine, item: typeof items.$inferSelect, warehouse: { allowNegativeStock: boolean }, results: LineResult[],
   ): Promise<LineResult> {
     const q = qty.parse(line.quantity);
     const fifo = item.costingMethod === 'fifo';
@@ -176,16 +196,17 @@ export class StockService {
 
     let unitCost: bigint;
     let lineValue: bigint;
+    let reservationToConsume: typeof stockReservations.$inferSelect | undefined;
     const consumed: { layerId: string; quantity: bigint; unitCost: bigint; value: bigint; receivedOn: string }[] = [];
     let newLayers: { quantity: bigint; unitCost: bigint; receivedOn: string }[] = [];
 
     if (incoming) {
-      if (line.layers && line.layers.length > 0) {
-        // FIFO transfer in: keep the source layers' costs and dates.
-        newLayers = line.layers.map((l) => ({ quantity: qty.parse(l.quantity), unitCost: cost.parse(l.unitCost), receivedOn: l.receivedOn }));
-        lineValue = newLayers.reduce((sum, l) => sum + valueOf(l.quantity, l.unitCost), 0n);
-        if (newLayers.reduce((sum, l) => sum + l.quantity, 0n) !== q) throw new AppError(500, 'layer_mismatch', 'The cost layers do not add up to the quantity');
-        unitCost = costOf(lineValue, q);
+      if (line.carryFrom !== undefined) {
+        // Transfer: take over the outgoing line's exact value, unit cost and (FIFO) layers.
+        const source = results[line.carryFrom] as LineResult;
+        lineValue = -value.parseSigned(source.ledger.value);
+        unitCost = cost.parse(source.ledger.unitCost);
+        newLayers = source.layers.map((l) => ({ quantity: qty.parse(l.quantity), unitCost: cost.parse(l.unitCost), receivedOn: l.receivedOn }));
       } else {
         if (line.unitCost !== undefined) unitCost = cost.parse(line.unitCost);
         else if (request.movementType === 'adjustment' || request.movementType === 'count_adjustment') {
@@ -202,10 +223,26 @@ export class StockService {
         newLayers = [{ quantity: q, unitCost, receivedOn: request.postingDate }];
       }
     } else {
-      const available = balQty;
+      let reservation: typeof stockReservations.$inferSelect | undefined;
+      if (line.reservationId) {
+        [reservation] = await tx.select().from(stockReservations).where(and(eq(stockReservations.tenantId, tenantId), eq(stockReservations.id, line.reservationId))).for('update');
+        const outstanding = reservation ? qty.parse(reservation.quantity) - qty.parse(reservation.consumedQuantity) : 0n;
+        if (!reservation || reservation.status !== 'active' || (reservation.expiresAt && reservation.expiresAt.getTime() <= Date.now()) || reservation.warehouseId !== line.warehouseId || reservation.itemId !== line.itemId
+            || (reservation.batchId && reservation.batchId !== (batch?.id ?? null))) {
+          throw new AppError(409, 'reservation_invalid', 'The reservation is not active, has expired, or is for different stock');
+        }
+        if (q > outstanding) throw new AppError(409, 'reservation_exceeded', `Only ${qty.format(outstanding)} remains reserved`, { reserved: qty.format(outstanding) });
+        reservationToConsume = reservation;
+      }
+      // Stock held for other reservations is not available to this issue.
+      const reservedOthers = (await this.reservedQuantity(tx, tenantId, line.warehouseId, line.itemId)) - (reservation ? qty.parse(reservation.quantity) - qty.parse(reservation.consumedQuantity) : 0n);
+      const available = balQty - reservedOthers;
       if (available < q) {
         const mayGoNegative = warehouse.allowNegativeStock && !fifo;
-        if (!mayGoNegative) throw new AppError(409, 'insufficient_stock', `Not enough ${item.code}: ${qty.format(available > 0n ? available : 0n)} available, ${line.quantity} requested`, { available: qty.format(available > 0n ? available : 0n), requested: line.quantity });
+        if (!mayGoNegative) {
+          const shown = qty.format(available > 0n ? available : 0n);
+          throw new AppError(409, 'insufficient_stock', `Not enough ${item.code}: ${shown} available${reservedOthers > 0n ? ` (${qty.format(reservedOthers)} reserved)` : ''}, ${line.quantity} requested`, { available: shown, requested: line.quantity, reserved: qty.format(reservedOthers) });
+        }
       }
       if (fifo) {
         const layers = await tx
@@ -258,6 +295,11 @@ export class StockService {
       .set({ quantity: qty.format(newQty), value: value.format(newVal), ...(incoming ? { lastCost: cost.format(unitCost) } : {}), updatedAt: new Date() })
       .where(and(eq(stockBalances.tenantId, tenantId), eq(stockBalances.warehouseId, line.warehouseId), eq(stockBalances.itemId, line.itemId)));
 
+    if (reservationToConsume) {
+      const consumedNow = qty.parse(reservationToConsume.consumedQuantity) + q;
+      await tx.update(stockReservations).set({ consumedQuantity: qty.format(consumedNow), status: consumedNow === qty.parse(reservationToConsume.quantity) ? 'fulfilled' : 'active', updatedAt: new Date() }).where(and(eq(stockReservations.tenantId, tenantId), eq(stockReservations.id, reservationToConsume.id)));
+    }
+
     // FIFO layers
     if (fifo && incoming) {
       for (const l of newLayers) {
@@ -280,31 +322,36 @@ export class StockService {
         .from(batchBalances)
         .where(and(eq(batchBalances.tenantId, tenantId), eq(batchBalances.warehouseId, line.warehouseId), eq(batchBalances.itemId, line.itemId), eq(batchBalances.batchId, batch.id)))
         .for('update');
+      const batchReservedOthers = incoming ? 0n : (await this.reservedQuantity(tx, tenantId, line.warehouseId, line.itemId, batch.id)) - (reservationToConsume?.batchId ? qty.parse(reservationToConsume.quantity) - qty.parse(reservationToConsume.consumedQuantity) : 0n);
       const next = qty.parse(bb?.quantity ?? '0') + signedQty;
-      if (next < 0n) throw new AppError(409, 'insufficient_batch_stock', `Not enough of batch ${batch.batchNo} of ${item.code}: ${bb?.quantity ?? '0'} available, ${line.quantity} requested`);
+      if (next < 0n || next < batchReservedOthers) throw new AppError(409, 'insufficient_batch_stock', `Not enough of batch ${batch.batchNo} of ${item.code}: ${bb?.quantity ?? '0'} available, ${line.quantity} requested`);
       await tx.update(batchBalances).set({ quantity: qty.format(next), updatedAt: new Date() }).where(and(eq(batchBalances.tenantId, tenantId), eq(batchBalances.warehouseId, line.warehouseId), eq(batchBalances.itemId, line.itemId), eq(batchBalances.batchId, batch.id)));
     }
 
-    // Serial numbers
+    // Serial numbers. Receipts create them, issues retire them; a TRANSFER only moves them (they stay in stock).
     const serialNos = line.serialNos ?? [];
     if (item.tracking === 'serial') {
-      if (incoming) {
+      const moving = request.movementType.startsWith('transfer');
+      if (incoming && !moving) {
         const clash = await tx.select({ serialNo: stockSerials.serialNo }).from(stockSerials).where(and(eq(stockSerials.tenantId, tenantId), eq(stockSerials.itemId, line.itemId), inArray(stockSerials.serialNo, serialNos)));
         if (clash.length > 0) throw new AppError(409, 'serial_exists', `Serial number ${clash[0]?.serialNo} of ${item.code} already exists`, { serialNos: clash.map((c) => c.serialNo) });
         const created = await tx.insert(stockSerials).values(serialNos.map((serialNo) => ({ tenantId, id: uuidv7(), itemId: line.itemId, serialNo, warehouseId: line.warehouseId, receiptLedgerId: ledgerRow.id }))).returning({ id: stockSerials.id });
         await tx.insert(stockLedgerSerials).values(created.map((s) => ({ tenantId, ledgerId: ledgerRow.id, serialId: s.id })));
       } else {
+        // outgoing: in stock in this warehouse. incoming transfer: in stock anywhere (they are still at the source until this moves them).
         const found = await tx
           .select({ id: stockSerials.id, serialNo: stockSerials.serialNo })
           .from(stockSerials)
-          .where(and(eq(stockSerials.tenantId, tenantId), eq(stockSerials.itemId, line.itemId), eq(stockSerials.warehouseId, line.warehouseId), eq(stockSerials.status, 'in_stock'), inArray(stockSerials.serialNo, serialNos)))
+          .where(and(eq(stockSerials.tenantId, tenantId), eq(stockSerials.itemId, line.itemId), eq(stockSerials.status, 'in_stock'), incoming ? undefined : eq(stockSerials.warehouseId, line.warehouseId), inArray(stockSerials.serialNo, serialNos)))
           .for('update');
         if (found.length !== serialNos.length) {
           const have = new Set(found.map((f) => f.serialNo));
           throw new AppError(409, 'serial_not_available', `Serial numbers not in stock in this warehouse: ${serialNos.filter((s) => !have.has(s)).join(', ')}`, { serialNos: serialNos.filter((s) => !have.has(s)) });
         }
-        await tx.update(stockSerials).set({ status: 'issued', issueLedgerId: ledgerRow.id }).where(and(eq(stockSerials.tenantId, tenantId), inArray(stockSerials.id, found.map((f) => f.id))));
-        await tx.insert(stockLedgerSerials).values(found.map((s) => ({ tenantId, ledgerId: ledgerRow.id, serialId: s.id })));
+        const ids = found.map((f) => f.id);
+        if (incoming) await tx.update(stockSerials).set({ warehouseId: line.warehouseId }).where(and(eq(stockSerials.tenantId, tenantId), inArray(stockSerials.id, ids)));
+        else if (!moving) await tx.update(stockSerials).set({ status: 'issued', issueLedgerId: ledgerRow.id }).where(and(eq(stockSerials.tenantId, tenantId), inArray(stockSerials.id, ids)));
+        await tx.insert(stockLedgerSerials).values(ids.map((serialId) => ({ tenantId, ledgerId: ledgerRow.id, serialId })));
       }
     }
 
@@ -314,6 +361,15 @@ export class StockService {
       serialNos,
       batchId: batch?.id ?? null,
     };
+  }
+
+  /** Quantity currently held by active, unexpired reservations (optionally of one batch). */
+  async reservedQuantity(tx: Tx, tenantId: string, warehouseId: string, itemId: string, batchId?: string): Promise<bigint> {
+    const result = await tx.execute<{ reserved: string }>(sql`
+      SELECT COALESCE(SUM(quantity - consumed_quantity), 0)::text AS reserved FROM erp.stock_reservations
+       WHERE tenant_id = ${tenantId}::uuid AND warehouse_id = ${warehouseId}::uuid AND item_id = ${itemId}::uuid AND status = 'active'
+         AND (expires_at IS NULL OR expires_at > now()) ${batchId ? sql`AND batch_id = ${batchId}::uuid` : sql``}`);
+    return qty.parse(result.rows[0]?.reserved ?? '0');
   }
 
   private async resolveBatch(tx: Tx, tenantId: string, item: typeof items.$inferSelect, line: MoveLine, postingDate: string, incoming: boolean) {

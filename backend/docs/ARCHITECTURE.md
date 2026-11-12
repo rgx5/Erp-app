@@ -114,6 +114,13 @@ Decisions you made for this slice: **weighted average and FIFO per item**, **neg
 - **Locking**: balance rows are locked per (warehouse, item) in a fixed order (no deadlocks); 20 simultaneous issues against 10 units produced exactly 10 successes. Stock dates lock with the books: a movement needs an open accounting period.
 - The stock ledger is append-only like the journal. Corrections are opposite movements; reversing a movement automatically (needed by document cancellation) arrives with the purchasing and sales slices that need it.
 
+## ADR-16 Reservations, transfers and counts (Slice 4b)
+All three change stock only through `StockService.move`, so ledger, balances and GL stay in agreement (re-asserted by the reconciliation in every test).
+- **Reservations** hold quantity without moving it. Availability = on hand - active, unexpired reservations; other issues cannot take reserved stock (409 with `reserved` in the problem), an issue that names the reservation consumes it (partially or fully), and release/expiry give it back. Creating a reservation takes the *same balance-row lock* as a movement, so a reservation and an issue can never both claim the last unit. Batch-specific reservations protect that batch. Serial-tracked items are not reservable yet (issue by serial). Warehouses that allow negative stock can still be issued past reservations (the operator chose to relax stock rules there).
+- **Transfers** are direct or two-step through an `in_transit` warehouse (dispatch now, receive later, partial receipts, cancel back to source if nothing was received). Stock moves at its own exact value, FIFO cost layers keep their cost *and receipt date*, batches and serial numbers travel (serials stay in stock and change warehouse). Because a transfer stays inside one inventory account it produces **no GL entry**; the in-transit warehouse keeps the value in the subledger. For weighted-average items the in-transit cost is pooled per item (two overlapping transfers of one item blend until received; total value is conserved).
+- **Counts** snapshot the books, record what was found, and post one `count_adjustment` movement. Differences are measured against the stock held *at posting* with balances locked first (movements after the snapshot are not double-counted); gains use the line's cost or the valuation cost, losses the valuation cost; batch items count per batch; serial-tracked items are excluded. Every line must be counted before posting; posted/cancelled counts are frozen by a trigger.
+- **Deadlock safety**: every movement first locks all its balance rows in one fixed (warehouse, item) order, then processes outgoing lines before incoming ones; 20 simultaneous opposite-direction transfers all succeeded.
+
 ## Assumptions to confirm
 1. GST registration types: regular, composition, SEZ, casual, non-resident, input-service-distributor, TDS/TCS deductor (check constraint list, easy to change).
 2. GSTIN: 15 chars, format regex, state code = first two digits, PAN inside GSTIN must equal the company PAN. State code validity table is not enforced. A GSTIN is unique per tenant.
@@ -135,6 +142,8 @@ Decisions you made for this slice: **weighted average and FIFO per item**, **neg
 19. `entry_no` is not required to be gapless; a rolled-back posting returns its number, so committed numbers are consecutive in practice.
 20. Inventory: valuation is per item per warehouse (not company-wide); one GL account per item *type* (not per item); quantities are in the item's base unit (conversions are applied by documents); no movement reversal yet; no item categories or landed cost yet (purchasing slice).
 21. Negative-stock valuation is approximate by nature (shortfalls use the last cost); the subledger and GL still agree because both take the same ledger values.
+22. Counts: one adjustment per count; no recount/approval workflow; serial items are checked by serial adjustments instead. Transfers: same company only (inter-company is out of scope), no transport/charges, in-transit stock has no separate GL account (it stays in the item's inventory account).
+23. Reservations are by warehouse (and optional batch); no cross-warehouse allocation, no priority/pre-emption, serial items not reservable.
 11. Retention: nothing is ever deleted by the runtime role (no DELETE grants), so sessions, idempotency keys, outbox and audit rows accumulate; archival/partitioning needs a separate maintenance role and a retention policy you must decide.
 
 ## Deferred on purpose (later slices, not decided here)

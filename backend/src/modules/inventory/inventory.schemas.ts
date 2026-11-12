@@ -26,6 +26,8 @@ export const movementLineSchema = z
     batchId: z.uuid().optional(),
     batch: createBatchSchema.optional(),
     serialNos: z.array(code).min(1).max(5000).optional(),
+    /** An issue line can consume a reservation made for it. */
+    reservationId: z.uuid().optional(),
   })
   .refine((l) => !(l.batchId && l.batch), { path: ['batch'], message: 'Give a batchId or a batch to create, not both' });
 
@@ -63,3 +65,42 @@ export const listSerialsQuery = z.object({ ...page, itemId: z.uuid(), status: z.
 export type PostMovementInput = z.infer<typeof postMovementSchema>;
 export type MovementLineInput = z.infer<typeof movementLineSchema>;
 export type CreateBatchInput = z.infer<typeof createBatchSchema>;
+
+// ---- reservations, transfers, counts --------------------------------------------------------------------------------
+export const createReservationSchema = z.strictObject({
+  companyId: z.uuid(),
+  warehouseId: z.uuid(),
+  itemId: z.uuid(),
+  batchId: z.uuid().optional(),
+  quantity,
+  referenceType: z.string().trim().regex(/^[a-z][a-z_]{1,39}$/, 'e.g. sales_order'),
+  referenceId: text(100),
+  expiresAt: z.iso.datetime().optional(),
+});
+export const listReservationsQuery = z.object({ ...page, companyId: z.uuid(), itemId: z.uuid().optional(), warehouseId: z.uuid().optional(), status: z.enum(['active', 'fulfilled', 'released']).optional(), referenceType: z.string().max(40).optional(), referenceId: z.string().max(100).optional() });
+export const availabilityQuery = z.object({ companyId: z.uuid(), itemId: z.uuid(), warehouseId: z.uuid().optional() });
+
+const transferLine = z.strictObject({ itemId: z.uuid(), quantity, batchId: z.uuid().optional(), serialNos: z.array(code).min(1).max(5000).optional() });
+export const createTransferSchema = z.strictObject({
+  companyId: z.uuid(),
+  fromWarehouseId: z.uuid(),
+  toWarehouseId: z.uuid(),
+  /** Omit for a direct transfer; give an in-transit warehouse for a two-step transfer (dispatch now, receive later). */
+  transitWarehouseId: z.uuid().optional(),
+  postingDate: isoDate,
+  description: text(500),
+  lines: z.array(transferLine).min(1).max(200),
+});
+export const receiveTransferSchema = z.strictObject({
+  postingDate: isoDate,
+  /** Omit to receive everything still outstanding. */
+  lines: z.array(z.strictObject({ lineId: z.uuid(), quantity, serialNos: z.array(code).min(1).max(5000).optional() })).min(1).optional(),
+});
+export const cancelTransferSchema = z.strictObject({ postingDate: isoDate, reason: text(300) });
+export const listTransfersQuery = z.object({ ...page, companyId: z.uuid(), status: z.enum(['completed', 'in_transit', 'partially_received', 'cancelled']).optional() });
+
+export const createCountSchema = z.strictObject({ companyId: z.uuid(), warehouseId: z.uuid(), countDate: isoDate, description: text(300), itemIds: z.array(z.uuid()).min(1).max(500).optional() });
+export const addCountLineSchema = z.strictObject({ itemId: z.uuid(), batchId: z.uuid().optional() });
+export const recordCountsSchema = z.strictObject({ lines: z.array(z.strictObject({ lineId: z.uuid(), countedQuantity: z.string().regex(/^[0-9]{1,12}(\.[0-9]{1,6})?$/, 'A non-negative decimal, as a string'), unitCost: unitCost.optional() })).min(1).max(1000) });
+export const postCountSchema = z.strictObject({ postingDate: isoDate });
+export const listCountsQuery = z.object({ ...page, companyId: z.uuid(), status: z.enum(['open', 'posted', 'cancelled']).optional() });
