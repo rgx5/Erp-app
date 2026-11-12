@@ -1,4 +1,4 @@
-# Architecture decisions (Slices 0-2)
+# Architecture decisions (Slices 0-3)
 
 Each decision lists what was chosen, why, and what is deliberately deferred. Items marked **ASSUMPTION** are things
 I decided without a business rule from you; please confirm or correct them.
@@ -93,6 +93,17 @@ Currencies, exchange rates, units, tax codes with effective-dated rates, items, 
 - Money, quantities and rates are **decimal strings**, never floats. Exchange rates are immutable facts per date (correct by adding a new date); inverse rates are not derived.
 - New tenants are seeded with INR and the 44 statutory units. **Tax rates are not seeded** (they are tenant configuration; a wrong default silently mis-taxes documents).
 
+## ADR-14 Accounting core (Slice 3)
+Chart of accounts, fiscal years/periods, the double-entry journal, trial balance and account ledger, per **company** (each company keeps its own books).
+- **One posting door**: `PostingService.post(tx, ...)`. The manual-journal API and every future subledger (sales, purchases, stock, payroll, manufacturing) call it *inside their own transaction*, so a document and its ledger entry commit or roll back together, the entry number is returned on rollback, and a document cannot be posted twice (unique `(source type, source id, event)`; a repeat returns the existing entry).
+- **Immutable ledger**: `journal_entries`/`journal_lines` have no UPDATE/DELETE/TRUNCATE for any role (triggers fire even for a superuser). Corrections are **reversing entries**: the mirror image, linked to the original, at most once, never reversing a reversal; entries created by a document can only be reversed through that document.
+- **The database guarantees the invariants, the application only gives nicer errors**: a deferred constraint trigger checks at COMMIT that lines match the header and debits = credits; lines can only be added by the transaction that created the entry; the entry must fall in an **open** period containing its date; group and inactive accounts cannot be posted to.
+- **Period locking**: `open <-> closed` (reopen needs its own permission, newest first; closing is in order) and `closed -> locked` (permanent). Posting takes the period row `FOR SHARE`, closing takes it `FOR UPDATE`: a close waits for postings in flight and later postings see the close, so nothing slips into a closed period (race-tested).
+- **Posting controls**: manual journals cannot touch **control accounts** (receivables, payables, inventory, WIP, tax); only subledgers post there. This is how the later inventory subledger will reconcile to the GL without anyone editing the control accounts by hand.
+- **Exact money**: amounts are decimal strings summed as integers of 1/10000; no floats anywhere.
+- **Manufacturing from the start**: the opt-in starter chart (`POST /v1/companies/:id/chart-of-accounts/template`) has raw-material / packing / WIP / finished-goods / material-with-subcontractor inventory, GRNI, overheads absorbed, subcontracting, scrap, production variances and purchase price variance accounts. It is a convenience, not a policy: apply it, or build your own.
+- Entry numbers `JV|OB|AJ|RV|SY/<FY>/<6 digits>` are per company x fiscal year x type (no global counter; not a statutory series).
+
 ## Assumptions to confirm
 1. GST registration types: regular, composition, SEZ, casual, non-resident, input-service-distributor, TDS/TCS deductor (check constraint list, easy to change).
 2. GSTIN: 15 chars, format regex, state code = first two digits, PAN inside GSTIN must equal the company PAN. State code validity table is not enforced. A GSTIN is unique per tenant.
@@ -108,6 +119,10 @@ Currencies, exchange rates, units, tax codes with effective-dated rates, items, 
 13. Items: no item categories/groups, brands, variants, barcodes or per-item costing method yet (costing method is decided with the inventory slice). Services are never stocked. Tax code on an item is optional.
 14. Tax: only IGST/CGST/SGST/cess percentages (cess ad-valorem only; specific-amount cess and composition-scheme flat rates are not modelled). Permissions `tax:manage` and `pricing:manage` are separate from `masterdata:write`.
 15. Price lists: one price per (list, item, unit, minimum quantity, period); customer-specific lists and discounts/schemes are not modelled yet.
+16. Accounting: fiscal years are 12 calendar months starting on the 1st (a short first year is not supported); periods are monthly; periods close strictly in order. Reopening needs `accounting:reopen`; locking is irreversible.
+17. Entries are in the company's **base currency only**. Foreign-currency postings arrive with the sales/purchase documents (they will carry the foreign amount and rate as memo columns next to base amounts).
+18. No draft/approval workflow for manual journals yet (posting is immediate, controlled by period, account and permission rules); no recurring journals, no year-end close / retained-earnings roll-up (the trial balance shows income and expense accounts as they are), no budgets, no dimensions beyond business location and party on a line.
+19. `entry_no` is not required to be gapless; a rolled-back posting returns its number, so committed numbers are consecutive in practice.
 11. Retention: nothing is ever deleted by the runtime role (no DELETE grants), so sessions, idempotency keys, outbox and audit rows accumulate; archival/partitioning needs a separate maintenance role and a retention policy you must decide.
 
 ## Deferred on purpose (later slices, not decided here)

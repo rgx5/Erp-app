@@ -1,6 +1,6 @@
 # Testing, RLS verification, performance
 
-`npm run test:all` = 57 unit tests + 157 integration tests, all green (the integration suite also passes with `TEST_HTTP_ADAPTER=node`). Integration tests create a fresh database per run, bootstrap roles,
+`npm run test:all` = 62 unit tests + 178 integration tests, all green (the integration suite also passes with `TEST_HTTP_ADAPTER=node`). Integration tests create a fresh database per run, bootstrap roles,
 migrate as `erp_migrator`, then connect as the real `erp_app` role.
 
 | suite | covers |
@@ -12,6 +12,7 @@ migrate as `erp_migrator`, then connect as the real `erp_app` role.
 | platform-services.int | audit (who/what/request id, no secrets, rollback leaves nothing, append-only even for a superuser, tenant-scoped reads), idempotency (replay, conflict, 12 simultaneous duplicates -> one effect, failed request does not burn the key, tenant/caller scoping, expiry), outbox (commit-only publish, per-tenant delivery context, redelivery no-op, backoff, dead-letter, concurrent relays, background loop + clean shutdown) |
 | numbering.int | series config rules, consecutive numbers, **40 concurrent allocations -> no duplicate, no gap**, rollback returns the number, cancelled numbers kept and never reissued, per-registration/per-year independence, 16-char rule, append-only ledger |
 | masterdata.int | tenant defaults (INR, 44 units, no tax rates); exchange-rate resolution on a date; **tax-rate versioning with back-dated lookups, overlap refusal (API and raw SQL), immutability even for a superuser**; item rules (HSN/SAC, service, tracking, manufactured), frozen identity, search/pagination with literal wildcards, unit conversions; party GST-treatment rules, duplicate GSTIN/code, payment terms, default addresses; price lists (quantity breaks, effective dates, close-then-replace); permissions split (`tax:manage`, `pricing:manage`); cross-tenant references; audit/outbox/idempotent replay |
+| accounting.int | template chart and control accounts; frozen structure; fiscal-year/period generation (leap years); manual posting (numbers, exact totals, every malformed/unbalanced case); posting controls (control, group, inactive, other-company accounts; missing period); system posting once per source, atomic with the caller; **25 concurrent postings -> consecutive numbers**; idempotent replay; **immutability even for a superuser; raw-SQL unbalanced/orphan/group/closed-period inserts rejected at the database**; reversals (mirror, once, not of a reversal, not of a document entry, period rules); **period locking (order, reopen rules, permanent lock, permission split) and a close-vs-20-postings race**; trial balance (opening/movement/closing, ranges, always balanced); account ledger running balance; filtering/pagination; permission and tenant isolation |
 | organization-api.int | full HTTP API on **both adapters**: validation, problem+json, If-Match, pagination, GST rules, platform token, health/readiness (503 when migrations behind), startup refusal for unsafe DB role |
 
 Not verified here: the Docker build and the GitHub Actions workflow (no Docker daemon in this sandbox; the workflow has not run yet).

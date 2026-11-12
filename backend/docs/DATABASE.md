@@ -30,10 +30,14 @@ Every table has `version int`, `created_at`, `updated_at`; PK `(tenant_id, id)` 
 | items | item master | type/tracking/HSN-SAC/service/manufactured checks; case-insensitive unique code; identity trigger |
 | payment_terms / parties / party_addresses | partners with roles, GST treatment, addresses | treatment <-> GSTIN check; PAN-in-GSTIN; unique GSTIN; one default address per kind |
 | price_lists / price_list_items | price lists; effective-dated prices with quantity breaks | **EXCLUDE no-overlap** per (list, item, unit, min qty); guard trigger |
+| accounts | chart of accounts per company | unique code; hierarchy via parent (group, same type); control_kind; structure frozen by trigger |
+| fiscal_years / accounting_periods | years and monthly periods | **EXCLUDE no-overlap**; period status trigger (open<->closed, closed->locked, nothing else) |
+| journal_counters | per company x year x type number counter | locked by the posting transaction |
+| journal_entries / journal_lines | the immutable double-entry ledger | reject UPDATE/DELETE/TRUNCATE; period-open check (FOR SHARE); **deferred balance/header check at commit**; lines only from the creating transaction; one entry per source document+event; reversed at most once |
 | schema_migrations | applied files + sha256 | owner-only (not granted to erp_app except read for readiness) |
 
 Grants to `erp_app`: `SELECT, INSERT, UPDATE` only (audit_log, outbox_events, outbox_consumed: `SELECT, INSERT` only; number_allocations: `SELECT, INSERT` + `UPDATE` on the three cancellation columns). Policy on every table: `tenant_isolation TO erp_app USING / WITH CHECK (tenant_id = erp.current_tenant_id())`, with `ENABLE` and `FORCE ROW LEVEL SECURITY`.
-Exact DDL: `db/migrations/0001_foundation.sql` ... `0005_master_data.sql`. The `btree_gist` extension is created by the admin bootstrap (`db/bootstrap/bootstrap.sql`), so a database must be bootstrapped with the Slice 2 version of that file.
+Exact DDL: `db/migrations/0001_foundation.sql` ... `0006_accounting.sql`. The `btree_gist` extension is created by the admin bootstrap (`db/bootstrap/bootstrap.sql`), so a database must be bootstrapped with the Slice 2 version of that file.
 
 **Tables outside RLS**: exactly three, enforced by a test: `schema_migrations` (metadata), `tenant_directory` (slug -> id), `outbox_dispatch` (queue pointers). The test also pins their column lists so business data cannot creep into them.
 

@@ -17,6 +17,11 @@ export const PERMISSIONS = [
   'masterdata:write',
   'tax:manage',
   'pricing:manage',
+  'accounting:read',
+  'accounting:post',
+  'accounting:reverse',
+  'accounting:manage',
+  'accounting:reopen',
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
