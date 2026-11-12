@@ -25,7 +25,6 @@ services:
     build: { context: ., target: runtime }
     environment:
       NODE_ENV: development
-      AUTH_MODE: dev-header
       DATABASE_URL: postgresql://erp_app:erp_app_dev_password@postgres:5432/erp
       PLATFORM_ADMIN_TOKEN: dev-platform-admin-token-change-me-0123456789
     ports: ["8080:8080"]

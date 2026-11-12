@@ -24,6 +24,13 @@ const schema = z
     LOGIN_LOCKOUT_SECONDS: z.coerce.number().int().min(60).default(900),
     /** 32 random bytes, base64. Encrypts MFA secrets at rest. Required in production; development generates an ephemeral one. */
     DATA_ENCRYPTION_KEY: z.string().optional(),
+    /** The outbox relay delivers committed events to consumers. Several instances may run it at once (SKIP LOCKED + leases). */
+    OUTBOX_RELAY_ENABLED: bool.optional(),
+    OUTBOX_POLL_INTERVAL_MS: z.coerce.number().int().min(50).default(1000),
+    OUTBOX_BATCH_SIZE: z.coerce.number().int().min(1).max(500).default(25),
+    OUTBOX_MAX_ATTEMPTS: z.coerce.number().int().min(1).max(100).default(8),
+    OUTBOX_LEASE_SECONDS: z.coerce.number().int().min(5).default(60),
+    IDEMPOTENCY_TTL_SECONDS: z.coerce.number().int().min(60).default(86_400),
     /** Allows POST /v1/auth/signup (anyone can create a tenant). Off by default; tenants are otherwise provisioned by the platform operator. */
     SELF_SIGNUP_ENABLED: bool.optional(),
     /** Enables POST /v1/platform/tenants. At least 32 characters. Unset disables the endpoint. */
@@ -42,7 +49,7 @@ const schema = z
     }
   });
 
-export type Env = Omit<z.infer<typeof schema>, 'SWAGGER_ENABLED' | 'SELF_SIGNUP_ENABLED'> & { SWAGGER_ENABLED: boolean; SELF_SIGNUP_ENABLED: boolean };
+export type Env = Omit<z.infer<typeof schema>, 'SWAGGER_ENABLED' | 'SELF_SIGNUP_ENABLED' | 'OUTBOX_RELAY_ENABLED'> & { SWAGGER_ENABLED: boolean; SELF_SIGNUP_ENABLED: boolean; OUTBOX_RELAY_ENABLED: boolean };
 
 /** Reads and validates the environment once. Anything missing or malformed stops the process at startup. */
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
@@ -52,7 +59,7 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
     throw new Error(`Invalid configuration:\n${problems}`);
   }
   const env = parsed.data;
-  return { ...env, SWAGGER_ENABLED: env.SWAGGER_ENABLED ?? env.NODE_ENV !== 'production', SELF_SIGNUP_ENABLED: env.SELF_SIGNUP_ENABLED ?? false };
+  return { ...env, SWAGGER_ENABLED: env.SWAGGER_ENABLED ?? env.NODE_ENV !== 'production', SELF_SIGNUP_ENABLED: env.SELF_SIGNUP_ENABLED ?? false, OUTBOX_RELAY_ENABLED: env.OUTBOX_RELAY_ENABLED ?? env.NODE_ENV !== 'test' };
 }
 
 export const ENV = Symbol('ENV');

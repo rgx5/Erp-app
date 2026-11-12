@@ -1,4 +1,4 @@
-# Architecture decisions (Slice 0)
+# Architecture decisions (Slice 0 and Slice 1)
 
 Each decision lists what was chosen, why, and what is deliberately deferred. Items marked **ASSUMPTION** are things
 I decided without a business rule from you; please confirm or correct them.
@@ -58,10 +58,31 @@ Errors are RFC 9457 `application/problem+json` with stable `urn:erp:error:<code>
 Optimistic locking: rows have `version` (trigger-maintained); updates need `If-Match: <version>` (428 missing, 412 stale).
 UUIDv7 ids, keyset pagination with opaque cursors. Request ids and security headers on every response; pino logs with secret redaction.
 
-## ADR-7 Identity (Slice 0 placeholder) — important
-There is **no authentication yet**. Tenant resolution is the `X-Tenant-Id` header (`AUTH_MODE=dev-header`), which is not security.
-Config **refuses to start with `NODE_ENV=production` and dev-header**, so this cannot be deployed by accident. Tenant creation requires a
-`PLATFORM_ADMIN_TOKEN` (>= 32 chars, constant-time compare; endpoint 404 when unset). Real identity is a later slice.
+## ADR-7 Identity and authorization (Slice 1a)
+- **Sign-in** is `tenant slug + email + password (+ MFA code)`. Passwords: **argon2id** (`@node-rs/argon2`, OWASP minimum profile; hashes carry their parameters and are upgraded on login). Length rule only (12+), no composition rules.
+- **Access tokens**: EdDSA (Ed25519) JWTs, 15 min, hand-written on `node:crypto` (only EdDSA accepted, `kid` header, previous public keys can be listed for rotation). The token proves *who*; **permissions, user status, tenant status and session liveness are re-read from the database on every request** (one query), so a role change, disable or logout takes effect on the next request.
+- **Refresh tokens**: opaque, 30 days, stored as SHA-256, **rotating**; each token is single-use and presenting a spent one revokes its whole session family (reuse detection). Concurrent double-refresh with one token will log that family out (stricter, no grace window).
+- **MFA**: TOTP (RFC 6238, verified against the RFC vector), seed encrypted at rest with AES-256-GCM bound to tenant+user, each 30 s step usable once, 10 single-use hashed recovery codes.
+- **Lockout**: N failures (default 5) locks the account for 15 min. Unknown tenant, unknown user, wrong password and locked account return the *same* 401 and do equal password-hash work.
+- **API keys**: `ek_<tenant>_<id>_<secret>`, SHA-256 stored, shown once, explicit permission list, optional expiry, revocable (never deleted).
+- **Authorization**: roles hold permission strings from a code-defined catalog; the built-in Owner role has `*`. **Default deny**: every route needs `@Public()` or `@RequirePermissions()/@Authenticated()`; a route that declares nothing returns 403. Nobody can grant a role, key or user more than they hold themselves; the last active owner cannot be removed or disabled.
+- `tenant_directory` (slug -> id) is the one readable non-tenant mapping needed to start a sign-in; it is filled by a trigger and not writable by the runtime role.
+- Not in this slice: SSO, password reset by email, invitations, per-IP rate limiting (belongs at the proxy/edge until Redis is introduced), branch/amount-limit rules (need documents to mean anything).
+
+## ADR-8 Audit log (append-only)
+Entries are written **inside the transaction of the change they describe** (no entry for a rolled-back change, none missing for a committed one). The runtime role has INSERT/SELECT only; a trigger also rejects UPDATE/DELETE/TRUNCATE from any role, superuser included. Auth events (login, failure, lockout, refresh-token reuse, password change, MFA), user/role/API-key changes and organization writes are recorded with actor, request id and IP; secrets are never recorded. Read with `GET /v1/audit-events` (newest first, filters, cursor). Tamper-evident hash chain deferred as agreed.
+
+## ADR-9 Idempotency
+`Idempotency-Key` on selected POSTs (optional by default, can be made required per route). The claim, the business work and the stored response commit **in one transaction** (the unit of work lets nested calls join the outer transaction), so there is no "in progress" state to get stuck in: concurrent duplicates wait on the unique key then replay; a failing request rolls the claim back and can be retried; a crash leaves nothing behind. Same key + different request or caller is 422. Keys expire (default 24 h) and are per tenant. Endpoints that return secrets (API key creation) deliberately do not use it, because the replay would have to store the secret.
+
+## ADR-10 Transactional outbox
+Events are inserted in the business transaction. A relay (in-process, optional, safe to run on several instances) delivers them **at least once** to registered consumers: `FOR UPDATE SKIP LOCKED` + lease, exponential backoff, parked as `dead` after N attempts with the last error (never dropped). Consumers are idempotent by construction: their effects and a `(event, consumer)` done-mark commit in one transaction. The queue table `outbox_dispatch` is **the second deliberate non-tenant table**: it holds only pointers (tenant id, event id, scheduling state), created by a trigger, so the relay can find work across tenants without the runtime role ever bypassing RLS; each event is read and handled inside its own tenant's context. No broker is involved (Postgres only), per the "no Kafka prematurely" direction.
+
+## ADR-11 Document numbering
+One series per **GST registration x document type x financial year** (no global counter). Allocation locks only that series row *inside the document's transaction*, so a number is consumed iff the document commits (no gaps from failures), and concurrent allocation is serialised per series only. Every issued number is kept in `number_allocations` forever; cancelling marks it cancelled and it is never reissued; the database allows only the single transition issued -> cancelled. Format = prefix + optional FY code + padded value, validated at creation so the widest possible number is <= 16 chars of `[A-Za-z0-9/-]` (rule 46 CGST). No HTTP endpoint hands out numbers; documents call `NumberingService.allocate` (Slice 5+).
+
+## ADR-12 Ambient transactions
+`UnitOfWork.inTenant` nested inside another `inTenant` for the *same tenant* joins it; a different tenant, or a write inside a read-only transaction, throws. This is what lets idempotency, audit, outbox and numbering participate in one atomic unit without threading `tx` through every signature, and it is the base for the later posting operations.
 
 ## Assumptions to confirm
 1. GST registration types: regular, composition, SEZ, casual, non-resident, input-service-distributor, TDS/TCS deductor (check constraint list, easy to change).
@@ -70,9 +91,13 @@ Config **refuses to start with `NODE_ENV=production` and dev-header**, so this c
 4. Financial-year default is April–March (company setting, not yet used by any posting).
 5. No DELETE privilege for the app role anywhere (soft-state via `active`/effective dates).
 6. Warehouse kinds list above.
+7. Numbering: the GST financial year is fixed April-March (statutory) and independent of the company's books year; `document_type` is a free `snake_case` string until the document slices define the registry.
+8. Permission catalog (`organization`, `users`, `roles`, `api_keys`, `audit`, `numbering` read/write) is a starting set; the only built-in role is Owner. Other roles are tenant-defined.
+9. Session lengths: access 15 min, refresh 30 days, lockout 5 failures / 15 min (all configurable).
+10. Self-signup is OFF by default; tenants are provisioned by the platform operator.
+11. Retention: nothing is ever deleted by the runtime role (no DELETE grants), so sessions, idempotency keys, outbox and audit rows accumulate; archival/partitioning needs a separate maintenance role and a retention policy you must decide.
 
 ## Deferred on purpose (later slices, not decided here)
-Identity/RBAC; ledgers and posting (immutable, double-entry, period locks, inventory subledger reconciliation); effective-dated tax rules;
-document numbering per GST registration and financial year (cancelled numbers preserved, no global gapless counter); outbox + idempotency keys;
-append-only audit log; offline-sync conflict rules (aggregates already carry `version`/`updated_at`); vendor telemetry (not wired).
+Ledgers and posting (immutable, double-entry, period locks, inventory subledger reconciliation); effective-dated tax rules;
+document numbering per GST registration and financial year (cancelled numbers preserved, no global gapless counter); offline-sync conflict rules (aggregates already carry `version`/`updated_at`); vendor telemetry (not wired).
 The legacy `server/` directory is untouched.

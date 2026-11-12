@@ -6,6 +6,8 @@ import type { Tx } from '../../platform/database/database.js';
 import { UnitOfWork } from '../../platform/database/unit-of-work.js';
 import { AppError, notFound, preconditionFailed, validationFailed } from '../../platform/http/errors.js';
 import { decodeCursor, type Page, toPage } from '../../platform/http/validation.js';
+import { AuditService } from '../../platform/services/audit.service.js';
+import { OutboxService } from '../../platform/services/outbox.service.js';
 import { tenants } from '../organization/organization.schema.js';
 import { apiKeys, roles, sessions, userRoles, users } from './identity.schema.js';
 import type { CreateApiKeyInput, CreateRoleInput, CreateUserInput, ProvisionTenantInput, UpdateRoleInput, UpdateUserInput } from './identity.schemas.js';
@@ -35,7 +37,17 @@ function assertCanGrant(actor: Principal, permissions: readonly string[]): void 
 /** Tenant provisioning, users, roles and API keys. */
 @Injectable()
 export class AccessService {
-  constructor(@Inject(UnitOfWork) private readonly uow: UnitOfWork) {}
+  constructor(
+    @Inject(UnitOfWork) private readonly uow: UnitOfWork,
+    @Inject(AuditService) private readonly audit: AuditService,
+    @Inject(OutboxService) private readonly outbox: OutboxService,
+  ) {}
+
+  /** Audit entry + domain event, in the caller's transaction. */
+  private async note(tx: Tx, tenantId: string, entity: string, verb: string, id: string, details: Record<string, unknown> = {}, publish = true): Promise<void> {
+    await this.audit.record(tx, tenantId, { action: `${entity}.${verb}`, entityType: entity, entityId: id, details });
+    if (publish) await this.outbox.publish(tx, tenantId, { eventType: `${entity}.${verb}`, aggregateType: entity, aggregateId: id, payload: { id, ...details } });
+  }
 
   // ---- provisioning ---------------------------------------------------------------------------------------------
 
@@ -54,6 +66,7 @@ export class AccessService {
         .returning();
       await tx.insert(userRoles).values({ tenantId, userId, roleId, grantedBy: userId });
       if (!tenant || !user) throw new Error('provisioning returned no rows');
+      await this.note(tx, tenantId, 'tenant', 'provisioned', tenantId, { slug: tenant.slug, ownerUserId: user.id });
       return { tenant, user };
     });
   }
@@ -73,6 +86,7 @@ export class AccessService {
       if (granted.length > 0) {
         await tx.insert(userRoles).values(granted.map((r) => ({ tenantId: actor.tenantId, userId: user.id, roleId: r.id, grantedBy: actor.userId })));
       }
+      await this.note(tx, actor.tenantId, 'user', 'created', user.id, { email: user.email, roleIds: granted.map((r) => r.id) });
       return { ...user, roleIds: granted.map((r) => r.id) };
     });
   }
@@ -127,6 +141,7 @@ export class AccessService {
           .set({ revokedAt: new Date(), revokedReason: 'user_disabled' })
           .where(and(eq(sessions.tenantId, actor.tenantId), eq(sessions.userId, id), isNull(sessions.revokedAt)));
       }
+      await this.note(tx, actor.tenantId, 'user', input.status === 'disabled' ? 'disabled' : 'updated', id, { fields: Object.keys(input), ...(input.status ? { status: input.status } : {}) });
       return (await this.withRoles(tx, actor.tenantId, updated))[0] as UserWithRoles;
     });
   }
@@ -162,6 +177,7 @@ export class AccessService {
             setWhere: sql`${userRoles.revokedAt} is not null`,
           });
       }
+      await this.note(tx, actor.tenantId, 'user', 'roles_changed', userId, { granted: wanted.map((r) => r.id).filter((r) => !current.some((c) => c.roleId === r)), revoked: removed });
       return (await this.withRoles(tx, actor.tenantId, [user]))[0] as UserWithRoles;
     });
   }
@@ -170,9 +186,11 @@ export class AccessService {
 
   createRole(actor: Principal, input: CreateRoleInput): Promise<RoleRow> {
     assertCanGrant(actor, input.permissions);
-    return this.uow.inTenant(actor.tenantId, async (tx) =>
-      one(await tx.insert(roles).values({ tenantId: actor.tenantId, id: uuidv7(), name: input.name, description: input.description ?? null, permissions: input.permissions }).returning(), 'Role'),
-    );
+    return this.uow.inTenant(actor.tenantId, async (tx) => {
+      const role = one(await tx.insert(roles).values({ tenantId: actor.tenantId, id: uuidv7(), name: input.name, description: input.description ?? null, permissions: input.permissions }).returning(), 'Role');
+      await this.note(tx, actor.tenantId, 'role', 'created', role.id, { name: role.name, permissions: role.permissions });
+      return role;
+    });
   }
 
   getRole(tenantId: string, id: string): Promise<RoleRow> {
@@ -204,7 +222,10 @@ export class AccessService {
         })
         .where(and(eq(roles.tenantId, actor.tenantId), eq(roles.id, id), eq(roles.version, version)))
         .returning();
-      return updated[0] ?? (() => { throw preconditionFailed('The role changed since you read it; fetch it again'); })();
+      const role = updated[0];
+      if (!role) throw preconditionFailed('The role changed since you read it; fetch it again');
+      await this.note(tx, actor.tenantId, 'role', 'updated', id, { fields: Object.keys(input), ...(input.permissions ? { permissions: input.permissions } : {}) });
+      return role;
     });
   }
 
@@ -217,8 +238,8 @@ export class AccessService {
     const id = uuidv7();
     const secret = randomBytes(32).toString('hex');
     const key = `ek_${compactUuid(actor.tenantId)}_${compactUuid(id)}_${secret}`;
-    const record = await this.uow.inTenant(actor.tenantId, async (tx) =>
-      one(
+    const record = await this.uow.inTenant(actor.tenantId, async (tx) => {
+      const created = one(
         await tx
           .insert(apiKeys)
           .values({
@@ -233,8 +254,11 @@ export class AccessService {
           })
           .returning(),
         'API key',
-      ),
-    );
+      );
+      // The key itself is never written anywhere: only its prefix and permissions.
+      await this.note(tx, actor.tenantId, 'api_key', 'created', created.id, { name: created.name, keyPrefix: created.keyPrefix, permissions: created.permissions }, false);
+      return created;
+    });
     return { key, record };
   }
 
@@ -252,7 +276,9 @@ export class AccessService {
       const [row] = await tx.select().from(apiKeys).where(and(eq(apiKeys.tenantId, tenantId), eq(apiKeys.id, id)));
       if (!row) throw notFound('API key');
       if (row.revokedAt) return row; // revoking twice is harmless
-      return one(await tx.update(apiKeys).set({ revokedAt: new Date() }).where(and(eq(apiKeys.tenantId, tenantId), eq(apiKeys.id, id))).returning(), 'API key');
+      const revoked = one(await tx.update(apiKeys).set({ revokedAt: new Date() }).where(and(eq(apiKeys.tenantId, tenantId), eq(apiKeys.id, id))).returning(), 'API key');
+      await this.note(tx, tenantId, 'api_key', 'revoked', id, { keyPrefix: revoked.keyPrefix }, false);
+      return revoked;
     });
   }
 

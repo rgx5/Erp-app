@@ -4,6 +4,9 @@ import { v7 as uuidv7 } from 'uuid';
 import { UnitOfWork } from '../../platform/database/unit-of-work.js';
 import { notFound, preconditionFailed } from '../../platform/http/errors.js';
 import { decodeCursor, type Page, toPage } from '../../platform/http/validation.js';
+import type { Tx } from '../../platform/database/database.js';
+import { AuditService } from '../../platform/services/audit.service.js';
+import { OutboxService } from '../../platform/services/outbox.service.js';
 import { businessLocations, companies, gstRegistrations, tenants, warehouses } from './organization.schema.js';
 import type {
   CreateBusinessLocationInput,
@@ -30,7 +33,18 @@ const one = <T>(rows: T[], what: string): T => {
 
 @Injectable()
 export class OrganizationService {
-  constructor(@Inject(UnitOfWork) private readonly uow: UnitOfWork) {}
+  constructor(
+    @Inject(UnitOfWork) private readonly uow: UnitOfWork,
+    @Inject(AuditService) private readonly audit: AuditService,
+    @Inject(OutboxService) private readonly outbox: OutboxService,
+  ) {}
+
+  /** Records the audit entry and publishes the domain event in the same transaction as the change. */
+  private async recorded<T extends { id: string }>(tx: Tx, tenantId: string, entity: string, verb: 'created' | 'updated', row: T, details: Record<string, unknown> = {}): Promise<T> {
+    await this.audit.record(tx, tenantId, { action: `${entity}.${verb}`, entityType: entity, entityId: row.id, details });
+    await this.outbox.publish(tx, tenantId, { eventType: `${entity}.${verb}`, aggregateType: entity, aggregateId: row.id, payload: { id: row.id, ...details } });
+    return row;
+  }
 
   getTenant(tenantId: string): Promise<TenantRow> {
     return this.uow.inTenant(tenantId, async (tx) => one(await tx.select().from(tenants).where(eq(tenants.id, tenantId)), 'Tenant'), { readOnly: true });
@@ -38,7 +52,7 @@ export class OrganizationService {
 
   createCompany(tenantId: string, input: CreateCompanyInput): Promise<CompanyRow> {
     return this.uow.inTenant(tenantId, async (tx) =>
-      one(await tx.insert(companies).values({ tenantId, id: uuidv7(), ...input }).returning(), 'Company'),
+      this.recorded(tx, tenantId, 'company', 'created', one(await tx.insert(companies).values({ tenantId, id: uuidv7(), ...input }).returning(), 'Company'), { legalName: input.legalName }),
     );
   }
 
@@ -71,7 +85,7 @@ export class OrganizationService {
         .set(input)
         .where(and(eq(companies.tenantId, tenantId), eq(companies.id, id), eq(companies.version, expectedVersion)))
         .returning();
-      if (updated[0]) return updated[0];
+      if (updated[0]) return this.recorded(tx, tenantId, 'company', 'updated', updated[0], { fields: Object.keys(input), version: updated[0].version });
       const existing = await tx.select({ version: companies.version }).from(companies).where(and(eq(companies.tenantId, tenantId), eq(companies.id, id)));
       if (!existing[0]) throw notFound('Company');
       throw preconditionFailed(`The company changed since you read it (current version ${existing[0].version})`);
@@ -80,12 +94,13 @@ export class OrganizationService {
 
   createGstRegistration(tenantId: string, companyId: string, input: CreateGstRegistrationInput): Promise<GstRegistrationRow> {
     return this.uow.inTenant(tenantId, async (tx) =>
-      one(
-        await tx
-          .insert(gstRegistrations)
-          .values({ tenantId, id: uuidv7(), companyId, stateCode: stateCodeOfGstin(input.gstin), ...input })
-          .returning(),
-        'GST registration',
+      this.recorded(
+        tx,
+        tenantId,
+        'gst_registration',
+        'created',
+        one(await tx.insert(gstRegistrations).values({ tenantId, id: uuidv7(), companyId, stateCode: stateCodeOfGstin(input.gstin), ...input }).returning(), 'GST registration'),
+        { companyId, gstin: input.gstin },
       ),
     );
   }
@@ -105,7 +120,7 @@ export class OrganizationService {
 
   createBusinessLocation(tenantId: string, input: CreateBusinessLocationInput): Promise<BusinessLocationRow> {
     return this.uow.inTenant(tenantId, async (tx) =>
-      one(await tx.insert(businessLocations).values({ tenantId, id: uuidv7(), ...input }).returning(), 'Business location'),
+      this.recorded(tx, tenantId, 'business_location', 'created', one(await tx.insert(businessLocations).values({ tenantId, id: uuidv7(), ...input }).returning(), 'Business location'), { companyId: input.companyId, code: input.code }),
     );
   }
 
@@ -125,7 +140,7 @@ export class OrganizationService {
 
   createWarehouse(tenantId: string, input: CreateWarehouseInput): Promise<WarehouseRow> {
     return this.uow.inTenant(tenantId, async (tx) =>
-      one(await tx.insert(warehouses).values({ tenantId, id: uuidv7(), ...input }).returning(), 'Warehouse'),
+      this.recorded(tx, tenantId, 'warehouse', 'created', one(await tx.insert(warehouses).values({ tenantId, id: uuidv7(), ...input }).returning(), 'Warehouse'), { businessLocationId: input.businessLocationId, code: input.code, kind: input.kind }),
     );
   }
 

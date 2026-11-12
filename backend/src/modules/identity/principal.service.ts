@@ -1,11 +1,10 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, eq, isNull, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { createHash, timingSafeEqual } from 'node:crypto';
-import type { Tx } from '../../platform/database/database.js';
 import { UnitOfWork } from '../../platform/database/unit-of-work.js';
 import { unauthorized } from '../../platform/http/errors.js';
 import { tenants } from '../organization/organization.schema.js';
-import { apiKeys, roles, sessions, userRoles, users } from './identity.schema.js';
+import { apiKeys } from './identity.schema.js';
 import type { Principal } from './principal.js';
 import { TOKENS } from './crypto.providers.js';
 import type { TokenService } from './tokens.js';
@@ -27,19 +26,25 @@ export class PrincipalService {
   async fromAccessToken(token: string): Promise<Principal> {
     const claims = this.tokens.verify(token);
     if (!claims) throw unauthorized('The access token is invalid or has expired');
+    // One round trip: tenant status, user status, live session and the union of role permissions. (Every extra query here is
+    // paid by every authenticated request.)
     const principal = await this.uow.inTenant(
       claims.tid,
       async (tx) => {
-        const [tenant] = await tx.select({ status: tenants.status }).from(tenants).where(eq(tenants.id, claims.tid));
-        const [user] = await tx.select({ status: users.status }).from(users).where(and(eq(users.tenantId, claims.tid), eq(users.id, claims.sub)));
-        // The session family stays alive until it is revoked (logout, password change, reuse detection).
-        const alive = await tx
-          .select({ one: sql<number>`1` })
-          .from(sessions)
-          .where(and(eq(sessions.tenantId, claims.tid), eq(sessions.familyId, claims.sid), eq(sessions.userId, claims.sub), isNull(sessions.revokedAt)))
-          .limit(1);
-        if (tenant?.status !== 'active' || user?.status !== 'active' || alive.length === 0) return undefined;
-        return this.userPermissions(tx, claims.tid, claims.sub);
+        const result = await tx.execute<{ tenant_status: string; user_status: string | null; session_alive: boolean; permissions: string[] }>(sql`
+          SELECT t.status AS tenant_status,
+                 u.status AS user_status,
+                 EXISTS (SELECT 1 FROM erp.sessions s
+                          WHERE s.tenant_id = ${claims.tid}::uuid AND s.family_id = ${claims.sid}::uuid AND s.user_id = ${claims.sub}::uuid AND s.revoked_at IS NULL) AS session_alive,
+                 COALESCE((SELECT array_agg(DISTINCT p) FROM erp.user_roles ur
+                             JOIN erp.roles r ON r.tenant_id = ur.tenant_id AND r.id = ur.role_id
+                             CROSS JOIN LATERAL unnest(r.permissions) AS p
+                            WHERE ur.tenant_id = ${claims.tid}::uuid AND ur.user_id = ${claims.sub}::uuid AND ur.revoked_at IS NULL), '{}') AS permissions
+            FROM erp.tenants t
+            LEFT JOIN erp.users u ON u.tenant_id = t.id AND u.id = ${claims.sub}::uuid
+           WHERE t.id = ${claims.tid}::uuid`);
+        const row = result.rows[0];
+        return row && row.tenant_status === 'active' && row.user_status === 'active' && row.session_alive ? new Set(row.permissions) : undefined;
       },
       { readOnly: true },
     );
@@ -74,15 +79,5 @@ export class PrincipalService {
         .catch(() => undefined); // bookkeeping must never fail a request
     }
     return { tenantId, kind: 'api_key', userId: found.createdBy, apiKeyId: found.id, permissions: new Set(found.permissions) };
-  }
-
-  /** The union of the permissions of the user's active role assignments. */
-  async userPermissions(tx: Tx, tenantId: string, userId: string): Promise<Set<string>> {
-    const rows = await tx
-      .select({ permissions: roles.permissions })
-      .from(userRoles)
-      .innerJoin(roles, and(eq(roles.tenantId, userRoles.tenantId), eq(roles.id, userRoles.roleId)))
-      .where(and(eq(userRoles.tenantId, tenantId), eq(userRoles.userId, userId), isNull(userRoles.revokedAt)));
-    return new Set(rows.flatMap((r) => r.permissions));
   }
 }

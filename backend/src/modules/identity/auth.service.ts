@@ -5,6 +5,7 @@ import { v7 as uuidv7 } from 'uuid';
 import { ENV, type Env } from '../../config/env.js';
 import { AppError, unauthorized } from '../../platform/http/errors.js';
 import { UnitOfWork } from '../../platform/database/unit-of-work.js';
+import { AuditService } from '../../platform/services/audit.service.js';
 import type { Tx } from '../../platform/database/database.js';
 import { SECRET_BOX, TOKENS } from './crypto.providers.js';
 import { mfaRecoveryCodes, sessions, tenantDirectory, users } from './identity.schema.js';
@@ -43,7 +44,12 @@ export class AuthService {
     @Inject(ENV) private readonly env: Env,
     @Inject(TOKENS) private readonly tokens: TokenService,
     @Inject(SECRET_BOX) private readonly box: SecretBox,
+    @Inject(AuditService) private readonly audit: AuditService,
   ) {}
+
+  private auditAs(tx: Tx, tenantId: string, userId: string, action: string, outcome: 'success' | 'failure' = 'success', details: Record<string, unknown> = {}) {
+    return this.audit.record(tx, tenantId, { action, entityType: 'user', entityId: userId, outcome, details, actor: { type: 'user', id: userId } });
+  }
 
   /**
    * Signs in with tenant slug + email + password (+ a one-time code when the user enrolled in MFA). Every failure to
@@ -91,6 +97,8 @@ export class AuthService {
           .update(users)
           .set({ failedLoginCount: lock ? 0 : failures, lockedUntil: lock ? new Date(now.getTime() + this.env.LOGIN_LOCKOUT_SECONDS * 1000) : null })
           .where(and(eq(users.tenantId, tenantId), eq(users.id, user.id)));
+        await this.auditAs(tx, tenantId, user.id, 'auth.login_failed', 'failure', { failures });
+        if (lock) await this.auditAs(tx, tenantId, user.id, 'auth.account_locked', 'failure', { lockoutSeconds: this.env.LOGIN_LOCKOUT_SECONDS });
         return { ok: false, reason: 'credentials' };
       }
       const rehash = needsRehash(user.passwordHash) ? { passwordHash: await hashPassword(input.password) } : {};
@@ -99,6 +107,7 @@ export class AuthService {
         .set({ failedLoginCount: 0, lockedUntil: null, lastLoginAt: now, ...(lastStep !== undefined ? { mfaLastStep: lastStep } : {}), ...rehash })
         .where(and(eq(users.tenantId, tenantId), eq(users.id, user.id)));
       const tokens = await this.startSession(tx, tenantId, user.id, uuidv7(), client);
+      await this.auditAs(tx, tenantId, user.id, 'auth.login_succeeded', 'success', { mfa: user.mfaEnabled });
       return { ok: true, user, tokens };
     });
 
@@ -118,6 +127,7 @@ export class AuthService {
       if (!session || session.revokedAt || session.expiresAt <= new Date()) return { ok: false };
       if (session.usedAt) {
         await this.revokeFamily(tx, tenantId, session.familyId, 'refresh_token_reuse');
+        await this.auditAs(tx, tenantId, session.userId, 'auth.refresh_reuse_detected', 'failure', { familyId: session.familyId });
         return { ok: false };
       }
       const [user] = await tx.select().from(users).where(and(eq(users.tenantId, tenantId), eq(users.id, session.userId)));
@@ -132,7 +142,10 @@ export class AuthService {
   async logout(principal: Principal): Promise<void> {
     if (!principal.sessionId) return;
     const sessionId = principal.sessionId;
-    await this.uow.inTenant(principal.tenantId, (tx) => this.revokeFamily(tx, principal.tenantId, sessionId, 'logout'));
+    await this.uow.inTenant(principal.tenantId, async (tx) => {
+      await this.revokeFamily(tx, principal.tenantId, sessionId, 'logout');
+      await this.auditAs(tx, principal.tenantId, principal.userId, 'auth.logout');
+    });
   }
 
   async changePassword(principal: Principal, currentPassword: string, newPassword: string): Promise<void> {
@@ -146,6 +159,7 @@ export class AuthService {
         .update(sessions)
         .set({ revokedAt: new Date(), revokedReason: 'password_changed' })
         .where(and(eq(sessions.tenantId, principal.tenantId), eq(sessions.userId, user.id), isNull(sessions.revokedAt), principal.sessionId ? ne(sessions.familyId, principal.sessionId) : undefined));
+      await this.auditAs(tx, principal.tenantId, user.id, 'auth.password_changed');
     });
   }
 
@@ -176,6 +190,7 @@ export class AuthService {
     await this.uow.inTenant(principal.tenantId, async (tx) => {
       await tx.update(users).set({ mfaEnabled: true, mfaLastStep: step }).where(and(eq(users.tenantId, principal.tenantId), eq(users.id, user.id)));
       await tx.insert(mfaRecoveryCodes).values(codes.map((c) => ({ tenantId: principal.tenantId, id: uuidv7(), userId: user.id, codeHash: sha256(c) })));
+      await this.auditAs(tx, principal.tenantId, user.id, 'auth.mfa_enabled');
     });
     return codes;
   }
@@ -192,6 +207,7 @@ export class AuthService {
         .update(mfaRecoveryCodes)
         .set({ usedAt: new Date() })
         .where(and(eq(mfaRecoveryCodes.tenantId, principal.tenantId), eq(mfaRecoveryCodes.userId, user.id), isNull(mfaRecoveryCodes.usedAt)));
+      await this.auditAs(tx, principal.tenantId, user.id, 'auth.mfa_disabled');
     });
   }
 

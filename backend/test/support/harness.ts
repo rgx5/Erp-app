@@ -118,3 +118,15 @@ export function makeGstin(stateCode: string, pan: string, entity = '1'): string 
   const first14 = `${stateCode}${pan}${entity}Z`;
   return first14 + gstinCheckCharacter(first14);
 }
+
+/** A company with one GST registration (and the registration's id), through the real API. */
+export async function createRegistration(server: TestServer, tenant: string, state = '27', pan = 'ABCDE1234F', entity = '1'): Promise<{ companyId: string; registrationId: string }> {
+  const company = await call(server, 'POST', '/v1/companies', { tenant, body: { legalName: `Co ${uniqueSlug('c')}`, pan } });
+  if (company.status !== 201) throw new Error(`company failed: ${JSON.stringify(company.json)}`);
+  const registration = await call(server, 'POST', `/v1/companies/${company.json.id}/gst-registrations`, {
+    tenant,
+    body: { gstin: makeGstin(state, pan, entity), legalName: 'Co', effectiveFrom: '2024-04-01' },
+  });
+  if (registration.status !== 201) throw new Error(`registration failed: ${JSON.stringify(registration.json)}`);
+  return { companyId: company.json.id as string, registrationId: registration.json.id as string };
+}

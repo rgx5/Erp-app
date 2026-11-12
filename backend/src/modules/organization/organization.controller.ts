@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { preconditionRequired } from '../../platform/http/errors.js';
 import { ApiZodBody, pageQuerySchema, type PageQuery } from '../../platform/http/validation.js';
+import { Idempotent } from '../../platform/services/idempotency.js';
 import { RequirePermissions, TenantId } from '../identity/principal.js';
 import {
   presentBusinessLocation,
@@ -45,6 +46,7 @@ export class OrganizationController {
   }
 
   @RequirePermissions('organization:write')
+  @Idempotent()
   @Post('companies')
   @ApiZodBody(createCompanySchema)
   async createCompany(@TenantId() tenantId: string, @Body({ schema: createCompanySchema }) body: CreateCompanyInput) {
@@ -80,6 +82,7 @@ export class OrganizationController {
   }
 
   @RequirePermissions('organization:write')
+  @Idempotent()
   @Post('companies/:id/gst-registrations')
   @ApiZodBody(createGstRegistrationSchema)
   async createGstRegistration(
@@ -97,6 +100,7 @@ export class OrganizationController {
   }
 
   @RequirePermissions('organization:write')
+  @Idempotent()
   @Post('business-locations')
   @ApiZodBody(createBusinessLocationSchema)
   async createBusinessLocation(@TenantId() tenantId: string, @Body({ schema: createBusinessLocationSchema }) body: CreateBusinessLocationInput) {
@@ -110,6 +114,7 @@ export class OrganizationController {
   }
 
   @RequirePermissions('organization:write')
+  @Idempotent()
   @Post('warehouses')
   @HttpCode(201)
   @ApiZodBody(createWarehouseSchema)

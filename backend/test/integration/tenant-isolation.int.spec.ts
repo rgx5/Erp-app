@@ -79,10 +79,25 @@ describe('row-level security configuration', () => {
       SELECT c.relname AS "table", c.relrowsecurity AS rls, c.relforcerowsecurity AS forced,
              (SELECT count(*)::int FROM pg_policy p WHERE p.polrelid = c.oid) AS policies
         FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-       WHERE n.nspname = 'erp' AND c.relkind = 'r' AND c.relname NOT IN ('schema_migrations', 'tenant_directory')`);
+       WHERE n.nspname = 'erp' AND c.relkind = 'r' AND c.relname NOT IN ('schema_migrations', 'tenant_directory', 'outbox_dispatch')`);
     expect(rows.length).toBeGreaterThanOrEqual(5);
     for (const row of rows) expect(row, row.table).toMatchObject({ rls: true, forced: true, policies: expect.any(Number) });
     for (const row of rows) expect(row.policies, row.table).toBeGreaterThan(0);
+  });
+
+  it('has exactly three tables outside row-level security, each a documented non-tenant table', async () => {
+    const { rows } = await owner.query<{ table: string }>(`
+      SELECT c.relname AS "table" FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
+       WHERE n.nspname = 'erp' AND c.relkind = 'r' AND NOT c.relrowsecurity ORDER BY 1`);
+    expect(rows.map((r) => r.table)).toEqual(['outbox_dispatch', 'schema_migrations', 'tenant_directory']);
+    // The two that the runtime role can touch hold no business data: pointers and a slug -> id map.
+    const columns = await owner.query<{ table: string; cols: string[] }>(`
+      SELECT table_name AS "table", array_agg(column_name::text ORDER BY column_name) AS cols FROM information_schema.columns
+       WHERE table_schema = 'erp' AND table_name IN ('outbox_dispatch', 'tenant_directory') GROUP BY table_name ORDER BY 1`);
+    expect(columns.rows).toEqual([
+      { table: 'outbox_dispatch', cols: ['attempts', 'available_at', 'dead_at', 'done_at', 'event_id', 'last_error', 'locked_until', 'tenant_id'] },
+      { table: 'tenant_directory', cols: ['slug', 'tenant_id'] },
+    ]);
   });
 
   it('puts tenant_id in the primary key of every tenant-owned table, and every foreign key includes it', async () => {
@@ -91,7 +106,7 @@ describe('row-level security configuration', () => {
         FROM pg_constraint con JOIN pg_class c ON c.oid = con.conrelid JOIN pg_namespace n ON n.oid = c.relnamespace
         CROSS JOIN LATERAL unnest(con.conkey) WITH ORDINALITY AS k(attnum, ord)
         JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = k.attnum
-       WHERE n.nspname = 'erp' AND con.contype = 'p' AND c.relname NOT IN ('tenants', 'schema_migrations', 'tenant_directory') GROUP BY c.relname`);
+       WHERE n.nspname = 'erp' AND con.contype = 'p' AND c.relname NOT IN ('tenants', 'schema_migrations', 'tenant_directory', 'outbox_dispatch') GROUP BY c.relname`);
     for (const t of tables.rows) expect(t.pk[0], t.table).toBe('tenant_id');
     const fks = await owner.query<{ table: string; ref: string; cols: string[] }>(`
       SELECT c.relname AS "table", r.relname AS ref, array_agg(a.attname::text) AS cols

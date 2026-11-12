@@ -30,6 +30,7 @@ import {
 } from './identity.schemas.js';
 import { presentApiKey, presentRole, presentSession, presentUser } from './identity.presenters.js';
 import { Authenticated, CurrentPrincipal, Public, type Principal, RequirePermissions, TenantId } from './principal.js';
+import { Idempotent } from '../../platform/services/idempotency.js';
 import { PlatformAdminGuard } from '../../platform/tenancy/platform-admin.guard.js';
 import { UseGuards } from '@nestjs/common';
 
@@ -157,6 +158,7 @@ export class UsersController {
   constructor(@Inject(AccessService) private readonly access: AccessService) {}
 
   @RequirePermissions('users:write')
+  @Idempotent()
   @Post()
   @ApiZodBody(createUserSchema)
   async create(@CurrentPrincipal() actor: Principal, @Body({ schema: createUserSchema }) body: CreateUserInput) {
@@ -202,6 +204,7 @@ export class RolesController {
   constructor(@Inject(AccessService) private readonly access: AccessService) {}
 
   @RequirePermissions('roles:write')
+  @Idempotent()
   @Post()
   @ApiZodBody(createRoleSchema)
   async create(@CurrentPrincipal() actor: Principal, @Body({ schema: createRoleSchema }) body: CreateRoleInput) {

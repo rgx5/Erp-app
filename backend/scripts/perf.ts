@@ -6,6 +6,7 @@
  *   TEST_PG_ADMIN_URL=postgresql://postgres@localhost:5434/postgres npm run perf
  */
 import autocannon from 'autocannon';
+import { generateKeyPairSync } from 'node:crypto';
 import { cpus, totalmem } from 'node:os';
 import pg from 'pg';
 import { v7 as uuidv7 } from 'uuid';
@@ -21,6 +22,7 @@ import { PASSWORDS, urlFor } from '../test/support/urls.js';
 const ADMIN = process.env['TEST_PG_ADMIN_URL'] ?? 'postgresql://postgres@localhost:5434/postgres';
 const DURATION = Number(process.env['PERF_SECONDS'] ?? 8);
 const CONNECTIONS = Number(process.env['PERF_CONNECTIONS'] ?? 32);
+const JWT_KEY = generateKeyPairSync('ed25519').privateKey.export({ type: 'pkcs8', format: 'pem' }).toString();
 const TOKEN = 'perf-platform-admin-token-0123456789abcdef';
 
 const dbName = `erp_perf_${process.pid}`;
@@ -34,16 +36,21 @@ try {
 
   const rows: string[][] = [];
   for (const adapter of ['fastify', 'node'] as const) {
-    const env = loadEnv({ NODE_ENV: 'test', HOST: '127.0.0.1', PORT: '0', LOG_LEVEL: 'silent', DATABASE_URL: appUrl, DATABASE_POOL_MAX: '20', PLATFORM_ADMIN_TOKEN: TOKEN, HTTP_ADAPTER: adapter } as NodeJS.ProcessEnv);
+    const env = loadEnv({ NODE_ENV: 'test', HOST: '127.0.0.1', PORT: '0', LOG_LEVEL: 'silent', DATABASE_URL: appUrl, DATABASE_POOL_MAX: '20', PLATFORM_ADMIN_TOKEN: TOKEN, HTTP_ADAPTER: adapter, AUTH_JWT_PRIVATE_KEY: JWT_KEY } as NodeJS.ProcessEnv);
     const app = await createApplication(env);
     await app.listen(0, '127.0.0.1');
     const base = (await app.getUrl()).replace('[::1]', '127.0.0.1');
 
     const created = await fetch(`${base}/v1/platform/tenants`, {
       method: 'POST', headers: { authorization: `Bearer ${TOKEN}`, 'content-type': 'application/json' },
-      body: JSON.stringify({ name: 'Perf', slug: `perf-${adapter}-${process.pid}` }),
+      body: JSON.stringify({ name: 'Perf', slug: `perf-${adapter}-${process.pid}`, owner: { email: 'perf@example.com', displayName: 'Perf', password: 'perf passphrase long enough' } }),
     });
     const tenant = ((await created.json()) as { id: string }).id;
+    const login = await fetch(`${base}/v1/auth/login`, {
+      method: 'POST', headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ tenant: `perf-${adapter}-${process.pid}`, email: 'perf@example.com', password: 'perf passphrase long enough' }),
+    });
+    const bearer = `Bearer ${((await login.json()) as { accessToken: string }).accessToken}`;
     const seedPool = createAppPool({ url: appUrl, max: 2, statementTimeoutMs: 60_000, idleInTransactionTimeoutMs: 60_000 });
     await new UnitOfWork(createDb(seedPool)).inTenant(tenant, async (tx) => {
       await tx.insert(companies).values(Array.from({ length: 200 }, (_, i) => ({ tenantId: tenant, id: uuidv7(), legalName: `Seed company ${i}` })));
@@ -52,11 +59,11 @@ try {
 
     const scenarios: { name: string; request: autocannon.Options }[] = [
       { name: 'GET /health/live (no database)', request: { url: `${base}/health/live` } },
-      { name: 'GET /v1/tenant (1 tenant-scoped read tx)', request: { url: `${base}/v1/tenant`, headers: { 'x-tenant-id': tenant } } },
-      { name: 'GET /v1/companies?limit=50 (list, 200 rows)', request: { url: `${base}/v1/companies?limit=50`, headers: { 'x-tenant-id': tenant } } },
+      { name: 'GET /v1/tenant (auth + 1 read tx)', request: { url: `${base}/v1/tenant`, headers: { authorization: bearer } } },
+      { name: 'GET /v1/companies?limit=50 (auth + list)', request: { url: `${base}/v1/companies?limit=50`, headers: { authorization: bearer } } },
       {
-        name: 'POST /v1/companies (write tx + validation)',
-        request: { url: `${base}/v1/companies`, method: 'POST', headers: { 'x-tenant-id': tenant, 'content-type': 'application/json' }, body: JSON.stringify({ legalName: 'Perf Co', pan: 'ABCDE1234F' }) },
+        name: 'POST /v1/companies (auth + write + audit + outbox)',
+        request: { url: `${base}/v1/companies`, method: 'POST', headers: { authorization: bearer, 'content-type': 'application/json' }, body: JSON.stringify({ legalName: 'Perf Co', pan: 'ABCDE1234F' }) },
       },
     ];
     for (const scenario of scenarios) {

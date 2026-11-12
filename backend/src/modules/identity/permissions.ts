@@ -10,6 +10,9 @@ export const PERMISSIONS = [
   'roles:read',
   'roles:write',
   'api_keys:manage',
+  'audit:read',
+  'numbering:read',
+  'numbering:write',
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
