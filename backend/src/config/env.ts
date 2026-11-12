@@ -14,8 +14,18 @@ const schema = z
     DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(200).default(20),
     DATABASE_STATEMENT_TIMEOUT_MS: z.coerce.number().int().min(100).default(15_000),
     DATABASE_IDLE_IN_TRANSACTION_TIMEOUT_MS: z.coerce.number().int().min(100).default(30_000),
-    /** Slice 0 only: the tenant comes from the X-Tenant-Id header. Replaced by the identity slice. */
-    AUTH_MODE: z.enum(['dev-header']).default('dev-header'),
+    /** Ed25519 private key (PKCS#8 PEM) that signs access tokens. Required in production; development generates an ephemeral one. */
+    AUTH_JWT_PRIVATE_KEY: z.string().min(1).optional(),
+    /** JSON array of PEM public keys that are still accepted for verification (key rotation window). */
+    AUTH_JWT_PREVIOUS_PUBLIC_KEYS: z.string().optional(),
+    ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().min(60).max(3600).default(900),
+    REFRESH_TOKEN_TTL_SECONDS: z.coerce.number().int().min(300).default(2_592_000),
+    LOGIN_MAX_FAILURES: z.coerce.number().int().min(3).max(20).default(5),
+    LOGIN_LOCKOUT_SECONDS: z.coerce.number().int().min(60).default(900),
+    /** 32 random bytes, base64. Encrypts MFA secrets at rest. Required in production; development generates an ephemeral one. */
+    DATA_ENCRYPTION_KEY: z.string().optional(),
+    /** Allows POST /v1/auth/signup (anyone can create a tenant). Off by default; tenants are otherwise provisioned by the platform operator. */
+    SELF_SIGNUP_ENABLED: bool.optional(),
     /** Enables POST /v1/platform/tenants. At least 32 characters. Unset disables the endpoint. */
     PLATFORM_ADMIN_TOKEN: z.string().min(32).optional(),
     SWAGGER_ENABLED: bool.optional(),
@@ -23,16 +33,16 @@ const schema = z
     SHUTDOWN_TIMEOUT_MS: z.coerce.number().int().min(0).default(10_000),
   })
   .superRefine((env, ctx) => {
-    if (env.NODE_ENV === 'production' && env.AUTH_MODE === 'dev-header') {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['AUTH_MODE'],
-        message: 'AUTH_MODE=dev-header trusts a client-supplied header and must not run in production',
-      });
+    if (env.NODE_ENV === 'production') {
+      if (!env.AUTH_JWT_PRIVATE_KEY) ctx.addIssue({ code: 'custom', path: ['AUTH_JWT_PRIVATE_KEY'], message: 'is required in production' });
+      if (!env.DATA_ENCRYPTION_KEY) ctx.addIssue({ code: 'custom', path: ['DATA_ENCRYPTION_KEY'], message: 'is required in production' });
+    }
+    if (env.DATA_ENCRYPTION_KEY && Buffer.from(env.DATA_ENCRYPTION_KEY, 'base64').length !== 32) {
+      ctx.addIssue({ code: 'custom', path: ['DATA_ENCRYPTION_KEY'], message: 'must be 32 bytes, base64-encoded' });
     }
   });
 
-export type Env = Omit<z.infer<typeof schema>, 'SWAGGER_ENABLED'> & { SWAGGER_ENABLED: boolean };
+export type Env = Omit<z.infer<typeof schema>, 'SWAGGER_ENABLED' | 'SELF_SIGNUP_ENABLED'> & { SWAGGER_ENABLED: boolean; SELF_SIGNUP_ENABLED: boolean };
 
 /** Reads and validates the environment once. Anything missing or malformed stops the process at startup. */
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
@@ -42,7 +52,7 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
     throw new Error(`Invalid configuration:\n${problems}`);
   }
   const env = parsed.data;
-  return { ...env, SWAGGER_ENABLED: env.SWAGGER_ENABLED ?? env.NODE_ENV !== 'production' };
+  return { ...env, SWAGGER_ENABLED: env.SWAGGER_ENABLED ?? env.NODE_ENV !== 'production', SELF_SIGNUP_ENABLED: env.SELF_SIGNUP_ENABLED ?? false };
 }
 
 export const ENV = Symbol('ENV');

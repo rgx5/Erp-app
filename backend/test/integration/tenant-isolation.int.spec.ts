@@ -79,7 +79,7 @@ describe('row-level security configuration', () => {
       SELECT c.relname AS "table", c.relrowsecurity AS rls, c.relforcerowsecurity AS forced,
              (SELECT count(*)::int FROM pg_policy p WHERE p.polrelid = c.oid) AS policies
         FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace
-       WHERE n.nspname = 'erp' AND c.relkind = 'r' AND c.relname <> 'schema_migrations'`);
+       WHERE n.nspname = 'erp' AND c.relkind = 'r' AND c.relname NOT IN ('schema_migrations', 'tenant_directory')`);
     expect(rows.length).toBeGreaterThanOrEqual(5);
     for (const row of rows) expect(row, row.table).toMatchObject({ rls: true, forced: true, policies: expect.any(Number) });
     for (const row of rows) expect(row.policies, row.table).toBeGreaterThan(0);
@@ -91,7 +91,7 @@ describe('row-level security configuration', () => {
         FROM pg_constraint con JOIN pg_class c ON c.oid = con.conrelid JOIN pg_namespace n ON n.oid = c.relnamespace
         CROSS JOIN LATERAL unnest(con.conkey) WITH ORDINALITY AS k(attnum, ord)
         JOIN pg_attribute a ON a.attrelid = c.oid AND a.attnum = k.attnum
-       WHERE n.nspname = 'erp' AND con.contype = 'p' AND c.relname NOT IN ('tenants', 'schema_migrations') GROUP BY c.relname`);
+       WHERE n.nspname = 'erp' AND con.contype = 'p' AND c.relname NOT IN ('tenants', 'schema_migrations', 'tenant_directory') GROUP BY c.relname`);
     for (const t of tables.rows) expect(t.pk[0], t.table).toBe('tenant_id');
     const fks = await owner.query<{ table: string; ref: string; cols: string[] }>(`
       SELECT c.relname AS "table", r.relname AS ref, array_agg(a.attname::text) AS cols

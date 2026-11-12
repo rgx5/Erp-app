@@ -73,43 +73,46 @@ describe.each(ADAPTERS)('HTTP API on the %s adapter', (adapter) => {
   });
 
   describe('tenant resolution (Slice 0, dev header)', () => {
-    it('requires the tenant header', async () => {
+    it('requires a bearer credential', async () => {
       const res = await call(server, 'GET', '/v1/companies');
       expect(res.status).toBe(401);
       expect(res.json.code).toBe('unauthorized');
     });
-    it('rejects a malformed tenant id', async () => {
-      expect((await call(server, 'GET', '/v1/companies', { tenant: 'not-a-uuid' })).status).toBe(401);
+    it('ignores a client-supplied X-Tenant-Id: the tenant comes only from the credential', async () => {
+      const res = await call(server, 'GET', '/v1/companies', { headers: { 'x-tenant-id': tenantA } });
+      expect(res.status).toBe(401);
     });
-    it('treats an unknown tenant as empty rather than as an error', async () => {
-      const res = await call(server, 'GET', '/v1/companies', { tenant: '01a1cf33-1a44-7104-863e-b26a759d6544' });
-      expect(res.json.items).toEqual([]);
+    it('rejects a malformed or forged token', async () => {
+      expect((await call(server, 'GET', '/v1/companies', { token: 'not-a-token-not-a-token' })).status).toBe(401);
+      expect((await call(server, 'GET', '/v1/companies', { token: 'ek_00_00_00-not-a-key-at-all' })).status).toBe(401);
     });
   });
 
   describe('platform tenant provisioning', () => {
+    const owner = { email: 'boss@example.com', displayName: 'Boss', password: 'a long passphrase!' };
     it('needs the platform token', async () => {
-      expect((await call(server, 'POST', '/v1/platform/tenants', { body: { name: 'X', slug: uniqueSlug() } })).status).toBe(403);
-      expect((await call(server, 'POST', '/v1/platform/tenants', { token: 'wrong-token-wrong-token-wrong-token-1', body: { name: 'X', slug: uniqueSlug() } })).status).toBe(403);
+      expect((await call(server, 'POST', '/v1/platform/tenants', { body: { name: 'X', slug: uniqueSlug(), owner } })).status).toBe(403);
+      expect((await call(server, 'POST', '/v1/platform/tenants', { token: 'wrong-token-wrong-token-wrong-token-1', body: { name: 'X', slug: uniqueSlug(), owner } })).status).toBe(403);
     });
     it('is a 404 when no platform token is configured', async () => {
       const closed = await startServer({ HTTP_ADAPTER: adapter, PLATFORM_ADMIN_TOKEN: undefined });
       try {
-        const res = await call(closed, 'POST', '/v1/platform/tenants', { token: PLATFORM_TOKEN, body: { name: 'X', slug: uniqueSlug() } });
+        const res = await call(closed, 'POST', '/v1/platform/tenants', { token: PLATFORM_TOKEN, body: { name: 'X', slug: uniqueSlug(), owner } });
         expect(res.status).toBe(404);
       } finally { await closed.close(); }
     });
     it('creates a tenant, rejects duplicate slugs, and validates input', async () => {
       const slug = uniqueSlug('dup');
-      const first = await call(server, 'POST', '/v1/platform/tenants', { token: PLATFORM_TOKEN, body: { name: 'One', slug } });
+      const first = await call(server, 'POST', '/v1/platform/tenants', { token: PLATFORM_TOKEN, body: { name: 'One', slug, owner } });
       expect(first.status).toBe(201);
-      expect(first.json).toMatchObject({ slug, name: 'One', status: 'active', version: 1 });
-      const dup = await call(server, 'POST', '/v1/platform/tenants', { token: PLATFORM_TOKEN, body: { name: 'Two', slug } });
+      expect(first.json).toMatchObject({ slug, name: 'One', status: 'active', owner: { email: owner.email } });
+      expect(JSON.stringify(first.json)).not.toMatch(/password|hash/i);
+      const dup = await call(server, 'POST', '/v1/platform/tenants', { token: PLATFORM_TOKEN, body: { name: 'Two', slug, owner } });
       expect(dup.status).toBe(409);
       expect(dup.json).toMatchObject({ code: 'conflict', constraint: 'tenants_slug_unique' });
       const bad = await call(server, 'POST', '/v1/platform/tenants', { token: PLATFORM_TOKEN, body: { name: '', slug: 'A' } });
       expect(bad.status).toBe(422);
-      expect(bad.json.errors.map((e: { path: string }) => e.path).sort()).toEqual(['name', 'slug']);
+      expect(bad.json.errors.map((e: { path: string }) => e.path).sort()).toEqual(['name', 'owner', 'slug']);
     });
     it('returns the current tenant', async () => {
       const res = await call(server, 'GET', '/v1/tenant', { tenant: tenantA });
@@ -279,10 +282,11 @@ describe('startup safety', () => {
     await admin.connect();
     const server = await startServer();
     try {
-      await admin.query("UPDATE erp.schema_migrations SET id = '0000_old' WHERE id = (SELECT max(id) FROM erp.schema_migrations)");
+      const head = (await admin.query<{ id: string }>('SELECT max(id) AS id FROM erp.schema_migrations')).rows[0]?.id as string;
+      await admin.query("UPDATE erp.schema_migrations SET id = '0000_old' WHERE id = $1", [head]);
       const res = await call(server, 'GET', '/health/ready');
       expect(res.status).toBe(503);
-      await admin.query("UPDATE erp.schema_migrations SET id = '0002_tenancy.sql' WHERE id = '0000_old'");
+      await admin.query("UPDATE erp.schema_migrations SET id = $1 WHERE id = '0000_old'", [head]);
     } finally {
       await server.close();
       await admin.end();

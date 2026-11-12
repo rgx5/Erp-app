@@ -65,8 +65,8 @@ describe('migrations', () => {
     const dir = await mkdtemp(path.join(tmpdir(), 'erp-mig-'));
     await cp(MIGRATIONS_DIR, dir, { recursive: true });
     await migrateUp(url, dir);
-    await writeFile(path.join(dir, '0003_broken.sql'), 'CREATE TABLE erp.half_done (id int); SELECT 1/0;');
-    await expect(migrateUp(url, dir)).rejects.toThrow(/0003_broken\.sql failed and was rolled back/);
+    await writeFile(path.join(dir, '9999_broken.sql'), 'CREATE TABLE erp.half_done (id int); SELECT 1/0;');
+    await expect(migrateUp(url, dir)).rejects.toThrow(/9999_broken\.sql failed and was rolled back/);
     const client = new pg.Client({ connectionString: url });
     await client.connect();
     expect((await client.query("SELECT to_regclass('erp.half_done') AS t")).rows[0].t).toBeNull();
@@ -99,7 +99,8 @@ describe('drizzle schema', () => {
       );
       expect(declared, `columns of erp.${name}`).toEqual(rows.map((r) => r.column_name));
     }
-    expect(checked).toBe(5);
+    const tables = await client.query<{ n: string }>("SELECT count(*)::text AS n FROM information_schema.tables WHERE table_schema = 'erp' AND table_name <> 'schema_migrations'");
+    expect(checked, 'every table in the erp schema is mirrored in the Drizzle schema').toBe(Number(tables.rows[0]?.n));
     await client.end();
   });
 });

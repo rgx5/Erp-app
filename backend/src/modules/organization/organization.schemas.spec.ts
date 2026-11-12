@@ -3,7 +3,6 @@ import {
   createBusinessLocationSchema,
   createCompanySchema,
   createGstRegistrationSchema,
-  createTenantSchema,
   updateCompanySchema,
 } from './organization.schemas.js';
 
@@ -33,9 +32,5 @@ describe('organization schemas', () => {
   it('requires at least one field to update a company', () => {
     expect(updateCompanySchema.safeParse({}).success).toBe(false);
     expect(updateCompanySchema.safeParse({ tradeName: null }).success).toBe(true);
-  });
-  it('validates tenant slugs', () => {
-    expect(createTenantSchema.safeParse({ name: 'A', slug: 'acme-co' }).success).toBe(true);
-    for (const slug of ['A', 'ab', 'Acme', '-acme', 'acme-', 'a b']) expect(createTenantSchema.safeParse({ name: 'A', slug }).success).toBe(false);
   });
 });

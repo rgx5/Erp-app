@@ -30,8 +30,9 @@ export async function createApplication(env: Env): Promise<INestApplication> {
   if (env.SWAGGER_ENABLED) {
     const config = new DocumentBuilder()
       .setTitle('OneSyncERP API')
-      .setDescription('Slice 0: platform foundation and the tenancy hierarchy.')
-      .setVersion('0.1.0')
+      .setDescription('Platform foundation, identity and the tenancy hierarchy.')
+      .setVersion('0.2.0')
+      .addBearerAuth()
       .build();
     SwaggerModule.setup('docs', app, SwaggerModule.createDocument(app, config), { jsonDocumentUrl: 'openapi.json' });
   }

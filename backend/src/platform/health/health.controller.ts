@@ -4,8 +4,10 @@ import { HealthCheck, HealthCheckService, HealthIndicatorService } from '@nestjs
 import type pg from 'pg';
 import { expectedMigrationHead } from '../../db/migrator.js';
 import { POOL } from '../database/database.js';
+import { Public } from '../http/public.js';
 
 @ApiTags('health')
+@Public()
 @Controller('health')
 export class HealthController {
   private expectedHead: Promise<string> | undefined;

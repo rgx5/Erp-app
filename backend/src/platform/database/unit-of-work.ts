@@ -30,4 +30,12 @@ export class UnitOfWork {
       { accessMode: options.readOnly ? 'read only' : 'read write', isolationLevel: options.isolation ?? 'read committed' },
     );
   }
+
+  /**
+   * A read-only transaction with NO tenant bound. Every RLS-protected table returns zero rows here (the policies fail closed);
+   * only the non-tenant `tenant_directory` is readable. It exists solely to turn a tenant slug into a tenant id at sign-in.
+   */
+  async outsideTenant<T>(work: (tx: Tx) => Promise<T>): Promise<T> {
+    return this.db.transaction(work, { accessMode: 'read only', isolationLevel: 'read committed' });
+  }
 }

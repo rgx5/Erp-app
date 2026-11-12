@@ -9,7 +9,6 @@ import type {
   CreateBusinessLocationInput,
   CreateCompanyInput,
   CreateGstRegistrationInput,
-  CreateTenantInput,
   CreateWarehouseInput,
   ListLocationsQuery,
   ListWarehousesQuery,
@@ -32,12 +31,6 @@ const one = <T>(rows: T[], what: string): T => {
 @Injectable()
 export class OrganizationService {
   constructor(@Inject(UnitOfWork) private readonly uow: UnitOfWork) {}
-
-  /** Creates a tenant. It runs in the NEW tenant's own context: the RLS policy lets a tenant insert only its own row. */
-  createTenant(input: CreateTenantInput): Promise<TenantRow> {
-    const id = uuidv7();
-    return this.uow.inTenant(id, async (tx) => one(await tx.insert(tenants).values({ id, ...input }).returning(), 'Tenant'));
-  }
 
   getTenant(tenantId: string): Promise<TenantRow> {
     return this.uow.inTenant(tenantId, async (tx) => one(await tx.select().from(tenants).where(eq(tenants.id, tenantId)), 'Tenant'), { readOnly: true });
