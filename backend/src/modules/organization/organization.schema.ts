@@ -71,6 +71,7 @@ export const warehouses = erp.table('warehouses', {
   code: text('code').notNull(),
   name: text('name').notNull(),
   kind: text('kind').notNull().default('general'),
+  allowNegativeStock: boolean('allow_negative_stock').notNull().default(false),
   status: text('status').notNull().default('active'),
   ...audit,
 });

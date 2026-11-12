@@ -1,4 +1,4 @@
-# Architecture decisions (Slices 0-3)
+# Architecture decisions (Slices 0-4)
 
 Each decision lists what was chosen, why, and what is deliberately deferred. Items marked **ASSUMPTION** are things
 I decided without a business rule from you; please confirm or correct them.
@@ -104,6 +104,16 @@ Chart of accounts, fiscal years/periods, the double-entry journal, trial balance
 - **Manufacturing from the start**: the opt-in starter chart (`POST /v1/companies/:id/chart-of-accounts/template`) has raw-material / packing / WIP / finished-goods / material-with-subcontractor inventory, GRNI, overheads absorbed, subcontracting, scrap, production variances and purchase price variance accounts. It is a convenience, not a policy: apply it, or build your own.
 - Entry numbers `JV|OB|AJ|RV|SY/<FY>/<6 digits>` are per company x fiscal year x type (no global counter; not a statutory series).
 
+## ADR-15 Inventory subledger (Slice 4a)
+Decisions you made for this slice: **weighted average and FIFO per item**, **negative stock blocked by default with a per-warehouse override**, **batch (with expiry) and serial tracking**.
+- **One entry point**: `StockService.move(tx, ...)`. It costs each line, enforces tracking and negative-stock rules, appends immutable ledger rows, updates balances/layers, and posts the matching GL entry via `PostingService`, all in the caller's transaction. Future purchasing, sales, production, transfers and counts call it with their own source (`goods_receipt:<id>` ...), so a document and its stock + GL effect are atomic and never applied twice.
+- **Costing**: valuation is per **item per warehouse**. Weighted average derives the unit cost from balance value / quantity at issue time (no stored running average to drift); emptying a balance takes the exact remaining value, so no rounding residue stays. FIFO keeps cost layers (oldest *receipt date* first, not posting order) and records every consumption. All arithmetic is integer (qty and cost 6 dp, value 4 dp, half-up), never floating point. An item's costing method and tracking freeze once it has any movement (trigger).
+- **Negative stock**: an issue beyond the balance is refused (409, with the available quantity) unless the **warehouse** allows negative stock **and** the item is weighted average; the shortfall is costed at the last known cost. FIFO items, batch balances and serial numbers can never go negative.
+- **Batches/serials**: batch-tracked items need a batch on every line (created on receipt with optional manufacture/expiry dates); expired or blocked batches cannot be received or issued; serial-tracked items need exactly one distinct serial per unit and each unit moves in_stock -> issued.
+- **GL link and reconciliation**: item type -> inventory control account is configured per company; opening stock and adjustments post against configured offset accounts; receipts/issues name their offset (HTTP callers cannot use control accounts, documents can). `GET /v1/inventory/reconciliation` compares, per stock account, the stock ledger value with the GL balance as of a date. Any difference is reported, `reconciled` is true only when all are zero. Because manual journals cannot post to control accounts, the two can only differ through a defect, which is exactly what this proves.
+- **Locking**: balance rows are locked per (warehouse, item) in a fixed order (no deadlocks); 20 simultaneous issues against 10 units produced exactly 10 successes. Stock dates lock with the books: a movement needs an open accounting period.
+- The stock ledger is append-only like the journal. Corrections are opposite movements; reversing a movement automatically (needed by document cancellation) arrives with the purchasing and sales slices that need it.
+
 ## Assumptions to confirm
 1. GST registration types: regular, composition, SEZ, casual, non-resident, input-service-distributor, TDS/TCS deductor (check constraint list, easy to change).
 2. GSTIN: 15 chars, format regex, state code = first two digits, PAN inside GSTIN must equal the company PAN. State code validity table is not enforced. A GSTIN is unique per tenant.
@@ -123,6 +133,8 @@ Chart of accounts, fiscal years/periods, the double-entry journal, trial balance
 17. Entries are in the company's **base currency only**. Foreign-currency postings arrive with the sales/purchase documents (they will carry the foreign amount and rate as memo columns next to base amounts).
 18. No draft/approval workflow for manual journals yet (posting is immediate, controlled by period, account and permission rules); no recurring journals, no year-end close / retained-earnings roll-up (the trial balance shows income and expense accounts as they are), no budgets, no dimensions beyond business location and party on a line.
 19. `entry_no` is not required to be gapless; a rolled-back posting returns its number, so committed numbers are consecutive in practice.
+20. Inventory: valuation is per item per warehouse (not company-wide); one GL account per item *type* (not per item); quantities are in the item's base unit (conversions are applied by documents); no movement reversal yet; no item categories or landed cost yet (purchasing slice).
+21. Negative-stock valuation is approximate by nature (shortfalls use the last cost); the subledger and GL still agree because both take the same ledger values.
 11. Retention: nothing is ever deleted by the runtime role (no DELETE grants), so sessions, idempotency keys, outbox and audit rows accumulate; archival/partitioning needs a separate maintenance role and a retention policy you must decide.
 
 ## Deferred on purpose (later slices, not decided here)

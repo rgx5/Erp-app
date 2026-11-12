@@ -81,6 +81,7 @@ export const items = erp.table('items', {
   isPurchasable: boolean('is_purchasable').notNull().default(true),
   isSellable: boolean('is_sellable').notNull().default(true),
   isManufactured: boolean('is_manufactured').notNull().default(false),
+  costingMethod: text('costing_method'),
   status: text('status').notNull().default('active'),
   ...meta,
 });

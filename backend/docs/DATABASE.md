@@ -34,10 +34,15 @@ Every table has `version int`, `created_at`, `updated_at`; PK `(tenant_id, id)` 
 | fiscal_years / accounting_periods | years and monthly periods | **EXCLUDE no-overlap**; period status trigger (open<->closed, closed->locked, nothing else) |
 | journal_counters | per company x year x type number counter | locked by the posting transaction |
 | journal_entries / journal_lines | the immutable double-entry ledger | reject UPDATE/DELETE/TRUNCATE; period-open check (FOR SHARE); **deferred balance/header check at commit**; lines only from the creating transaction; one entry per source document+event; reversed at most once |
+| company_stock_settings / inventory_accounts | GL accounts for stock (per item type), opening and adjustment offsets | inventory_accounts trigger: must be a postable asset control account |
+| batches / stock_serials | batch records (status only changes) and serial numbers (move/issue only) | unique per item; guard triggers |
+| stock_movements / stock_ledger / stock_ledger_serials / stock_layer_consumptions | the immutable stock subledger | reject UPDATE/DELETE/TRUNCATE; ledger lines only from the creating transaction; one movement per source; the journal link may be set once, in the same transaction |
+| stock_balances / batch_balances / stock_layers | current quantity/value, batch quantity, FIFO layers (cache + cost layers) | row-locked per (warehouse, item); batch quantity >= 0; layer remaining bounded; tests prove balances = sum of ledger |
+| stock_counters | movement numbers per company x year x prefix | locked by the posting transaction |
 | schema_migrations | applied files + sha256 | owner-only (not granted to erp_app except read for readiness) |
 
 Grants to `erp_app`: `SELECT, INSERT, UPDATE` only (audit_log, outbox_events, outbox_consumed: `SELECT, INSERT` only; number_allocations: `SELECT, INSERT` + `UPDATE` on the three cancellation columns). Policy on every table: `tenant_isolation TO erp_app USING / WITH CHECK (tenant_id = erp.current_tenant_id())`, with `ENABLE` and `FORCE ROW LEVEL SECURITY`.
-Exact DDL: `db/migrations/0001_foundation.sql` ... `0006_accounting.sql`. The `btree_gist` extension is created by the admin bootstrap (`db/bootstrap/bootstrap.sql`), so a database must be bootstrapped with the Slice 2 version of that file.
+Exact DDL: `db/migrations/0001_foundation.sql` ... `0007_inventory.sql`. The `btree_gist` extension is created by the admin bootstrap (`db/bootstrap/bootstrap.sql`), so a database must be bootstrapped with the Slice 2 version of that file.
 
 **Tables outside RLS**: exactly three, enforced by a test: `schema_migrations` (metadata), `tenant_directory` (slug -> id), `outbox_dispatch` (queue pointers). The test also pins their column lists so business data cannot creep into them.
 

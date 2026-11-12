@@ -22,6 +22,9 @@ export const PERMISSIONS = [
   'accounting:reverse',
   'accounting:manage',
   'accounting:reopen',
+  'stock:read',
+  'stock:post',
+  'stock:manage',
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];

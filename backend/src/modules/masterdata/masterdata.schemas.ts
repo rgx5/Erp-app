@@ -52,6 +52,8 @@ export const createItemSchema = z
     isPurchasable: z.boolean().default(true),
     isSellable: z.boolean().default(true),
     isManufactured: z.boolean().default(false),
+    /** Per-item valuation method; default weighted average. Fixed once the item has stock movements. */
+    costingMethod: z.enum(['weighted_average', 'fifo']).optional(),
   })
   .superRefine((v, ctx) => {
     const service = v.itemType === 'service';
@@ -64,7 +66,13 @@ export const createItemSchema = z
     if (v.tracking !== 'none' && !stocked) ctx.addIssue({ code: 'custom', path: ['tracking'], message: 'Only stocked items can be batch or serial tracked' });
     if (v.isManufactured && v.itemType !== 'semi_finished' && v.itemType !== 'finished_good') ctx.addIssue({ code: 'custom', path: ['isManufactured'], message: 'Only semi-finished or finished goods are manufactured' });
   })
-  .transform((v) => ({ ...v, isStocked: v.isStocked ?? v.itemType !== 'service' }));
+  .superRefine((v, ctx) => {
+    if (v.itemType === 'service' && v.costingMethod !== undefined) ctx.addIssue({ code: 'custom', path: ['costingMethod'], message: 'A service has no costing method' });
+  })
+  .transform((v) => {
+    const isStocked = v.isStocked ?? v.itemType !== 'service';
+    return { ...v, isStocked, costingMethod: isStocked ? (v.costingMethod ?? ('weighted_average' as const)) : undefined };
+  });
 export const updateItemSchema = z
   .strictObject({
     name: text(300).optional(),
@@ -73,6 +81,7 @@ export const updateItemSchema = z
     taxCodeId: z.uuid().nullable().optional(),
     isPurchasable: z.boolean().optional(),
     isSellable: z.boolean().optional(),
+    costingMethod: z.enum(['weighted_average', 'fifo']).optional(),
     status: z.enum(['active', 'inactive']).optional(),
   })
   .refine(atLeastOne, NOTHING);
