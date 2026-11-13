@@ -11,6 +11,7 @@ import { MasterDataModule } from '../masterdata/masterdata.controller.js';
 import { NumberingModule } from '../numbering/numbering.controller.js';
 import * as s from './sales.schemas.js';
 import { SalesInvoiceService, type InvoiceLineRow, type InvoiceRow } from './sales-invoice.service.js';
+import { ReceivablesService } from './receivables.service.js';
 import { SalesOrdersService, type OrderLineRow, type OrderRow, type QuoteRow } from './sales-orders.service.js';
 import { SalesSettingsService } from './sales-settings.service.js';
 
@@ -50,6 +51,7 @@ export class SalesController {
   async get(@TenantId() t: string, @Param('id', { schema: id }) i: string) { return presentInvoice(await this.invoices.get(t, i)); }
 }
 
+const presentReceipt = (r: { receipt: object; allocations: object[]; unallocated: string }) => ({ ...strip(r.receipt), allocations: r.allocations.map(strip), unallocated: r.unallocated });
 const presentQuote = (r: { quote: QuoteRow; lines: object[] }) => ({ ...strip(r.quote), lines: r.lines.map(strip) });
 const presentOrder = (r: { order: OrderRow; lines: OrderLineRow[]; invoices?: object[] }) => ({ ...strip(r.order), lines: r.lines.map(strip), ...(r.invoices ? { invoices: r.invoices } : {}) });
 
@@ -86,10 +88,45 @@ export class SalesOrdersController {
   async closeOrder(@TenantId() t: string, @Param('id', { schema: id }) i: string) { return presentOrder(await this.orders.closeOrder(t, i)); }
 }
 
+@ApiTags('receivables')
+@ApiBearerAuth()
+@Controller('v1/receivables')
+export class ReceivablesController {
+  constructor(@Inject(ReceivablesService) private readonly receivables: ReceivablesService) {}
+
+  /** Records money received. Allocations are optional: unallocated money stays on account as an advance. */
+  @RequirePermissions('receivables:post') @Idempotent() @Post('receipts') @ApiZodBody(s.createReceiptSchema)
+  async createReceipt(@CurrentPrincipal() a: Principal, @Body({ schema: s.createReceiptSchema }) b: s.CreateReceiptInput) { return presentReceipt(await this.receivables.createReceipt(a.tenantId, a.userId, b)); }
+  @RequirePermissions('receivables:read') @Get('receipts')
+  async listReceipts(@TenantId() t: string, @Query({ schema: s.listReceiptsQuery }) q: z.infer<typeof s.listReceiptsQuery>) { const p = await this.receivables.listReceipts(t, q); return { items: p.items.map(strip), nextCursor: p.nextCursor }; }
+  @RequirePermissions('receivables:read') @Get('receipts/:id')
+  async getReceipt(@TenantId() t: string, @Param('id', { schema: id }) i: string) { return presentReceipt(await this.receivables.getReceipt(t, i)); }
+  @RequirePermissions('receivables:post') @Idempotent() @Post('receipts/:id/cancel') @HttpCode(200) @ApiZodBody(s.cancelReceiptSchema)
+  async cancelReceipt(@CurrentPrincipal() a: Principal, @Param('id', { schema: id }) i: string, @Body({ schema: s.cancelReceiptSchema }) b: { cancelDate: string; reason: string }) { return presentReceipt(await this.receivables.cancelReceipt(a.tenantId, a.userId, i, b)); }
+
+  /** Settles invoices from a receipt or a credit note. */
+  @RequirePermissions('receivables:post') @Idempotent() @Post('allocations') @ApiZodBody(s.allocateSchema)
+  async allocate(@CurrentPrincipal() a: Principal, @Body({ schema: s.allocateSchema }) b: z.infer<typeof s.allocateSchema>) { return { items: (await this.receivables.allocate(a.tenantId, a.userId, b)).map(strip) }; }
+  @RequirePermissions('receivables:post') @Post('allocations/:id/reverse') @HttpCode(200) @ApiZodBody(s.reverseAllocationSchema)
+  async reverseAllocation(@TenantId() t: string, @Param('id', { schema: id }) i: string, @Body({ schema: s.reverseAllocationSchema }) b: { on: string; reason: string }) { return strip(await this.receivables.reverseAllocation(t, i, b)); }
+  @RequirePermissions('receivables:writeoff') @Idempotent() @Post('write-offs') @ApiZodBody(s.writeOffSchema)
+  async writeOff(@CurrentPrincipal() a: Principal, @Body({ schema: s.writeOffSchema }) b: z.infer<typeof s.writeOffSchema>) { return strip(await this.receivables.writeOff(a.tenantId, a.userId, b)); }
+
+  @RequirePermissions('receivables:read') @Get('customers/:id/position')
+  position(@TenantId() t: string, @Param('id', { schema: id }) i: string, @Query({ schema: s.positionQuery }) q: { companyId: string; asOf: string }) { return this.receivables.position(t, q.companyId, i, q.asOf); }
+  @RequirePermissions('receivables:read') @Get('customers/:id/statement')
+  statement(@TenantId() t: string, @Param('id', { schema: id }) i: string, @Query({ schema: s.statementQuery }) q: { companyId: string; from: string; to: string }) { return this.receivables.statement(t, q.companyId, i, q.from, q.to); }
+  @RequirePermissions('receivables:read') @Get('ageing')
+  ageing(@TenantId() t: string, @Query({ schema: s.asOfQuery }) q: { companyId: string; asOf: string }) { return this.receivables.ageing(t, q.companyId, q.asOf); }
+  /** Receivables documents vs the general ledger, customer by customer. */
+  @RequirePermissions('receivables:read') @Get('reconciliation')
+  reconciliation(@TenantId() t: string, @Query({ schema: s.asOfQuery }) q: { companyId: string; asOf: string }) { return this.receivables.reconciliation(t, q.companyId, q.asOf); }
+}
+
 @Module({
   imports: [AccountingModule, InventoryModule, NumberingModule, MasterDataModule],
-  controllers: [SalesController, SalesOrdersController],
-  providers: [Recorder, SalesSettingsService, SalesInvoiceService, SalesOrdersService],
-  exports: [SalesSettingsService, SalesInvoiceService, SalesOrdersService],
+  controllers: [SalesController, SalesOrdersController, ReceivablesController],
+  providers: [Recorder, SalesSettingsService, SalesInvoiceService, SalesOrdersService, ReceivablesService],
+  exports: [SalesSettingsService, SalesInvoiceService, SalesOrdersService, ReceivablesService],
 })
 export class SalesModule {}

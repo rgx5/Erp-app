@@ -13,12 +13,12 @@ import { stockLedger, stockLedgerSerials, stockSerials } from '../inventory/inve
 import { StockService, type MoveLine } from '../inventory/stock.service.js';
 import { first, Recorder } from '../masterdata/helpers.js';
 import { CatalogService } from '../masterdata/catalog.service.js';
-import { items, parties, partyAddresses, taxCodes } from '../masterdata/masterdata.schema.js';
+import { items, parties, partyAddresses, paymentTerms, taxCodes } from '../masterdata/masterdata.schema.js';
 import { financialYearOf, NumberingService } from '../numbering/numbering.service.js';
 import { numberAllocations } from '../../platform/services/platform.schema.js';
 import { businessLocations, gstRegistrations } from '../organization/organization.schema.js';
 import { computeInvoice, computeLine, paiseToMoney, placeOfSupply, supplyTypeOf, taxRegime, type LineTax, type Rates, type TaxRegime } from './gst.js';
-import { salesInvoiceLines, salesInvoices } from './sales.schema.js';
+import { receivableAllocations, salesInvoiceLines, salesInvoices } from './sales.schema.js';
 import type { CreateInvoiceInput, CreateNoteInput, ListInvoicesQuery } from './sales.schemas.js';
 import { SalesSettingsService, type SalesSettingsRow } from './sales-settings.service.js';
 
@@ -127,7 +127,7 @@ export class SalesInvoiceService {
     const header = {
       companyId: input.companyId, gstRegistrationId: registration.id, businessLocationId: input.businessLocationId ?? null, documentType: input.documentType, invoiceNo: allocation, invoiceDate: input.invoiceDate,
       customerId: customer.id, customerName: customer.tradeName ?? customer.legalName, customerGstin: customer.gstin, customerGstTreatment: customer.gstTreatment, placeOfSupply: pos, supplyType,
-      taxPayment: input.taxPayment ?? null, reverseCharge: input.reverseCharge, taxRegime: regime, originalInvoiceId: null, reason: null, orderId: extras.orderId ?? null,
+      taxPayment: input.taxPayment ?? null, reverseCharge: input.reverseCharge, taxRegime: regime, originalInvoiceId: null, reason: null, orderId: extras.orderId ?? null, dueDate: await this.dueDate(tx, tenantId, customer.paymentTermsId, input.invoiceDate),
     };
     return this.finish(tx, tenantId, actorId, invoiceId, header, lines, totals, 'invoice');
   }
@@ -357,8 +357,18 @@ export class SalesInvoiceService {
     });
   }
 
-  /** Hook for receipts (Slice 5c): an invoice with money allocated to it cannot be cancelled. */
-  protected async assertNoSettlements(_tx: Tx, _tenantId: string, _invoiceId: string): Promise<void> {}
+  /** An invoice with money allocated to it cannot be cancelled: release the allocations first. */
+  private async assertNoSettlements(tx: Tx, tenantId: string, invoiceId: string): Promise<void> {
+    const [a] = await tx.select({ id: receivableAllocations.id }).from(receivableAllocations).where(and(eq(receivableAllocations.tenantId, tenantId), eq(receivableAllocations.invoiceId, invoiceId), sql`${receivableAllocations.reversedAt} IS NULL`)).limit(1);
+    if (a) throw new AppError(409, 'has_settlements', 'Money is allocated to this invoice; reverse the allocations first');
+  }
+
+  /** Invoice date plus the customer's payment terms (none: due on the invoice date). */
+  private async dueDate(tx: Tx, tenantId: string, termsId: string | null, invoiceDate: string): Promise<string> {
+    if (!termsId) return invoiceDate;
+    const [t] = await tx.select({ days: paymentTerms.netDays }).from(paymentTerms).where(and(eq(paymentTerms.tenantId, tenantId), eq(paymentTerms.id, termsId)));
+    return new Date(Date.parse(`${invoiceDate}T00:00:00Z`) + (t?.days ?? 0) * 86_400_000).toISOString().slice(0, 10);
+  }
 
   // ---- reads ------------------------------------------------------------------------------------------------------------
   get(tenantId: string, id: string): Promise<{ invoice: InvoiceRow; lines: InvoiceLineRow[] }> {

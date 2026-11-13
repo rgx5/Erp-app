@@ -12,7 +12,7 @@ const account = z.uuid().nullable().optional();
 export const salesSettingsSchema = z
   .strictObject({
     receivableAccountId: account, salesAccountId: account, serviceSalesAccountId: account, cogsAccountId: account, roundOffAccountId: account,
-    outputCgstAccountId: account, outputSgstAccountId: account, outputIgstAccountId: account, outputCessAccountId: account,
+    outputCgstAccountId: account, outputSgstAccountId: account, outputIgstAccountId: account, outputCessAccountId: account, writeOffAccountId: account,
   })
   .refine((v) => Object.keys(v).length > 0, 'Send at least one field');
 
@@ -120,3 +120,34 @@ export const listQuotesQuery = z.object({ ...page, companyId: z.uuid(), customer
 export const listOrdersQuery = z.object({ ...page, companyId: z.uuid(), customerId: z.uuid().optional(), status: z.enum(['open', 'partially_invoiced', 'invoiced', 'closed', 'cancelled']).optional() });
 export type CreateQuoteInput = z.infer<typeof createQuoteSchema>;
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;
+
+// ---- receipts and receivables ----------------------------------------------------------------------------------------
+const positive = z.string().regex(/^[0-9]{1,14}(\.[0-9]{1,4})?$/, 'A positive decimal with at most 4 places, as a string').refine((v) => Number(v) > 0, 'Must be greater than zero');
+const allocationItem = z.strictObject({ invoiceId: z.uuid(), amount: positive });
+export const createReceiptSchema = z.strictObject({
+  companyId: z.uuid(),
+  customerId: z.uuid(),
+  receiptDate: isoDate,
+  amount: positive,
+  method: z.enum(['cash', 'bank_transfer', 'upi', 'card', 'cheque', 'other']),
+  /** The cash or bank account the money lands in. */
+  depositAccountId: z.uuid(),
+  reference: text(100).optional(),
+  notes: text(500).optional(),
+  /** Settle invoices now; whatever is left stays on account as an advance. */
+  allocations: z.array(allocationItem).max(200).optional(),
+});
+export const allocateSchema = z
+  .strictObject({
+    source: z.strictObject({ type: z.enum(['receipt', 'credit_note']), id: z.uuid() }),
+    allocatedOn: isoDate,
+    allocations: z.array(allocationItem).min(1).max(200),
+  });
+export const reverseAllocationSchema = z.strictObject({ on: isoDate, reason: text(300) });
+export const cancelReceiptSchema = z.strictObject({ cancelDate: isoDate, reason: text(300) });
+export const writeOffSchema = z.strictObject({ invoiceId: z.uuid(), amount: positive, date: isoDate, reason: text(300) });
+export const listReceiptsQuery = z.object({ ...page, companyId: z.uuid(), customerId: z.uuid().optional(), status: z.enum(['posted', 'cancelled']).optional() });
+export const asOfQuery = z.object({ companyId: z.uuid(), asOf: isoDate });
+export const positionQuery = z.object({ companyId: z.uuid(), asOf: isoDate });
+export const statementQuery = z.object({ companyId: z.uuid(), from: isoDate, to: isoDate }).refine((v) => v.to >= v.from, { path: ['to'], message: 'Must not be before from' });
+export type CreateReceiptInput = z.infer<typeof createReceiptSchema>;

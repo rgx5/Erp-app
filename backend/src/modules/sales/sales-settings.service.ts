@@ -21,6 +21,7 @@ const RULES: Record<keyof SalesSettingsInput, { type: string; control?: string |
   outputSgstAccountId: { type: 'liability', control: 'tax', label: 'a tax control liability account' },
   outputIgstAccountId: { type: 'liability', control: 'tax', label: 'a tax control liability account' },
   outputCessAccountId: { type: 'liability', control: 'tax', label: 'a tax control liability account' },
+  writeOffAccountId: { type: 'expense', control: null, label: 'an ordinary expense account' },
 };
 
 @Injectable()

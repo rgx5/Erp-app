@@ -29,6 +29,9 @@ export const PERMISSIONS = [
   'sales:post',
   'sales:cancel',
   'sales:manage',
+  'receivables:read',
+  'receivables:post',
+  'receivables:writeoff',
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
