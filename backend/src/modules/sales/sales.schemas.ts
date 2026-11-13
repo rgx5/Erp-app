@@ -151,3 +151,15 @@ export const asOfQuery = z.object({ companyId: z.uuid(), asOf: isoDate });
 export const positionQuery = z.object({ companyId: z.uuid(), asOf: isoDate });
 export const statementQuery = z.object({ companyId: z.uuid(), from: isoDate, to: isoDate }).refine((v) => v.to >= v.from, { path: ['to'], message: 'Must not be before from' });
 export type CreateReceiptInput = z.infer<typeof createReceiptSchema>;
+
+export const refundSchema = z
+  .strictObject({
+    companyId: z.uuid(),
+    source: z.strictObject({ type: z.enum(['receipt', 'credit_note']), id: z.uuid() }),
+    refundDate: isoDate,
+    amount: positive,
+    method: z.enum(['cash', 'bank_transfer', 'upi', 'card', 'cheque', 'other']),
+    /** The cash or bank account the money is paid out of. */
+    paidFromAccountId: z.uuid(),
+    reference: text(100).optional(),
+  });

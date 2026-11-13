@@ -47,10 +47,14 @@ Every table has `version int`, `created_at`, `updated_at`; PK `(tenant_id, id)` 
 | sales_quotes / sales_quote_lines | quotes with estimated totals | status-only mutation, once; lines immutable |
 | sales_orders / sales_order_lines | orders, optional reservations, link to invoices | order status-only; order lines fixed except `quantity_invoiced` (<= quantity) |
 | customer_receipts / receivable_allocations | money received; which receipt, credit note or write-off settles which invoice | receipts immutable except cancellation; allocations append-only (one reversal); **commit-time check: never more than the invoice, receipt or credit note holds**; exactly one source; same customer enforced by composite FK |
+| customer_refunds | money paid back from a receipt or credit note | immutable; **commit-time check: allocations + refunds never exceed what the source holds** |
+| pos_settings / pos_payment_accounts / pos_terminals | till configuration | accounts validated by type in the API |
+| pos_shifts | cash-drawer shifts | one open per terminal (partial unique); close-once trigger |
+| pos_sales / pos_payments | counter sale/return links and how each was paid | immutable; tendered = amount + change; each payment links to exactly one receipt or refund |
 | schema_migrations | applied files + sha256 | owner-only (not granted to erp_app except read for readiness) |
 
 Grants to `erp_app`: `SELECT, INSERT, UPDATE` only (audit_log, outbox_events, outbox_consumed: `SELECT, INSERT` only; number_allocations: `SELECT, INSERT` + `UPDATE` on the three cancellation columns). Policy on every table: `tenant_isolation TO erp_app USING / WITH CHECK (tenant_id = erp.current_tenant_id())`, with `ENABLE` and `FORCE ROW LEVEL SECURITY`.
-Exact DDL: `db/migrations/0001_foundation.sql` ... `0011_receivables.sql`. The `btree_gist` extension is created by the admin bootstrap (`db/bootstrap/bootstrap.sql`), so a database must be bootstrapped with the Slice 2 version of that file.
+Exact DDL: `db/migrations/0001_foundation.sql` ... `0012_pos.sql`. The `btree_gist` extension is created by the admin bootstrap (`db/bootstrap/bootstrap.sql`), so a database must be bootstrapped with the Slice 2 version of that file.
 
 **Tables outside RLS**: exactly three, enforced by a test: `schema_migrations` (metadata), `tenant_directory` (slug -> id), `outbox_dispatch` (queue pointers). The test also pins their column lists so business data cannot creep into them.
 

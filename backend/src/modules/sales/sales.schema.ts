@@ -222,3 +222,21 @@ export const receivableAllocations = erp.table('receivable_allocations', {
   createdBy: uuid('created_by'),
   createdAt: ts('created_at').notNull().defaultNow(),
 });
+
+export const customerRefunds = erp.table('customer_refunds', {
+  tenantId: uuid('tenant_id').notNull(),
+  id: uuid('id').notNull(),
+  companyId: uuid('company_id').notNull(),
+  refundNo: text('refund_no').notNull(),
+  customerId: uuid('customer_id').notNull(),
+  refundDate: day('refund_date').notNull(),
+  amount: money('amount').notNull(),
+  method: text('method').notNull(),
+  paidFromAccountId: uuid('paid_from_account_id').notNull(),
+  receiptId: uuid('receipt_id'),
+  creditNoteId: uuid('credit_note_id'),
+  reference: text('reference'),
+  journalEntryId: uuid('journal_entry_id').notNull(),
+  createdBy: uuid('created_by'),
+  createdAt: ts('created_at').notNull().defaultNow(),
+});

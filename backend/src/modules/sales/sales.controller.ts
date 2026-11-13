@@ -112,6 +112,10 @@ export class ReceivablesController {
   @RequirePermissions('receivables:writeoff') @Idempotent() @Post('write-offs') @ApiZodBody(s.writeOffSchema)
   async writeOff(@CurrentPrincipal() a: Principal, @Body({ schema: s.writeOffSchema }) b: z.infer<typeof s.writeOffSchema>) { return strip(await this.receivables.writeOff(a.tenantId, a.userId, b)); }
 
+  /** Pays back an advance or an unapplied credit note out of a cash/bank account. */
+  @RequirePermissions('receivables:post') @Idempotent() @Post('refunds') @ApiZodBody(s.refundSchema)
+  async refund(@CurrentPrincipal() a: Principal, @Body({ schema: s.refundSchema }) b: z.infer<typeof s.refundSchema>) { return strip(await this.receivables.refund(a.tenantId, a.userId, b)); }
+
   @RequirePermissions('receivables:read') @Get('customers/:id/position')
   position(@TenantId() t: string, @Param('id', { schema: id }) i: string, @Query({ schema: s.positionQuery }) q: { companyId: string; asOf: string }) { return this.receivables.position(t, q.companyId, i, q.asOf); }
   @RequirePermissions('receivables:read') @Get('customers/:id/statement')

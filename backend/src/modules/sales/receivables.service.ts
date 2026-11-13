@@ -11,7 +11,7 @@ import { PostingService } from '../accounting/posting.service.js';
 import { first, Recorder } from '../masterdata/helpers.js';
 import { parties } from '../masterdata/masterdata.schema.js';
 import { nextDocNumber } from './doc-number.js';
-import { customerReceipts, receivableAllocations, salesInvoices } from './sales.schema.js';
+import { customerReceipts, customerRefunds, receivableAllocations, salesInvoices } from './sales.schema.js';
 import type { CreateReceiptInput } from './sales.schemas.js';
 import { SalesSettingsService } from './sales-settings.service.js';
 
@@ -69,6 +69,8 @@ export class ReceivablesService {
       const receipt = first(await tx.select().from(customerReceipts).where(and(eq(customerReceipts.tenantId, tenantId), eq(customerReceipts.id, id))).for('update'), 'Receipt');
       if (receipt.status !== 'posted') throw new AppError(409, 'already_cancelled', 'This receipt is already cancelled');
       if (input.cancelDate < receipt.receiptDate) throw validationFailed([{ path: 'cancelDate', message: 'Cannot be before the receipt date' }]);
+      const [refunded] = await tx.select({ n: customerRefunds.refundNo }).from(customerRefunds).where(and(eq(customerRefunds.tenantId, tenantId), eq(customerRefunds.receiptId, id))).limit(1);
+      if (refunded) throw new AppError(409, 'has_refunds', `Refund ${refunded.n} was paid out of this receipt`);
       let reversal: string | null = null;
       if (receipt.journalEntryId) reversal = (await this.posting.reverse(tx, tenantId, receipt.journalEntryId, { postingDate: input.cancelDate, reason: `Cancelled: ${input.reason}`, postedBy: actorId, allowSystem: true })).entry.id;
       await tx.update(receivableAllocations).set({ reversedOn: input.cancelDate, reversedAt: new Date() }).where(and(eq(receivableAllocations.tenantId, tenantId), eq(receivableAllocations.receiptId, id), sql`${receivableAllocations.reversedAt} IS NULL`));
@@ -76,6 +78,52 @@ export class ReceivablesService {
       await this.recorder.record(tx, tenantId, 'customer_receipt', 'cancelled', updated, { receiptNo: updated.receiptNo, reason: input.reason });
       return this.readReceipt(tx, tenantId, id);
     });
+  }
+
+  // ---- refunds ----------------------------------------------------------------------------------------------------
+  /** Pays money back out of an unallocated receipt (an advance) or an unapplied credit note: Dr receivables (customer), Cr cash/bank. */
+  refund(tenantId: string, actorId: string, input: { companyId: string; source: { type: 'receipt' | 'credit_note'; id: string }; refundDate: string; amount: string; method: ReceiptRow['method']; paidFromAccountId: string; reference?: string | undefined }) {
+    return this.uow.inTenant(tenantId, async (tx) => {
+      const isReceipt = input.source.type === 'receipt';
+      const receipt = isReceipt ? first(await tx.select().from(customerReceipts).where(and(eq(customerReceipts.tenantId, tenantId), eq(customerReceipts.id, input.source.id))).for('update'), 'Receipt') : undefined;
+      const note = !isReceipt ? first(await tx.select().from(salesInvoices).where(and(eq(salesInvoices.tenantId, tenantId), eq(salesInvoices.id, input.source.id))).for('update'), 'Credit note') : undefined;
+      if (receipt && receipt.status !== 'posted') throw new AppError(409, 'receipt_cancelled', 'This receipt was cancelled');
+      if (note && note.documentType !== 'credit_note') throw new AppError(422, 'not_a_credit_note', 'The source must be a credit note');
+      const customerId = (receipt?.customerId ?? note?.customerId) as string;
+      const companyId = (receipt?.companyId ?? note?.companyId) as string;
+      if (companyId !== input.companyId) throw validationFailed([{ path: 'companyId', message: 'The source belongs to a different company' }]);
+      const sourceDate = receipt?.receiptDate ?? (note?.invoiceDate as string);
+      if (input.refundDate < sourceDate) throw validationFailed([{ path: 'refundDate', message: 'Cannot be before the receipt or credit note date' }]);
+      const available = await this.unapplied(tx, tenantId, input.source);
+      if (toUnits(input.amount) > available) throw new AppError(409, 'exceeds_available', `Only ${fromUnits(available)} is unallocated and can be refunded`, { available: fromUnits(available) });
+      const [from] = await tx.select().from(accounts).where(and(eq(accounts.tenantId, tenantId), eq(accounts.companyId, companyId), eq(accounts.id, input.paidFromAccountId)));
+      if (!from || from.type !== 'asset' || from.isGroup || from.status !== 'active' || from.controlKind) throw validationFailed([{ path: 'paidFromAccountId', message: 'Must be an active cash or bank (non-control asset) account of this company' }]);
+      const settings = await this.settings.require(tx, tenantId, companyId, ['receivableAccountId']);
+      const refundNo = await nextDocNumber(tx, tenantId, companyId, input.refundDate, 'RFD');
+      const id = uuidv7();
+      const { entry } = await this.posting.post(tx, tenantId, {
+        companyId, postingDate: input.refundDate, journalType: 'system', description: `Refund ${refundNo}`,
+        lines: [{ accountId: settings.receivableAccountId as string, debit: input.amount, partyId: customerId, description: refundNo }, { accountId: input.paidFromAccountId, credit: input.amount, description: refundNo }],
+        source: { type: 'customer_refund', id, event: 'post' }, postedBy: actorId,
+      });
+      const row = first(
+        await tx.insert(customerRefunds).values({ tenantId, id, companyId, refundNo, customerId, refundDate: input.refundDate, amount: input.amount, method: input.method, paidFromAccountId: input.paidFromAccountId, ...(isReceipt ? { receiptId: input.source.id } : { creditNoteId: input.source.id }), reference: input.reference ?? null, journalEntryId: entry.id, createdBy: actorId }).returning(),
+        'Refund',
+      );
+      await this.recorder.record(tx, tenantId, 'customer_refund', 'posted', row, { refundNo, customerId, amount: input.amount, source: input.source.type });
+      return row;
+    });
+  }
+
+  /** What a receipt or credit note still holds: its value less active allocations and refunds. */
+  private async unapplied(tx: Tx, tenantId: string, source: { type: 'receipt' | 'credit_note'; id: string }): Promise<bigint> {
+    const isReceipt = source.type === 'receipt';
+    const held = isReceipt
+      ? (await tx.select({ v: customerReceipts.amount }).from(customerReceipts).where(and(eq(customerReceipts.tenantId, tenantId), eq(customerReceipts.id, source.id))))[0]?.v
+      : (await tx.select({ v: salesInvoices.grandTotal }).from(salesInvoices).where(and(eq(salesInvoices.tenantId, tenantId), eq(salesInvoices.id, source.id))))[0]?.v;
+    const [alloc] = await tx.select({ s: sql<string>`COALESCE(SUM(${receivableAllocations.amount}), 0)::text` }).from(receivableAllocations).where(and(eq(receivableAllocations.tenantId, tenantId), isReceipt ? eq(receivableAllocations.receiptId, source.id) : eq(receivableAllocations.creditNoteId, source.id), sql`${receivableAllocations.reversedAt} IS NULL`));
+    const [refunded] = await tx.select({ s: sql<string>`COALESCE(SUM(${customerRefunds.amount}), 0)::text` }).from(customerRefunds).where(and(eq(customerRefunds.tenantId, tenantId), isReceipt ? eq(customerRefunds.receiptId, source.id) : eq(customerRefunds.creditNoteId, source.id)));
+    return toUnits(held ?? '0') - toUnits(alloc?.s ?? '0') - toUnits(refunded?.s ?? '0');
   }
 
   // ---- allocations ------------------------------------------------------------------------------------------------
@@ -140,7 +188,8 @@ export class ReceivablesService {
     const held = toUnits(p.source.type === 'receipt' ? p.source.row.amount : p.source.row.grandTotal);
     const where = p.source.type === 'receipt' ? eq(receivableAllocations.receiptId, p.source.row.id) : eq(receivableAllocations.creditNoteId, p.source.row.id);
     const [used] = await tx.select({ s: sql<string>`COALESCE(SUM(${receivableAllocations.amount}), 0)::text` }).from(receivableAllocations).where(and(eq(receivableAllocations.tenantId, tenantId), where, sql`${receivableAllocations.reversedAt} IS NULL`));
-    let available = held - toUnits(used?.s ?? '0');
+    const [refunded] = await tx.select({ s: sql<string>`COALESCE(SUM(${customerRefunds.amount}), 0)::text` }).from(customerRefunds).where(and(eq(customerRefunds.tenantId, tenantId), p.source.type === 'receipt' ? eq(customerRefunds.receiptId, p.source.row.id) : eq(customerRefunds.creditNoteId, p.source.row.id)));
+    let available = held - toUnits(used?.s ?? '0') - toUnits(refunded?.s ?? '0');
     const byInvoice = new Map<string, bigint>();
     for (const it of p.items) byInvoice.set(it.invoiceId, (byInvoice.get(it.invoiceId) ?? 0n) + toUnits(it.amount));
     const rows: AllocationRow[] = [];
@@ -166,7 +215,8 @@ export class ReceivablesService {
     const receipt = first(await tx.select().from(customerReceipts).where(and(eq(customerReceipts.tenantId, tenantId), eq(customerReceipts.id, id))), 'Receipt');
     const allocations = await tx.select().from(receivableAllocations).where(and(eq(receivableAllocations.tenantId, tenantId), eq(receivableAllocations.receiptId, id))).orderBy(asc(receivableAllocations.id));
     const allocated = allocations.filter((a) => !a.reversedAt).reduce((s, a) => s + toUnits(a.amount), 0n);
-    return { receipt, allocations, unallocated: receipt.status === 'posted' ? fromUnits(toUnits(receipt.amount) - allocated) : '0.0000' };
+    const [refunded] = await tx.select({ s: sql<string>`COALESCE(SUM(${customerRefunds.amount}), 0)::text` }).from(customerRefunds).where(and(eq(customerRefunds.tenantId, tenantId), eq(customerRefunds.receiptId, id)));
+    return { receipt, allocations, unallocated: receipt.status === 'posted' ? fromUnits(toUnits(receipt.amount) - allocated - toUnits(refunded?.s ?? '0')) : '0.0000' };
   }
   listReceipts(tenantId: string, q: { companyId: string; limit: number; cursor?: string | undefined; customerId?: string | undefined; status?: string | undefined }) {
     const before = decodeCursor(q.cursor);
@@ -190,12 +240,14 @@ export class ReceivablesService {
        ORDER BY i.invoice_date, i.invoice_no`);
     const unapplied = await tx.execute<{ kind: string; id: string; number: string; date: string; customer_id: string; unapplied: string }>(sql`
       SELECT 'receipt' AS kind, r.id, r.receipt_no AS number, r.receipt_date::text AS date, r.customer_id,
-             (r.amount - COALESCE((SELECT SUM(a.amount) FROM erp.receivable_allocations a WHERE a.tenant_id = r.tenant_id AND a.receipt_id = r.id AND a.allocated_on <= ${asOf}::date AND (a.reversed_on IS NULL OR a.reversed_on > ${asOf}::date)), 0))::text AS unapplied
+             (r.amount - COALESCE((SELECT SUM(a.amount) FROM erp.receivable_allocations a WHERE a.tenant_id = r.tenant_id AND a.receipt_id = r.id AND a.allocated_on <= ${asOf}::date AND (a.reversed_on IS NULL OR a.reversed_on > ${asOf}::date)), 0)
+                       - COALESCE((SELECT SUM(f.amount) FROM erp.customer_refunds f WHERE f.tenant_id = r.tenant_id AND f.receipt_id = r.id AND f.refund_date <= ${asOf}::date), 0))::text AS unapplied
         FROM erp.customer_receipts r
        WHERE r.tenant_id = ${tenantId}::uuid AND r.company_id = ${companyId}::uuid AND r.receipt_date <= ${asOf}::date AND (r.status = 'posted' OR r.cancel_date > ${asOf}::date) ${customerId ? sql`AND r.customer_id = ${customerId}::uuid` : sql``}
       UNION ALL
       SELECT 'credit_note', i.id, i.invoice_no, i.invoice_date::text, i.customer_id,
-             (i.grand_total - COALESCE((SELECT SUM(a.amount) FROM erp.receivable_allocations a WHERE a.tenant_id = i.tenant_id AND a.credit_note_id = i.id AND a.allocated_on <= ${asOf}::date AND (a.reversed_on IS NULL OR a.reversed_on > ${asOf}::date)), 0))::text
+             (i.grand_total - COALESCE((SELECT SUM(a.amount) FROM erp.receivable_allocations a WHERE a.tenant_id = i.tenant_id AND a.credit_note_id = i.id AND a.allocated_on <= ${asOf}::date AND (a.reversed_on IS NULL OR a.reversed_on > ${asOf}::date)), 0)
+                       - COALESCE((SELECT SUM(f.amount) FROM erp.customer_refunds f WHERE f.tenant_id = i.tenant_id AND f.credit_note_id = i.id AND f.refund_date <= ${asOf}::date), 0))::text
         FROM erp.sales_invoices i
        WHERE i.tenant_id = ${tenantId}::uuid AND i.company_id = ${companyId}::uuid AND i.document_type = 'credit_note' AND i.invoice_date <= ${asOf}::date AND i.status = 'posted' ${cust}`);
     return { invoices: invoices.rows.filter((r) => signed(r.outstanding) > 0n), unapplied: unapplied.rows.filter((r) => signed(r.unapplied) > 0n) };
@@ -263,6 +315,9 @@ export class ReceivablesService {
           SELECT r.cancel_date::text, 'receipt_cancelled', r.receipt_no, r.amount::text, '0', r.id::text || 'c' FROM erp.customer_receipts r
            WHERE r.tenant_id = ${tenantId}::uuid AND r.company_id = ${companyId}::uuid AND r.customer_id = ${customerId}::uuid AND r.status = 'cancelled' AND r.cancel_date <= ${to}::date
           UNION ALL
+          SELECT f.refund_date::text, 'refund', f.refund_no, f.amount::text, '0', f.id::text FROM erp.customer_refunds f
+           WHERE f.tenant_id = ${tenantId}::uuid AND f.company_id = ${companyId}::uuid AND f.customer_id = ${customerId}::uuid AND f.refund_date <= ${to}::date
+          UNION ALL
           SELECT a.allocated_on::text, 'write_off', i.invoice_no, '0', a.amount::text, a.id::text FROM erp.receivable_allocations a JOIN erp.sales_invoices i ON i.tenant_id = a.tenant_id AND i.id = a.invoice_id
            WHERE a.tenant_id = ${tenantId}::uuid AND a.company_id = ${companyId}::uuid AND a.customer_id = ${customerId}::uuid AND a.write_off_entry_id IS NOT NULL AND a.allocated_on <= ${to}::date
         ) m ORDER BY date, ord`);
@@ -281,7 +336,7 @@ export class ReceivablesService {
 
   /**
    * Proves the receivables documents and the general ledger agree, customer by customer: invoices and debit notes, less credit notes,
-   * receipts and write-offs (as of the date, honouring cancellations) against the customer's balance on the receivables control account.
+   * receipts and write-offs, plus refunds paid out (as of the date, honouring cancellations) against the customer's balance on the receivables control account.
    */
   reconciliation(tenantId: string, companyId: string, asOf: string) {
     return this.uow.inTenant(tenantId, async (tx) => {
@@ -296,13 +351,16 @@ export class ReceivablesService {
         wo AS (
           SELECT customer_id, SUM(amount) AS v FROM erp.receivable_allocations
            WHERE tenant_id = ${tenantId}::uuid AND company_id = ${companyId}::uuid AND write_off_entry_id IS NOT NULL AND allocated_on <= ${asOf}::date GROUP BY customer_id),
+        refunds AS (
+          SELECT customer_id, SUM(amount) AS v FROM erp.customer_refunds
+           WHERE tenant_id = ${tenantId}::uuid AND company_id = ${companyId}::uuid AND refund_date <= ${asOf}::date GROUP BY customer_id),
         gl AS (
           SELECT party_id AS customer_id, SUM(debit - credit) AS v FROM erp.journal_lines
            WHERE tenant_id = ${tenantId}::uuid AND company_id = ${companyId}::uuid AND account_id = ${settings.receivableAccountId}::uuid AND posting_date <= ${asOf}::date GROUP BY party_id),
-        ids AS (SELECT customer_id FROM docs UNION SELECT customer_id FROM rcpt UNION SELECT customer_id FROM wo UNION SELECT customer_id FROM gl)
+        ids AS (SELECT customer_id FROM docs UNION SELECT customer_id FROM rcpt UNION SELECT customer_id FROM wo UNION SELECT customer_id FROM refunds UNION SELECT customer_id FROM gl)
         SELECT ids.customer_id, COALESCE(p.trade_name, p.legal_name) AS name,
-               (COALESCE(docs.v, 0) - COALESCE(rcpt.v, 0) - COALESCE(wo.v, 0))::text AS documents, COALESCE(gl.v, 0)::text AS ledger
-          FROM ids LEFT JOIN docs USING (customer_id) LEFT JOIN rcpt USING (customer_id) LEFT JOIN wo USING (customer_id) LEFT JOIN gl USING (customer_id)
+               (COALESCE(docs.v, 0) - COALESCE(rcpt.v, 0) - COALESCE(wo.v, 0) + COALESCE(refunds.v, 0))::text AS documents, COALESCE(gl.v, 0)::text AS ledger
+          FROM ids LEFT JOIN docs USING (customer_id) LEFT JOIN rcpt USING (customer_id) LEFT JOIN wo USING (customer_id) LEFT JOIN refunds USING (customer_id) LEFT JOIN gl USING (customer_id)
           LEFT JOIN erp.parties p ON p.tenant_id = ${tenantId}::uuid AND p.id = ids.customer_id
          ORDER BY name NULLS LAST`);
       let documentsTotal = 0n;

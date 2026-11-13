@@ -171,8 +171,8 @@ export class SalesInvoiceService {
       const unitPrice = l.unitPrice ?? o.unitPrice;
       if (moneyToUnits(unitPrice) > moneyToUnits(o.unitPrice) && kind === 'credit_note') throw validationFailed([{ path: `lines.${i}.unitPrice`, message: 'A credit note cannot credit more than the invoiced price' }]);
       const rates: Rates = { igst: o.igstRate, cgst: o.cgstRate, sgst: o.sgstRate, cess: o.cessRate }; // a note reverses at the ORIGINAL rate
-      const tax = computeLine({ quantity: l.quantity, unitPrice, discountPercent: o.discountPercent, taxInclusive: false, rates }, original.taxRegime as TaxRegime, charge);
-      const priced: PricedLine = { itemId: o.itemId, originalLineId: o.id, description: o.description, hsn: o.hsnSacCode, quantity: l.quantity, unitPrice, discountPercent: o.discountPercent, taxInclusive: false, taxCodeId: o.taxCodeId, rates, tax, isService: item.itemType === 'service', stock: false };
+      const tax = computeLine({ quantity: l.quantity, unitPrice, discountPercent: o.discountPercent, taxInclusive: o.taxInclusive, rates }, original.taxRegime as TaxRegime, charge); // a tax-inclusive sale is credited tax-inclusive
+      const priced: PricedLine = { itemId: o.itemId, originalLineId: o.id, description: o.description, hsn: o.hsnSacCode, quantity: l.quantity, unitPrice, discountPercent: o.discountPercent, taxInclusive: o.taxInclusive, taxCodeId: o.taxCodeId, rates, tax, isService: item.itemType === 'service', stock: false };
       if (kind === 'credit_note' && item.isStocked && l.returnStock !== false) {
         if (o.unitCost === null) throw new AppError(409, 'no_cost_recorded', `Line ${o.lineNo} has no recorded cost to return stock at`);
         priced.stock = true;
