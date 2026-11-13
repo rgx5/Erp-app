@@ -34,7 +34,11 @@ interface PricedLine {
   itemId: string; originalLineId?: string; description: string; hsn: string | null; quantity: string; unitPrice: string; discountPercent: string; taxInclusive: boolean;
   taxCodeId: string | null; rates: Rates; tax: LineTax; isService: boolean;
   warehouseId?: string | undefined; batchId?: string | undefined; serialNos?: string[] | undefined; unitCost?: string; costValue?: string; stock: boolean;
+  orderLineId?: string | undefined; reservationId?: string | undefined;
 }
+
+/** Set when an invoice is raised from a sales order. */
+export interface InvoiceExtras { orderId?: string; lines?: { orderLineId?: string; reservationId?: string }[] }
 
 /**
  * Tax invoices, bills of supply, credit notes (with stock returns), debit notes and cancellations. One call posts everything the
@@ -58,7 +62,11 @@ export class SalesInvoiceService {
     return this.uow.inTenant(tenantId, (tx) => this.postInvoice(tx, tenantId, actorId, input));
   }
 
-  async postInvoice(tx: Tx, tenantId: string, actorId: string, input: CreateInvoiceInput): Promise<Posted> {
+  /**
+   * Validates and prices a document without posting anything: registration, customer, place of supply, tax rates in force, per-line
+   * tax and totals. Invoices post the result; quotes and orders use it for estimates.
+   */
+  async priceDocument(tx: Tx, tenantId: string, input: CreateInvoiceInput, opts: { requireWarehouse: boolean }) {
     const registration = await this.registrationFor(tx, tenantId, input.companyId, input.gstRegistrationId, input.invoiceDate, input.documentType);
     if (input.businessLocationId) {
       const [loc] = await tx.select({ id: businessLocations.id }).from(businessLocations).where(and(eq(businessLocations.tenantId, tenantId), eq(businessLocations.companyId, input.companyId), eq(businessLocations.id, input.businessLocationId)));
@@ -92,7 +100,7 @@ export class SalesInvoiceService {
       if (!item) throw validationFailed([{ path: `lines.${i}.itemId`, message: 'This item does not exist' }]);
       if (!item.isSellable || item.status !== 'active') throw new AppError(422, 'item_not_sellable', `${item.code} cannot be sold`);
       const { taxCodeId, rates } = noTax ? { taxCodeId: l.taxCodeId ?? item.taxCodeId ?? null, rates: ZERO } : await this.ratesFor(tx, tenantId, item.code, l.taxCodeId ?? item.taxCodeId, input.invoiceDate);
-      if (item.isStocked && !l.warehouseId) throw validationFailed([{ path: `lines.${i}.warehouseId`, message: `${item.code} is stocked: say which warehouse it leaves` }]);
+      if (opts.requireWarehouse && item.isStocked && !l.warehouseId) throw validationFailed([{ path: `lines.${i}.warehouseId`, message: `${item.code} is stocked: say which warehouse it leaves` }]);
       if (!item.isStocked && (l.warehouseId || l.batchId || l.serialNos)) throw validationFailed([{ path: `lines.${i}`, message: `${item.code} is a service: no warehouse, batch or serial numbers` }]);
       // Only the rates that apply to this supply are recorded on the line.
       const applied: Rates = regime === 'intra' ? { ...rates, igst: '0' } : { ...rates, cgst: '0', sgst: '0' };
@@ -102,12 +110,24 @@ export class SalesInvoiceService {
     const totals = computeInvoice(lines.map((l) => l.tax), input.reverseCharge);
     if (input.documentType === 'bill_of_supply' && totals.cgst + totals.sgst + totals.igst + totals.cess > 0n) throw new AppError(422, 'bill_of_supply_has_tax', 'A bill of supply cannot carry tax');
 
+    return { registration, customer, supplyType, pos, regime, lines, totals };
+  }
+
+  async postInvoice(tx: Tx, tenantId: string, actorId: string, input: CreateInvoiceInput, extras: InvoiceExtras = {}): Promise<Posted> {
+    const { registration, customer, supplyType, pos, regime, lines, totals } = await this.priceDocument(tx, tenantId, input, { requireWarehouse: true });
+    lines.forEach((l, i) => {
+      const e = extras.lines?.[i];
+      if (e) {
+        l.orderLineId = e.orderLineId;
+        l.reservationId = e.reservationId;
+      }
+    });
     const invoiceId = uuidv7();
     const allocation = await this.number(tx, tenantId, registration.id, input.documentType, input.invoiceDate, invoiceId);
     const header = {
       companyId: input.companyId, gstRegistrationId: registration.id, businessLocationId: input.businessLocationId ?? null, documentType: input.documentType, invoiceNo: allocation, invoiceDate: input.invoiceDate,
       customerId: customer.id, customerName: customer.tradeName ?? customer.legalName, customerGstin: customer.gstin, customerGstTreatment: customer.gstTreatment, placeOfSupply: pos, supplyType,
-      taxPayment: input.taxPayment ?? null, reverseCharge: input.reverseCharge, taxRegime: regime, originalInvoiceId: null, reason: null,
+      taxPayment: input.taxPayment ?? null, reverseCharge: input.reverseCharge, taxRegime: regime, originalInvoiceId: null, reason: null, orderId: extras.orderId ?? null,
     };
     return this.finish(tx, tenantId, actorId, invoiceId, header, lines, totals, 'invoice');
   }
@@ -197,7 +217,7 @@ export class SalesInvoiceService {
     if (stockLines.length > 0) {
       const moveLines: MoveLine[] = stockLines.map((l) => (kind === 'credit_note'
         ? { warehouseId: l.warehouseId as string, itemId: l.itemId, direction: 'in' as const, quantity: l.quantity, unitCost: l.unitCost, batchId: l.batchId, serialNos: l.serialNos, restore: l.serialNos !== undefined }
-        : { warehouseId: l.warehouseId as string, itemId: l.itemId, direction: 'out' as const, quantity: l.quantity, batchId: l.batchId, serialNos: l.serialNos }));
+        : { warehouseId: l.warehouseId as string, itemId: l.itemId, direction: 'out' as const, quantity: l.quantity, batchId: l.batchId, serialNos: l.serialNos, reservationId: l.reservationId }));
       const { movement, results } = await this.stock.move(tx, tenantId, {
         companyId: header.companyId, movementType: kind === 'credit_note' ? 'receipt' : 'issue', postingDate: header.invoiceDate, description: `${kind === 'credit_note' ? 'Return against' : 'Sale'} ${header.invoiceNo}`,
         offsetAccountId: settings.cogsAccountId as string, allowControlOffset: true, lines: moveLines, source: { type: 'sales_invoice', id: documentId, event: kind === 'credit_note' ? 'return' : 'issue' }, postedBy: actorId,
@@ -258,7 +278,7 @@ export class SalesInvoiceService {
       .insert(salesInvoiceLines)
       .values(
         lines.map((l, i) => ({
-          tenantId, id: uuidv7(), invoiceId: documentId, lineNo: i + 1, itemId: l.itemId, originalLineId: l.originalLineId ?? null, description: l.description, hsnSacCode: l.hsn, quantity: l.quantity, unitPrice: l.unitPrice,
+          tenantId, id: uuidv7(), invoiceId: documentId, lineNo: i + 1, itemId: l.itemId, originalLineId: l.originalLineId ?? null, orderLineId: l.orderLineId ?? null, description: l.description, hsnSacCode: l.hsn, quantity: l.quantity, unitPrice: l.unitPrice,
           discountPercent: l.discountPercent, taxInclusive: l.taxInclusive, taxableValue: moneyOf(l.tax.taxable), taxCodeId: l.taxCodeId, igstRate: l.rates.igst, cgstRate: l.rates.cgst, sgstRate: l.rates.sgst, cessRate: l.rates.cess,
           cgstAmount: moneyOf(l.tax.cgst), sgstAmount: moneyOf(l.tax.sgst), igstAmount: moneyOf(l.tax.igst), cessAmount: moneyOf(l.tax.cess), lineTotal: moneyOf(l.tax.total),
           warehouseId: l.warehouseId ?? null, batchId: l.batchId ?? null, serialNos: l.serialNos ?? null, unitCost: l.unitCost ?? null, costValue: l.costValue ?? null,
@@ -280,6 +300,12 @@ export class SalesInvoiceService {
       .where(and(eq(journalLines.tenantId, tenantId), eq(journalLines.companyId, invoice.companyId), eq(journalLines.accountId, settings.receivableAccountId), eq(journalLines.partyId, invoice.customerId)));
     const exposure = row?.net.startsWith('-') ? -moneyToUnits(row.net.slice(1)) : moneyToUnits(row?.net ?? '0');
     return exposure > moneyToUnits(customer.creditLimit) ? [{ code: 'credit_limit_exceeded', message: 'This customer is over their credit limit', creditLimit: customer.creditLimit, exposure: stockValue.format(exposure) }] : [];
+  }
+
+  private readonly cancelHooks: ((tx: Tx, tenantId: string, invoice: InvoiceRow, lines: InvoiceLineRow[]) => Promise<void>)[] = [];
+  /** Other documents (sales orders, receipts) react to an invoice being cancelled in the same transaction. */
+  onCancel(hook: (tx: Tx, tenantId: string, invoice: InvoiceRow, lines: InvoiceLineRow[]) => Promise<void>): void {
+    this.cancelHooks.push(hook);
   }
 
   // ---- cancellation ---------------------------------------------------------------------------------------------------
@@ -324,8 +350,10 @@ export class SalesInvoiceService {
         await tx.update(salesInvoices).set({ status: 'cancelled', cancelledAt: new Date(), cancelDate: input.cancelDate, cancelReason: input.reason, cancelJournalEntryId: cancelJournalId, cancelMovementId }).where(and(eq(salesInvoices.tenantId, tenantId), eq(salesInvoices.id, id))).returning(),
         'Sales document',
       );
+      const lines = await this.linesOf(tx, tenantId, id);
+      for (const hook of this.cancelHooks) await hook(tx, tenantId, updated, lines);
       await this.recorder.record(tx, tenantId, 'sales_invoice', 'cancelled', updated, { invoiceNo: updated.invoiceNo, reason: input.reason });
-      return { invoice: updated, lines: await this.linesOf(tx, tenantId, id), warnings: [] };
+      return { invoice: updated, lines, warnings: [] };
     });
   }
 

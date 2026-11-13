@@ -74,3 +74,49 @@ export type SalesSettingsInput = z.infer<typeof salesSettingsSchema>;
 export type CreateInvoiceInput = z.infer<typeof createInvoiceSchema>;
 export type CreateNoteInput = z.infer<typeof createNoteSchema>;
 export type ListInvoicesQuery = z.infer<typeof listInvoicesQuery>;
+
+// ---- quotes and orders -----------------------------------------------------------------------------------------------
+const docLine = z.strictObject({
+  itemId: z.uuid(),
+  description: text(500).optional(),
+  quantity,
+  unitPrice: money,
+  discountPercent: percent.default('0'),
+  taxInclusive: z.boolean().default(false),
+  taxCodeId: z.uuid().optional(),
+  warehouseId: z.uuid().optional(),
+  batchId: z.uuid().optional(),
+});
+const docHeader = {
+  companyId: z.uuid(),
+  gstRegistrationId: z.uuid(),
+  businessLocationId: z.uuid().optional(),
+  customerId: z.uuid(),
+  billToAddressId: z.uuid().optional(),
+  shipToAddressId: z.uuid().optional(),
+  placeOfSupplyState: z.string().regex(/^[0-9]{2}$/).optional(),
+  reverseCharge: z.boolean().default(false),
+  taxPayment: z.enum(['with_payment', 'without_payment']).optional(),
+  documentType: z.enum(['tax_invoice', 'bill_of_supply']).default('tax_invoice'),
+};
+export const createQuoteSchema = z
+  .strictObject({ ...docHeader, quoteDate: isoDate, validUntil: isoDate, notes: text(1000).optional(), lines: z.array(docLine.omit({ batchId: true })).min(1).max(500) })
+  .refine((v) => v.validUntil >= v.quoteDate, { path: ['validUntil'], message: 'Must not be before the quote date' });
+export const createOrderSchema = z.strictObject({
+  ...docHeader,
+  orderDate: isoDate,
+  customerReference: text(100).optional(),
+  /** Hold the stock for this order (stocked lines need a warehouse). */
+  reserveStock: z.boolean().default(false),
+  lines: z.array(docLine).min(1).max(500),
+});
+export const convertQuoteSchema = z.strictObject({ orderDate: isoDate, customerReference: text(100).optional(), reserveStock: z.boolean().default(false) });
+export const invoiceOrderSchema = z.strictObject({
+  invoiceDate: isoDate,
+  /** Omit to invoice everything still outstanding. */
+  lines: z.array(z.strictObject({ orderLineId: z.uuid(), quantity, serialNos: serials.optional() })).min(1).optional(),
+});
+export const listQuotesQuery = z.object({ ...page, companyId: z.uuid(), customerId: z.uuid().optional(), status: z.enum(['open', 'rejected', 'converted']).optional() });
+export const listOrdersQuery = z.object({ ...page, companyId: z.uuid(), customerId: z.uuid().optional(), status: z.enum(['open', 'partially_invoiced', 'invoiced', 'closed', 'cancelled']).optional() });
+export type CreateQuoteInput = z.infer<typeof createQuoteSchema>;
+export type CreateOrderInput = z.infer<typeof createOrderSchema>;

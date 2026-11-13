@@ -44,10 +44,12 @@ Every table has `version int`, `created_at`, `updated_at`; PK `(tenant_id, id)` 
 | stock_counts / stock_count_lines | physical counts | lines freeze once the count is not open (trigger) |
 | sales_settings | GL accounts for receivable, sales, services, COGS, round-off, output taxes | each validated by account type/control kind in the API |
 | sales_invoices / sales_invoice_lines | tax invoices, bills of supply, credit/debit notes | **header = sum of lines at commit**; CGST=SGST; IGST only inter-state; grand total reconciles; immutable except cancellation; unique number per registration + type |
+| sales_quotes / sales_quote_lines | quotes with estimated totals | status-only mutation, once; lines immutable |
+| sales_orders / sales_order_lines | orders, optional reservations, link to invoices | order status-only; order lines fixed except `quantity_invoiced` (<= quantity) |
 | schema_migrations | applied files + sha256 | owner-only (not granted to erp_app except read for readiness) |
 
 Grants to `erp_app`: `SELECT, INSERT, UPDATE` only (audit_log, outbox_events, outbox_consumed: `SELECT, INSERT` only; number_allocations: `SELECT, INSERT` + `UPDATE` on the three cancellation columns). Policy on every table: `tenant_isolation TO erp_app USING / WITH CHECK (tenant_id = erp.current_tenant_id())`, with `ENABLE` and `FORCE ROW LEVEL SECURITY`.
-Exact DDL: `db/migrations/0001_foundation.sql` ... `0009_sales_invoicing.sql`. The `btree_gist` extension is created by the admin bootstrap (`db/bootstrap/bootstrap.sql`), so a database must be bootstrapped with the Slice 2 version of that file.
+Exact DDL: `db/migrations/0001_foundation.sql` ... `0010_sales_orders.sql`. The `btree_gist` extension is created by the admin bootstrap (`db/bootstrap/bootstrap.sql`), so a database must be bootstrapped with the Slice 2 version of that file.
 
 **Tables outside RLS**: exactly three, enforced by a test: `schema_migrations` (metadata), `tenant_directory` (slug -> id), `outbox_dispatch` (queue pointers). The test also pins their column lists so business data cannot creep into them.
 
