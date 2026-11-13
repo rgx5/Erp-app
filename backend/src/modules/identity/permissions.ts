@@ -25,6 +25,10 @@ export const PERMISSIONS = [
   'stock:read',
   'stock:post',
   'stock:manage',
+  'sales:read',
+  'sales:post',
+  'sales:cancel',
+  'sales:manage',
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];

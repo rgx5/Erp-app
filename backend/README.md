@@ -1,7 +1,7 @@
 # OneSyncERP backend (Slice 0 + Slice 1)
 
 NestJS 12 modular monolith on PostgreSQL 16 with Drizzle. Slice 0 is the platform foundation and the tenancy hierarchy
-**Tenant → Company → GST registration → Business location → Warehouse**. Slice 4 adds the inventory subledger (WAC + FIFO, batches, serials, GL posting, reconciliation, reservations, transfers, counts). Slice 3 adds the accounting core (chart of accounts, periods with locking, immutable double-entry journal, trial balance). Slice 2 adds master data (currencies, units, tax codes with effective-dated rates, items, parties, price lists). Slice 1 adds identity (users, roles, sessions, API keys, MFA), the audit log, idempotency, the transactional outbox and document number series. No business modules yet.
+**Tenant → Company → GST registration → Business location → Warehouse**. Slice 5a adds sales invoicing with the GST engine (tax invoices, bills of supply, credit/debit notes, cancellation). Slice 4 adds the inventory subledger (WAC + FIFO, batches, serials, GL posting, reconciliation, reservations, transfers, counts). Slice 3 adds the accounting core (chart of accounts, periods with locking, immutable double-entry journal, trial balance). Slice 2 adds master data (currencies, units, tax codes with effective-dated rates, items, parties, price lists). Slice 1 adds identity (users, roles, sessions, API keys, MFA), the audit log, idempotency, the transactional outbox and document number series. No business modules yet.
 
 Docs: [ARCHITECTURE.md](docs/ARCHITECTURE.md) (decisions) · [DATABASE.md](docs/DATABASE.md) (schema, RLS, migrations) ·
 [TESTING.md](docs/TESTING.md) (tests, RLS verification, performance) · [openapi.json](docs/openapi.json) (API; also `/docs` when running).
@@ -28,6 +28,7 @@ backend/
   src/modules/organization       tenancy hierarchy API
   src/modules/identity           authentication, users, roles, API keys, MFA
   src/modules/masterdata         currencies, units, tax, items, parties, price lists
+  src/modules/sales              GST engine, sales invoices and notes
   src/modules/inventory          stock ledger, valuation, batches, serials, reconciliation
   src/modules/accounting         chart of accounts, periods, posting engine, trial balance
   src/modules/audit, numbering   audit-log read API; document number series

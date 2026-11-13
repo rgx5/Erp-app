@@ -182,7 +182,7 @@ describe('transactional outbox', () => {
   });
   const publish = (who: string, aggregateId = uuidv7()) =>
     uow.inTenant(who, (tx) => outbox.publish(tx, who, { eventType, aggregateType: 'thing', aggregateId, payload: { n: 1 } }));
-  const drainAll = async () => { for (let i = 0; i < 20 && (await relay.drainOnce()) > 0; i++); };
+  const drainAll = async () => { for (let i = 0; i < 500 && (await relay.drainOnce()) > 0; i++); };
 
   it('publishes an event only if the business transaction commits', async () => {
     const aggregateId = uuidv7();

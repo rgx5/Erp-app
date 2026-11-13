@@ -31,6 +31,10 @@ export interface MoveLine {
   batchId?: string | undefined;
   batch?: { batchNo: string; manufactureDate?: string | undefined; expiryDate?: string | undefined } | undefined;
   serialNos?: string[] | undefined;
+  /** Incoming only: take exactly this total value (a restore of stock issued earlier, e.g. a cancelled sale) instead of pricing the receipt. */
+  fixedValue?: string | undefined;
+  /** Incoming only: these are units that were issued earlier and are coming back (sales returns), not new serial numbers. */
+  restore?: boolean | undefined;
   /** An outgoing line consumes (part of) this reservation instead of competing with it for the stock. */
   reservationId?: string | undefined;
   /**
@@ -207,6 +211,10 @@ export class StockService {
         lineValue = -value.parseSigned(source.ledger.value);
         unitCost = cost.parse(source.ledger.unitCost);
         newLayers = source.layers.map((l) => ({ quantity: qty.parse(l.quantity), unitCost: cost.parse(l.unitCost), receivedOn: l.receivedOn }));
+      } else if (line.fixedValue !== undefined) {
+        lineValue = value.parse(line.fixedValue);
+        unitCost = line.unitCost !== undefined ? cost.parse(line.unitCost) : costOf(lineValue, q);
+        newLayers = [{ quantity: q, unitCost, receivedOn: request.postingDate }];
       } else {
         if (line.unitCost !== undefined) unitCost = cost.parse(line.unitCost);
         else if (request.movementType === 'adjustment' || request.movementType === 'count_adjustment') {
@@ -332,7 +340,7 @@ export class StockService {
     const serialNos = line.serialNos ?? [];
     if (item.tracking === 'serial') {
       const moving = request.movementType.startsWith('transfer');
-      if (incoming && !moving) {
+      if (incoming && !moving && !line.restore) {
         const clash = await tx.select({ serialNo: stockSerials.serialNo }).from(stockSerials).where(and(eq(stockSerials.tenantId, tenantId), eq(stockSerials.itemId, line.itemId), inArray(stockSerials.serialNo, serialNos)));
         if (clash.length > 0) throw new AppError(409, 'serial_exists', `Serial number ${clash[0]?.serialNo} of ${item.code} already exists`, { serialNos: clash.map((c) => c.serialNo) });
         const created = await tx.insert(stockSerials).values(serialNos.map((serialNo) => ({ tenantId, id: uuidv7(), itemId: line.itemId, serialNo, warehouseId: line.warehouseId, receiptLedgerId: ledgerRow.id }))).returning({ id: stockSerials.id });
@@ -342,14 +350,15 @@ export class StockService {
         const found = await tx
           .select({ id: stockSerials.id, serialNo: stockSerials.serialNo })
           .from(stockSerials)
-          .where(and(eq(stockSerials.tenantId, tenantId), eq(stockSerials.itemId, line.itemId), eq(stockSerials.status, 'in_stock'), incoming ? undefined : eq(stockSerials.warehouseId, line.warehouseId), inArray(stockSerials.serialNo, serialNos)))
+          .where(and(eq(stockSerials.tenantId, tenantId), eq(stockSerials.itemId, line.itemId), eq(stockSerials.status, line.restore ? 'issued' : 'in_stock'), incoming && !line.restore ? undefined : line.restore ? undefined : eq(stockSerials.warehouseId, line.warehouseId), inArray(stockSerials.serialNo, serialNos)))
           .for('update');
         if (found.length !== serialNos.length) {
           const have = new Set(found.map((f) => f.serialNo));
           throw new AppError(409, 'serial_not_available', `Serial numbers not in stock in this warehouse: ${serialNos.filter((s) => !have.has(s)).join(', ')}`, { serialNos: serialNos.filter((s) => !have.has(s)) });
         }
         const ids = found.map((f) => f.id);
-        if (incoming) await tx.update(stockSerials).set({ warehouseId: line.warehouseId }).where(and(eq(stockSerials.tenantId, tenantId), inArray(stockSerials.id, ids)));
+        if (line.restore) await tx.update(stockSerials).set({ warehouseId: line.warehouseId, status: 'in_stock', issueLedgerId: null }).where(and(eq(stockSerials.tenantId, tenantId), inArray(stockSerials.id, ids)));
+        else if (incoming) await tx.update(stockSerials).set({ warehouseId: line.warehouseId }).where(and(eq(stockSerials.tenantId, tenantId), inArray(stockSerials.id, ids)));
         else if (!moving) await tx.update(stockSerials).set({ status: 'issued', issueLedgerId: ledgerRow.id }).where(and(eq(stockSerials.tenantId, tenantId), inArray(stockSerials.id, ids)));
         await tx.insert(stockLedgerSerials).values(ids.map((serialId) => ({ tenantId, ledgerId: ledgerRow.id, serialId })));
       }

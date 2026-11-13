@@ -1,4 +1,4 @@
-# Architecture decisions (Slices 0-4)
+# Architecture decisions (Slices 0-5)
 
 Each decision lists what was chosen, why, and what is deliberately deferred. Items marked **ASSUMPTION** are things
 I decided without a business rule from you; please confirm or correct them.
@@ -121,6 +121,14 @@ All three change stock only through `StockService.move`, so ledger, balances and
 - **Counts** snapshot the books, record what was found, and post one `count_adjustment` movement. Differences are measured against the stock held *at posting* with balances locked first (movements after the snapshot are not double-counted); gains use the line's cost or the valuation cost, losses the valuation cost; batch items count per batch; serial-tracked items are excluded. Every line must be counted before posting; posted/cancelled counts are frozen by a trigger.
 - **Deadlock safety**: every movement first locks all its balance rows in one fixed (warehouse, item) order, then processes outgoing lines before incoming ones; 20 simultaneous opposite-direction transfers all succeeded.
 
+## ADR-17 Sales and GST (Slice 5a: invoices, notes, cancellation)
+Decisions you made: **per-line tax rounded to the paisa, invoice rounded to the rupee with a separate round-off line; standard domestic place-of-supply rules plus SEZ/export (with or without payment of tax) and a reverse-charge flag; invoices issue stock directly, credit limit warns only, e-invoice fields reserved**.
+- **GST engine** (`gst.ts`) is pure integer arithmetic with no I/O, unit-tested separately. Place of supply: goods = ship-to state, else bill-to, else the supplier's state (counter sale); services = recipient's billing state; exports = 96 (Other Country). Within the supplier's state: CGST+SGST (each half the rate); anywhere else, and always for SEZ and exports: IGST. Each tax component per line is rounded half up to the paisa; the payable total is rounded to the nearest rupee and the difference is a signed round-off posted to a configured account. Tax-inclusive prices (retail MRP) back the tax out of the price. Rates are the item's tax code rate **in force on the invoice date** (Slice 2), recorded per line.
+- **Documents**: tax invoice, bill of supply (composition suppliers, tax-free), credit note (returns at the *original* price and *original* tax rate; stock comes back at the *original cost*; serial numbers must be among those invoiced; quantity limited to what is still creditable) and debit note. Numbers come from the per-GST-registration/document-type/financial-year series built in Slice 1.
+- **One transaction**: a document number, the stock movement (issue at cost, or return), the journal (receivable with the customer as dimension / revenue / output CGST-SGST-IGST-cess / round-off), the document and its lines, audit and event. A failure (insufficient stock, closed period, missing account) leaves nothing behind, including the number (tested).
+- **Immutable documents**: a posted document and its lines cannot be edited or deleted (trigger, any role). The database re-checks the arithmetic at commit: header totals equal the sum of the lines, CGST = SGST, IGST only between states, the grand total reconciles (reverse charge excluded from what is collected). A cancelled invoice keeps its number (cancelled in the allocation ledger, never reused); cancellation reverses the journal and brings stock back at the *exact* value it left at (serials and batches restored), is refused once credit/debit notes exist, and honours period locks. Notes are not cancelled; issue the opposite note.
+- **Not built, by design**: delivery challans, e-invoice IRN / e-way bill (columns reserved, nothing reads them), TCS/TDS on sales, composition-scheme *customer* rules beyond treating them as registered, multi-currency sales (base currency only), selling units other than the item's base unit, a draft state for invoices (posting is immediate).
+
 ## Assumptions to confirm
 1. GST registration types: regular, composition, SEZ, casual, non-resident, input-service-distributor, TDS/TCS deductor (check constraint list, easy to change).
 2. GSTIN: 15 chars, format regex, state code = first two digits, PAN inside GSTIN must equal the company PAN. State code validity table is not enforced. A GSTIN is unique per tenant.
@@ -144,6 +152,8 @@ All three change stock only through `StockService.move`, so ledger, balances and
 21. Negative-stock valuation is approximate by nature (shortfalls use the last cost); the subledger and GL still agree because both take the same ledger values.
 22. Counts: one adjustment per count; no recount/approval workflow; serial items are checked by serial adjustments instead. Transfers: same company only (inter-company is out of scope), no transport/charges, in-transit stock has no separate GL account (it stays in the item's inventory account).
 23. Reservations are by warehouse (and optional batch); no cross-warehouse allocation, no priority/pre-emption, serial items not reservable.
+24. Sales: an invoice's place of supply must be one state (mixed goods/services with different places must be split into two invoices); selling unit = the item's base unit; a bill of supply applies no tax at all; regular supplier + bill of supply is allowed and tax-free (you confirm when that is legally right); only regular, composition and SEZ registrations issue sales documents.
+25. Receivables are tracked as journal lines with the customer as a dimension on the receivables control account; allocation of receipts and ageing arrive in 5c.
 11. Retention: nothing is ever deleted by the runtime role (no DELETE grants), so sessions, idempotency keys, outbox and audit rows accumulate; archival/partitioning needs a separate maintenance role and a retention policy you must decide.
 
 ## Deferred on purpose (later slices, not decided here)
