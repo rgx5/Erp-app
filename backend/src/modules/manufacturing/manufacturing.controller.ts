@@ -12,6 +12,7 @@ import * as s from './manufacturing.schemas.js';
 import { CostingService } from './costing.service.js';
 import { ManufacturingMastersService } from './masters.service.js';
 import { ManufacturingSettingsService } from './manufacturing-settings.service.js';
+import { SubcontractingService } from './subcontracting.service.js';
 import { WorkOrdersService } from './work-orders.service.js';
 
 const id = z.uuid();
@@ -20,6 +21,7 @@ const strip = <T extends object>(row: T): Omit<T, 'tenantId'> => {
   return rest as Omit<T, 'tenantId'>;
 };
 const presentWorkOrder = (r: { workOrder: object; materials: object[]; operations: object[]; transactions: object[]; cost: object }) => ({ ...strip(r.workOrder), materials: r.materials.map(strip), operations: r.operations.map(strip), transactions: r.transactions.map(strip), cost: r.cost });
+const presentSubcontract = (r: { order: object; workOrder: Parameters<typeof presentWorkOrder>[0]; challans: { lines: object[] }[]; pending: object[] }) => ({ ...strip(r.order), workOrder: presentWorkOrder(r.workOrder), challans: r.challans.map((c) => ({ ...strip(c), lines: c.lines.map(strip) })), pending: r.pending });
 const presentBom = (r: { bom: object; lines: object[]; operations: object[] }) => ({ ...strip(r.bom), lines: r.lines.map(strip), operations: r.operations.map(strip) });
 
 @ApiTags('manufacturing')
@@ -31,6 +33,7 @@ export class ManufacturingController {
     @Inject(ManufacturingSettingsService) private readonly settings: ManufacturingSettingsService,
     @Inject(WorkOrdersService) private readonly orders: WorkOrdersService,
     @Inject(CostingService) private readonly costing: CostingService,
+    @Inject(SubcontractingService) private readonly sub: SubcontractingService,
   ) {}
 
   @RequirePermissions('manufacturing:read') @Get('companies/:companyId/settings')
@@ -44,6 +47,28 @@ export class ManufacturingController {
   async listWorkOrders(@TenantId() t: string, @Query({ schema: s.listWorkOrdersQuery }) q: z.infer<typeof s.listWorkOrdersQuery>) { const p = await this.orders.list(t, q); return { items: p.items.map(strip), nextCursor: p.nextCursor }; }
   @RequirePermissions('manufacturing:read') @Get('wip-reconciliation')
   wip(@TenantId() t: string, @Query({ schema: s.wipQuery }) q: { companyId: string; asOf: string }) { return this.orders.wipReconciliation(t, q.companyId, q.asOf); }
+  // ---- subcontracting ----------------------------------------------------------------------------------------------------
+  @RequirePermissions('manufacturing:produce') @Idempotent() @Post('subcontracting/orders') @ApiZodBody(s.createSubcontractOrderSchema)
+  async createSubcontract(@CurrentPrincipal() a: Principal, @Body({ schema: s.createSubcontractOrderSchema }) b: s.CreateSubcontractOrderInput) { return presentSubcontract(await this.sub.create(a.tenantId, a.userId, b)); }
+  @RequirePermissions('manufacturing:read') @Get('subcontracting/orders')
+  async listSubcontract(@TenantId() t: string, @Query({ schema: s.listSubcontractQuery }) q: z.infer<typeof s.listSubcontractQuery>) { const p = await this.sub.list(t, q); return { items: p.items.map(strip), nextCursor: p.nextCursor }; }
+  @RequirePermissions('manufacturing:read') @Get('subcontracting/pending')
+  pendingSubcontract(@TenantId() t: string, @Query({ schema: s.wipQuery }) q: { companyId: string; asOf: string }) { return this.sub.pendingReport(t, q.companyId, q.asOf); }
+  @RequirePermissions('manufacturing:read') @Get('subcontracting/orders/:id')
+  async getSubcontract(@TenantId() t: string, @Param('id', { schema: id }) i: string) { return presentSubcontract(await this.sub.get(t, i)); }
+  @RequirePermissions('manufacturing:produce') @Idempotent() @Post('subcontracting/orders/:id/release') @HttpCode(200)
+  async releaseSubcontract(@TenantId() t: string, @Param('id', { schema: id }) i: string) { return presentSubcontract(await this.sub.release(t, i)); }
+  @RequirePermissions('manufacturing:cancel') @Idempotent() @Post('subcontracting/orders/:id/cancel') @HttpCode(200)
+  async cancelSubcontract(@TenantId() t: string, @Param('id', { schema: id }) i: string) { return presentSubcontract(await this.sub.cancel(t, i)); }
+  @RequirePermissions('manufacturing:produce') @Idempotent() @Post('subcontracting/orders/:id/send') @HttpCode(200) @ApiZodBody(s.sendChallanSchema)
+  async sendSubcontract(@CurrentPrincipal() a: Principal, @Param('id', { schema: id }) i: string, @Body({ schema: s.sendChallanSchema }) b: s.SendChallanInput) { return presentSubcontract(await this.sub.send(a.tenantId, a.userId, i, b)); }
+  @RequirePermissions('manufacturing:produce') @Idempotent() @Post('subcontracting/orders/:id/return') @HttpCode(200) @ApiZodBody(s.sendChallanSchema)
+  async returnSubcontract(@CurrentPrincipal() a: Principal, @Param('id', { schema: id }) i: string, @Body({ schema: s.sendChallanSchema }) b: s.SendChallanInput) { return presentSubcontract(await this.sub.returnMaterials(a.tenantId, a.userId, i, b)); }
+  @RequirePermissions('manufacturing:produce') @Idempotent() @Post('subcontracting/orders/:id/receive') @HttpCode(200) @ApiZodBody(s.receiveJobWorkSchema)
+  async receiveSubcontract(@CurrentPrincipal() a: Principal, @Param('id', { schema: id }) i: string, @Body({ schema: s.receiveJobWorkSchema }) b: s.ReceiveJobWorkInput) { return presentSubcontract(await this.sub.receive(a.tenantId, a.userId, i, b)); }
+  @RequirePermissions('manufacturing:produce') @Idempotent() @Post('subcontracting/orders/:id/complete') @HttpCode(200) @ApiZodBody(s.completeWorkOrderSchema)
+  async completeSubcontract(@CurrentPrincipal() a: Principal, @Param('id', { schema: id }) i: string, @Body({ schema: s.completeWorkOrderSchema }) b: { date: string }) { return presentSubcontract(await this.sub.complete(a.tenantId, a.userId, i, b.date)); }
+
   /** What an item should cost at today's stock costs and work-centre rates (analytical; nothing is posted). */
   @RequirePermissions('manufacturing:read') @Get('costing/rollup')
   rollup(@TenantId() t: string, @Query({ schema: s.rollupQuery }) q: z.infer<typeof s.rollupQuery>) { return this.costing.rollup(t, q.companyId, q.itemId, q.quantity, q.date); }
@@ -92,7 +117,7 @@ export class ManufacturingController {
 @Module({
   imports: [AccountingModule, InventoryModule, MasterDataModule],
   controllers: [ManufacturingController],
-  providers: [Recorder, ManufacturingMastersService, ManufacturingSettingsService, WorkOrdersService, CostingService],
-  exports: [ManufacturingMastersService, ManufacturingSettingsService, WorkOrdersService, CostingService],
+  providers: [Recorder, ManufacturingMastersService, ManufacturingSettingsService, WorkOrdersService, CostingService, SubcontractingService],
+  exports: [ManufacturingMastersService, ManufacturingSettingsService, WorkOrdersService, CostingService, SubcontractingService],
 })
 export class ManufacturingModule {}

@@ -67,6 +67,7 @@ export const manufacturingSettings = erp.table('manufacturing_settings', {
   labourAbsorbedAccountId: uuid('labour_absorbed_account_id'),
   overheadAbsorbedAccountId: uuid('overhead_absorbed_account_id'),
   productionVarianceAccountId: uuid('production_variance_account_id'),
+  subcontractClearingAccountId: uuid('subcontract_clearing_account_id'),
   version: integer('version').notNull().default(1),
   createdAt: ts('created_at').notNull().defaultNow(),
   updatedAt: ts('updated_at').notNull().defaultNow(),
@@ -134,4 +135,46 @@ export const workOrderTransactions = erp.table('work_order_transactions', {
   note: text('note'),
   createdBy: uuid('created_by'),
   createdAt: ts('created_at').notNull().defaultNow(),
+});
+
+export const subcontractOrders = erp.table('subcontract_orders', {
+  tenantId: uuid('tenant_id').notNull(),
+  id: uuid('id').notNull(),
+  companyId: uuid('company_id').notNull(),
+  workOrderId: uuid('work_order_id').notNull(),
+  subcontractorId: uuid('subcontractor_id').notNull(),
+  jobworkerWarehouseId: uuid('jobworker_warehouse_id').notNull(),
+  sourceWarehouseId: uuid('source_warehouse_id').notNull(),
+  ratePerUnit: money('rate_per_unit').notNull(),
+  firstSentOn: day('first_sent_on'),
+  returnDueDate: day('return_due_date'),
+  status: text('status').notNull().default('open'),
+  createdBy: uuid('created_by'),
+  createdAt: ts('created_at').notNull().defaultNow(),
+});
+
+export const subcontractChallans = erp.table('subcontract_challans', {
+  tenantId: uuid('tenant_id').notNull(),
+  id: uuid('id').notNull(),
+  companyId: uuid('company_id').notNull(),
+  orderId: uuid('order_id').notNull(),
+  challanNo: text('challan_no').notNull(),
+  kind: text('kind').notNull(),
+  challanDate: day('challan_date').notNull(),
+  vehicleNo: text('vehicle_no'),
+  ewayBillNo: text('eway_bill_no'),
+  stockMovementId: uuid('stock_movement_id').notNull(),
+  createdBy: uuid('created_by'),
+  createdAt: ts('created_at').notNull().defaultNow(),
+});
+
+export const subcontractChallanLines = erp.table('subcontract_challan_lines', {
+  tenantId: uuid('tenant_id').notNull(),
+  id: uuid('id').notNull(),
+  challanId: uuid('challan_id').notNull(),
+  lineNo: integer('line_no').notNull(),
+  itemId: uuid('item_id').notNull(),
+  quantity: quantity('quantity').notNull(),
+  batchId: uuid('batch_id'),
+  serialNos: text('serial_nos').array(),
 });

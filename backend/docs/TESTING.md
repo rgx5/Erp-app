@@ -1,6 +1,6 @@
 # Testing, RLS verification, performance
 
-`npm run test:all` = 89 unit tests + 352 integration tests, all green (the integration suite also passes with `TEST_HTTP_ADAPTER=node`). Integration tests create a fresh database per run, bootstrap roles,
+`npm run test:all` = 89 unit tests + 359 integration tests, all green (the integration suite also passes with `TEST_HTTP_ADAPTER=node`). Integration tests create a fresh database per run, bootstrap roles,
 migrate as `erp_migrator`, then connect as the real `erp_app` role.
 
 | suite | covers |
@@ -26,6 +26,7 @@ migrate as `erp_migrator`, then connect as the real `erp_app` role.
 | manufacturing-masters.int | work-centre rates/versions/unique codes; **versioned BOMs with routing, overlap refused by the database, obsolete frees the slot**; invalid BOMs (raw parent, services, self, duplicates, scrap 100%, foreign/inactive work centres, **cycles**); **multi-level explosion with scrap for the version in force on a date**; raw-SQL immutability and exclusion; permissions and isolation |
 | manufacturing-orders.int | BOM snapshot (requirements, planned hours); **full flow stock -> WIP -> finished goods to the paisa** with GL and both reconciliations; returns at average cost; **short close clears residual to variance**; rates at time of reporting; **5 simultaneous issues and 5 simultaneous outputs**; refusals leave nothing (atomic issues, unknown ops, no-cost work centres, periods, missing accounts); immutability, final states, permission split, isolation |
 | manufacturing-costing.int | **multi-level cost roll-up** (materials at stock cost, sub-assemblies, scrap, setup/run hours, labour vs overhead; rate changes; unknown costs flagged); **variance split into usage and efficiency** (zero for an order that went to plan; over-use, extra hours and short yield; under-plan negative variance), unit cost actual vs planned, residual to variance, period aggregation across orders, running orders, permission and isolation |
+| manufacturing-subcontracting.int | **challans move stock with no ledger entry**; receipts cost materials + job-work charge to the paisa, partial receipts leave WIP at zero; reported usage and charge overrides with usage variance; returns of leftovers; **one-year return clock and overdue report**; refusals (non-subcontractor, wrong warehouse kind, over-consumption, over-return, cancel after sending, missing clearing account) leave nothing; immutability, permission split and isolation |
 | organization-api.int | full HTTP API on **both adapters**: validation, problem+json, If-Match, pagination, GST rules, platform token, health/readiness (503 when migrations behind), startup refusal for unsafe DB role |
 
 Not verified here: the Docker build and the GitHub Actions workflow (no Docker daemon in this sandbox; the workflow has not run yet).

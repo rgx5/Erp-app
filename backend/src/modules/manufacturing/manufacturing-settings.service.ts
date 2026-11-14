@@ -16,6 +16,7 @@ const RULES: Record<MfgAccountSetting, { type: string; control: string | null; l
   labourAbsorbedAccountId: { type: 'expense', control: null, label: 'an ordinary expense account' },
   overheadAbsorbedAccountId: { type: 'expense', control: null, label: 'an ordinary expense account' },
   productionVarianceAccountId: { type: 'expense', control: null, label: 'an ordinary expense account' },
+  subcontractClearingAccountId: { type: 'expense', control: null, label: 'an ordinary expense account' },
 };
 
 @Injectable()

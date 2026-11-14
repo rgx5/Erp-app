@@ -12,7 +12,7 @@ export function plantKit(server: TestServer, supers: pg.Pool) {
     const s = await kit.shop(name);
     ok(await call(server, 'PUT', `/v1/companies/${s.companyId}/inventory-accounts`, { tenant: s.tenant, body: { itemType: 'semi_finished', accountId: s.acc['1220'] } }), 200);
     if (o.settings !== false) {
-      ok(await call(server, 'PUT', `/v1/manufacturing/companies/${s.companyId}/settings`, { tenant: s.tenant, body: { wipAccountId: s.acc['1230'], labourAbsorbedAccountId: s.acc['5210'], overheadAbsorbedAccountId: s.acc['5230'], productionVarianceAccountId: s.acc['5260'] } }), 200);
+      ok(await call(server, 'PUT', `/v1/manufacturing/companies/${s.companyId}/settings`, { tenant: s.tenant, body: { wipAccountId: s.acc['1230'], labourAbsorbedAccountId: s.acc['5210'], overheadAbsorbedAccountId: s.acc['5230'], productionVarianceAccountId: s.acc['5260'], subcontractClearingAccountId: s.acc['5240'] } }), 200);
     }
     const nos = ((await call(server, 'GET', '/v1/units?limit=200', { tenant: s.tenant })).json.items as { id: string; code: string }[]).find((u) => u.code === 'NOS')?.id as string;
     const item = async (code: string, itemType: string, extra: object = {}) => ok(await call(server, 'POST', '/v1/items', { tenant: s.tenant, body: { code: `${code}-${++seq}`, name: code, baseUomId: nos, itemType, ...extra } })).id as string;

@@ -125,13 +125,17 @@ export class CostingService {
       actualTotal += actual;
       operations.push({ opNo: o.opNo, name: o.name, plannedHours: o.plannedHours, actualHours: o.actualHours, hoursVariance: hoursText(actualHours > planHours ? actualHours - planHours : planHours - actualHours), hoursOver: actualHours > planHours, plannedValue: value.format(planned), actualValue: value.format(actual), efficiencyVariance: value.format(actual - planned), efficiencyVariancePercent: pct(actual - planned, planned) });
     }
+    // Job-work charges are agreed in advance: they count the same in the plan and the actual (no variance of their own).
+    const subcontract = txns.filter((t) => t.kind === 'subcontract').reduce((a, t) => a + value.parseSigned(t.value), 0n);
+    plannedTotal += subcontract;
+    actualTotal += subcontract;
     const produced = qty.parse(wo.producedQuantity);
     const planQty = qty.parse(wo.plannedQuantity);
     const finished = -txns.filter((t) => t.kind === 'output').reduce((a, t) => a + value.parseSigned(t.value), 0n);
     const residual = -txns.filter((t) => t.kind === 'residual').reduce((a, t) => a + value.parseSigned(t.value), 0n);
     return {
       workOrderId: id, woNo: wo.woNo, status: wo.status, itemId: wo.itemId, plannedQuantity: wo.plannedQuantity, producedQuantity: wo.producedQuantity, scrapQuantity: wo.scrapQuantity,
-      materials, operations,
+      materials, operations, subcontractCharges: value.format(subcontract),
       totals: { planned: value.format(plannedTotal), actual: value.format(actualTotal), variance: value.format(actualTotal - plannedTotal), variancePercent: pct(actualTotal - plannedTotal, plannedTotal), usage: value.format(materials.reduce((a, m) => a + value.parseSigned(m.usageVariance), 0n)), efficiency: value.format(operations.reduce((a, o) => a + value.parseSigned(o.efficiencyVariance), 0n)) },
       yield: { percent: pct(produced, planQty), shortfallQuantity: qty.format(planQty > produced ? planQty - produced : 0n), scrapRatePercent: pct(qty.parse(wo.scrapQuantity), produced + qty.parse(wo.scrapQuantity)) },
       unitCost: { actual: produced > 0n ? cost.format(costOf(finished, produced)) : null, planned: cost.format(costOf(plannedTotal, planQty)) },

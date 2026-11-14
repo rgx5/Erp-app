@@ -45,7 +45,7 @@ export type CreateBomInput = z.infer<typeof createBomSchema>;
 const account = z.uuid().nullable().optional();
 const serials = z.array(z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._/-]{0,59}$/)).min(1).max(5000);
 export const manufacturingSettingsSchema = z
-  .strictObject({ wipAccountId: account, labourAbsorbedAccountId: account, overheadAbsorbedAccountId: account, productionVarianceAccountId: account })
+  .strictObject({ wipAccountId: account, labourAbsorbedAccountId: account, overheadAbsorbedAccountId: account, productionVarianceAccountId: account, subcontractClearingAccountId: account })
   .refine((v) => Object.keys(v).length > 0, 'Send at least one field');
 export type ManufacturingSettingsInput = z.infer<typeof manufacturingSettingsSchema>;
 
@@ -96,3 +96,33 @@ export type ReportOutputInput = z.infer<typeof reportOutputSchema>;
 
 export const rollupQuery = z.object({ companyId: z.uuid(), itemId: z.uuid(), quantity: quantity.default('1'), date: isoDate });
 export const variancesQuery = z.object({ companyId: z.uuid(), from: isoDate, to: isoDate, itemId: z.uuid().optional() }).refine((v) => v.to >= v.from, { path: ['to'], message: 'Must not be before from' });
+
+// ---- subcontracting -------------------------------------------------------------------------------------------------------
+const challanLine = z.strictObject({ itemId: z.uuid(), quantity, batchId: z.uuid().optional(), serialNos: serials.optional() });
+export const createSubcontractOrderSchema = createWorkOrderSchema.omit({ materialsWarehouseId: true }).extend({
+  subcontractorId: z.uuid(),
+  /** The job worker's own location, a warehouse of kind `subcontractor`: where our materials sit while they work on them. */
+  jobWorkerWarehouseId: z.uuid(),
+  /** Where materials are sent from (and unused ones come back to). */
+  sourceWarehouseId: z.uuid(),
+  /** The job-work charge per finished unit, before tax. */
+  ratePerUnit: money,
+});
+export const sendChallanSchema = z.strictObject({ date: isoDate, vehicleNo: text(20).optional(), ewayBillNo: text(20).optional(), lines: z.array(challanLine).min(1).max(200) });
+export const receiveJobWorkSchema = z.strictObject({
+  date: isoDate,
+  /** Good units received from the job worker. */
+  quantity,
+  scrapQuantity: z.string().regex(/^[0-9]{1,12}(\.[0-9]{1,6})?$/).default('0'),
+  /** The job-work charge for this receipt; defaults to rate x quantity. */
+  chargeAmount: money.optional(),
+  /** Materials actually used; defaults to the BOM requirement for the quantity received. */
+  consumption: z.array(z.strictObject({ itemId: z.uuid(), quantity })).max(200).optional(),
+  batch: z.strictObject({ batchNo: text(60), manufactureDate: isoDate.optional(), expiryDate: isoDate.optional() }).optional(),
+  batchId: z.uuid().optional(),
+  serialNos: serials.optional(),
+});
+export const listSubcontractQuery = z.object({ ...page, companyId: z.uuid(), subcontractorId: z.uuid().optional(), status: z.enum(['open', 'closed', 'cancelled']).optional() });
+export type CreateSubcontractOrderInput = z.infer<typeof createSubcontractOrderSchema>;
+export type SendChallanInput = z.infer<typeof sendChallanSchema>;
+export type ReceiveJobWorkInput = z.infer<typeof receiveJobWorkSchema>;

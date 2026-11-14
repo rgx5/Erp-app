@@ -210,9 +210,24 @@ export class WorkOrdersService {
     });
   }
 
+  /** Capitalises a job-work charge into the order's WIP: Dr WIP, Cr the subcontract clearing account the job worker's bill was booked to. */
+  async bookSubcontractCharge(tx: Tx, tenantId: string, actorId: string, id: string, date: string, amount: string): Promise<void> {
+    const wo = await this.live(tx, tenantId, id);
+    const acc = await this.settings.require(tx, tenantId, wo.companyId, ['wipAccountId', 'subcontractClearingAccountId']);
+    if (value.parse(amount) <= 0n) return;
+    const { entry } = await this.posting.post(tx, tenantId, {
+      companyId: wo.companyId, postingDate: date, journalType: 'system', description: `Job-work charge on ${wo.woNo}`,
+      lines: [{ accountId: acc.wipAccountId as string, debit: amount, description: wo.woNo }, { accountId: acc.subcontractClearingAccountId as string, credit: amount, description: wo.woNo }],
+      source: { type: 'work_order', id: `${id}:${uuidv7()}`, event: 'subcontract' }, postedBy: actorId,
+    });
+    await tx.insert(workOrderTransactions).values({ tenantId, id: uuidv7(), workOrderId: id, companyId: wo.companyId, kind: 'subcontract', txnDate: date, value: amount, journalEntryIds: [entry.id], createdBy: actorId });
+    await this.started(tx, tenantId, wo);
+    await this.recorder.record(tx, tenantId, 'work_order', 'subcontract_charge', wo, { woNo: wo.woNo, amount });
+  }
+
   // ---- finished goods ---------------------------------------------------------------------------------------------------
   /** Receives finished goods into stock at the cost pooled in the order (its whole WIP once the planned quantity is reached). */
-  reportOutput(tenantId: string, actorId: string, id: string, input: ReportOutputInput) {
+  reportOutput(tenantId: string, actorId: string, id: string, input: ReportOutputInput, opts: { takeWholePool?: boolean } = {}) {
     return this.uow.inTenant(tenantId, async (tx) => {
       const wo = await this.live(tx, tenantId, id);
       const acc = await this.settings.require(tx, tenantId, wo.companyId, ['wipAccountId']);
@@ -220,7 +235,7 @@ export class WorkOrdersService {
       if (pool <= 0n) throw new AppError(409, 'no_wip_cost', 'No cost has been put into this work order yet: issue materials or report time first');
       const q = qty.parse(input.quantity);
       const remaining = qty.parse(wo.plannedQuantity) - qty.parse(wo.producedQuantity);
-      const v = q >= remaining ? pool : divRound(pool * q, remaining);
+      const v = q >= remaining || opts.takeWholePool ? pool : divRound(pool * q, remaining);
       const { movement } = await this.stock.move(tx, tenantId, {
         companyId: wo.companyId, movementType: 'receipt', postingDate: input.date, description: `Finished goods from ${wo.woNo}`,
         lines: [{ warehouseId: wo.outputWarehouseId, itemId: wo.itemId, direction: 'in', quantity: input.quantity, fixedValue: money(v), batchId: input.batchId, batch: input.batch, serialNos: input.serialNos }],
@@ -263,7 +278,7 @@ export class WorkOrdersService {
     const sum = (kinds: string[]) => transactions.filter((t) => kinds.includes(t.kind)).reduce((a, t) => a + value.parseSigned(t.value), 0n);
     return {
       workOrder, materials: await this.materialsOf(tx, tenantId, id), operations: await tx.select().from(workOrderOperations).where(and(eq(workOrderOperations.tenantId, tenantId), eq(workOrderOperations.workOrderId, id))).orderBy(asc(workOrderOperations.opNo)), transactions,
-      cost: { materials: money(sum(['material_issue', 'material_return'])), labour: money(sum(['labour'])), overhead: money(sum(['overhead'])), finishedGoods: money(-sum(['output'])), residualCleared: money(-sum(['residual'])), wip: money(sum(['material_issue', 'material_return', 'labour', 'overhead', 'output', 'residual'])) },
+      cost: { materials: money(sum(['material_issue', 'material_return'])), labour: money(sum(['labour'])), overhead: money(sum(['overhead'])), subcontract: money(sum(['subcontract'])), finishedGoods: money(-sum(['output'])), residualCleared: money(-sum(['residual'])), wip: money(sum(['material_issue', 'material_return', 'labour', 'overhead', 'subcontract', 'output', 'residual'])) },
     };
   }
   list(tenantId: string, q: { companyId: string; limit: number; cursor?: string | undefined; itemId?: string | undefined; status?: string | undefined }) {
