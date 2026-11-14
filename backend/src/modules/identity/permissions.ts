@@ -36,6 +36,10 @@ export const PERMISSIONS = [
   'pos:sell',
   'pos:return',
   'pos:manage',
+  'purchasing:read',
+  'purchasing:post',
+  'purchasing:cancel',
+  'purchasing:manage',
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
