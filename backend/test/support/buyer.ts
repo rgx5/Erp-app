@@ -15,7 +15,7 @@ export function buyerKit(server: TestServer, supers: pg.Pool) {
     ok(await call(server, 'PUT', `/v1/companies/${s.companyId}/purchasing-settings`, {
       tenant: s.tenant,
       body: {
-        payableAccountId: s.acc['2110'], grniAccountId: s.acc['2120'], purchasePriceVarianceAccountId: s.acc['5400'], expensePurchaseAccountId: s.acc['5900'], roundOffAccountId: s.acc['5900'], costVarianceAccountId: s.acc['5300'],
+        payableAccountId: s.acc['2110'], grniAccountId: s.acc['2120'], purchasePriceVarianceAccountId: s.acc['5400'], expensePurchaseAccountId: s.acc['5900'], roundOffAccountId: s.acc['5900'], costVarianceAccountId: s.acc['5300'], freightAccountId: s.acc['5220'],
         inputCgstAccountId: s.acc['1310'], inputSgstAccountId: s.acc['1320'], inputIgstAccountId: s.acc['1330'], rcmCgstAccountId: s.acc['2210'], rcmSgstAccountId: s.acc['2220'], rcmIgstAccountId: s.acc['2230'], ...settings,
       },
     }), 200);

@@ -60,8 +60,9 @@ Grants to `erp_app`: `SELECT, INSERT, UPDATE` only (audit_log, outbox_events, ou
 | receipt_returns / receipt_return_lines | returns of goods received but not yet billed | immutable |
 | stock revaluation (columns/constraints) | `revaluation` movement type, zero-quantity ledger rows, FIFO layer unit-cost change | layer cost changes only in a transaction with a revaluation ledger row (trigger) |
 | supplier_payments / payable_allocations / supplier_refunds | money paid; which payment or debit note settles which bill; money received back from a supplier | payments immutable except cancellation; allocations append-only (one reversal); **commit-time checks: never more than the bill, payment or debit note holds (allocations and refunds together)**; exactly one source; same supplier by composite FK |
+| landed_cost_vouchers / landed_cost_charges / landed_cost_lines | charges capitalised into received goods, and how they were shared | immutable except cancellation; **commit-time check: charges = allocations = total**; capitalised + expensed = allocated per line |
 
-Exact DDL: `db/migrations/0001_foundation.sql` ... `0016_payables.sql`. The `btree_gist` extension is created by the admin bootstrap (`db/bootstrap/bootstrap.sql`), so a database must be bootstrapped with the Slice 2 version of that file.
+Exact DDL: `db/migrations/0001_foundation.sql` ... `0017_landed_cost.sql`. The `btree_gist` extension is created by the admin bootstrap (`db/bootstrap/bootstrap.sql`), so a database must be bootstrapped with the Slice 2 version of that file.
 
 **Tables outside RLS**: exactly three, enforced by a test: `schema_migrations` (metadata), `tenant_directory` (slug -> id), `outbox_dispatch` (queue pointers). The test also pins their column lists so business data cannot creep into them.
 

@@ -266,3 +266,48 @@ export const supplierRefunds = erp.table('supplier_refunds', {
   createdBy: uuid('created_by'),
   createdAt: ts('created_at').notNull().defaultNow(),
 });
+
+export const landedCostVouchers = erp.table('landed_cost_vouchers', {
+  tenantId: uuid('tenant_id').notNull(),
+  id: uuid('id').notNull(),
+  companyId: uuid('company_id').notNull(),
+  voucherNo: text('voucher_no').notNull(),
+  voucherDate: day('voucher_date').notNull(),
+  description: text('description').notNull(),
+  basis: text('basis').notNull(),
+  totalAmount: money('total_amount').notNull(),
+  journalEntryId: uuid('journal_entry_id').notNull(),
+  revaluationMovementId: uuid('revaluation_movement_id'),
+  status: text('status').notNull().default('posted'),
+  cancelledAt: ts('cancelled_at'),
+  cancelDate: day('cancel_date'),
+  cancelReason: text('cancel_reason'),
+  cancelJournalEntryId: uuid('cancel_journal_entry_id'),
+  createdBy: uuid('created_by'),
+  createdAt: ts('created_at').notNull().defaultNow(),
+});
+
+export const landedCostCharges = erp.table('landed_cost_charges', {
+  tenantId: uuid('tenant_id').notNull(),
+  id: uuid('id').notNull(),
+  voucherId: uuid('voucher_id').notNull(),
+  lineNo: integer('line_no').notNull(),
+  kind: text('kind').notNull(),
+  description: text('description').notNull(),
+  amount: money('amount').notNull(),
+  accountId: uuid('account_id').notNull(),
+});
+
+export const landedCostLines = erp.table('landed_cost_lines', {
+  tenantId: uuid('tenant_id').notNull(),
+  id: uuid('id').notNull(),
+  voucherId: uuid('voucher_id').notNull(),
+  lineNo: integer('line_no').notNull(),
+  grnLineId: uuid('grn_line_id').notNull(),
+  itemId: uuid('item_id').notNull(),
+  quantity: quantity('quantity').notNull(),
+  basisValue: money('basis_value').notNull(),
+  allocated: money('allocated').notNull(),
+  capitalised: money('capitalised').notNull(),
+  expensed: money('expensed').notNull(),
+});

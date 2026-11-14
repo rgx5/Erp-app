@@ -12,6 +12,7 @@ import { MasterDataModule } from '../masterdata/masterdata.controller.js';
 import { NumberingModule } from '../numbering/numbering.controller.js';
 import * as s from './purchasing.schemas.js';
 import { PurchaseOrdersService, type GoodsReceiptLineRow, type GoodsReceiptRow, type PurchaseOrderLineRow, type PurchaseOrderRow } from './purchase-orders.service.js';
+import { LandedCostService } from './landed-cost.service.js';
 import { PayablesService } from './payables.service.js';
 import { SupplierBillsService, type BillLineRow, type BillRow } from './supplier-bills.service.js';
 import { PurchasingSettingsService } from './purchasing-settings.service.js';
@@ -23,6 +24,7 @@ const strip = <T extends object>(row: T): Omit<T, 'tenantId'> => {
 };
 const presentOrder = (r: { order: PurchaseOrderRow; lines: PurchaseOrderLineRow[]; receipts?: object[] }) => ({ ...strip(r.order), lines: r.lines.map(strip), ...(r.receipts ? { receipts: r.receipts } : {}) });
 const presentBill = (r: { bill: BillRow; lines: BillLineRow[] }) => ({ ...strip(r.bill), lines: r.lines.map(strip) });
+const presentVoucher = (r: { voucher: object; charges: object[]; lines: object[] }) => ({ ...strip(r.voucher), charges: r.charges.map(strip), lines: r.lines.map(strip) });
 const presentReceipt = (r: { receipt: GoodsReceiptRow; lines: GoodsReceiptLineRow[] }) => ({ ...strip(r.receipt), lines: r.lines.map(strip) });
 
 @ApiTags('purchasing')
@@ -33,6 +35,7 @@ export class PurchasingController {
     @Inject(PurchasingSettingsService) private readonly settings: PurchasingSettingsService,
     @Inject(PurchaseOrdersService) private readonly orders: PurchaseOrdersService,
     @Inject(SupplierBillsService) private readonly bills: SupplierBillsService,
+    @Inject(LandedCostService) private readonly landed: LandedCostService,
   ) {}
 
   @RequirePermissions('purchasing:read') @Get('companies/:companyId/purchasing-settings')
@@ -76,6 +79,16 @@ export class PurchasingController {
   async listBills(@TenantId() t: string, @Query({ schema: s.listBillsQuery }) q: z.infer<typeof s.listBillsQuery>) { const p = await this.bills.list(t, q); return { items: p.items.map(strip), nextCursor: p.nextCursor }; }
   @RequirePermissions('purchasing:read') @Get('purchasing/bills/:id')
   async getBill(@TenantId() t: string, @Param('id', { schema: id }) i: string) { return presentBill(await this.bills.get(t, i)); }
+
+  /** Moves freight, duty and insurance that were booked as expenses into the cost of the goods received. */
+  @RequirePermissions('purchasing:post') @Idempotent() @Post('purchasing/landed-costs') @ApiZodBody(s.createLandedCostSchema)
+  async createLandedCost(@CurrentPrincipal() a: Principal, @Body({ schema: s.createLandedCostSchema }) b: s.CreateLandedCostInput) { return presentVoucher(await this.landed.create(a.tenantId, a.userId, b)); }
+  @RequirePermissions('purchasing:read') @Get('purchasing/landed-costs')
+  async listLandedCosts(@TenantId() t: string, @Query({ schema: s.listLandedCostsQuery }) q: z.infer<typeof s.listLandedCostsQuery>) { const p = await this.landed.list(t, q); return { items: p.items.map(strip), nextCursor: p.nextCursor }; }
+  @RequirePermissions('purchasing:read') @Get('purchasing/landed-costs/:id')
+  async getLandedCost(@TenantId() t: string, @Param('id', { schema: id }) i: string) { return presentVoucher(await this.landed.get(t, i)); }
+  @RequirePermissions('purchasing:cancel') @Idempotent() @Post('purchasing/landed-costs/:id/cancel') @HttpCode(200) @ApiZodBody(s.cancelLandedCostSchema)
+  async cancelLandedCost(@CurrentPrincipal() a: Principal, @Param('id', { schema: id }) i: string, @Body({ schema: s.cancelLandedCostSchema }) b: { cancelDate: string; reason: string }) { return presentVoucher(await this.landed.cancel(a.tenantId, a.userId, i, b)); }
 
   /** Goods received but not yet invoiced, as of a date. */
   @RequirePermissions('purchasing:read') @Get('purchasing/grni')
@@ -124,7 +137,7 @@ export class PayablesController {
 @Module({
   imports: [AccountingModule, InventoryModule, NumberingModule, MasterDataModule],
   controllers: [PurchasingController, PayablesController],
-  providers: [Recorder, PurchasingSettingsService, PurchaseOrdersService, SupplierBillsService, PayablesService],
-  exports: [PurchasingSettingsService, PurchaseOrdersService, SupplierBillsService, PayablesService],
+  providers: [Recorder, PurchasingSettingsService, PurchaseOrdersService, SupplierBillsService, PayablesService, LandedCostService],
+  exports: [PurchasingSettingsService, PurchaseOrdersService, SupplierBillsService, PayablesService, LandedCostService],
 })
 export class PurchasingModule {}

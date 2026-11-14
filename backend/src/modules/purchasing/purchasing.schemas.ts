@@ -175,3 +175,19 @@ export const payablesAsOfQuery = z.object({ companyId: z.uuid(), asOf: isoDate }
 export const payablesStatementQuery = z.object({ companyId: z.uuid(), from: isoDate, to: isoDate }).refine((v) => v.to >= v.from, { path: ['to'], message: 'Must not be before from' });
 export type CreatePaymentInput = z.infer<typeof createPaymentSchema>;
 export type SupplierRefundInput = z.infer<typeof supplierRefundSchema>;
+
+// ---- landed cost --------------------------------------------------------------------------------------------------------
+export const createLandedCostSchema = z.strictObject({
+  companyId: z.uuid(),
+  voucherDate: isoDate,
+  description: text(300),
+  /** How the charges are shared over the receipt lines: by their booked value, or by quantity. */
+  basis: z.enum(['value', 'quantity']).default('value'),
+  /** The charges, each already booked to an expense account that this voucher relieves. */
+  charges: z.array(z.strictObject({ kind: z.enum(['freight', 'customs_duty', 'insurance', 'handling', 'other']), description: text(300).optional(), amount: positive, accountId: z.uuid() })).min(1).max(50),
+  /** The receipt lines the charges relate to (their whole received quantity). */
+  receiptLines: z.array(z.uuid()).min(1).max(500),
+});
+export const cancelLandedCostSchema = z.strictObject({ cancelDate: isoDate, reason: text(300) });
+export const listLandedCostsQuery = z.object({ ...page, companyId: z.uuid(), status: z.enum(['posted', 'cancelled']).optional() });
+export type CreateLandedCostInput = z.infer<typeof createLandedCostSchema>;
