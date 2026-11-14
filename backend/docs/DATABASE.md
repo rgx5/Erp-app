@@ -59,8 +59,9 @@ Grants to `erp_app`: `SELECT, INSERT, UPDATE` only (audit_log, outbox_events, ou
 | supplier_bills / supplier_bill_lines | supplier bills and debit notes (one table, `document_type`) | immutable except cancellation; **commit-time check: header totals = sum of lines, ITC = eligible tax**; override needs approver + reason; partial unique supplier-invoice number per supplier for live bills; debit note must name its bill |
 | receipt_returns / receipt_return_lines | returns of goods received but not yet billed | immutable |
 | stock revaluation (columns/constraints) | `revaluation` movement type, zero-quantity ledger rows, FIFO layer unit-cost change | layer cost changes only in a transaction with a revaluation ledger row (trigger) |
+| supplier_payments / payable_allocations / supplier_refunds | money paid; which payment or debit note settles which bill; money received back from a supplier | payments immutable except cancellation; allocations append-only (one reversal); **commit-time checks: never more than the bill, payment or debit note holds (allocations and refunds together)**; exactly one source; same supplier by composite FK |
 
-Exact DDL: `db/migrations/0001_foundation.sql` ... `0015_supplier_bills.sql`. The `btree_gist` extension is created by the admin bootstrap (`db/bootstrap/bootstrap.sql`), so a database must be bootstrapped with the Slice 2 version of that file.
+Exact DDL: `db/migrations/0001_foundation.sql` ... `0016_payables.sql`. The `btree_gist` extension is created by the admin bootstrap (`db/bootstrap/bootstrap.sql`), so a database must be bootstrapped with the Slice 2 version of that file.
 
 **Tables outside RLS**: exactly three, enforced by a test: `schema_migrations` (metadata), `tenant_directory` (slug -> id), `outbox_dispatch` (queue pointers). The test also pins their column lists so business data cannot creep into them.
 

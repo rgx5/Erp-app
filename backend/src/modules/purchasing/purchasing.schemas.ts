@@ -135,3 +135,43 @@ export const listBillsQuery = z.object({ ...page, companyId: z.uuid(), supplierI
 export type CreateBillInput = z.infer<typeof createBillSchema>;
 export type CreateDebitNoteInput = z.infer<typeof createDebitNoteSchema>;
 export type ReturnReceiptInput = z.infer<typeof returnReceiptSchema>;
+
+// ---- payments and payables --------------------------------------------------------------------------------------------
+const positive = z.string().regex(/^[0-9]{1,14}(\.[0-9]{1,4})?$/, 'A positive decimal with at most 4 places, as a string').refine((v) => Number(v) > 0, 'Must be greater than zero');
+const allocationItem = z.strictObject({ billId: z.uuid(), amount: positive });
+const methods = z.enum(['cash', 'bank_transfer', 'upi', 'card', 'cheque', 'other']);
+export const createPaymentSchema = z.strictObject({
+  companyId: z.uuid(),
+  supplierId: z.uuid(),
+  paymentDate: isoDate,
+  amount: positive,
+  method: methods,
+  /** The cash or bank account the money is paid out of. */
+  paidFromAccountId: z.uuid(),
+  reference: text(100).optional(),
+  notes: text(500).optional(),
+  /** Settle bills now; whatever is left stays on account as an advance to the supplier. */
+  allocations: z.array(allocationItem).max(200).optional(),
+});
+export const allocatePaymentsSchema = z.strictObject({
+  source: z.strictObject({ type: z.enum(['payment', 'debit_note']), id: z.uuid() }),
+  allocatedOn: isoDate,
+  allocations: z.array(allocationItem).min(1).max(200),
+});
+export const reversePayableAllocationSchema = z.strictObject({ on: isoDate, reason: text(300) });
+export const cancelPaymentSchema = z.strictObject({ cancelDate: isoDate, reason: text(300) });
+export const supplierRefundSchema = z.strictObject({
+  companyId: z.uuid(),
+  source: z.strictObject({ type: z.enum(['payment', 'debit_note']), id: z.uuid() }),
+  refundDate: isoDate,
+  amount: positive,
+  method: methods,
+  /** The cash or bank account the money lands in. */
+  depositAccountId: z.uuid(),
+  reference: text(100).optional(),
+});
+export const listPaymentsQuery = z.object({ ...page, companyId: z.uuid(), supplierId: z.uuid().optional(), status: z.enum(['posted', 'cancelled']).optional() });
+export const payablesAsOfQuery = z.object({ companyId: z.uuid(), asOf: isoDate });
+export const payablesStatementQuery = z.object({ companyId: z.uuid(), from: isoDate, to: isoDate }).refine((v) => v.to >= v.from, { path: ['to'], message: 'Must not be before from' });
+export type CreatePaymentInput = z.infer<typeof createPaymentSchema>;
+export type SupplierRefundInput = z.infer<typeof supplierRefundSchema>;

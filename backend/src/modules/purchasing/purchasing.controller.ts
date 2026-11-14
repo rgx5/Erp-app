@@ -12,6 +12,7 @@ import { MasterDataModule } from '../masterdata/masterdata.controller.js';
 import { NumberingModule } from '../numbering/numbering.controller.js';
 import * as s from './purchasing.schemas.js';
 import { PurchaseOrdersService, type GoodsReceiptLineRow, type GoodsReceiptRow, type PurchaseOrderLineRow, type PurchaseOrderRow } from './purchase-orders.service.js';
+import { PayablesService } from './payables.service.js';
 import { SupplierBillsService, type BillLineRow, type BillRow } from './supplier-bills.service.js';
 import { PurchasingSettingsService } from './purchasing-settings.service.js';
 
@@ -81,10 +82,49 @@ export class PurchasingController {
   grni(@TenantId() t: string, @Query({ schema: s.grniQuery }) q: { companyId: string; asOf: string }) { return this.orders.grniReport(t, q.companyId, q.asOf); }
 }
 
+const presentPayment = (r: { payment: object; allocations: object[]; unallocated: string }) => ({ ...strip(r.payment), allocations: r.allocations.map(strip), unallocated: r.unallocated });
+
+@ApiTags('payables')
+@ApiBearerAuth()
+@Controller('v1/payables')
+export class PayablesController {
+  constructor(@Inject(PayablesService) private readonly payables: PayablesService) {}
+
+  /** Records money paid to a supplier. Allocations are optional: unallocated money stays on account as an advance. */
+  @RequirePermissions('payables:post') @Idempotent() @Post('payments') @ApiZodBody(s.createPaymentSchema)
+  async createPayment(@CurrentPrincipal() a: Principal, @Body({ schema: s.createPaymentSchema }) b: s.CreatePaymentInput) { return presentPayment(await this.payables.createPayment(a.tenantId, a.userId, b)); }
+  @RequirePermissions('payables:read') @Get('payments')
+  async listPayments(@TenantId() t: string, @Query({ schema: s.listPaymentsQuery }) q: z.infer<typeof s.listPaymentsQuery>) { const p = await this.payables.listPayments(t, q); return { items: p.items.map(strip), nextCursor: p.nextCursor }; }
+  @RequirePermissions('payables:read') @Get('payments/:id')
+  async getPayment(@TenantId() t: string, @Param('id', { schema: id }) i: string) { return presentPayment(await this.payables.getPayment(t, i)); }
+  @RequirePermissions('payables:cancel') @Idempotent() @Post('payments/:id/cancel') @HttpCode(200) @ApiZodBody(s.cancelPaymentSchema)
+  async cancelPayment(@CurrentPrincipal() a: Principal, @Param('id', { schema: id }) i: string, @Body({ schema: s.cancelPaymentSchema }) b: { cancelDate: string; reason: string }) { return presentPayment(await this.payables.cancelPayment(a.tenantId, a.userId, i, b)); }
+
+  /** Settles bills from a payment or a debit note. */
+  @RequirePermissions('payables:post') @Idempotent() @Post('allocations') @ApiZodBody(s.allocatePaymentsSchema)
+  async allocate(@CurrentPrincipal() a: Principal, @Body({ schema: s.allocatePaymentsSchema }) b: z.infer<typeof s.allocatePaymentsSchema>) { return { items: (await this.payables.allocate(a.tenantId, a.userId, b)).map(strip) }; }
+  @RequirePermissions('payables:post') @Post('allocations/:id/reverse') @HttpCode(200) @ApiZodBody(s.reversePayableAllocationSchema)
+  async reverseAllocation(@TenantId() t: string, @Param('id', { schema: id }) i: string, @Body({ schema: s.reversePayableAllocationSchema }) b: { on: string; reason: string }) { return strip(await this.payables.reverseAllocation(t, i, b)); }
+
+  /** Money received back from a supplier out of an advance or an unapplied debit note. */
+  @RequirePermissions('payables:post') @Idempotent() @Post('refunds') @ApiZodBody(s.supplierRefundSchema)
+  async refund(@CurrentPrincipal() a: Principal, @Body({ schema: s.supplierRefundSchema }) b: s.SupplierRefundInput) { return strip(await this.payables.refund(a.tenantId, a.userId, b)); }
+
+  @RequirePermissions('payables:read') @Get('suppliers/:id/position')
+  position(@TenantId() t: string, @Param('id', { schema: id }) i: string, @Query({ schema: s.payablesAsOfQuery }) q: { companyId: string; asOf: string }) { return this.payables.position(t, q.companyId, i, q.asOf); }
+  @RequirePermissions('payables:read') @Get('suppliers/:id/statement')
+  statement(@TenantId() t: string, @Param('id', { schema: id }) i: string, @Query({ schema: s.payablesStatementQuery }) q: { companyId: string; from: string; to: string }) { return this.payables.statement(t, q.companyId, i, q.from, q.to); }
+  @RequirePermissions('payables:read') @Get('ageing')
+  ageing(@TenantId() t: string, @Query({ schema: s.payablesAsOfQuery }) q: { companyId: string; asOf: string }) { return this.payables.ageing(t, q.companyId, q.asOf); }
+  /** Payables documents vs the general ledger, supplier by supplier. */
+  @RequirePermissions('payables:read') @Get('reconciliation')
+  reconciliation(@TenantId() t: string, @Query({ schema: s.payablesAsOfQuery }) q: { companyId: string; asOf: string }) { return this.payables.reconciliation(t, q.companyId, q.asOf); }
+}
+
 @Module({
   imports: [AccountingModule, InventoryModule, NumberingModule, MasterDataModule],
-  controllers: [PurchasingController],
-  providers: [Recorder, PurchasingSettingsService, PurchaseOrdersService, SupplierBillsService],
-  exports: [PurchasingSettingsService, PurchaseOrdersService, SupplierBillsService],
+  controllers: [PurchasingController, PayablesController],
+  providers: [Recorder, PurchasingSettingsService, PurchaseOrdersService, SupplierBillsService, PayablesService],
+  exports: [PurchasingSettingsService, PurchaseOrdersService, SupplierBillsService, PayablesService],
 })
 export class PurchasingModule {}

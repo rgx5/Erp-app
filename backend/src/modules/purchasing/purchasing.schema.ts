@@ -210,3 +210,59 @@ export const receiptReturnLines = erp.table('receipt_return_lines', {
   issueValue: money('issue_value').notNull(),
 });
 
+
+export const supplierPayments = erp.table('supplier_payments', {
+  tenantId: uuid('tenant_id').notNull(),
+  id: uuid('id').notNull(),
+  companyId: uuid('company_id').notNull(),
+  paymentNo: text('payment_no').notNull(),
+  supplierId: uuid('supplier_id').notNull(),
+  paymentDate: day('payment_date').notNull(),
+  amount: money('amount').notNull(),
+  method: text('method').notNull(),
+  paidFromAccountId: uuid('paid_from_account_id').notNull(),
+  reference: text('reference'),
+  notes: text('notes'),
+  journalEntryId: uuid('journal_entry_id'),
+  status: text('status').notNull().default('posted'),
+  cancelledAt: ts('cancelled_at'),
+  cancelDate: day('cancel_date'),
+  cancelReason: text('cancel_reason'),
+  cancelJournalEntryId: uuid('cancel_journal_entry_id'),
+  createdBy: uuid('created_by'),
+  createdAt: ts('created_at').notNull().defaultNow(),
+});
+
+export const payableAllocations = erp.table('payable_allocations', {
+  tenantId: uuid('tenant_id').notNull(),
+  id: uuid('id').notNull(),
+  companyId: uuid('company_id').notNull(),
+  supplierId: uuid('supplier_id').notNull(),
+  billId: uuid('bill_id').notNull(),
+  paymentId: uuid('payment_id'),
+  debitNoteId: uuid('debit_note_id'),
+  amount: money('amount').notNull(),
+  allocatedOn: day('allocated_on').notNull(),
+  reversedOn: day('reversed_on'),
+  reversedAt: ts('reversed_at'),
+  createdBy: uuid('created_by'),
+  createdAt: ts('created_at').notNull().defaultNow(),
+});
+
+export const supplierRefunds = erp.table('supplier_refunds', {
+  tenantId: uuid('tenant_id').notNull(),
+  id: uuid('id').notNull(),
+  companyId: uuid('company_id').notNull(),
+  refundNo: text('refund_no').notNull(),
+  supplierId: uuid('supplier_id').notNull(),
+  refundDate: day('refund_date').notNull(),
+  amount: money('amount').notNull(),
+  method: text('method').notNull(),
+  depositAccountId: uuid('deposit_account_id').notNull(),
+  paymentId: uuid('payment_id'),
+  debitNoteId: uuid('debit_note_id'),
+  reference: text('reference'),
+  journalEntryId: uuid('journal_entry_id').notNull(),
+  createdBy: uuid('created_by'),
+  createdAt: ts('created_at').notNull().defaultNow(),
+});
