@@ -56,8 +56,11 @@ Every table has `version int`, `created_at`, `updated_at`; PK `(tenant_id, id)` 
 Grants to `erp_app`: `SELECT, INSERT, UPDATE` only (audit_log, outbox_events, outbox_consumed: `SELECT, INSERT` only; number_allocations: `SELECT, INSERT` + `UPDATE` on the three cancellation columns). Policy on every table: `tenant_isolation TO erp_app USING / WITH CHECK (tenant_id = erp.current_tenant_id())`, with `ENABLE` and `FORCE ROW LEVEL SECURITY`.| purchasing_settings | per-company purchasing accounts and match tolerances | composite FKs to accounts; tolerances 0-100 |
 | purchase_orders / purchase_order_lines | orders to suppliers | order immutable except status; lines only move received/billed (received <= ordered at the database) |
 | goods_receipts / goods_receipt_lines | goods received (GRN), linked to the stock movement | immutable; lines move only billed/returned quantities, bounded by the received quantity |
+| supplier_bills / supplier_bill_lines | supplier bills and debit notes (one table, `document_type`) | immutable except cancellation; **commit-time check: header totals = sum of lines, ITC = eligible tax**; override needs approver + reason; partial unique supplier-invoice number per supplier for live bills; debit note must name its bill |
+| receipt_returns / receipt_return_lines | returns of goods received but not yet billed | immutable |
+| stock revaluation (columns/constraints) | `revaluation` movement type, zero-quantity ledger rows, FIFO layer unit-cost change | layer cost changes only in a transaction with a revaluation ledger row (trigger) |
 
-Exact DDL: `db/migrations/0001_foundation.sql` ... `0013_purchasing_orders.sql`. The `btree_gist` extension is created by the admin bootstrap (`db/bootstrap/bootstrap.sql`), so a database must be bootstrapped with the Slice 2 version of that file.
+Exact DDL: `db/migrations/0001_foundation.sql` ... `0015_supplier_bills.sql`. The `btree_gist` extension is created by the admin bootstrap (`db/bootstrap/bootstrap.sql`), so a database must be bootstrapped with the Slice 2 version of that file.
 
 **Tables outside RLS**: exactly three, enforced by a test: `schema_migrations` (metadata), `tenant_directory` (slug -> id), `outbox_dispatch` (queue pointers). The test also pins their column lists so business data cannot creep into them.
 

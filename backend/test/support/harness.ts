@@ -38,7 +38,7 @@ export async function startServer(overrides: Record<string, string | undefined> 
     NODE_ENV: 'test',
     HOST: '127.0.0.1',
     PORT: '0',
-    LOG_LEVEL: 'silent',
+    LOG_LEVEL: process.env['TEST_LOG_LEVEL'] ?? 'silent',
     DATABASE_URL: testDb().appUrl,
     DATABASE_POOL_MAX: '10',
     PLATFORM_ADMIN_TOKEN: PLATFORM_TOKEN,

@@ -39,6 +39,7 @@ export const PERMISSIONS = [
   'purchasing:read',
   'purchasing:post',
   'purchasing:cancel',
+  'purchasing:approve',
   'purchasing:manage',
 ] as const;
 

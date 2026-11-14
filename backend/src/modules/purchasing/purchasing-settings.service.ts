@@ -27,6 +27,7 @@ const RULES: Record<AccountSetting, { type: string; control?: string | null; lab
   rcmIgstAccountId: { type: 'liability', control: 'tax', label: 'a tax control liability account' },
   rcmCessAccountId: { type: 'liability', control: 'tax', label: 'a tax control liability account' },
   freightAccountId: { type: 'expense', control: null, label: 'an ordinary expense account' },
+  costVarianceAccountId: { type: 'expense', control: null, label: 'an ordinary expense account' },
 };
 
 @Injectable()

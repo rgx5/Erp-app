@@ -5,7 +5,7 @@ import type { Tx } from '../../platform/database/database.js';
 import { UnitOfWork } from '../../platform/database/unit-of-work.js';
 import { AppError, validationFailed } from '../../platform/http/errors.js';
 import { decodeCursor, encodeCursor } from '../../platform/http/validation.js';
-import { cost, divRound, qty, valueOf } from '../inventory/decimal.js';
+import { cost, divRound, qty, value, valueOf } from '../inventory/decimal.js';
 import { StockService, type MoveLine } from '../inventory/stock.service.js';
 import { first, Recorder } from '../masterdata/helpers.js';
 import { items, parties, taxCodes } from '../masterdata/masterdata.schema.js';
@@ -184,7 +184,7 @@ export class PurchaseOrdersService {
       );
       const lines = await tx
         .insert(goodsReceiptLines)
-        .values(prepared.map((p, i) => ({ tenantId, id: uuidv7(), receiptId, lineNo: i + 1, orderLineId: p.ol?.id ?? null, itemId: p.item.id, warehouseId: p.warehouseId, quantity: p.l.quantity, unitCost: p.unitCost, value: results[i]?.ledger.value ?? qtyValue(p.l.quantity, p.unitCost), batchId: results[i]?.batchId ?? null, serialNos: results[i]?.serialNos.length ? results[i]?.serialNos : null })))
+        .values(prepared.map((p, i) => ({ tenantId, id: uuidv7(), receiptId, lineNo: i + 1, orderLineId: p.ol?.id ?? null, itemId: p.item.id, warehouseId: p.warehouseId, quantity: p.l.quantity, unitCost: p.unitCost, value: results[i]?.ledger.value ?? qtyValue(p.l.quantity, p.unitCost), batchId: results[i]?.batchId ?? null, serialNos: results[i]?.serialNos.length ? results[i]?.serialNos : null, stockLedgerId: results[i]?.ledger.id ?? null })))
         .returning();
       for (const [lineId, total] of taken) {
         const ol = orderLines.get(lineId) as PurchaseOrderLineRow;
@@ -202,7 +202,7 @@ export class PurchaseOrdersService {
       const rows = await tx
         .select({
           supplierId: goodsReceipts.supplierId, grnNo: goodsReceipts.grnNo, receiptDate: goodsReceipts.receiptDate, receiptId: goodsReceipts.id, lineId: goodsReceiptLines.id, itemId: goodsReceiptLines.itemId,
-          quantity: goodsReceiptLines.quantity, billed: goodsReceiptLines.quantityBilled, returned: goodsReceiptLines.quantityReturned, unitCost: goodsReceiptLines.unitCost,
+          quantity: goodsReceiptLines.quantity, billed: goodsReceiptLines.quantityBilled, returned: goodsReceiptLines.quantityReturned, unitCost: goodsReceiptLines.unitCost, value: goodsReceiptLines.value, valueBilled: goodsReceiptLines.valueBilled, valueReturned: goodsReceiptLines.valueReturned,
         })
         .from(goodsReceiptLines)
         .innerJoin(goodsReceipts, and(eq(goodsReceipts.tenantId, goodsReceiptLines.tenantId), eq(goodsReceipts.id, goodsReceiptLines.receiptId)))
@@ -211,11 +211,24 @@ export class PurchaseOrdersService {
       const lines = rows
         .map((r) => {
           const open = qty.parse(r.quantity) - qty.parse(r.billed) - qty.parse(r.returned);
-          return { ...r, openQuantity: qty.format(open), openValue: valueFmt(valueOf(open, cost.parse(r.unitCost))) };
+          return { ...r, openQuantity: qty.format(open), openValue: valueFmt(BigInt(r.value.replace('.', '')) - BigInt(r.valueBilled.replace('.', '')) - BigInt(r.valueReturned.replace('.', ''))) };
         })
         .filter((r) => qty.parse(r.openQuantity) > 0n);
       const total = lines.reduce((a, l) => a + BigInt(l.openValue.replace('.', '')), 0n);
-      return { asOf, lines, totalOpenValue: `${total / 10_000n}.${(total % 10_000n).toString().padStart(4, '0')}` };
+      // The same figure from the documents as they stood on that date (cancelled bills count until cancelled), against the ledger.
+      const settings = await this.settings.require(tx, tenantId, companyId, ['grniAccountId']);
+      const res = await tx.execute<{ received: string; cleared: string; returned: string; ledger: string }>(sql`
+        SELECT (SELECT COALESCE(SUM(l.value), 0) FROM erp.goods_receipt_lines l JOIN erp.goods_receipts r ON r.tenant_id = l.tenant_id AND r.id = l.receipt_id
+                 WHERE r.tenant_id = ${tenantId}::uuid AND r.company_id = ${companyId}::uuid AND r.receipt_date <= ${asOf}::date)::text AS received,
+               (SELECT COALESCE(SUM(bl.cleared_value), 0) FROM erp.supplier_bill_lines bl JOIN erp.supplier_bills b ON b.tenant_id = bl.tenant_id AND b.id = bl.bill_id
+                 WHERE b.tenant_id = ${tenantId}::uuid AND b.company_id = ${companyId}::uuid AND b.document_type = 'bill' AND b.bill_date <= ${asOf}::date AND (b.status = 'posted' OR b.cancel_date > ${asOf}::date))::text AS cleared,
+               (SELECT COALESCE(SUM(rl.receipt_value), 0) FROM erp.receipt_return_lines rl JOIN erp.receipt_returns rr ON rr.tenant_id = rl.tenant_id AND rr.id = rl.return_id
+                 WHERE rr.tenant_id = ${tenantId}::uuid AND rr.company_id = ${companyId}::uuid AND rr.return_date <= ${asOf}::date)::text AS returned,
+               (SELECT COALESCE(SUM(credit - debit), 0) FROM erp.journal_lines WHERE tenant_id = ${tenantId}::uuid AND company_id = ${companyId}::uuid AND account_id = ${settings.grniAccountId}::uuid AND posting_date <= ${asOf}::date)::text AS ledger`);
+      const row = res.rows[0] as { received: string; cleared: string; returned: string; ledger: string };
+      const fromDocuments = value.parse(row.received) - value.parse(row.cleared) - value.parse(row.returned);
+      const ledger = value.parseSigned(row.ledger);
+      return { asOf, lines, totalOpenValue: valueFmt(total), documents: value.format(fromDocuments), ledger: value.format(ledger), difference: value.format(fromDocuments - ledger), reconciled: fromDocuments === ledger };
     }, { readOnly: true });
   }
 

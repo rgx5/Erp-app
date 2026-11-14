@@ -6,7 +6,7 @@ import { UnitOfWork } from '../../platform/database/unit-of-work.js';
 import { AppError, validationFailed } from '../../platform/http/errors.js';
 import { PeriodsService } from '../accounting/periods.service.js';
 import { PostingService, type PostingLine } from '../accounting/posting.service.js';
-import { accounts } from '../accounting/accounting.schema.js';
+import { accounts, fiscalYears } from '../accounting/accounting.schema.js';
 import { fromUnits as moneyFromUnits } from '../accounting/money.js';
 import { first, Recorder } from '../masterdata/helpers.js';
 import { items } from '../masterdata/masterdata.schema.js';
@@ -16,7 +16,7 @@ import {
   batchBalances, batches, companyStockSettings, inventoryAccounts, stockBalances, stockCounters, stockReservations, stockLayerConsumptions, stockLayers, stockLedger, stockLedgerSerials, stockMovements, stockSerials,
 } from './inventory.schema.js';
 
-export type MovementType = 'opening' | 'receipt' | 'issue' | 'adjustment' | 'transfer_dispatch' | 'transfer_receipt' | 'transfer_direct' | 'count_adjustment';
+export type MovementType = 'opening' | 'receipt' | 'issue' | 'adjustment' | 'transfer_dispatch' | 'transfer_receipt' | 'transfer_direct' | 'count_adjustment' | 'revaluation';
 export type MovementRow = typeof stockMovements.$inferSelect;
 export type LedgerRow = typeof stockLedger.$inferSelect;
 
@@ -58,6 +58,28 @@ export interface MoveRequest {
   postedBy?: string | undefined;
 }
 
+export interface RevalueLine {
+  warehouseId: string;
+  itemId: string;
+  /** Signed value (4 places) to add to the cost of `receivedQuantity` units. */
+  amount: string;
+  receivedQuantity: string;
+  /** The receipt's stock-ledger row: needed for FIFO items, whose cost layer it identifies. */
+  ledgerId?: string | undefined;
+}
+export interface RevalueRequest {
+  companyId: string;
+  postingDate: string;
+  description: string;
+  lines: RevalueLine[];
+  /** The other side of the entry (the document's clearing account; control accounts allowed). */
+  offsetAccountId: string;
+  /** Where the part that relates to units already sold or used is posted (an ordinary expense account). */
+  expenseAccountId: string;
+  source: { type: string; id: string; event?: string };
+  postedBy?: string | undefined;
+}
+
 /** What one processed line did, for callers (transfers need the cost and the consumed layers of the source side). */
 export interface LineResult {
   ledger: LedgerRow;
@@ -66,7 +88,7 @@ export interface LineResult {
   batchId: string | null;
 }
 
-const PREFIX: Record<MovementType, string> = { opening: 'SO', receipt: 'SR', issue: 'SI', adjustment: 'SA', transfer_dispatch: 'TD', transfer_receipt: 'TR', transfer_direct: 'TX', count_adjustment: 'SC' };
+const PREFIX: Record<MovementType, string> = { opening: 'SO', receipt: 'SR', issue: 'SI', adjustment: 'SA', transfer_dispatch: 'TD', transfer_receipt: 'TR', transfer_direct: 'TX', count_adjustment: 'SC', revaluation: 'SV' };
 const yy = (date: string): string => date.slice(2, 4);
 
 /**
@@ -174,6 +196,96 @@ export class StockService {
     const journalEntryId = await this.postToLedger(tx, tenantId, request, movement, results, itemRows);
     await this.recorder.record(tx, tenantId, 'stock_movement', 'posted', movement, { movementNo, movementType: request.movementType, postingDate: request.postingDate, lines: results.length, ...(journalEntryId ? { journalEntryId } : {}) });
     return { movement: journalEntryId ? { ...movement, journalEntryId } : movement, results, replayed: false };
+  }
+
+
+  /**
+   * Adds (or removes) cost on stock already held, without changing any quantity: non-recoverable tax on a bill, freight, duty.
+   * Each line says how much value relates to `receivedQuantity` units. Weighted-average stock takes the part that is still on hand
+   * (the average moves); FIFO stock takes it on the receipt's own cost layer (`ledgerId`). Whatever relates to units already sold
+   * or used is not stock any more: it is posted to `expenseAccountId` instead. Posts Dr inventory (and Dr expense) / Cr the offset.
+   */
+  async revalue(tx: Tx, tenantId: string, request: RevalueRequest): Promise<{ movement: MovementRow | null; lines: { capitalised: string; expensed: string }[]; replayed: boolean }> {
+    const [existing] = await tx.select().from(stockMovements).where(and(eq(stockMovements.tenantId, tenantId), eq(stockMovements.sourceType, request.source.type), eq(stockMovements.sourceId, request.source.id), eq(stockMovements.sourceEvent, request.source.event ?? 'revalue')));
+    if (existing) return { movement: existing, lines: [], replayed: true };
+    if (request.lines.length === 0) throw validationFailed([{ path: 'lines', message: 'A revaluation needs at least one line' }]);
+    await this.periods.openPeriodFor(tx, tenantId, request.companyId, request.postingDate);
+    const itemRows = new Map((await tx.select().from(items).where(and(eq(items.tenantId, tenantId), inArray(items.id, [...new Set(request.lines.map((l) => l.itemId))])))).map((i) => [i.id, i]));
+    // Lock every balance in one fixed order (same order `move` uses), then work line by line.
+    const keys = [...new Set(request.lines.map((l) => `${l.warehouseId}|${l.itemId}`))].sort();
+    for (const key of keys) {
+      const [warehouseId, itemId] = key.split('|') as [string, string];
+      await tx.select({ q: stockBalances.quantity }).from(stockBalances).where(and(eq(stockBalances.tenantId, tenantId), eq(stockBalances.warehouseId, warehouseId), eq(stockBalances.itemId, itemId))).for('update');
+    }
+    const plan = request.lines.map((line, index) => ({ line, index }));
+    const outcomes: { capitalised: bigint; expensed: bigint }[] = Array.from({ length: request.lines.length }, () => ({ capitalised: 0n, expensed: 0n }));
+    const staged: { index: number; line: RevalueLine; capitalised: bigint; newQty: bigint; newVal: bigint; unitCost: bigint; layer?: typeof stockLayers.$inferSelect }[] = [];
+    for (const { line, index } of plan) {
+      const item = itemRows.get(line.itemId);
+      if (!item?.isStocked) throw new AppError(422, 'item_not_stocked', 'Only stocked items can be revalued');
+      const amount = value.parseSigned(line.amount);
+      const received = qty.parse(line.receivedQuantity);
+      if (received <= 0n) throw validationFailed([{ path: `lines.${index}.receivedQuantity`, message: 'Must be greater than zero' }]);
+      const [balance] = await tx.select().from(stockBalances).where(and(eq(stockBalances.tenantId, tenantId), eq(stockBalances.warehouseId, line.warehouseId), eq(stockBalances.itemId, line.itemId)));
+      const onHand = balance ? qty.parseSigned(balance.quantity) : 0n;
+      const balValue = balance ? value.parseSigned(balance.value) : 0n;
+      let held: bigint; // how many of the received units are still in stock
+      let layer: typeof stockLayers.$inferSelect | undefined;
+      if (item.costingMethod === 'fifo') {
+        if (!line.ledgerId) throw new AppError(500, 'revalue_needs_ledger', 'A FIFO revaluation must name the receipt it relates to');
+        [layer] = await tx.select().from(stockLayers).where(and(eq(stockLayers.tenantId, tenantId), eq(stockLayers.ledgerId, line.ledgerId))).for('update');
+        held = layer ? qty.parse(layer.remaining) : 0n;
+      } else held = onHand > 0n ? onHand : 0n;
+      if (held > received) held = received;
+      const capitalised = held === 0n ? 0n : held === received ? amount : divRound(amount * held, received);
+      outcomes[index] = { capitalised, expensed: amount - capitalised };
+      if (capitalised === 0n) continue;
+      const newVal = balValue + capitalised;
+      if (newVal < 0n) throw new AppError(409, 'revaluation_below_zero', `${item.code}: this adjustment would take the stock value below zero`);
+      staged.push({ index, line, capitalised, newQty: onHand, newVal, unitCost: onHand > 0n ? costOf(newVal, onHand) : 0n, ...(layer ? { layer } : {}) });
+    }
+    const total = outcomes.reduce((a, o) => a + o.capitalised + o.expensed, 0n);
+    if (total === 0n) return { movement: null, lines: outcomes.map((o) => ({ capitalised: value.format(o.capitalised), expensed: value.format(o.expensed) })), replayed: false };
+
+    const [fiscal] = await tx.select().from(fiscalYears).where(and(eq(fiscalYears.tenantId, tenantId), eq(fiscalYears.companyId, request.companyId), sql`${fiscalYears.startDate} <= ${request.postingDate}::date AND ${fiscalYears.endDate} >= ${request.postingDate}::date`));
+    if (!fiscal) throw new AppError(409, 'no_accounting_period', `No fiscal year covers ${request.postingDate}`);
+    const [counter] = await tx
+      .insert(stockCounters)
+      .values({ tenantId, companyId: request.companyId, fiscalYearId: fiscal.id, prefix: PREFIX.revaluation, nextValue: 2 })
+      .onConflictDoUpdate({ target: [stockCounters.tenantId, stockCounters.companyId, stockCounters.fiscalYearId, stockCounters.prefix], set: { nextValue: sql`${stockCounters.nextValue} + 1` } })
+      .returning({ next: stockCounters.nextValue });
+    const movementNo = `${PREFIX.revaluation}/${yy(fiscal.startDate)}${yy(fiscal.endDate)}/${String((counter?.next ?? 2) - 1).padStart(6, '0')}`;
+    const movement = first(
+      await tx.insert(stockMovements).values({ tenantId, id: uuidv7(), companyId: request.companyId, movementNo, movementType: 'revaluation', postingDate: request.postingDate, description: request.description, sourceType: request.source.type, sourceId: request.source.id, sourceEvent: request.source.event ?? 'revalue', postedBy: request.postedBy ?? null }).returning(),
+      'Stock movement',
+    );
+    const results: LineResult[] = [];
+    for (const [n, st] of staged.entries()) {
+      const [row] = await tx
+        .insert(stockLedger)
+        .values({ tenantId, id: uuidv7(), movementId: movement.id, companyId: request.companyId, lineNo: n + 1, warehouseId: st.line.warehouseId, itemId: st.line.itemId, batchId: null, postingDate: request.postingDate, quantity: '0', unitCost: cost.format(st.unitCost), value: value.format(st.capitalised), balanceQuantity: qty.format(st.newQty), balanceValue: value.format(st.newVal) })
+        .returning();
+      if (!row) throw new Error('ledger insert returned no row');
+      await tx.update(stockBalances).set({ value: value.format(st.newVal), updatedAt: new Date() }).where(and(eq(stockBalances.tenantId, tenantId), eq(stockBalances.warehouseId, st.line.warehouseId), eq(stockBalances.itemId, st.line.itemId)));
+      if (st.layer) await tx.update(stockLayers).set({ unitCost: cost.format(cost.parse(st.layer.unitCost) + costOf(st.capitalised, qty.parse(st.layer.remaining))) }).where(and(eq(stockLayers.tenantId, tenantId), eq(stockLayers.id, st.layer.id)));
+      results.push({ ledger: row, layers: [], serialNos: [], batchId: null });
+    }
+    const gl = { companyId: request.companyId, postingDate: request.postingDate, movementType: 'revaluation' as const, description: request.description, lines: [], offsetAccountId: request.offsetAccountId, allowControlOffset: true, source: request.source, postedBy: request.postedBy };
+    const stockTotal = staged.reduce((a, st) => a + st.capitalised, 0n);
+    if (stockTotal !== 0n) await this.postToLedger(tx, tenantId, gl, movement, results, itemRows);
+    const expensed = outcomes.reduce((a, o) => a + o.expensed, 0n);
+    if (expensed !== 0n) {
+      await this.assertOffset(tx, tenantId, request.companyId, request.expenseAccountId, false);
+      await this.posting.post(tx, tenantId, {
+        companyId: request.companyId, postingDate: request.postingDate, journalType: 'system', description: `Cost of units already used: ${request.description}`,
+        lines: expensed > 0n
+          ? [{ accountId: request.expenseAccountId, debit: moneyFromUnits(expensed) }, { accountId: request.offsetAccountId, credit: moneyFromUnits(expensed) }]
+          : [{ accountId: request.offsetAccountId, debit: moneyFromUnits(-expensed) }, { accountId: request.expenseAccountId, credit: moneyFromUnits(-expensed) }],
+        source: { type: request.source.type, id: request.source.id, event: `${request.source.event ?? 'revalue'}:expensed` }, postedBy: request.postedBy,
+      });
+    }
+    await this.recorder.record(tx, tenantId, 'stock_movement', 'posted', movement, { movementNo, movementType: 'revaluation', postingDate: request.postingDate, lines: staged.length });
+    return { movement, lines: outcomes.map((o) => ({ capitalised: value.format(o.capitalised), expensed: value.format(o.expensed) })), replayed: false };
   }
 
   // ---- one line -------------------------------------------------------------------------------------------------
@@ -433,8 +545,8 @@ export class StockService {
   }
 
   private async offsetAccount(tx: Tx, tenantId: string, request: MoveRequest): Promise<string> {
-    if (request.movementType === 'receipt' || request.movementType === 'issue') {
-      if (!request.offsetAccountId) throw new AppError(422, 'offset_account_required', 'A receipt or issue needs the account to post against');
+    if (request.movementType === 'receipt' || request.movementType === 'issue' || request.movementType === 'revaluation') {
+      if (!request.offsetAccountId) throw new AppError(422, 'offset_account_required', 'A receipt, issue or revaluation needs the account to post against');
       await this.assertOffset(tx, tenantId, request.companyId, request.offsetAccountId, request.allowControlOffset === true);
       return request.offsetAccountId;
     }

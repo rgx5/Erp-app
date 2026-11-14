@@ -13,7 +13,7 @@ export const purchasingSettingsSchema = z
   .strictObject({
     payableAccountId: account, grniAccountId: account, purchasePriceVarianceAccountId: account, expensePurchaseAccountId: account, roundOffAccountId: account,
     inputCgstAccountId: account, inputSgstAccountId: account, inputIgstAccountId: account, inputCessAccountId: account,
-    rcmCgstAccountId: account, rcmSgstAccountId: account, rcmIgstAccountId: account, rcmCessAccountId: account, freightAccountId: account,
+    rcmCgstAccountId: account, rcmSgstAccountId: account, rcmIgstAccountId: account, rcmCessAccountId: account, freightAccountId: account, costVarianceAccountId: account,
     /** How far a bill's unit price may exceed the order price before it is held for approval. */
     priceTolerancePercent: percent.optional(),
     /** How far the billed quantity may exceed what was received (or ordered) before it is held for approval. */
@@ -77,3 +77,61 @@ export const createGoodsReceiptSchema = z.strictObject({
 export const listGoodsReceiptsQuery = z.object({ ...page, companyId: z.uuid(), supplierId: z.uuid().optional(), purchaseOrderId: z.uuid().optional() });
 export const grniQuery = z.object({ companyId: z.uuid(), asOf: isoDate });
 export type CreateGoodsReceiptInput = z.infer<typeof createGoodsReceiptSchema>;
+
+// ---- supplier bills, debit notes, returns ---------------------------------------------------------------------------
+const billLine = z.strictObject({
+  itemId: z.uuid(),
+  description: text(500).optional(),
+  quantity,
+  /** Price per unit as the supplier billed it, before discount. */
+  unitPrice: money,
+  discountPercent: percent.default('0'),
+  taxInclusive: z.boolean().default(false),
+  /** Overrides the item's tax code. */
+  taxCodeId: z.uuid().optional(),
+  /** False when the tax on this line is not creditable (blocked credit): it is added to the cost instead. */
+  itcEligible: z.boolean().default(true),
+  /** The goods-receipt line this bill line bills. Required for stocked items. */
+  grnLineId: z.uuid().optional(),
+  /** The order line, for lines with no receipt (services). Taken from the receipt line when that has one. */
+  poLineId: z.uuid().optional(),
+  /** Where the cost of a non-stock line is booked; defaults to the company purchases expense account. */
+  expenseAccountId: z.uuid().optional(),
+});
+export const createBillSchema = z.strictObject({
+  companyId: z.uuid(),
+  gstRegistrationId: z.uuid(),
+  businessLocationId: z.uuid().optional(),
+  supplierId: z.uuid(),
+  supplierInvoiceNo: text(60),
+  supplierInvoiceDate: isoDate,
+  billDate: isoDate,
+  /** Overrides where the goods/services are supplied (defaults to the buyer registration's state). */
+  placeOfSupplyState: z.string().regex(/^[0-9]{2}$/).optional(),
+  /** The supplier's state when it cannot be told from a GSTIN (unregistered suppliers). */
+  supplierStateCode: z.string().regex(/^[0-9]{2}$/).optional(),
+  /** The tax is paid by the buyer, not charged by the supplier. */
+  reverseCharge: z.boolean().default(false),
+  /** Approves a bill that is outside the price/quantity tolerance. Needs the purchasing:approve right and a reason. */
+  overrideMatch: z.strictObject({ reason: text(300) }).optional(),
+  lines: z.array(billLine).min(1).max(500),
+}).refine((v) => v.billDate >= v.supplierInvoiceDate, { path: ['billDate'], message: 'Cannot be before the supplier invoice date' });
+const debitLine = z.strictObject({
+  originalLineId: z.uuid(),
+  quantity,
+  /** Defaults to the billed price; may be lower, never higher. */
+  unitPrice: money.optional(),
+  batchId: z.uuid().optional(),
+  serialNos: serials.optional(),
+});
+export const createDebitNoteSchema = z.strictObject({ originalBillId: z.uuid(), noteDate: isoDate, reason: text(300), lines: z.array(debitLine).min(1).max(500) });
+export const cancelBillSchema = z.strictObject({ cancelDate: isoDate, reason: text(300) });
+export const returnReceiptSchema = z.strictObject({
+  returnDate: isoDate,
+  reason: text(300),
+  lines: z.array(z.strictObject({ receiptLineId: z.uuid(), quantity, batchId: z.uuid().optional(), serialNos: serials.optional() })).min(1).max(500),
+});
+export const listBillsQuery = z.object({ ...page, companyId: z.uuid(), supplierId: z.uuid().optional(), documentType: z.enum(['bill', 'debit_note']).optional(), status: z.enum(['posted', 'cancelled']).optional(), from: isoDate.optional(), to: isoDate.optional() });
+export type CreateBillInput = z.infer<typeof createBillSchema>;
+export type CreateDebitNoteInput = z.infer<typeof createDebitNoteSchema>;
+export type ReturnReceiptInput = z.infer<typeof returnReceiptSchema>;
