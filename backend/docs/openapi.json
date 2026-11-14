@@ -863,7 +863,7 @@
                     "maxLength": 500
                   },
                   "permissions": {
-                    "maxItems": 48,
+                    "maxItems": 52,
                     "type": "array",
                     "items": {
                       "type": "string",
@@ -910,6 +910,10 @@
                         "payables:read",
                         "payables:post",
                         "payables:cancel",
+                        "payroll:read",
+                        "payroll:manage",
+                        "payroll:process",
+                        "payroll:cancel",
                         "gst:read",
                         "gst:manage",
                         "manufacturing:read",
@@ -1001,7 +1005,7 @@
                     "maxLength": 500
                   },
                   "permissions": {
-                    "maxItems": 48,
+                    "maxItems": 52,
                     "type": "array",
                     "items": {
                       "type": "string",
@@ -1048,6 +1052,10 @@
                         "payables:read",
                         "payables:post",
                         "payables:cancel",
+                        "payroll:read",
+                        "payroll:manage",
+                        "payroll:process",
+                        "payroll:cancel",
                         "gst:read",
                         "gst:manage",
                         "manufacturing:read",
@@ -1095,7 +1103,7 @@
                     "maxLength": 100
                   },
                   "permissions": {
-                    "maxItems": 48,
+                    "maxItems": 52,
                     "type": "array",
                     "items": {
                       "type": "string",
@@ -1142,6 +1150,10 @@
                         "payables:read",
                         "payables:post",
                         "payables:cancel",
+                        "payroll:read",
+                        "payroll:manage",
+                        "payroll:process",
+                        "payroll:cancel",
                         "gst:read",
                         "gst:manage",
                         "manufacturing:read",
@@ -11164,6 +11176,1194 @@
         ],
         "tags": [
           "gst returns"
+        ]
+      }
+    },
+    "/v1/payroll/companies/{companyId}/settings": {
+      "get": {
+        "operationId": "PayrollController_getSettings",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "payroll"
+        ]
+      },
+      "put": {
+        "operationId": "PayrollController_putSettings",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "salaryExpenseAccountId": {
+                    "nullable": true,
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "employerCostAccountId": {
+                    "nullable": true,
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "salaryPayableAccountId": {
+                    "nullable": true,
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "pfPayableAccountId": {
+                    "nullable": true,
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "esiPayableAccountId": {
+                    "nullable": true,
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "ptPayableAccountId": {
+                    "nullable": true,
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "tdsPayableAccountId": {
+                    "nullable": true,
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "otherDeductionsAccountId": {
+                    "nullable": true,
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "payroll"
+        ]
+      }
+    },
+    "/v1/payroll/employees": {
+      "post": {
+        "operationId": "PayrollController_createEmployee",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "companyId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "kind": {
+                    "default": "employee",
+                    "type": "string",
+                    "enum": [
+                      "employee",
+                      "contract_worker"
+                    ]
+                  },
+                  "dateOfJoining": {
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                  },
+                  "fullName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "pan": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{5}[0-9]{4}[A-Z]$"
+                  },
+                  "uan": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 20
+                  },
+                  "esiNo": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 20
+                  },
+                  "stateCode": {
+                    "type": "string",
+                    "pattern": "^[0-9]{2}$"
+                  },
+                  "payBasis": {
+                    "default": "monthly",
+                    "type": "string",
+                    "enum": [
+                      "monthly",
+                      "daily",
+                      "hourly"
+                    ]
+                  },
+                  "taxRegime": {
+                    "default": "new",
+                    "type": "string",
+                    "enum": [
+                      "new",
+                      "old"
+                    ]
+                  },
+                  "tdsRatePercent": {
+                    "type": "string",
+                    "pattern": "^(100(\\.0{1,4})?|[0-9]{1,2}(\\.[0-9]{1,4})?)$"
+                  },
+                  "pfApplicable": {
+                    "default": false,
+                    "type": "boolean"
+                  },
+                  "esiApplicable": {
+                    "default": false,
+                    "type": "boolean"
+                  },
+                  "ptApplicable": {
+                    "default": false,
+                    "type": "boolean"
+                  },
+                  "bankAccountRef": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60
+                  }
+                },
+                "required": [
+                  "companyId",
+                  "dateOfJoining",
+                  "fullName",
+                  "stateCode"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "payroll"
+        ]
+      },
+      "get": {
+        "operationId": "PayrollController_listEmployees",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "payroll"
+        ]
+      }
+    },
+    "/v1/payroll/employees/{id}": {
+      "get": {
+        "operationId": "PayrollController_getEmployee",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "payroll"
+        ]
+      },
+      "patch": {
+        "operationId": "PayrollController_updateEmployee",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "fullName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "pan": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{5}[0-9]{4}[A-Z]$"
+                  },
+                  "uan": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 20
+                  },
+                  "esiNo": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 20
+                  },
+                  "stateCode": {
+                    "type": "string",
+                    "pattern": "^[0-9]{2}$"
+                  },
+                  "payBasis": {
+                    "type": "string",
+                    "enum": [
+                      "monthly",
+                      "daily",
+                      "hourly"
+                    ]
+                  },
+                  "taxRegime": {
+                    "type": "string",
+                    "enum": [
+                      "new",
+                      "old"
+                    ]
+                  },
+                  "tdsRatePercent": {
+                    "type": "string",
+                    "pattern": "^(100(\\.0{1,4})?|[0-9]{1,2}(\\.[0-9]{1,4})?)$"
+                  },
+                  "pfApplicable": {
+                    "type": "boolean"
+                  },
+                  "esiApplicable": {
+                    "type": "boolean"
+                  },
+                  "ptApplicable": {
+                    "type": "boolean"
+                  },
+                  "bankAccountRef": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "payroll"
+        ]
+      }
+    },
+    "/v1/payroll/employees/{id}/exit": {
+      "post": {
+        "operationId": "PayrollController_exitEmployee",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "dateOfLeaving": {
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                  }
+                },
+                "required": [
+                  "dateOfLeaving"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "payroll"
+        ]
+      }
+    },
+    "/v1/payroll/employees/{id}/payslips": {
+      "get": {
+        "operationId": "PayrollController_payslipsOf",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "payroll"
+        ]
+      }
+    },
+    "/v1/payroll/components": {
+      "post": {
+        "operationId": "PayrollController_createComponent",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "companyId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "code": {
+                    "type": "string",
+                    "pattern": "^[A-Z][A-Z0-9_]{0,19}$"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "earning",
+                      "deduction"
+                    ]
+                  },
+                  "calculation": {
+                    "type": "string",
+                    "enum": [
+                      "fixed",
+                      "percent_of_basic"
+                    ]
+                  },
+                  "percent": {
+                    "type": "string",
+                    "pattern": "^(100(\\.0{1,4})?|[0-9]{1,2}(\\.[0-9]{1,4})?)$"
+                  },
+                  "isTaxable": {
+                    "default": true,
+                    "type": "boolean"
+                  },
+                  "pfWage": {
+                    "default": false,
+                    "type": "boolean"
+                  },
+                  "esiWage": {
+                    "default": false,
+                    "type": "boolean"
+                  }
+                },
+                "required": [
+                  "companyId",
+                  "code",
+                  "name",
+                  "kind",
+                  "calculation"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "payroll"
+        ]
+      },
+      "get": {
+        "operationId": "PayrollController_listComponents",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "payroll"
+        ]
+      }
+    },
+    "/v1/payroll/components/{id}": {
+      "patch": {
+        "operationId": "PayrollController_updateComponent",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "active",
+                      "inactive"
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "payroll"
+        ]
+      }
+    },
+    "/v1/payroll/employees/{id}/structures": {
+      "post": {
+        "operationId": "PayrollController_createStructure",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "effectiveFrom": {
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                  },
+                  "basic": {
+                    "type": "string",
+                    "pattern": "^[0-9]{1,14}(\\.[0-9]{1,4})?$"
+                  },
+                  "lines": {
+                    "default": [],
+                    "maxItems": 50,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "componentId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "amount": {
+                          "type": "string",
+                          "pattern": "^[0-9]{1,14}(\\.[0-9]{1,4})?$"
+                        }
+                      },
+                      "required": [
+                        "componentId"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "effectiveFrom",
+                  "basic"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "payroll"
+        ]
+      },
+      "get": {
+        "operationId": "PayrollController_listStructures",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "payroll"
+        ]
+      }
+    },
+    "/v1/payroll/employees/{id}/inputs/{period}": {
+      "put": {
+        "operationId": "PayrollController_putInput",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "lopDays": {
+                    "default": "0",
+                    "type": "string",
+                    "pattern": "^[0-9]{1,2}(\\.[0-9]{1,2})?$"
+                  },
+                  "unitsWorked": {
+                    "type": "string",
+                    "pattern": "^[0-9]{1,8}(\\.[0-9]{1,2})?$"
+                  },
+                  "bonus": {
+                    "default": "0",
+                    "type": "string",
+                    "pattern": "^[0-9]{1,14}(\\.[0-9]{1,4})?$"
+                  },
+                  "otherDeduction": {
+                    "default": "0",
+                    "type": "string",
+                    "pattern": "^[0-9]{1,14}(\\.[0-9]{1,4})?$"
+                  },
+                  "notes": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 300
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "payroll"
+        ]
+      }
+    },
+    "/v1/payroll/inputs": {
+      "get": {
+        "operationId": "PayrollController_listInputs",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "payroll"
+        ]
+      }
+    },
+    "/v1/payroll/rules/rates": {
+      "put": {
+        "operationId": "PayrollController_putRates",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "companyId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "effectiveFrom": {
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                  },
+                  "rates": {
+                    "minItems": 1,
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "code": {
+                          "type": "string",
+                          "enum": [
+                            "pf_employee_percent",
+                            "pf_employer_percent",
+                            "pf_wage_ceiling",
+                            "esi_employee_percent",
+                            "esi_employer_percent",
+                            "esi_wage_ceiling",
+                            "tds_std_deduction_new",
+                            "tds_std_deduction_old",
+                            "tds_rebate_limit_new",
+                            "tds_rebate_amount_new",
+                            "tds_rebate_limit_old",
+                            "tds_rebate_amount_old",
+                            "tds_cess_percent"
+                          ]
+                        },
+                        "value": {
+                          "type": "string",
+                          "pattern": "^[0-9]{1,14}(\\.[0-9]{1,4})?$"
+                        }
+                      },
+                      "required": [
+                        "code",
+                        "value"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "companyId",
+                  "effectiveFrom",
+                  "rates"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "payroll"
+        ]
+      }
+    },
+    "/v1/payroll/rules/slabs": {
+      "put": {
+        "operationId": "PayrollController_putSlabs",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "companyId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "tds_new",
+                      "tds_old",
+                      "pt"
+                    ]
+                  },
+                  "stateCode": {
+                    "type": "string",
+                    "pattern": "^[0-9]{2}$"
+                  },
+                  "effectiveFrom": {
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                  },
+                  "slabs": {
+                    "minItems": 1,
+                    "maxItems": 30,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "from": {
+                          "type": "string",
+                          "pattern": "^[0-9]{1,14}(\\.[0-9]{1,4})?$"
+                        },
+                        "to": {
+                          "nullable": true,
+                          "type": "string",
+                          "pattern": "^[0-9]{1,14}(\\.[0-9]{1,4})?$"
+                        },
+                        "ratePercent": {
+                          "type": "string",
+                          "pattern": "^(100(\\.0{1,4})?|[0-9]{1,2}(\\.[0-9]{1,4})?)$"
+                        },
+                        "fixedAmount": {
+                          "type": "string",
+                          "pattern": "^[0-9]{1,14}(\\.[0-9]{1,4})?$"
+                        }
+                      },
+                      "required": [
+                        "from",
+                        "to"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "companyId",
+                  "kind",
+                  "effectiveFrom",
+                  "slabs"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "payroll"
+        ]
+      }
+    },
+    "/v1/payroll/rules/seed-defaults": {
+      "post": {
+        "operationId": "PayrollController_seed",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "payroll"
+        ]
+      }
+    },
+    "/v1/payroll/rules": {
+      "get": {
+        "operationId": "PayrollController_rules",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "payroll"
+        ]
+      }
+    },
+    "/v1/payroll/runs": {
+      "post": {
+        "operationId": "PayrollController_createRun",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "companyId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "period": {
+                    "type": "string",
+                    "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])$"
+                  },
+                  "payDate": {
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                  }
+                },
+                "required": [
+                  "companyId",
+                  "period",
+                  "payDate"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "payroll"
+        ]
+      },
+      "get": {
+        "operationId": "PayrollController_listRuns",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "payroll"
+        ]
+      }
+    },
+    "/v1/payroll/runs/{id}": {
+      "get": {
+        "operationId": "PayrollController_getRun",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "payroll"
+        ]
+      }
+    },
+    "/v1/payroll/runs/{id}/pay": {
+      "post": {
+        "operationId": "PayrollController_payRun",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "date": {
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                  },
+                  "paidFromAccountId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  }
+                },
+                "required": [
+                  "date",
+                  "paidFromAccountId"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "payroll"
+        ]
+      }
+    },
+    "/v1/payroll/runs/{id}/cancel": {
+      "post": {
+        "operationId": "PayrollController_cancelRun",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "date": {
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 300
+                  }
+                },
+                "required": [
+                  "date",
+                  "reason"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "payroll"
+        ]
+      }
+    },
+    "/v1/payroll/remittances": {
+      "post": {
+        "operationId": "PayrollController_remit",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "companyId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "pf",
+                      "esi",
+                      "pt",
+                      "tds"
+                    ]
+                  },
+                  "period": {
+                    "type": "string",
+                    "pattern": "^[0-9]{4}-(0[1-9]|1[0-2])$"
+                  },
+                  "date": {
+                    "type": "string",
+                    "format": "date",
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))$"
+                  },
+                  "amount": {
+                    "type": "string",
+                    "pattern": "^[0-9]{1,14}(\\.[0-9]{1,4})?$"
+                  },
+                  "paidFromAccountId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "reference": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  }
+                },
+                "required": [
+                  "companyId",
+                  "kind",
+                  "period",
+                  "date",
+                  "amount",
+                  "paidFromAccountId"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "payroll"
+        ]
+      }
+    },
+    "/v1/payroll/liabilities": {
+      "get": {
+        "operationId": "PayrollController_liabilities",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "payroll"
         ]
       }
     }

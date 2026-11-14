@@ -71,8 +71,15 @@ Grants to `erp_app`: `SELECT, INSERT, UPDATE` only (audit_log, outbox_events, ou
 | statement_mappings | chart account -> Schedule III line | one line per account; code format checked |
 | fiscal_year_closings | one row per year-end close with its journal entry | only reopen-once changes allowed; one live closing per year (partial unique) |
 | gst_return_settings | per-registration composition rate | composite FK to the registration; rate 0-100 |
+| payroll_settings | payroll accounts per company | composite FKs; types validated in the API |
+| employees | employees and contract workers | number/kind/joining date fixed; unique active PAN; exited iff leaving date |
+| salary_components / salary_structures / salary_structure_lines | pay components and effective-dated structures | components renameable only; structures immutable; calculation/percent consistency checked |
+| payroll_inputs | monthly attendance and one-offs | period format; frozen by the API once a run is live |
+| payroll_rates / payroll_slabs | effective-dated statutory rules | immutable; one row per code and date; slab shape per kind |
+| payroll_runs / payslips | monthly runs and their payslips | run immutable except pay/cancel (once); **one live run per company and month (partial unique)**; **net = gross less deductions (check)** |
+| statutory_remittances | PF/ESI/PT/TDS paid to authorities | immutable; amount positive; bounded by the API |
 
-Exact DDL: `db/migrations/0001_foundation.sql` ... `0022_gst_returns.sql`. The `btree_gist` extension is created by the admin bootstrap (`db/bootstrap/bootstrap.sql`), so a database must be bootstrapped with the Slice 2 version of that file.
+Exact DDL: `db/migrations/0001_foundation.sql` ... `0024_payroll_runs.sql`. The `btree_gist` extension is created by the admin bootstrap (`db/bootstrap/bootstrap.sql`), so a database must be bootstrapped with the Slice 2 version of that file.
 
 **Tables outside RLS**: exactly three, enforced by a test: `schema_migrations` (metadata), `tenant_directory` (slug -> id), `outbox_dispatch` (queue pointers). The test also pins their column lists so business data cannot creep into them.
 
