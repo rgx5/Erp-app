@@ -863,7 +863,7 @@
                     "maxLength": 500
                   },
                   "permissions": {
-                    "maxItems": 46,
+                    "maxItems": 48,
                     "type": "array",
                     "items": {
                       "type": "string",
@@ -910,6 +910,8 @@
                         "payables:read",
                         "payables:post",
                         "payables:cancel",
+                        "gst:read",
+                        "gst:manage",
                         "manufacturing:read",
                         "manufacturing:manage",
                         "manufacturing:produce",
@@ -999,7 +1001,7 @@
                     "maxLength": 500
                   },
                   "permissions": {
-                    "maxItems": 46,
+                    "maxItems": 48,
                     "type": "array",
                     "items": {
                       "type": "string",
@@ -1046,6 +1048,8 @@
                         "payables:read",
                         "payables:post",
                         "payables:cancel",
+                        "gst:read",
+                        "gst:manage",
                         "manufacturing:read",
                         "manufacturing:manage",
                         "manufacturing:produce",
@@ -1091,7 +1095,7 @@
                     "maxLength": 100
                   },
                   "permissions": {
-                    "maxItems": 46,
+                    "maxItems": 48,
                     "type": "array",
                     "items": {
                       "type": "string",
@@ -1138,6 +1142,8 @@
                         "payables:read",
                         "payables:post",
                         "payables:cancel",
+                        "gst:read",
+                        "gst:manage",
                         "manufacturing:read",
                         "manufacturing:manage",
                         "manufacturing:produce",
@@ -11025,6 +11031,139 @@
         ],
         "tags": [
           "manufacturing"
+        ]
+      }
+    },
+    "/v1/gst/registrations/{id}/return-settings": {
+      "get": {
+        "operationId": "GstController_getSettings",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "gst returns"
+        ]
+      },
+      "put": {
+        "operationId": "GstController_putSettings",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "compositionRate": {
+                    "nullable": true,
+                    "type": "string",
+                    "pattern": "^(100(\\.0{1,4})?|[0-9]{1,2}(\\.[0-9]{1,4})?)$"
+                  }
+                },
+                "required": [
+                  "compositionRate"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "gst returns"
+        ]
+      }
+    },
+    "/v1/gst/returns/gstr1": {
+      "get": {
+        "operationId": "GstController_gstr1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "gst returns"
+        ]
+      }
+    },
+    "/v1/gst/returns/gstr3b": {
+      "get": {
+        "operationId": "GstController_gstr3b",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "gst returns"
+        ]
+      }
+    },
+    "/v1/gst/returns/itc-register": {
+      "get": {
+        "operationId": "GstController_itcRegister",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "gst returns"
+        ]
+      }
+    },
+    "/v1/gst/returns/cmp08": {
+      "get": {
+        "operationId": "GstController_cmp08",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "gst returns"
         ]
       }
     }

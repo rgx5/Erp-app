@@ -1,6 +1,6 @@
 # Testing, RLS verification, performance
 
-`npm run test:all` = 91 unit tests + 367 integration tests, all green (the integration suite also passes with `TEST_HTTP_ADAPTER=node`). Integration tests create a fresh database per run, bootstrap roles,
+`npm run test:all` = 91 unit tests + 374 integration tests, all green (the integration suite also passes with `TEST_HTTP_ADAPTER=node`). Integration tests create a fresh database per run, bootstrap roles,
 migrate as `erp_migrator`, then connect as the real `erp_app` role.
 
 | suite | covers |
@@ -28,6 +28,7 @@ migrate as `erp_migrator`, then connect as the real `erp_app` role.
 | manufacturing-costing.int | **multi-level cost roll-up** (materials at stock cost, sub-assemblies, scrap, setup/run hours, labour vs overhead; rate changes; unknown costs flagged); **variance split into usage and efficiency** (zero for an order that went to plan; over-use, extra hours and short yield; under-plan negative variance), unit cost actual vs planned, residual to variance, period aggregation across orders, running orders, permission and isolation |
 | manufacturing-subcontracting.int | **challans move stock with no ledger entry**; receipts cost materials + job-work charge to the paisa, partial receipts leave WIP at zero; reported usage and charge overrides with usage variance; returns of leftovers; **one-year return clock and overdue report**; refusals (non-subcontractor, wrong warehouse kind, over-consumption, over-return, cancel after sending, missing clearing account) leave nothing; immutability, permission split and isolation |
 | accounting-statements.int | **a hand-checked year**: P&L lines, balance sheet that balances (before and after closing, at any date, with comparatives) and **cash flow that reconciles to the movement in cash**; unmapped accounts flagged and kept in the totals; mapping type rules; **year-end close** (entry zeroes P&L into retained earnings, statements unchanged, reopen reverses it, reclose), closing in order, losses as debits, missing account, locked last period; raw-SQL immutability and one-live-closing; permission split and isolation |
+| gst-returns.int | **a month with every supply and purchase kind** (B2B local/other state/SEZ, B2C large and small, export, exempt, credit note; regular, inter-state, reverse-charge, blocked and returned purchases): GSTR-1 sections and HSN to the paisa, document ranges, cancellations inside and after the month; **GSTR-3B totals and the payment waterfall** (IGST credit order, cross-utilisation, reverse charge in cash, unused credit); ITC register; **CMP-08 for a composition registration** (rate setting, quarters, reverse charge); regular/composition separation, period validation, permissions and isolation |
 | organization-api.int | full HTTP API on **both adapters**: validation, problem+json, If-Match, pagination, GST rules, platform token, health/readiness (503 when migrations behind), startup refusal for unsafe DB role |
 
 Not verified here: the Docker build and the GitHub Actions workflow (no Docker daemon in this sandbox; the workflow has not run yet).

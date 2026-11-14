@@ -45,6 +45,8 @@ export const PERMISSIONS = [
   'payables:read',
   'payables:post',
   'payables:cancel',
+  'gst:read',
+  'gst:manage',
   'manufacturing:read',
   'manufacturing:manage',
   'manufacturing:produce',

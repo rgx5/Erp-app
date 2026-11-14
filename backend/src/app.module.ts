@@ -5,6 +5,7 @@ import { AccountingModule } from './modules/accounting/accounting.controller.js'
 import { AuditModule } from './modules/audit/audit.controller.js';
 import { InventoryModule } from './modules/inventory/inventory.controller.js';
 import { PosModule } from './modules/pos/pos.controller.js';
+import { GstModule } from './modules/gst/gst.controller.js';
 import { ManufacturingModule } from './modules/manufacturing/manufacturing.controller.js';
 import { PurchasingModule } from './modules/purchasing/purchasing.controller.js';
 import { SalesModule } from './modules/sales/sales.controller.js';
@@ -39,6 +40,6 @@ export class CoreModule {
 @Module({})
 export class AppModule {
   static forRoot(env: Env): DynamicModule {
-    return { module: AppModule, imports: [CoreModule.forRoot(env), DatabaseModule, PlatformServicesModule, HealthModule, IdentityModule, OrganizationModule, AuditModule, NumberingModule, MasterDataModule, AccountingModule, InventoryModule, SalesModule, PosModule, PurchasingModule, ManufacturingModule] };
+    return { module: AppModule, imports: [CoreModule.forRoot(env), DatabaseModule, PlatformServicesModule, HealthModule, IdentityModule, OrganizationModule, AuditModule, NumberingModule, MasterDataModule, AccountingModule, InventoryModule, SalesModule, PosModule, PurchasingModule, ManufacturingModule, GstModule] };
   }
 }

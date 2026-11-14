@@ -70,8 +70,9 @@ Grants to `erp_app`: `SELECT, INSERT, UPDATE` only (audit_log, outbox_events, ou
 | accounting_settings | retained-earnings account per company | composite FK to accounts |
 | statement_mappings | chart account -> Schedule III line | one line per account; code format checked |
 | fiscal_year_closings | one row per year-end close with its journal entry | only reopen-once changes allowed; one live closing per year (partial unique) |
+| gst_return_settings | per-registration composition rate | composite FK to the registration; rate 0-100 |
 
-Exact DDL: `db/migrations/0001_foundation.sql` ... `0021_statements.sql`. The `btree_gist` extension is created by the admin bootstrap (`db/bootstrap/bootstrap.sql`), so a database must be bootstrapped with the Slice 2 version of that file.
+Exact DDL: `db/migrations/0001_foundation.sql` ... `0022_gst_returns.sql`. The `btree_gist` extension is created by the admin bootstrap (`db/bootstrap/bootstrap.sql`), so a database must be bootstrapped with the Slice 2 version of that file.
 
 **Tables outside RLS**: exactly three, enforced by a test: `schema_migrations` (metadata), `tenant_directory` (slug -> id), `outbox_dispatch` (queue pointers). The test also pins their column lists so business data cannot creep into them.
 
