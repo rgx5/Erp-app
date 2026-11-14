@@ -93,3 +93,6 @@ export type CreateWorkOrderInput = z.infer<typeof createWorkOrderSchema>;
 export type IssueMaterialsInput = z.infer<typeof issueMaterialsSchema>;
 export type ReportTimeInput = z.infer<typeof reportTimeSchema>;
 export type ReportOutputInput = z.infer<typeof reportOutputSchema>;
+
+export const rollupQuery = z.object({ companyId: z.uuid(), itemId: z.uuid(), quantity: quantity.default('1'), date: isoDate });
+export const variancesQuery = z.object({ companyId: z.uuid(), from: isoDate, to: isoDate, itemId: z.uuid().optional() }).refine((v) => v.to >= v.from, { path: ['to'], message: 'Must not be before from' });

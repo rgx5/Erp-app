@@ -1,6 +1,6 @@
 # Testing, RLS verification, performance
 
-`npm run test:all` = 89 unit tests + 347 integration tests, all green (the integration suite also passes with `TEST_HTTP_ADAPTER=node`). Integration tests create a fresh database per run, bootstrap roles,
+`npm run test:all` = 89 unit tests + 352 integration tests, all green (the integration suite also passes with `TEST_HTTP_ADAPTER=node`). Integration tests create a fresh database per run, bootstrap roles,
 migrate as `erp_migrator`, then connect as the real `erp_app` role.
 
 | suite | covers |
@@ -25,6 +25,7 @@ migrate as `erp_migrator`, then connect as the real `erp_app` role.
 | purchasing-landed-cost.int | **charges shared by value (to the last unit of money) and by quantity**, stock and charge accounts move, clearing account nets to zero, inventory reconciliation holds; **weighted average moves (next issue carries it)**; **FIFO: cost lands on the receipt's own layer**; **units already used: their share goes to cost variance**; 5 simultaneous vouchers on the same receipts (no deadlock, no loss, distinct numbers); cancellation (stock, charges, as-of); every refusal (control/income/clearing accounts, duplicates, strangers' lines, fully returned lines, closed year, missing accounts) leaves nothing and burns no number; raw-SQL immutability and commit-time totals; permission split and isolation |
 | manufacturing-masters.int | work-centre rates/versions/unique codes; **versioned BOMs with routing, overlap refused by the database, obsolete frees the slot**; invalid BOMs (raw parent, services, self, duplicates, scrap 100%, foreign/inactive work centres, **cycles**); **multi-level explosion with scrap for the version in force on a date**; raw-SQL immutability and exclusion; permissions and isolation |
 | manufacturing-orders.int | BOM snapshot (requirements, planned hours); **full flow stock -> WIP -> finished goods to the paisa** with GL and both reconciliations; returns at average cost; **short close clears residual to variance**; rates at time of reporting; **5 simultaneous issues and 5 simultaneous outputs**; refusals leave nothing (atomic issues, unknown ops, no-cost work centres, periods, missing accounts); immutability, final states, permission split, isolation |
+| manufacturing-costing.int | **multi-level cost roll-up** (materials at stock cost, sub-assemblies, scrap, setup/run hours, labour vs overhead; rate changes; unknown costs flagged); **variance split into usage and efficiency** (zero for an order that went to plan; over-use, extra hours and short yield; under-plan negative variance), unit cost actual vs planned, residual to variance, period aggregation across orders, running orders, permission and isolation |
 | organization-api.int | full HTTP API on **both adapters**: validation, problem+json, If-Match, pagination, GST rules, platform token, health/readiness (503 when migrations behind), startup refusal for unsafe DB role |
 
 Not verified here: the Docker build and the GitHub Actions workflow (no Docker daemon in this sandbox; the workflow has not run yet).

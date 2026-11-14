@@ -9,6 +9,7 @@ import { InventoryModule } from '../inventory/inventory.controller.js';
 import { Recorder } from '../masterdata/helpers.js';
 import { MasterDataModule } from '../masterdata/masterdata.controller.js';
 import * as s from './manufacturing.schemas.js';
+import { CostingService } from './costing.service.js';
 import { ManufacturingMastersService } from './masters.service.js';
 import { ManufacturingSettingsService } from './manufacturing-settings.service.js';
 import { WorkOrdersService } from './work-orders.service.js';
@@ -29,6 +30,7 @@ export class ManufacturingController {
     @Inject(ManufacturingMastersService) private readonly masters: ManufacturingMastersService,
     @Inject(ManufacturingSettingsService) private readonly settings: ManufacturingSettingsService,
     @Inject(WorkOrdersService) private readonly orders: WorkOrdersService,
+    @Inject(CostingService) private readonly costing: CostingService,
   ) {}
 
   @RequirePermissions('manufacturing:read') @Get('companies/:companyId/settings')
@@ -42,6 +44,13 @@ export class ManufacturingController {
   async listWorkOrders(@TenantId() t: string, @Query({ schema: s.listWorkOrdersQuery }) q: z.infer<typeof s.listWorkOrdersQuery>) { const p = await this.orders.list(t, q); return { items: p.items.map(strip), nextCursor: p.nextCursor }; }
   @RequirePermissions('manufacturing:read') @Get('wip-reconciliation')
   wip(@TenantId() t: string, @Query({ schema: s.wipQuery }) q: { companyId: string; asOf: string }) { return this.orders.wipReconciliation(t, q.companyId, q.asOf); }
+  /** What an item should cost at today's stock costs and work-centre rates (analytical; nothing is posted). */
+  @RequirePermissions('manufacturing:read') @Get('costing/rollup')
+  rollup(@TenantId() t: string, @Query({ schema: s.rollupQuery }) q: z.infer<typeof s.rollupQuery>) { return this.costing.rollup(t, q.companyId, q.itemId, q.quantity, q.date); }
+  @RequirePermissions('manufacturing:read') @Get('costing/variances')
+  variances(@TenantId() t: string, @Query({ schema: s.variancesQuery }) q: z.infer<typeof s.variancesQuery>) { return this.costing.variances(t, q.companyId, q.from, q.to, q.itemId); }
+  @RequirePermissions('manufacturing:read') @Get('work-orders/:id/variance')
+  workOrderVariance(@TenantId() t: string, @Param('id', { schema: id }) i: string) { return this.costing.workOrderVariance(t, i); }
   @RequirePermissions('manufacturing:read') @Get('work-orders/:id')
   async getWorkOrder(@TenantId() t: string, @Param('id', { schema: id }) i: string) { return presentWorkOrder(await this.orders.get(t, i)); }
   @RequirePermissions('manufacturing:produce') @Idempotent() @Post('work-orders/:id/release') @HttpCode(200)
@@ -83,7 +92,7 @@ export class ManufacturingController {
 @Module({
   imports: [AccountingModule, InventoryModule, MasterDataModule],
   controllers: [ManufacturingController],
-  providers: [Recorder, ManufacturingMastersService, ManufacturingSettingsService, WorkOrdersService],
-  exports: [ManufacturingMastersService, ManufacturingSettingsService, WorkOrdersService],
+  providers: [Recorder, ManufacturingMastersService, ManufacturingSettingsService, WorkOrdersService, CostingService],
+  exports: [ManufacturingMastersService, ManufacturingSettingsService, WorkOrdersService, CostingService],
 })
 export class ManufacturingModule {}

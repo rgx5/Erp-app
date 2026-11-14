@@ -9334,6 +9334,63 @@
         ]
       }
     },
+    "/v1/manufacturing/costing/rollup": {
+      "get": {
+        "operationId": "ManufacturingController_rollup",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "manufacturing"
+        ]
+      }
+    },
+    "/v1/manufacturing/costing/variances": {
+      "get": {
+        "operationId": "ManufacturingController_variances",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "manufacturing"
+        ]
+      }
+    },
+    "/v1/manufacturing/work-orders/{id}/variance": {
+      "get": {
+        "operationId": "ManufacturingController_workOrderVariance",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "manufacturing"
+        ]
+      }
+    },
     "/v1/manufacturing/work-orders/{id}": {
       "get": {
         "operationId": "ManufacturingController_getWorkOrder",
