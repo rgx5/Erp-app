@@ -7,3 +7,4 @@ export * from '../modules/inventory/inventory.schema.js';
 export * from '../modules/sales/sales.schema.js';
 export * from '../modules/pos/pos.schema.js';
 export * from '../modules/purchasing/purchasing.schema.js';
+export * from '../modules/manufacturing/manufacturing.schema.js';

@@ -44,6 +44,10 @@ export const PERMISSIONS = [
   'payables:read',
   'payables:post',
   'payables:cancel',
+  'manufacturing:read',
+  'manufacturing:manage',
+  'manufacturing:produce',
+  'manufacturing:cancel',
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
