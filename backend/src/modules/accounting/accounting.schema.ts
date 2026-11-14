@@ -96,3 +96,33 @@ export const journalLines = erp.table('journal_lines', {
   partyId: uuid('party_id'),
   txId: bigint('tx_id', { mode: 'number' }).notNull().default(sql`txid_current()`),
 });
+
+export const accountingSettings = erp.table('accounting_settings', {
+  tenantId: uuid('tenant_id').notNull(),
+  companyId: uuid('company_id').notNull(),
+  retainedEarningsAccountId: uuid('retained_earnings_account_id'),
+  ...meta,
+});
+
+export const statementMappings = erp.table('statement_mappings', {
+  tenantId: uuid('tenant_id').notNull(),
+  companyId: uuid('company_id').notNull(),
+  accountId: uuid('account_id').notNull(),
+  lineCode: text('line_code').notNull(),
+  updatedAt: ts('updated_at').notNull().defaultNow(),
+});
+
+export const fiscalYearClosings = erp.table('fiscal_year_closings', {
+  tenantId: uuid('tenant_id').notNull(),
+  id: uuid('id').notNull(),
+  companyId: uuid('company_id').notNull(),
+  fiscalYearId: uuid('fiscal_year_id').notNull(),
+  closingEntryId: uuid('closing_entry_id'),
+  netProfit: money('net_profit').notNull(),
+  status: text('status').notNull().default('closed'),
+  closedBy: uuid('closed_by'),
+  closedAt: ts('closed_at').notNull().defaultNow(),
+  reopenedBy: uuid('reopened_by'),
+  reopenedAt: ts('reopened_at'),
+  reopenReason: text('reopen_reason'),
+});

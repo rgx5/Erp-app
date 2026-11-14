@@ -67,8 +67,11 @@ Grants to `erp_app`: `SELECT, INSERT, UPDATE` only (audit_log, outbox_events, ou
 | work_orders / work_order_materials / work_order_operations | orders and their BOM snapshot | status/totals only mutate; final once completed or cancelled; returned <= issued |
 | work_order_transactions | append-only cost ledger of an order (issue, return, labour, overhead, output, residual) | immutable; sign per kind; the order's WIP is its sum |
 | subcontract_orders / subcontract_challans / subcontract_challan_lines | job-work orders (1:1 with a work order) and the delivery challans that send/return materials | order moves only status and first-sent date (once); challans immutable |
+| accounting_settings | retained-earnings account per company | composite FK to accounts |
+| statement_mappings | chart account -> Schedule III line | one line per account; code format checked |
+| fiscal_year_closings | one row per year-end close with its journal entry | only reopen-once changes allowed; one live closing per year (partial unique) |
 
-Exact DDL: `db/migrations/0001_foundation.sql` ... `0020_subcontracting.sql`. The `btree_gist` extension is created by the admin bootstrap (`db/bootstrap/bootstrap.sql`), so a database must be bootstrapped with the Slice 2 version of that file.
+Exact DDL: `db/migrations/0001_foundation.sql` ... `0021_statements.sql`. The `btree_gist` extension is created by the admin bootstrap (`db/bootstrap/bootstrap.sql`), so a database must be bootstrapped with the Slice 2 version of that file.
 
 **Tables outside RLS**: exactly three, enforced by a test: `schema_migrations` (metadata), `tenant_directory` (slug -> id), `outbox_dispatch` (queue pointers). The test also pins their column lists so business data cannot creep into them.
 

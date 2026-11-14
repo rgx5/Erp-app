@@ -863,7 +863,7 @@
                     "maxLength": 500
                   },
                   "permissions": {
-                    "maxItems": 45,
+                    "maxItems": 46,
                     "type": "array",
                     "items": {
                       "type": "string",
@@ -887,6 +887,7 @@
                         "accounting:reverse",
                         "accounting:manage",
                         "accounting:reopen",
+                        "accounting:close_year",
                         "stock:read",
                         "stock:post",
                         "stock:manage",
@@ -998,7 +999,7 @@
                     "maxLength": 500
                   },
                   "permissions": {
-                    "maxItems": 45,
+                    "maxItems": 46,
                     "type": "array",
                     "items": {
                       "type": "string",
@@ -1022,6 +1023,7 @@
                         "accounting:reverse",
                         "accounting:manage",
                         "accounting:reopen",
+                        "accounting:close_year",
                         "stock:read",
                         "stock:post",
                         "stock:manage",
@@ -1089,7 +1091,7 @@
                     "maxLength": 100
                   },
                   "permissions": {
-                    "maxItems": 45,
+                    "maxItems": 46,
                     "type": "array",
                     "items": {
                       "type": "string",
@@ -1113,6 +1115,7 @@
                         "accounting:reverse",
                         "accounting:manage",
                         "accounting:reopen",
+                        "accounting:close_year",
                         "stock:read",
                         "stock:post",
                         "stock:manage",
@@ -3864,6 +3867,291 @@
         ],
         "tags": [
           "accounting"
+        ]
+      }
+    },
+    "/v1/accounting/companies/{companyId}/settings": {
+      "get": {
+        "operationId": "StatementsController_getSettings",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "financial statements"
+        ]
+      },
+      "put": {
+        "operationId": "StatementsController_putSettings",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "retainedEarningsAccountId": {
+                    "nullable": true,
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "financial statements"
+        ]
+      }
+    },
+    "/v1/accounting/statements/mapping": {
+      "get": {
+        "operationId": "StatementsController_mapping",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "financial statements"
+        ]
+      },
+      "put": {
+        "operationId": "StatementsController_putMapping",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "items": {
+                    "minItems": 1,
+                    "maxItems": 500,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "accountId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "lineCode": {
+                          "type": "string",
+                          "pattern": "^(BS|PL)\\.[A-Z_]+$"
+                        }
+                      },
+                      "required": [
+                        "accountId",
+                        "lineCode"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "items"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "financial statements"
+        ]
+      }
+    },
+    "/v1/accounting/statements/mapping/apply-template": {
+      "post": {
+        "operationId": "StatementsController_applyTemplate",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "financial statements"
+        ]
+      }
+    },
+    "/v1/accounting/statements/profit-loss": {
+      "get": {
+        "operationId": "StatementsController_profitLoss",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "financial statements"
+        ]
+      }
+    },
+    "/v1/accounting/statements/balance-sheet": {
+      "get": {
+        "operationId": "StatementsController_balanceSheet",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "financial statements"
+        ]
+      }
+    },
+    "/v1/accounting/statements/cash-flow": {
+      "get": {
+        "operationId": "StatementsController_cashFlow",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "financial statements"
+        ]
+      }
+    },
+    "/v1/accounting/fiscal-years/{id}/close-year": {
+      "post": {
+        "operationId": "StatementsController_closeYear",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "financial statements"
+        ]
+      }
+    },
+    "/v1/accounting/fiscal-years/{id}/reopen-year": {
+      "post": {
+        "operationId": "StatementsController_reopenYear",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 300
+                  }
+                },
+                "required": [
+                  "reason"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "financial statements"
+        ]
+      }
+    },
+    "/v1/accounting/year-end-closings": {
+      "get": {
+        "operationId": "StatementsController_closings",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "financial statements"
         ]
       }
     },

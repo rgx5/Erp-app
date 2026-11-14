@@ -11,6 +11,9 @@ import * as s from './accounting.schemas.js';
 import { AccountsService } from './accounts.service.js';
 import { PeriodsService } from './periods.service.js';
 import { PostingService, type EntryRow, type LineRow } from './posting.service.js';
+import { StatementsController } from './statements.controller.js';
+import { StatementsService } from './statements.service.js';
+import { YearEndService } from './year-end.service.js';
 
 const id = z.uuid();
 const out = <T extends { tenantId: string }>(row: T): Omit<T, 'tenantId'> => {
@@ -98,8 +101,8 @@ export class AccountingController {
 }
 
 @Module({
-  controllers: [AccountingController],
-  providers: [Recorder, AccountsService, PeriodsService, PostingService],
-  exports: [AccountsService, PeriodsService, PostingService],
+  controllers: [AccountingController, StatementsController],
+  providers: [Recorder, AccountsService, PeriodsService, PostingService, StatementsService, YearEndService],
+  exports: [AccountsService, PeriodsService, PostingService, StatementsService, YearEndService],
 })
 export class AccountingModule {}

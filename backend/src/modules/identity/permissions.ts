@@ -22,6 +22,7 @@ export const PERMISSIONS = [
   'accounting:reverse',
   'accounting:manage',
   'accounting:reopen',
+  'accounting:close_year',
   'stock:read',
   'stock:post',
   'stock:manage',
