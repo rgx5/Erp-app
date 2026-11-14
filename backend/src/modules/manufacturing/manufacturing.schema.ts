@@ -59,3 +59,79 @@ export const bomOperations = erp.table('bom_operations', {
   setupHours: numeric('setup_hours', { precision: 12, scale: 4 }).notNull().default('0'),
   runHours: numeric('run_hours', { precision: 12, scale: 4 }).notNull().default('0'),
 });
+
+export const manufacturingSettings = erp.table('manufacturing_settings', {
+  tenantId: uuid('tenant_id').notNull(),
+  companyId: uuid('company_id').notNull(),
+  wipAccountId: uuid('wip_account_id'),
+  labourAbsorbedAccountId: uuid('labour_absorbed_account_id'),
+  overheadAbsorbedAccountId: uuid('overhead_absorbed_account_id'),
+  productionVarianceAccountId: uuid('production_variance_account_id'),
+  version: integer('version').notNull().default(1),
+  createdAt: ts('created_at').notNull().defaultNow(),
+  updatedAt: ts('updated_at').notNull().defaultNow(),
+});
+
+export const workOrders = erp.table('work_orders', {
+  tenantId: uuid('tenant_id').notNull(),
+  id: uuid('id').notNull(),
+  companyId: uuid('company_id').notNull(),
+  woNo: text('wo_no').notNull(),
+  itemId: uuid('item_id').notNull(),
+  bomId: uuid('bom_id').notNull(),
+  plannedQuantity: quantity('planned_quantity').notNull(),
+  producedQuantity: quantity('produced_quantity').notNull().default('0'),
+  scrapQuantity: quantity('scrap_quantity').notNull().default('0'),
+  outputWarehouseId: uuid('output_warehouse_id').notNull(),
+  materialsWarehouseId: uuid('materials_warehouse_id').notNull(),
+  plannedStart: day('planned_start'),
+  dueDate: day('due_date'),
+  notes: text('notes'),
+  status: text('status').notNull().default('planned'),
+  releasedAt: ts('released_at'),
+  completedAt: ts('completed_at'),
+  cancelledAt: ts('cancelled_at'),
+  createdBy: uuid('created_by'),
+  createdAt: ts('created_at').notNull().defaultNow(),
+});
+
+export const workOrderMaterials = erp.table('work_order_materials', {
+  tenantId: uuid('tenant_id').notNull(),
+  id: uuid('id').notNull(),
+  workOrderId: uuid('work_order_id').notNull(),
+  lineNo: integer('line_no').notNull(),
+  itemId: uuid('item_id').notNull(),
+  requiredQuantity: quantity('required_quantity').notNull(),
+  issuedQuantity: quantity('issued_quantity').notNull().default('0'),
+  returnedQuantity: quantity('returned_quantity').notNull().default('0'),
+});
+
+export const workOrderOperations = erp.table('work_order_operations', {
+  tenantId: uuid('tenant_id').notNull(),
+  id: uuid('id').notNull(),
+  workOrderId: uuid('work_order_id').notNull(),
+  opNo: integer('op_no').notNull(),
+  name: text('name').notNull(),
+  workCentreId: uuid('work_centre_id').notNull(),
+  plannedHours: numeric('planned_hours', { precision: 12, scale: 4 }).notNull(),
+  actualHours: numeric('actual_hours', { precision: 12, scale: 4 }).notNull().default('0'),
+});
+
+export const workOrderTransactions = erp.table('work_order_transactions', {
+  tenantId: uuid('tenant_id').notNull(),
+  id: uuid('id').notNull(),
+  workOrderId: uuid('work_order_id').notNull(),
+  companyId: uuid('company_id').notNull(),
+  kind: text('kind').notNull(),
+  txnDate: day('txn_date').notNull(),
+  itemId: uuid('item_id'),
+  operationId: uuid('operation_id'),
+  quantity: quantity('quantity'),
+  hours: numeric('hours', { precision: 12, scale: 4 }),
+  value: money('value').notNull(),
+  stockMovementId: uuid('stock_movement_id'),
+  journalEntryIds: uuid('journal_entry_ids').array().notNull().default([]),
+  note: text('note'),
+  createdBy: uuid('created_by'),
+  createdAt: ts('created_at').notNull().defaultNow(),
+});

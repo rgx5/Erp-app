@@ -40,3 +40,56 @@ export const explodeQuery = z.object({ companyId: z.uuid(), itemId: z.uuid(), qu
 export type CreateWorkCentreInput = z.infer<typeof createWorkCentreSchema>;
 export type UpdateWorkCentreInput = z.infer<typeof updateWorkCentreSchema>;
 export type CreateBomInput = z.infer<typeof createBomSchema>;
+
+// ---- settings and work orders -----------------------------------------------------------------------------------------
+const account = z.uuid().nullable().optional();
+const serials = z.array(z.string().regex(/^[A-Za-z0-9][A-Za-z0-9._/-]{0,59}$/)).min(1).max(5000);
+export const manufacturingSettingsSchema = z
+  .strictObject({ wipAccountId: account, labourAbsorbedAccountId: account, overheadAbsorbedAccountId: account, productionVarianceAccountId: account })
+  .refine((v) => Object.keys(v).length > 0, 'Send at least one field');
+export type ManufacturingSettingsInput = z.infer<typeof manufacturingSettingsSchema>;
+
+export const createWorkOrderSchema = z.strictObject({
+  companyId: z.uuid(),
+  itemId: z.uuid(),
+  /** Defaults to the BOM in force on the order date. */
+  bomId: z.uuid().optional(),
+  orderDate: isoDate,
+  plannedQuantity: quantity,
+  /** Where finished goods are received. */
+  outputWarehouseId: z.uuid(),
+  /** Where materials are taken from unless a line says otherwise. */
+  materialsWarehouseId: z.uuid(),
+  plannedStart: isoDate.optional(),
+  dueDate: isoDate.optional(),
+  notes: text(500).optional(),
+});
+export const issueMaterialsSchema = z.strictObject({
+  date: isoDate,
+  lines: z.array(z.strictObject({ itemId: z.uuid(), quantity, warehouseId: z.uuid().optional(), batchId: z.uuid().optional(), serialNos: serials.optional() })).min(1).max(200),
+});
+export const returnMaterialsSchema = z.strictObject({
+  date: isoDate,
+  lines: z.array(z.strictObject({ itemId: z.uuid(), quantity, warehouseId: z.uuid().optional(), batchId: z.uuid().optional(), serialNos: serials.optional() })).min(1).max(200),
+});
+export const reportTimeSchema = z.strictObject({
+  date: isoDate,
+  lines: z.array(z.strictObject({ opNo: z.number().int().positive(), hours: z.string().regex(/^[0-9]{1,8}(\.[0-9]{1,4})?$/).refine((v) => Number(v) > 0, 'Must be greater than zero') })).min(1).max(100),
+});
+export const reportOutputSchema = z.strictObject({
+  date: isoDate,
+  /** Good units received into stock. */
+  quantity,
+  /** Units spoiled in the process: recorded, and their cost stays with the good units. */
+  scrapQuantity: z.string().regex(/^[0-9]{1,12}(\.[0-9]{1,6})?$/).default('0'),
+  batch: z.strictObject({ batchNo: text(60), manufactureDate: isoDate.optional(), expiryDate: isoDate.optional() }).optional(),
+  batchId: z.uuid().optional(),
+  serialNos: serials.optional(),
+});
+export const completeWorkOrderSchema = z.strictObject({ date: isoDate });
+export const listWorkOrdersQuery = z.object({ ...page, companyId: z.uuid(), itemId: z.uuid().optional(), status: z.enum(['planned', 'released', 'in_progress', 'completed', 'cancelled']).optional() });
+export const wipQuery = z.object({ companyId: z.uuid(), asOf: isoDate });
+export type CreateWorkOrderInput = z.infer<typeof createWorkOrderSchema>;
+export type IssueMaterialsInput = z.infer<typeof issueMaterialsSchema>;
+export type ReportTimeInput = z.infer<typeof reportTimeSchema>;
+export type ReportOutputInput = z.infer<typeof reportOutputSchema>;

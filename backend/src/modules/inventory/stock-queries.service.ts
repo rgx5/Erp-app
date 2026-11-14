@@ -195,7 +195,8 @@ export class StockQueriesService {
             LEFT JOIN gl ON gl.account_id = a.id
            WHERE a.tenant_id = ${tenantId}::uuid AND a.company_id = ${companyId}::uuid
              AND (stock.account_id IS NOT NULL OR (a.control_kind IN ('inventory', 'work_in_progress') AND COALESCE(gl.gl_balance, 0) <> 0
-                AND a.id NOT IN (SELECT grni_account_id FROM erp.purchasing_settings WHERE tenant_id = ${tenantId}::uuid AND company_id = ${companyId}::uuid AND grni_account_id IS NOT NULL))) -- GRNI is reconciled by its own purchasing report
+                AND a.id NOT IN (SELECT grni_account_id FROM erp.purchasing_settings WHERE tenant_id = ${tenantId}::uuid AND company_id = ${companyId}::uuid AND grni_account_id IS NOT NULL)
+                AND a.id NOT IN (SELECT wip_account_id FROM erp.manufacturing_settings WHERE tenant_id = ${tenantId}::uuid AND company_id = ${companyId}::uuid AND wip_account_id IS NOT NULL))) -- GRNI and WIP are reconciled by their own reports
            ORDER BY a.code`);
         let stockTotal = 0n;
         let glTotal = 0n;

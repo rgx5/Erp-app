@@ -63,8 +63,11 @@ Grants to `erp_app`: `SELECT, INSERT, UPDATE` only (audit_log, outbox_events, ou
 | landed_cost_vouchers / landed_cost_charges / landed_cost_lines | charges capitalised into received goods, and how they were shared | immutable except cancellation; **commit-time check: charges = allocations = total**; capitalised + expensed = allocated per line |
 | work_centres | production resources with hourly labour/machine/overhead rates | unique code; rates >= 0; versioned columns only |
 | boms / bom_lines / bom_operations | versioned bills of materials and routing | immutable except obsolete; **active BOMs of an item never overlap (exclusion)**; component unique per BOM |
+| manufacturing_settings | WIP, labour/overhead absorbed and production-variance accounts per company | composite FKs; types validated in the API |
+| work_orders / work_order_materials / work_order_operations | orders and their BOM snapshot | status/totals only mutate; final once completed or cancelled; returned <= issued |
+| work_order_transactions | append-only cost ledger of an order (issue, return, labour, overhead, output, residual) | immutable; sign per kind; the order's WIP is its sum |
 
-Exact DDL: `db/migrations/0001_foundation.sql` ... `0018_manufacturing_masters.sql`. The `btree_gist` extension is created by the admin bootstrap (`db/bootstrap/bootstrap.sql`), so a database must be bootstrapped with the Slice 2 version of that file.
+Exact DDL: `db/migrations/0001_foundation.sql` ... `0019_work_orders.sql`. The `btree_gist` extension is created by the admin bootstrap (`db/bootstrap/bootstrap.sql`), so a database must be bootstrapped with the Slice 2 version of that file.
 
 **Tables outside RLS**: exactly three, enforced by a test: `schema_migrations` (metadata), `tenant_directory` (slug -> id), `outbox_dispatch` (queue pointers). The test also pins their column lists so business data cannot creep into them.
 
