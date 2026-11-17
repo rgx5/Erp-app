@@ -19,6 +19,11 @@ describe('loadEnv', () => {
   it('rejects an encryption key that is not 32 bytes', () => {
     expect(() => loadEnv({ ...base, DATA_ENCRYPTION_KEY: 'c2hvcnQ=' })).toThrow(/32 bytes/);
   });
+  it('reads the CORS allow-list as exact origins and refuses a wildcard', () => {
+    expect(loadEnv(base).CORS_ALLOWED_ORIGINS).toEqual([]);
+    expect(loadEnv({ ...base, CORS_ALLOWED_ORIGINS: ' app://onesync, https://erp.example.com ,' }).CORS_ALLOWED_ORIGINS).toEqual(['app://onesync', 'https://erp.example.com']);
+    expect(() => loadEnv({ ...base, CORS_ALLOWED_ORIGINS: '*' })).toThrow(/wildcard/);
+  });
   it('keeps self-signup off unless enabled', () => {
     expect(loadEnv(base).SELF_SIGNUP_ENABLED).toBe(false);
     expect(loadEnv({ ...base, SELF_SIGNUP_ENABLED: 'true' }).SELF_SIGNUP_ENABLED).toBe(true);

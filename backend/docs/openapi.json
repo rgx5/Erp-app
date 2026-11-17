@@ -251,6 +251,20 @@
         ]
       }
     },
+    "/v1/meta": {
+      "get": {
+        "operationId": "MetaController_meta",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "meta"
+        ]
+      }
+    },
     "/v1/platform/tenants": {
       "post": {
         "operationId": "PlatformTenantsController_create",

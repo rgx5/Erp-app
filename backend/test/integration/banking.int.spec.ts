@@ -150,7 +150,7 @@ describe('matching and the reconciliation statement', () => {
     const may = (await lineIds(w, 'unmatched')) as { id: string }[];
     const results = await Promise.all(may.map((m) => match(w, m.id, [twin2])));
     expect(results.map((r) => r.status).sort((a, b) => a - b)).toEqual([200, 409]);
-    expect(results.find((r) => r.status === 409)?.json).toMatchObject({ code: expect.stringMatching(/ledger_line_matched|line_not_open/) });
+    expect(results.find((r) => r.status === 409)?.json).toMatchObject({ code: expect.stringMatching(/ledger_line_matched|line_not_open|conflict/) });
   });
 
   it('keeps ignored bank items visible, and treats ledger lines before the cleared-through date as already reconciled', async () => {

@@ -41,6 +41,8 @@ const schema = z
     RATE_LIMIT_WINDOW_SECONDS: z.coerce.number().int().min(1).max(3600).default(60),
     /** How long an authenticated principal may be reused without asking the database again; 0 (default) checks every request. */
     AUTH_PRINCIPAL_CACHE_TTL_MS: z.coerce.number().int().min(0).max(60_000).default(0),
+    /** Browser/desktop origins allowed to call the API, comma separated (for example `app://onesync,https://erp.example.com`). Empty = none. Never `*`. */
+    CORS_ALLOWED_ORIGINS: z.string().default('').transform((v) => v.split(',').map((o) => o.trim()).filter(Boolean)).refine((l) => !l.includes('*'), 'A wildcard origin is not allowed'),
     REQUEST_BODY_LIMIT_BYTES: z.coerce.number().int().min(1024).default(1_048_576),
     SHUTDOWN_TIMEOUT_MS: z.coerce.number().int().min(0).default(10_000),
   })

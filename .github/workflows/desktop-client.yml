@@ -1,0 +1,86 @@
+name: desktop-client
+on:
+  push:
+    paths: ['desktop-client/**', 'backend/docs/openapi.json', 'backend/src/**', 'backend/db/**', '.github/workflows/desktop-client.yml']
+  pull_request:
+    paths: ['desktop-client/**', 'backend/docs/openapi.json', 'backend/src/**', 'backend/db/**', '.github/workflows/desktop-client.yml']
+  workflow_dispatch:
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ['5434:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 3s --health-retries 20
+    env:
+      TEST_PG_ADMIN_URL: postgresql://postgres:postgres@localhost:5434/postgres
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            desktop-client/package-lock.json
+      - run: npm ci
+        working-directory: backend
+      - run: npm ci
+        working-directory: desktop-client
+      - name: Generated API types match the backend contract
+        run: npm run api:check
+        working-directory: desktop-client
+      - run: npm run typecheck
+        working-directory: desktop-client
+      - run: npm run lint
+        working-directory: desktop-client
+      - run: npm test
+        working-directory: desktop-client
+      - name: Live tests (real backend and PostgreSQL)
+        run: npm run test:live
+        working-directory: desktop-client
+      - run: npx playwright install --with-deps chromium
+        working-directory: desktop-client
+      - run: npm run build
+        working-directory: desktop-client
+      - name: Browser journey against the real backend
+        run: npm run test:e2e
+        working-directory: desktop-client
+      - name: Desktop shell smoke test (Electron under a virtual display)
+        run: xvfb-run -a npm run test:e2e:desktop
+        working-directory: desktop-client
+
+  installers:
+    needs: verify
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop-client/package-lock.json
+      - run: npm ci
+        working-directory: desktop-client
+      - run: npm run build
+        working-directory: desktop-client
+      - run: npx electron-builder --publish never
+        working-directory: desktop-client
+      - uses: actions/upload-artifact@v4
+        with:
+          name: onesync-desktop-${{ matrix.os }}
+          path: |
+            desktop-client/release/*.exe
+            desktop-client/release/*.dmg
+            desktop-client/release/*.AppImage
+            desktop-client/release/*.deb
+          if-no-files-found: error

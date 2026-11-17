@@ -1,0 +1,89 @@
+import { join } from 'node:path'
+import { app, BrowserWindow, ipcMain, Menu, protocol, safeStorage, shell, type IpcMainInvokeEvent } from 'electron'
+import type { DesktopSettings } from '../bridge-types'
+import { JsonFile } from './store'
+import { APP_HOST, APP_ORIGIN, APP_SCHEME, readAppFile, resolveAppFile } from './serve'
+
+// The app is served from its own fixed origin, so what it stores (and what a server's CORS list names) is the same on every launch.
+protocol.registerSchemesAsPrivileged([{ scheme: APP_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true, corsEnabled: true } }])
+
+const RENDERER_DIR = join(__dirname, '../renderer')
+const DEV_URL = process.env['ELECTRON_RENDERER_URL']
+
+if (!app.requestSingleInstanceLock()) app.quit()
+
+let win: BrowserWindow | null = null
+const settings = () => new JsonFile<DesktopSettings>(join(app.getPath('userData'), 'settings.json'), {})
+// Secrets are encrypted with the OS keychain (DPAPI, Keychain, libsecret) before they touch the disk.
+const secrets = () => new JsonFile<Record<string, string>>(join(app.getPath('userData'), 'secure.json'), {})
+
+/** Only the app's own pages may use the bridge. */
+const trusted = (e: IpcMainInvokeEvent): boolean => {
+  const url = e.senderFrame?.url ?? ''
+  return url.startsWith(`${APP_ORIGIN}/`) || (DEV_URL !== undefined && url.startsWith(DEV_URL))
+}
+const guard = <A extends unknown[], R>(fn: (...a: A) => R) => (e: IpcMainInvokeEvent, ...a: A): R => {
+  if (!trusted(e)) throw new Error('Untrusted sender')
+  return fn(...a)
+}
+
+function registerIpc(): void {
+  ipcMain.handle('app:info', guard(() => ({ version: app.getVersion(), platform: process.platform, secureStorage: safeStorage.isEncryptionAvailable() })))
+  ipcMain.handle('settings:get', guard(() => settings().read()))
+  ipcMain.handle('settings:set', guard((patch: Record<string, unknown>) => {
+    const file = settings()
+    const next: Record<string, unknown> = { ...file.read(), ...patch }
+    for (const [k, v] of Object.entries(next)) if (v === null || v === undefined) delete next[k]
+    file.write(next as DesktopSettings)
+    return next as DesktopSettings
+  }))
+  ipcMain.handle('secure:get', guard((key: string) => {
+    const stored = secrets().read()[key]
+    if (!stored || !safeStorage.isEncryptionAvailable()) return null
+    try { return safeStorage.decryptString(Buffer.from(stored, 'base64')) } catch { return null }
+  }))
+  ipcMain.handle('secure:set', guard((key: string, value: string) => {
+    if (!safeStorage.isEncryptionAvailable()) return false
+    const file = secrets()
+    file.write({ ...file.read(), [key]: safeStorage.encryptString(value).toString('base64') })
+    return true
+  }))
+  ipcMain.handle('secure:delete', guard((key: string) => {
+    const file = secrets()
+    const { [key]: _gone, ...rest } = file.read()
+    file.write(rest)
+  }))
+}
+
+function createWindow(): void {
+  win = new BrowserWindow({
+    width: 1360, height: 860, minWidth: 1000, minHeight: 640, show: false, backgroundColor: '#f6f7f9',
+    webPreferences: { preload: join(__dirname, '../preload/index.js'), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false },
+  })
+  win.once('ready-to-show', () => win?.show())
+  win.on('closed', () => { win = null })
+  // Links to the outside world open in the real browser; the app never navigates away from its own origin.
+  win.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('https://')) void shell.openExternal(url)
+    return { action: 'deny' }
+  })
+  win.webContents.on('will-navigate', (event, url) => {
+    if (!url.startsWith(`${APP_ORIGIN}/`) && !(DEV_URL && url.startsWith(DEV_URL))) event.preventDefault()
+  })
+  void win.loadURL(DEV_URL ?? `${APP_ORIGIN}/`)
+}
+
+app.whenReady().then(() => {
+  protocol.handle(APP_SCHEME, async (request) => {
+    if (new URL(request.url).host !== APP_HOST) return new Response('Not found', { status: 404 })
+    const file = await resolveAppFile(RENDERER_DIR, request.url)
+    return file ? readAppFile(file) : new Response('Forbidden', { status: 403 })
+  })
+  registerIpc()
+  Menu.setApplicationMenu(null)
+  createWindow()
+  app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow() })
+}).catch((e: unknown) => { console.error(e); app.quit() })
+
+app.on('second-instance', () => { if (win) { if (win.isMinimized()) win.restore(); win.focus() } })
+app.on('window-all-closed', () => { if (process.platform !== 'darwin') app.quit() })

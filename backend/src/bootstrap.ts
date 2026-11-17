@@ -24,6 +24,15 @@ export async function createApplication(env: Env): Promise<INestApplication> {
           options,
         );
 
+  if (env.CORS_ALLOWED_ORIGINS.length > 0) {
+    app.enableCors({
+      origin: env.CORS_ALLOWED_ORIGINS,
+      methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Authorization', 'Content-Type', 'Idempotency-Key', 'If-Match', 'Approval-Id', 'X-Request-Id'],
+      exposedHeaders: ['X-Request-Id', 'ETag', 'Retry-After', 'RateLimit-Limit', 'RateLimit-Remaining', 'RateLimit-Reset'],
+      maxAge: 600,
+    });
+  }
   app.useGlobalPipes(createValidationPipe());
   app.enableShutdownHooks();
 

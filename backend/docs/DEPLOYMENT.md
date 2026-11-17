@@ -16,6 +16,10 @@
 | `AUTH_PRINCIPAL_CACHE_TTL_MS` | 0 (off) | max 60000; bounds staleness of DB-side revocations |
 | `OUTBOX_RELAY_ENABLED`, `OUTBOX_*` | see `src/config/env.ts` | any number of instances may run the relay |
 | `IDEMPOTENCY_TTL_SECONDS` | 86400 | |
+| `CORS_ALLOWED_ORIGINS` | empty (none) | comma-separated exact origins, never `*`; the desktop client uses `app://onesync` |
+
+## Client discovery
+`GET /v1/meta` (public) tells a client that this is a OneSyncERP server, its API version and which sign-in modes are on.
 
 ## Scaling
 Instances are stateless; scale horizontally behind a load balancer. Health: `/health`, `/live`, `/ready`. Per-instance state is limited to the optional rate limiter and principal cache. Configure the proxy to forward the real client address and apply a global limit at the edge.
