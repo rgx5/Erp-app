@@ -93,3 +93,6 @@ Forward-only; to undo, add a new migration. Expand/contract for breaking changes
 
 ## Approvals (migration 0027)
 `approval_policies` (editable only in approvals, validity and status; never deleted), `approval_requests` (content immutable; status only moves pending -> approved | rejected | cancelled, approved -> consumed | cancelled; the produced document may be recorded once) and `approval_decisions` (append-only; a trigger refuses a decision by the requester or on a non-pending request). All tenant-scoped with RLS.
+
+## Bank reconciliation (migration 0028)
+`bank_accounts` (names/status/cleared-through editable, never deleted), `bank_statements` (immutable; an exclusion constraint forbids overlapping active periods per account; void once, and only with no matched lines), `bank_statement_lines` (content immutable; only matching status changes), `bank_matches` (a match is only ever ended once; one active match per ledger line; a trigger checks the ledger line is on the statement's bank account and carries its own amount). Deferred constraint triggers verify at commit that a matched statement line equals the sum of its active matches and that status and matches agree. All tenant-scoped with RLS.

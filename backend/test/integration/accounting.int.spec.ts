@@ -170,7 +170,7 @@ describe('the ledger is immutable and the database guards it', () => {
     for (const sql of ["UPDATE erp.journal_entries SET description = 'x' WHERE id = $1", 'DELETE FROM erp.journal_entries WHERE id = $1', "UPDATE erp.journal_lines SET debit = 1 WHERE entry_id = $1", 'DELETE FROM erp.journal_lines WHERE entry_id = $1']) {
       await expect(supers.query(sql, [e.id]), sql).rejects.toMatchObject({ code: '55000' });
     }
-    await expect(supers.query('TRUNCATE erp.journal_lines')).rejects.toMatchObject({ code: '55000' });
+    await expect(supers.query('TRUNCATE erp.journal_lines CASCADE')).rejects.toMatchObject({ code: '55000' });
     // a late line added to a committed entry
     await expect(supers.query("INSERT INTO erp.journal_lines (tenant_id, id, entry_id, company_id, line_no, account_id, posting_date, debit) VALUES ($1, gen_random_uuid(), $2, $3, 9, $4, '2025-04-10', 1)", [b.tenant, e.id, b.companyId, b.acc['5900']])).rejects.toMatchObject({ code: '55000' });
 

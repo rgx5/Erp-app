@@ -52,3 +52,6 @@ Retention (dry run, batching, dead letters kept, audit and documents untouched, 
 
 ## Approvals (`test/integration/approvals.int.spec.ts`)
 Policies and tiers, the full flow on journals (threshold, multi-approver, payload binding, single use, audit), segregation of duties in the API and the database, reject/cancel finality, expiry and policy change, rollback on a failed command, visibility, idempotent approval, a five-way race for one approval, purchase-order and payment gating, tenant isolation and immutability triggers.
+
+## Banking and dashboard (`banking.int.spec.ts`, `dashboard.int.spec.ts`)
+Bank-account rules, statement import (arithmetic, duplicates, overlaps, continuity gap, void), auto-match, booking a charge, combined and refused matches, unmatch history, ambiguity and a matching race, ignored items and the cleared-through date, database guards, permissions and isolation; the dashboard against hand-computed ledger figures, the profit and loss statement, attention counts, first-month edge case, fiscal-year/permission/tenant checks.
