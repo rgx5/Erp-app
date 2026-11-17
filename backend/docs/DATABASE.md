@@ -78,8 +78,9 @@ Grants to `erp_app`: `SELECT, INSERT, UPDATE` only (audit_log, outbox_events, ou
 | payroll_rates / payroll_slabs | effective-dated statutory rules | immutable; one row per code and date; slab shape per kind |
 | payroll_runs / payslips | monthly runs and their payslips | run immutable except pay/cancel (once); **one live run per company and month (partial unique)**; **net = gross less deductions (check)** |
 | statutory_remittances | PF/ESI/PT/TDS paid to authorities | immutable; amount positive; bounded by the API |
+| pos_devices / pos_sync_items | registered tills and the ledger of what each uploaded, keyed by (device, client id) | device status only changes (revoked final); applied item final; outcome consistent (applied iff it has its sale) |
 
-Exact DDL: `db/migrations/0001_foundation.sql` ... `0024_payroll_runs.sql`. The `btree_gist` extension is created by the admin bootstrap (`db/bootstrap/bootstrap.sql`), so a database must be bootstrapped with the Slice 2 version of that file.
+Exact DDL: `db/migrations/0001_foundation.sql` ... `0025_pos_sync.sql`. The `btree_gist` extension is created by the admin bootstrap (`db/bootstrap/bootstrap.sql`), so a database must be bootstrapped with the Slice 2 version of that file.
 
 **Tables outside RLS**: exactly three, enforced by a test: `schema_migrations` (metadata), `tenant_directory` (slug -> id), `outbox_dispatch` (queue pointers). The test also pins their column lists so business data cannot creep into them.
 

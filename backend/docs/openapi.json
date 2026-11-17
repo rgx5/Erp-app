@@ -863,7 +863,7 @@
                     "maxLength": 500
                   },
                   "permissions": {
-                    "maxItems": 52,
+                    "maxItems": 53,
                     "type": "array",
                     "items": {
                       "type": "string",
@@ -902,6 +902,7 @@
                         "pos:sell",
                         "pos:return",
                         "pos:manage",
+                        "pos:sync",
                         "purchasing:read",
                         "purchasing:post",
                         "purchasing:cancel",
@@ -1005,7 +1006,7 @@
                     "maxLength": 500
                   },
                   "permissions": {
-                    "maxItems": 52,
+                    "maxItems": 53,
                     "type": "array",
                     "items": {
                       "type": "string",
@@ -1044,6 +1045,7 @@
                         "pos:sell",
                         "pos:return",
                         "pos:manage",
+                        "pos:sync",
                         "purchasing:read",
                         "purchasing:post",
                         "purchasing:cancel",
@@ -1103,7 +1105,7 @@
                     "maxLength": 100
                   },
                   "permissions": {
-                    "maxItems": 52,
+                    "maxItems": 53,
                     "type": "array",
                     "items": {
                       "type": "string",
@@ -1142,6 +1144,7 @@
                         "pos:sell",
                         "pos:return",
                         "pos:manage",
+                        "pos:sync",
                         "purchasing:read",
                         "purchasing:post",
                         "purchasing:cancel",
@@ -7752,6 +7755,207 @@
         ],
         "tags": [
           "pos"
+        ]
+      }
+    },
+    "/v1/pos/devices": {
+      "post": {
+        "operationId": "PosSyncController_register",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "terminalId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60
+                  }
+                },
+                "required": [
+                  "terminalId",
+                  "name"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "pos offline sync"
+        ]
+      },
+      "get": {
+        "operationId": "PosSyncController_devices",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "pos offline sync"
+        ]
+      }
+    },
+    "/v1/pos/devices/{id}/revoke": {
+      "post": {
+        "operationId": "PosSyncController_revoke",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "pos offline sync"
+        ]
+      }
+    },
+    "/v1/pos/sync/batches": {
+      "post": {
+        "operationId": "PosSyncController_upload",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "deviceId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "shiftId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "items": {
+                    "minItems": 1,
+                    "maxItems": 200,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "clientId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                        },
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "sale",
+                            "return"
+                          ]
+                        },
+                        "occurredAt": {
+                          "type": "string",
+                          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}(:\\d{2}(\\.\\d+)?)?(Z|[+-]\\d{2}:\\d{2})$"
+                        },
+                        "payload": {}
+                      },
+                      "required": [
+                        "clientId",
+                        "kind",
+                        "occurredAt",
+                        "payload"
+                      ],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": [
+                  "deviceId",
+                  "shiftId",
+                  "items"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "pos offline sync"
+        ]
+      }
+    },
+    "/v1/pos/sync/items": {
+      "get": {
+        "operationId": "PosSyncController_items",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "pos offline sync"
+        ]
+      }
+    },
+    "/v1/pos/sync/catalogue": {
+      "get": {
+        "operationId": "PosSyncController_catalogue",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "pos offline sync"
         ]
       }
     },

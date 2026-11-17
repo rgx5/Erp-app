@@ -64,3 +64,25 @@ export const companyQuery = z.object({ companyId: z.uuid() });
 
 export type PosSaleInput = z.infer<typeof posSaleSchema>;
 export type PosReturnInput = z.infer<typeof posReturnSchema>;
+
+// ---- offline sync ---------------------------------------------------------------------------------------------------------
+const clock = z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d+)?)?(Z|[+-]\d{2}:\d{2})$/, 'An ISO date-time with its offset, e.g. 2025-04-10T18:30:00+05:30');
+export const registerDeviceSchema = z.strictObject({ terminalId: z.uuid(), name: text(60) });
+/** What a till sends for one offline sale: the counter sale without its shift and date (taken from the batch and the clock). */
+export const syncSalePayload = posSaleSchema.omit({ shiftId: true, date: true });
+/** An offline return names the sale by the till's own id for it (or the server's, for a sale made online) and its lines by line number. */
+export const syncReturnPayload = z.strictObject({
+  originalClientId: z.uuid().optional(),
+  originalSaleId: z.uuid().optional(),
+  reason: text(300),
+  lines: z.array(z.strictObject({ lineNo: z.number().int().positive(), quantity, unitPrice: money.optional(), serialNos: serials.optional(), warehouseId: z.uuid().optional() })).min(1).max(200),
+  refunds: z.array(z.strictObject({ method: z.enum(METHODS), amount: positive, reference: text(100).optional() })).min(1).max(10),
+}).refine((v) => (v.originalClientId === undefined) !== (v.originalSaleId === undefined), { path: ['originalClientId'], message: 'Name the original sale by originalClientId or originalSaleId, not both' });
+export const syncBatchSchema = z.strictObject({
+  deviceId: z.uuid(),
+  shiftId: z.uuid(),
+  items: z.array(z.strictObject({ clientId: z.uuid(), kind: z.enum(['sale', 'return']), occurredAt: clock, payload: z.unknown() })).min(1).max(200),
+});
+export const syncItemsQuery = z.object({ ...page, deviceId: z.uuid(), status: z.enum(['applied', 'rejected']).optional() });
+export const catalogueQuery = z.object({ deviceId: z.uuid(), updatedSince: z.iso.datetime({ offset: true }).optional() });
+export type SyncBatchInput = z.infer<typeof syncBatchSchema>;

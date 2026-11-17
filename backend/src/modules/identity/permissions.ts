@@ -37,6 +37,7 @@ export const PERMISSIONS = [
   'pos:sell',
   'pos:return',
   'pos:manage',
+  'pos:sync',
   'purchasing:read',
   'purchasing:post',
   'purchasing:cancel',

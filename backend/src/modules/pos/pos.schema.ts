@@ -73,3 +73,31 @@ export const posPayments = erp.table('pos_payments', {
   receiptId: uuid('receipt_id'),
   refundId: uuid('refund_id'),
 });
+
+export const posDevices = erp.table('pos_devices', {
+  tenantId: uuid('tenant_id').notNull(),
+  id: uuid('id').notNull(),
+  companyId: uuid('company_id').notNull(),
+  terminalId: uuid('terminal_id').notNull(),
+  name: text('name').notNull(),
+  status: text('status').notNull().default('active'),
+  lastSyncAt: ts('last_sync_at'),
+  registeredBy: uuid('registered_by'),
+  createdAt: ts('created_at').notNull().defaultNow(),
+});
+
+export const posSyncItems = erp.table('pos_sync_items', {
+  tenantId: uuid('tenant_id').notNull(),
+  deviceId: uuid('device_id').notNull(),
+  clientId: uuid('client_id').notNull(),
+  kind: text('kind').notNull(),
+  payloadHash: text('payload_hash').notNull(),
+  occurredAt: text('occurred_at').notNull(),
+  status: text('status').notNull(),
+  posSaleId: uuid('pos_sale_id'),
+  errorCode: text('error_code'),
+  errorMessage: text('error_message'),
+  attempts: integer('attempts').notNull().default(1),
+  receivedAt: ts('received_at').notNull().defaultNow(),
+  processedAt: ts('processed_at').notNull().defaultNow(),
+});

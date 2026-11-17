@@ -8,6 +8,7 @@ import { AccountingModule } from '../accounting/accounting.controller.js';
 import { Recorder } from '../masterdata/helpers.js';
 import { SalesModule, presentInvoice } from '../sales/sales.controller.js';
 import * as s from './pos.schemas.js';
+import { PosSyncService } from './pos-sync.service.js';
 import { PosService } from './pos.service.js';
 
 const id = z.uuid();
@@ -61,5 +62,28 @@ export class PosController {
   async getSale(@TenantId() t: string, @Param('id', { schema: id }) i: string) { const r = await this.pos.getSale(t, i); return { ...strip(r.sale), document: r.invoice ? presentInvoice({ invoice: r.invoice, lines: r.lines }) : null, payments: r.payments.map(strip) }; }
 }
 
-@Module({ imports: [SalesModule, AccountingModule], controllers: [PosController], providers: [Recorder, PosService], exports: [PosService] })
+@ApiTags('pos offline sync')
+@ApiBearerAuth()
+@Controller('v1/pos')
+export class PosSyncController {
+  constructor(@Inject(PosSyncService) private readonly sync: PosSyncService) {}
+
+  @RequirePermissions('pos:manage') @Idempotent() @Post('devices') @ApiZodBody(s.registerDeviceSchema)
+  async register(@CurrentPrincipal() a: Principal, @Body({ schema: s.registerDeviceSchema }) b: { terminalId: string; name: string }) { return strip(await this.sync.registerDevice(a.tenantId, a.userId, b)); }
+  @RequirePermissions('pos:read') @Get('devices')
+  async devices(@TenantId() t: string, @Query({ schema: z.object({ companyId: z.uuid() }) }) q: { companyId: string }) { return { items: (await this.sync.listDevices(t, q.companyId)).map(strip) }; }
+  @RequirePermissions('pos:manage') @Post('devices/:id/revoke') @HttpCode(200)
+  async revoke(@TenantId() t: string, @Param('id', { schema: id }) i: string) { return strip(await this.sync.revokeDevice(t, i)); }
+
+  /** Uploads what a till did offline. Each item is applied once, atomically, in the order it happened; the response says what happened to each. */
+  @RequirePermissions('pos:sync') @Post('sync/batches') @HttpCode(200) @ApiZodBody(s.syncBatchSchema)
+  upload(@CurrentPrincipal() a: Principal, @Body({ schema: s.syncBatchSchema }) b: s.SyncBatchInput) { return this.sync.upload(a.tenantId, a.userId, b); }
+  @RequirePermissions('pos:read') @Get('sync/items')
+  async items(@TenantId() t: string, @Query({ schema: s.syncItemsQuery }) q: z.infer<typeof s.syncItemsQuery>) { const p = await this.sync.listItems(t, q); return { items: p.items.map(strip), nextCursor: p.nextCursor }; }
+  /** Reference data for selling without a connection. */
+  @RequirePermissions('pos:sync') @Get('sync/catalogue')
+  catalogue(@TenantId() t: string, @Query({ schema: s.catalogueQuery }) q: { deviceId: string; updatedSince?: string | undefined }) { return this.sync.catalogue(t, q.deviceId, q.updatedSince); }
+}
+
+@Module({ imports: [SalesModule, AccountingModule], controllers: [PosController, PosSyncController], providers: [Recorder, PosService, PosSyncService], exports: [PosService, PosSyncService] })
 export class PosModule {}
