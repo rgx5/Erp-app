@@ -8,6 +8,7 @@ import { apiKeys } from './identity.schema.js';
 import type { Principal } from './principal.js';
 import { TOKENS } from './crypto.providers.js';
 import type { TokenService } from './tokens.js';
+import { PrincipalCache } from './principal-cache.js';
 
 const UUID_HEX = /^[0-9a-f]{32}$/;
 export const sha256 = (value: string): Buffer => createHash('sha256').update(value).digest();
@@ -21,7 +22,18 @@ export class PrincipalService {
   constructor(
     @Inject(UnitOfWork) private readonly uow: UnitOfWork,
     @Inject(TOKENS) private readonly tokens: TokenService,
+    @Inject(PrincipalCache) private readonly cache: PrincipalCache,
   ) {}
+
+  /** Resolves a credential, reusing a very recent answer when the cache is on. */
+  async resolve(token: string): Promise<Principal> {
+    const key = this.cache.keyOf(token);
+    const hit = this.cache.get(key);
+    if (hit) return hit;
+    const principal = token.startsWith('ek_') ? await this.fromApiKey(token) : await this.fromAccessToken(token);
+    this.cache.set(key, principal);
+    return principal;
+  }
 
   async fromAccessToken(token: string): Promise<Principal> {
     const claims = this.tokens.verify(token);

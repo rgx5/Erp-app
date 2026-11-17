@@ -87,3 +87,6 @@ Exact DDL: `db/migrations/0001_foundation.sql` ... `0025_pos_sync.sql`. The `btr
 ## Migration strategy
 Forward-only; to undo, add a new migration. Expand/contract for breaking changes. Run as `erp_migrator` before the new app version starts
 (compose and CI do this). `npm run db:status` lists applied/pending. Never edit an applied file (the runner refuses).
+
+## Retention (migration 0026)
+`erp_migrator` gets SELECT and DELETE row-level-security policies on `idempotency_keys`, `sessions`, `outbox_events` and `outbox_consumed` only; `erp.guard_outbox_event()` replaces the outbox immutability trigger so that DELETE is allowed for that role alone (UPDATE stays forbidden). Everything else, including the audit log, remains undeletable by every role. Purge with `npm run maintenance:retention -- [--dry-run] [--outbox-days N] [--session-days N] [--idempotency-hours N]`.

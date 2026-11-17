@@ -23,7 +23,8 @@
     "db:status": "tsx src/db/cli.ts status",
     "perf": "tsx scripts/perf.ts",
     "db:bootstrap": "tsx scripts/bootstrap-db.ts",
-    "openapi": "tsx scripts/export-openapi.ts"
+    "openapi": "tsx scripts/export-openapi.ts",
+    "maintenance:retention": "tsx scripts/retention.ts"
   },
   "dependencies": {
     "@fastify/static": "^10.1.10",

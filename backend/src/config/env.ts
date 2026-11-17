@@ -36,6 +36,11 @@ const schema = z
     /** Enables POST /v1/platform/tenants. At least 32 characters. Unset disables the endpoint. */
     PLATFORM_ADMIN_TOKEN: z.string().min(32).optional(),
     SWAGGER_ENABLED: bool.optional(),
+    /** Requests allowed per client address per window; 0 turns the limiter off. */
+    RATE_LIMIT_PER_WINDOW: z.coerce.number().int().min(0).default(0),
+    RATE_LIMIT_WINDOW_SECONDS: z.coerce.number().int().min(1).max(3600).default(60),
+    /** How long an authenticated principal may be reused without asking the database again; 0 (default) checks every request. */
+    AUTH_PRINCIPAL_CACHE_TTL_MS: z.coerce.number().int().min(0).max(60_000).default(0),
     REQUEST_BODY_LIMIT_BYTES: z.coerce.number().int().min(1024).default(1_048_576),
     SHUTDOWN_TIMEOUT_MS: z.coerce.number().int().min(0).default(10_000),
   })

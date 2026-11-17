@@ -6,6 +6,7 @@ import type { Tx } from '../../platform/database/database.js';
 import { UnitOfWork } from '../../platform/database/unit-of-work.js';
 import { AppError, notFound, preconditionFailed, validationFailed } from '../../platform/http/errors.js';
 import { decodeCursor, type Page, toPage } from '../../platform/http/validation.js';
+import { PrincipalCache } from './principal-cache.js';
 import { AuditService } from '../../platform/services/audit.service.js';
 import { OutboxService } from '../../platform/services/outbox.service.js';
 import { seedTenantDefaults } from '../masterdata/seed.js';
@@ -42,10 +43,13 @@ export class AccessService {
     @Inject(UnitOfWork) private readonly uow: UnitOfWork,
     @Inject(AuditService) private readonly audit: AuditService,
     @Inject(OutboxService) private readonly outbox: OutboxService,
+    @Inject(PrincipalCache) private readonly cache: PrincipalCache,
   ) {}
 
   /** Audit entry + domain event, in the caller's transaction. */
   private async note(tx: Tx, tenantId: string, entity: string, verb: string, id: string, details: Record<string, unknown> = {}, publish = true): Promise<void> {
+    this.cache.clearTenant(tenantId); // every identity change may change who is allowed to do what
+
     await this.audit.record(tx, tenantId, { action: `${entity}.${verb}`, entityType: entity, entityId: id, details });
     if (publish) await this.outbox.publish(tx, tenantId, { eventType: `${entity}.${verb}`, aggregateType: entity, aggregateId: id, payload: { id, ...details } });
   }

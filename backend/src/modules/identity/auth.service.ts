@@ -5,6 +5,7 @@ import { v7 as uuidv7 } from 'uuid';
 import { ENV, type Env } from '../../config/env.js';
 import { AppError, unauthorized } from '../../platform/http/errors.js';
 import { UnitOfWork } from '../../platform/database/unit-of-work.js';
+import { PrincipalCache } from './principal-cache.js';
 import { AuditService } from '../../platform/services/audit.service.js';
 import type { Tx } from '../../platform/database/database.js';
 import { SECRET_BOX, TOKENS } from './crypto.providers.js';
@@ -45,6 +46,7 @@ export class AuthService {
     @Inject(TOKENS) private readonly tokens: TokenService,
     @Inject(SECRET_BOX) private readonly box: SecretBox,
     @Inject(AuditService) private readonly audit: AuditService,
+    @Inject(PrincipalCache) private readonly cache: PrincipalCache,
   ) {}
 
   private auditAs(tx: Tx, tenantId: string, userId: string, action: string, outcome: 'success' | 'failure' = 'success', details: Record<string, unknown> = {}) {
@@ -159,6 +161,7 @@ export class AuthService {
         .update(sessions)
         .set({ revokedAt: new Date(), revokedReason: 'password_changed' })
         .where(and(eq(sessions.tenantId, principal.tenantId), eq(sessions.userId, user.id), isNull(sessions.revokedAt), principal.sessionId ? ne(sessions.familyId, principal.sessionId) : undefined));
+      this.cache.clearTenant(principal.tenantId);
       await this.auditAs(tx, principal.tenantId, user.id, 'auth.password_changed');
     });
   }
@@ -250,6 +253,7 @@ export class AuthService {
   }
 
   private async revokeFamily(tx: Tx, tenantId: string, familyId: string, reason: string): Promise<void> {
+    this.cache.clearTenant(tenantId);
     await tx
       .update(sessions)
       .set({ revokedAt: new Date(), revokedReason: reason })

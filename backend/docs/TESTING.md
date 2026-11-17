@@ -46,3 +46,6 @@ Not verified here: the Docker build and the GitHub Actions workflow (no Docker d
 Tenant transaction wrapper: mean 0.38 ms vs 0.08 ms for a bare `SELECT 1`.
 
 **Authentication roughly triples the cost of a database request** (GET /v1/tenant was ~1,900 req/s with the Slice 0 dev header, p50 ~16 ms; now ~600 req/s, p50 ~50 ms). Cause: every request re-validates the principal against the database in its own transaction (8 statements per request instead of 4) plus ~0.12 ms Ed25519 verification. I optimised that lookup to a single query; the remaining options trade freshness for speed and I have not taken them without your decision: (a) a 1-5 s in-process principal cache (role changes/logout would lag by up to that long), or (b) running the handler in the same transaction as the principal lookup. Numbers are a shared-sandbox regression baseline, not capacity claims.
+
+## Platform hardening (`test/integration/hardening.int.spec.ts`)
+Retention (dry run, batching, dead letters kept, audit and documents untouched, idempotent, runtime role cannot delete), rate limiting (limit, headers, probe exemption, window recovery, off by default) and the principal cache (TTL bound, immediate forget on API revocation, off by default).

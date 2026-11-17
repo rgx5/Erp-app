@@ -32,7 +32,7 @@ export class AuthGuard implements CanActivate {
     const header = request.headers['authorization'];
     if (typeof header !== 'string' || !header.startsWith('Bearer ') || header.length < 15) throw unauthorized();
     const token = header.slice(7).trim();
-    const principal = token.startsWith('ek_') ? await this.principals.fromApiKey(token) : await this.principals.fromAccessToken(token);
+    const principal = await this.principals.resolve(token);
     request.principal = principal;
     request.tenantId = principal.tenantId; // for request logging
 
