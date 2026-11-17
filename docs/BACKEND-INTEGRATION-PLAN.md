@@ -41,6 +41,17 @@ New folder `src/data/onesync/`:
 
 Existing pieces reused: the workspace/store machinery (`store.ts`, `state.ts`), the outbox/sync-status UI, the module registry, receipts, scanning, printing. Screens are changed only where a backend concept differs (settings, setup, reports).
 
+## 3b. The desktop app (Windows, macOS, Linux)
+
+`desktop/` is a thin Electron shell: it serves the same Expo **web build** from a local server and shows it in a window. So desktop gets the integration for free, because it runs the same `src/` code (no separate desktop code path). What changes is the environment around that code, and four things need explicit work:
+
+1. **CORS and the window's origin.** The window loads from `http://127.0.0.1:<random port>`, so the backend sees a different origin on every launch and a fixed allow-list cannot match it. Fix in the desktop shell (Phase F1): serve on a fixed, registered loopback port, or load the app from a custom `app://` scheme and let the main process add the required headers for the configured server only. The backend CORS allow-list (Phase B1) then lists that single origin.
+2. **Existing bug that must be fixed first: data may not survive a restart.** The shell listens on port 0 (random), and the web storage driver keeps the whole business in `localStorage`, which the browser scopes to origin *including the port*. A new port on each launch means a new, empty storage, so a workspace, sign-in tokens and the offline sales queue would not be there next time. Verified by reading `desktop/main.js` and `src/data/driver.web.ts`. Fix in Phase 0: fixed port (or `app://`) so the origin is stable, and move the desktop data store to a real file/SQLite store through a small preload bridge instead of `localStorage`.
+3. **Token storage.** On the web build tokens live in `localStorage` (`src/data/secure.ts`). For desktop, store the refresh token with Electron `safeStorage` (OS keychain) through the preload bridge. The current preload is intentionally empty; it would expose only `secureGet/secureSet/secureDelete` and printing helpers, with context isolation kept on.
+4. **Counter hardware.** Receipt printing in the shell relies on opening a print window. A till on a desktop usually needs silent printing to a thermal printer, a cash drawer kick and a barcode scanner (keyboard-wedge works already). Add silent printing and drawer commands to the preload bridge in Phase F3.
+
+Other desktop notes: the installer must not bundle a server address (the user types it, as on a phone); auto-update is out of scope for now; the browser build and the desktop build are tested by the same Playwright suite (Phase F8), plus a launch/restart persistence test for the shell.
+
 ## 4. Phases
 
 Each phase ends with something you can use, with automated tests, and is committed and pushed on its own.
@@ -48,11 +59,12 @@ Each phase ends with something you can use, with automated tests, and is committ
 ### Phase 0 - Contract and test harness (small)
 - Decide the open questions in section 6.
 - Generate the typed client from `openapi.json`; add a CI check that regenerates it and fails on drift.
+- Desktop shell: stable origin and persistent storage (section 3b) so nothing is lost between launches.
 - Live test harness in the app repo (like the old `kosh-live` test): boots the backend against a scratch Postgres and runs app code against it. Every later phase adds tests here.
 - Parity vectors: the app already has `scripts/gen-golden.ts`; extend it so the phone's tax/discount/rounding maths and the backend GST engine are proven to give identical totals on a few hundred generated carts. **This is the main correctness risk for offline selling.**
 
 ### Phase B1 - Backend changes needed to connect (small-medium)
-- Configurable CORS allow-list (needed for the web build; harmless for native).
+- Configurable CORS allow-list (needed for the web and desktop builds; harmless for native).
 - A public `GET /v1/meta` (name, version, auth modes) so the connect screen can recognise a OneSyncERP server.
 - Provisioning path for the first business from the app: either the existing `SELF_SIGNUP_ENABLED` signup (creates tenant + owner) plus a guided "first company" wizard calling the existing organization endpoints, or platform-operator only. See D5.
 
@@ -122,6 +134,7 @@ Each phase ends with something you can use, with automated tests, and is committ
 | D3 | Loyalty, coupons, expenses, PIN | Build them in the backend (B3) rather than dropping the features; until then they are hidden in `onesync` workspaces. |
 | D4 | Invoice numbers when a till sells offline | The receipt shows a provisional device number; the legal GST invoice number is allocated by the server at sync and the app updates the receipt. (Alternative: lease each till a block of numbers - simpler for customers, but risks gaps and out-of-order dates, which GST dislikes.) |
 | D5 | How a business is created | Platform operator creates the tenant; the app's first-run wizard then sets up company/GST/location. Self-signup stays off unless you want public sign-up. |
+| D7 | Desktop data store | Replace `localStorage` in the desktop shell with a file/SQLite store behind a preload bridge, and keep tokens in the OS keychain. |
 | D6 | Old modes | Keep `local` (stand-alone). Remove Krishna and Kosh modes after the new mode reaches Phase F3. |
 
 ## 7. How we will know it works
