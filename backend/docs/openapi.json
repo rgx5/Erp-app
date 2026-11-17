@@ -753,7 +753,17 @@
     "/v1/users/{id}": {
       "get": {
         "operationId": "UsersController_get",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -770,7 +780,17 @@
       },
       "patch": {
         "operationId": "UsersController_update",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -814,7 +834,17 @@
     "/v1/users/{id}/roles": {
       "put": {
         "operationId": "UsersController_setRoles",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -990,7 +1020,17 @@
     "/v1/roles/{id}": {
       "get": {
         "operationId": "RolesController_get",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -1007,7 +1047,17 @@
       },
       "patch": {
         "operationId": "RolesController_update",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -1251,7 +1301,17 @@
     "/v1/api-keys/{id}/revoke": {
       "post": {
         "operationId": "ApiKeysController_revoke",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -1363,7 +1423,17 @@
     "/v1/companies/{id}": {
       "get": {
         "operationId": "OrganizationController_getCompany",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -1380,7 +1450,17 @@
       },
       "patch": {
         "operationId": "OrganizationController_updateCompany",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -1430,7 +1510,17 @@
     "/v1/companies/{id}/gst-registrations": {
       "post": {
         "operationId": "OrganizationController_createGstRegistration",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -1504,7 +1594,17 @@
       },
       "get": {
         "operationId": "OrganizationController_listGstRegistrations",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -1827,7 +1927,17 @@
     "/v1/number-series/{id}": {
       "get": {
         "operationId": "NumberingController_get",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -1846,7 +1956,17 @@
     "/v1/number-series/{id}/allocations": {
       "get": {
         "operationId": "NumberingController_allocations",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -1937,7 +2057,17 @@
     "/v1/currencies/{id}": {
       "patch": {
         "operationId": "CatalogController_updateCurrency",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -2197,7 +2327,17 @@
     "/v1/units/{id}": {
       "patch": {
         "operationId": "CatalogController_updateUnit",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -2317,7 +2457,17 @@
     "/v1/tax-codes/{id}": {
       "get": {
         "operationId": "CatalogController_getTaxCode",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -2334,7 +2484,17 @@
       },
       "patch": {
         "operationId": "CatalogController_updateTaxCode",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -2378,7 +2538,17 @@
     "/v1/tax-codes/{id}/rates": {
       "post": {
         "operationId": "CatalogController_addRate",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -2430,7 +2600,17 @@
       },
       "get": {
         "operationId": "CatalogController_listRatesOf",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -2449,7 +2629,17 @@
     "/v1/tax-codes/{id}/rate": {
       "get": {
         "operationId": "CatalogController_rateOn",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -2594,7 +2784,17 @@
     "/v1/items/{id}": {
       "get": {
         "operationId": "ItemsController_get",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -2611,7 +2811,17 @@
       },
       "patch": {
         "operationId": "ItemsController_update",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -2685,7 +2895,17 @@
     "/v1/items/{id}/uom-conversions": {
       "post": {
         "operationId": "ItemsController_addConversion",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -2728,7 +2948,17 @@
       },
       "get": {
         "operationId": "ItemsController_conversions",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -2924,7 +3154,17 @@
     "/v1/parties/{id}": {
       "get": {
         "operationId": "PartiesController_get",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -2941,7 +3181,17 @@
       },
       "patch": {
         "operationId": "PartiesController_update",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -3003,7 +3253,17 @@
     "/v1/parties/{id}/addresses": {
       "post": {
         "operationId": "PartiesController_addAddress",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -3078,7 +3338,17 @@
       },
       "get": {
         "operationId": "PartiesController_addresses",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -3173,7 +3443,17 @@
     "/v1/price-lists/{id}": {
       "get": {
         "operationId": "PricingController_get",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -3190,7 +3470,17 @@
       },
       "patch": {
         "operationId": "PricingController_update",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -3234,7 +3524,17 @@
     "/v1/price-lists/{id}/prices": {
       "post": {
         "operationId": "PricingController_addPrice",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -3299,7 +3599,17 @@
       },
       "get": {
         "operationId": "PricingController_prices",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -3318,7 +3628,26 @@
     "/v1/price-lists/{id}/prices/{priceId}/close": {
       "post": {
         "operationId": "PricingController_close",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "priceId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -3358,7 +3687,17 @@
     "/v1/price-lists/{id}/price": {
       "get": {
         "operationId": "PricingController_price",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -3475,7 +3814,17 @@
     "/v1/accounts/{id}": {
       "get": {
         "operationId": "AccountingController_getAccount",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -3492,7 +3841,17 @@
       },
       "patch": {
         "operationId": "AccountingController_updateAccount",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -3540,7 +3899,17 @@
     "/v1/companies/{companyId}/chart-of-accounts/template": {
       "post": {
         "operationId": "AccountingController_applyTemplate",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "companyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -3648,7 +4017,17 @@
     "/v1/accounting-periods/{id}/close": {
       "post": {
         "operationId": "AccountingController_closePeriod",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -3667,7 +4046,17 @@
     "/v1/accounting-periods/{id}/reopen": {
       "post": {
         "operationId": "AccountingController_reopenPeriod",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -3686,7 +4075,17 @@
     "/v1/accounting-periods/{id}/lock": {
       "post": {
         "operationId": "AccountingController_lockPeriod",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -3826,7 +4225,17 @@
     "/v1/journal-entries/{id}": {
       "get": {
         "operationId": "AccountingController_get",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -3845,7 +4254,17 @@
     "/v1/journal-entries/{id}/reverse": {
       "post": {
         "operationId": "AccountingController_reverse",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -3929,7 +4348,17 @@
     "/v1/accounting/companies/{companyId}/settings": {
       "get": {
         "operationId": "StatementsController_getSettings",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "companyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -3946,7 +4375,17 @@
       },
       "put": {
         "operationId": "StatementsController_putSettings",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "companyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -4136,7 +4575,17 @@
     "/v1/accounting/fiscal-years/{id}/close-year": {
       "post": {
         "operationId": "StatementsController_closeYear",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -4155,7 +4604,17 @@
     "/v1/accounting/fiscal-years/{id}/reopen-year": {
       "post": {
         "operationId": "StatementsController_reopenYear",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -4214,7 +4673,17 @@
     "/v1/companies/{companyId}/stock-settings": {
       "get": {
         "operationId": "InventoryController_getSettings",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "companyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -4231,7 +4700,17 @@
       },
       "put": {
         "operationId": "InventoryController_putSettings",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "companyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -4275,7 +4754,17 @@
     "/v1/companies/{companyId}/inventory-accounts": {
       "get": {
         "operationId": "InventoryController_listMap",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "companyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -4292,7 +4781,17 @@
       },
       "put": {
         "operationId": "InventoryController_putMap",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "companyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -4344,7 +4843,17 @@
     "/v1/warehouses/{id}/stock-settings": {
       "patch": {
         "operationId": "InventoryController_warehouseSettings",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -4382,7 +4891,17 @@
     "/v1/items/{id}/batches": {
       "post": {
         "operationId": "InventoryController_createBatch",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -4429,7 +4948,17 @@
       },
       "get": {
         "operationId": "InventoryController_listBatches",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -4448,7 +4977,17 @@
     "/v1/batches/{id}/status": {
       "post": {
         "operationId": "InventoryController_batchStatus",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -4677,7 +5216,17 @@
     "/v1/stock/movements/{id}": {
       "get": {
         "operationId": "InventoryController_get",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -4867,7 +5416,17 @@
     "/v1/stock/reservations/{id}": {
       "get": {
         "operationId": "StockOperationsController_getReservation",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -4886,7 +5445,17 @@
     "/v1/stock/reservations/{id}/release": {
       "post": {
         "operationId": "StockOperationsController_release",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -5049,7 +5618,17 @@
     "/v1/stock/transfers/{id}": {
       "get": {
         "operationId": "StockOperationsController_getTransfer",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -5068,7 +5647,17 @@
     "/v1/stock/transfers/{id}/receive": {
       "post": {
         "operationId": "StockOperationsController_receive",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -5140,7 +5729,17 @@
     "/v1/stock/transfers/{id}/cancel": {
       "post": {
         "operationId": "StockOperationsController_cancelTransfer",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -5271,7 +5870,17 @@
     "/v1/stock/counts/{id}": {
       "get": {
         "operationId": "StockOperationsController_getCount",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -5290,7 +5899,17 @@
     "/v1/stock/counts/{id}/lines": {
       "post": {
         "operationId": "StockOperationsController_addCountLine",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -5335,7 +5954,17 @@
     "/v1/stock/counts/{id}/counted": {
       "put": {
         "operationId": "StockOperationsController_recordCounts",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -5398,7 +6027,17 @@
     "/v1/stock/counts/{id}/post": {
       "post": {
         "operationId": "StockOperationsController_postCount",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -5438,7 +6077,17 @@
     "/v1/stock/counts/{id}/cancel": {
       "post": {
         "operationId": "StockOperationsController_cancelCount",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -5457,7 +6106,17 @@
     "/v1/companies/{companyId}/sales-settings": {
       "get": {
         "operationId": "SalesController_getSettings",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "companyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -5474,7 +6133,17 @@
       },
       "put": {
         "operationId": "SalesController_putSettings",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "companyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -5943,7 +6612,17 @@
     "/v1/sales/invoices/{id}/cancel": {
       "post": {
         "operationId": "SalesController_cancel",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -5989,7 +6668,17 @@
     "/v1/sales/invoices/{id}": {
       "get": {
         "operationId": "SalesController_get",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -6186,7 +6875,17 @@
     "/v1/sales/quotes/{id}": {
       "get": {
         "operationId": "SalesOrdersController_getQuote",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -6205,7 +6904,17 @@
     "/v1/sales/quotes/{id}/reject": {
       "post": {
         "operationId": "SalesOrdersController_rejectQuote",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -6224,7 +6933,17 @@
     "/v1/sales/quotes/{id}/convert": {
       "post": {
         "operationId": "SalesOrdersController_convert",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -6454,7 +7173,17 @@
     "/v1/sales/orders/{id}": {
       "get": {
         "operationId": "SalesOrdersController_getOrder",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -6473,7 +7202,17 @@
     "/v1/sales/orders/{id}/invoice": {
       "post": {
         "operationId": "SalesOrdersController_invoice",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -6545,7 +7284,17 @@
     "/v1/sales/orders/{id}/cancel": {
       "post": {
         "operationId": "SalesOrdersController_cancelOrder",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -6564,7 +7313,17 @@
     "/v1/sales/orders/{id}/close": {
       "post": {
         "operationId": "SalesOrdersController_closeOrder",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -6708,7 +7467,17 @@
     "/v1/receivables/receipts/{id}": {
       "get": {
         "operationId": "ReceivablesController_getReceipt",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -6727,7 +7496,17 @@
     "/v1/receivables/receipts/{id}/cancel": {
       "post": {
         "operationId": "ReceivablesController_cancelReceipt",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -6861,7 +7640,17 @@
     "/v1/receivables/allocations/{id}/reverse": {
       "post": {
         "operationId": "ReceivablesController_reverseAllocation",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -7061,7 +7850,17 @@
     "/v1/receivables/customers/{id}/position": {
       "get": {
         "operationId": "ReceivablesController_position",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -7080,7 +7879,17 @@
     "/v1/receivables/customers/{id}/statement": {
       "get": {
         "operationId": "ReceivablesController_statement",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -7403,7 +8212,17 @@
     "/v1/pos/shifts/{id}": {
       "get": {
         "operationId": "PosController_getShift",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -7422,7 +8241,17 @@
     "/v1/pos/shifts/{id}/close": {
       "post": {
         "operationId": "PosController_closeShift",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -7777,7 +8606,17 @@
     "/v1/pos/sales/{id}": {
       "get": {
         "operationId": "PosController_getSale",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -7859,7 +8698,17 @@
     "/v1/pos/devices/{id}/revoke": {
       "post": {
         "operationId": "PosSyncController_revoke",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -7997,7 +8846,17 @@
     "/v1/companies/{companyId}/purchasing-settings": {
       "get": {
         "operationId": "PurchasingController_getSettings",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "companyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -8014,7 +8873,17 @@
       },
       "put": {
         "operationId": "PurchasingController_putSettings",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "companyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -8289,7 +9158,17 @@
     "/v1/purchasing/orders/{id}": {
       "get": {
         "operationId": "PurchasingController_getOrder",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -8308,7 +9187,17 @@
     "/v1/purchasing/orders/{id}/cancel": {
       "post": {
         "operationId": "PurchasingController_cancelOrder",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -8327,7 +9216,17 @@
     "/v1/purchasing/orders/{id}/close": {
       "post": {
         "operationId": "PurchasingController_closeOrder",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -8505,7 +9404,17 @@
     "/v1/purchasing/receipts/{id}": {
       "get": {
         "operationId": "PurchasingController_getReceipt",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -8524,7 +9433,17 @@
     "/v1/purchasing/receipts/{id}/return": {
       "post": {
         "operationId": "PurchasingController_returnReceipt",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -8609,7 +9528,17 @@
     "/v1/purchasing/returns/{id}": {
       "get": {
         "operationId": "PurchasingController_getReturn",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -8909,7 +9838,17 @@
     "/v1/purchasing/bills/{id}/cancel": {
       "post": {
         "operationId": "PurchasingController_cancelBill",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -8955,7 +9894,17 @@
     "/v1/purchasing/bills/{id}": {
       "get": {
         "operationId": "PurchasingController_getBill",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -9103,7 +10052,17 @@
     "/v1/purchasing/landed-costs/{id}": {
       "get": {
         "operationId": "PurchasingController_getLandedCost",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -9122,7 +10081,17 @@
     "/v1/purchasing/landed-costs/{id}/cancel": {
       "post": {
         "operationId": "PurchasingController_cancelLandedCost",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -9312,7 +10281,17 @@
     "/v1/payables/payments/{id}": {
       "get": {
         "operationId": "PayablesController_getPayment",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -9331,7 +10310,17 @@
     "/v1/payables/payments/{id}/cancel": {
       "post": {
         "operationId": "PayablesController_cancelPayment",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -9465,7 +10454,17 @@
     "/v1/payables/allocations/{id}/reverse": {
       "post": {
         "operationId": "PayablesController_reverseAllocation",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -9608,7 +10607,17 @@
     "/v1/payables/suppliers/{id}/position": {
       "get": {
         "operationId": "PayablesController_position",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -9627,7 +10636,17 @@
     "/v1/payables/suppliers/{id}/statement": {
       "get": {
         "operationId": "PayablesController_statement",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -9684,7 +10703,17 @@
     "/v1/manufacturing/companies/{companyId}/settings": {
       "get": {
         "operationId": "ManufacturingController_getSettings",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "companyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -9701,7 +10730,17 @@
       },
       "put": {
         "operationId": "ManufacturingController_putSettings",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "companyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -10030,7 +11069,17 @@
     "/v1/manufacturing/subcontracting/orders/{id}": {
       "get": {
         "operationId": "ManufacturingController_getSubcontract",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -10049,7 +11098,17 @@
     "/v1/manufacturing/subcontracting/orders/{id}/release": {
       "post": {
         "operationId": "ManufacturingController_releaseSubcontract",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -10068,7 +11127,17 @@
     "/v1/manufacturing/subcontracting/orders/{id}/cancel": {
       "post": {
         "operationId": "ManufacturingController_cancelSubcontract",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -10087,7 +11156,17 @@
     "/v1/manufacturing/subcontracting/orders/{id}/send": {
       "post": {
         "operationId": "ManufacturingController_sendSubcontract",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -10176,7 +11255,17 @@
     "/v1/manufacturing/subcontracting/orders/{id}/return": {
       "post": {
         "operationId": "ManufacturingController_returnSubcontract",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -10265,7 +11354,17 @@
     "/v1/manufacturing/subcontracting/orders/{id}/receive": {
       "post": {
         "operationId": "ManufacturingController_receiveSubcontract",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -10380,7 +11479,17 @@
     "/v1/manufacturing/subcontracting/orders/{id}/complete": {
       "post": {
         "operationId": "ManufacturingController_completeSubcontract",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -10458,7 +11567,17 @@
     "/v1/manufacturing/work-orders/{id}/variance": {
       "get": {
         "operationId": "ManufacturingController_workOrderVariance",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -10477,7 +11596,17 @@
     "/v1/manufacturing/work-orders/{id}": {
       "get": {
         "operationId": "ManufacturingController_getWorkOrder",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -10496,7 +11625,17 @@
     "/v1/manufacturing/work-orders/{id}/release": {
       "post": {
         "operationId": "ManufacturingController_release",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -10515,7 +11654,17 @@
     "/v1/manufacturing/work-orders/{id}/cancel": {
       "post": {
         "operationId": "ManufacturingController_cancelWorkOrder",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -10534,7 +11683,17 @@
     "/v1/manufacturing/work-orders/{id}/issue-materials": {
       "post": {
         "operationId": "ManufacturingController_issue",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -10618,7 +11777,17 @@
     "/v1/manufacturing/work-orders/{id}/return-materials": {
       "post": {
         "operationId": "ManufacturingController_returnMaterials",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -10702,7 +11871,17 @@
     "/v1/manufacturing/work-orders/{id}/report-time": {
       "post": {
         "operationId": "ManufacturingController_reportTime",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -10768,7 +11947,17 @@
     "/v1/manufacturing/work-orders/{id}/report-output": {
       "post": {
         "operationId": "ManufacturingController_reportOutput",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -10856,7 +12045,17 @@
     "/v1/manufacturing/work-orders/{id}/complete": {
       "post": {
         "operationId": "ManufacturingController_complete",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -10979,7 +12178,17 @@
     "/v1/manufacturing/work-centres/{id}": {
       "patch": {
         "operationId": "ManufacturingController_updateWorkCentre",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -11033,7 +12242,17 @@
       },
       "get": {
         "operationId": "ManufacturingController_getWorkCentre",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -11232,7 +12451,17 @@
     "/v1/manufacturing/boms/{id}": {
       "get": {
         "operationId": "ManufacturingController_getBom",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -11251,7 +12480,17 @@
     "/v1/manufacturing/boms/{id}/obsolete": {
       "post": {
         "operationId": "ManufacturingController_obsolete",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -11288,7 +12527,17 @@
     "/v1/gst/registrations/{id}/return-settings": {
       "get": {
         "operationId": "GstController_getSettings",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -11305,7 +12554,17 @@
       },
       "put": {
         "operationId": "GstController_putSettings",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -11421,7 +12680,17 @@
     "/v1/payroll/companies/{companyId}/settings": {
       "get": {
         "operationId": "PayrollController_getSettings",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "companyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -11438,7 +12707,17 @@
       },
       "put": {
         "operationId": "PayrollController_putSettings",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "companyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -11652,7 +12931,17 @@
     "/v1/payroll/employees/{id}": {
       "get": {
         "operationId": "PayrollController_getEmployee",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -11669,7 +12958,17 @@
       },
       "patch": {
         "operationId": "PayrollController_updateEmployee",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -11757,7 +13056,17 @@
     "/v1/payroll/employees/{id}/exit": {
       "post": {
         "operationId": "PayrollController_exitEmployee",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -11797,7 +13106,17 @@
     "/v1/payroll/employees/{id}/payslips": {
       "get": {
         "operationId": "PayrollController_payslipsOf",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -11916,7 +13235,17 @@
     "/v1/payroll/components/{id}": {
       "patch": {
         "operationId": "PayrollController_updateComponent",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -11960,7 +13289,17 @@
     "/v1/payroll/employees/{id}/structures": {
       "post": {
         "operationId": "PayrollController_createStructure",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -12026,7 +13365,17 @@
       },
       "get": {
         "operationId": "PayrollController_listStructures",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -12045,7 +13394,25 @@
     "/v1/payroll/employees/{id}/inputs/{period}": {
       "put": {
         "operationId": "PayrollController_putInput",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "period",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -12402,7 +13769,17 @@
     "/v1/payroll/runs/{id}": {
       "get": {
         "operationId": "PayrollController_getRun",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -12421,7 +13798,17 @@
     "/v1/payroll/runs/{id}/pay": {
       "post": {
         "operationId": "PayrollController_payRun",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -12467,7 +13854,17 @@
     "/v1/payroll/runs/{id}/cancel": {
       "post": {
         "operationId": "PayrollController_cancelRun",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -12692,7 +14089,17 @@
     "/v1/approval-policies/{id}": {
       "patch": {
         "operationId": "ApprovalsController_updatePolicy",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -12812,7 +14219,17 @@
     "/v1/approvals/requests/{id}": {
       "get": {
         "operationId": "ApprovalsController_getRequest",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -12831,7 +14248,17 @@
     "/v1/approvals/requests/{id}/approve": {
       "post": {
         "operationId": "ApprovalsController_approve",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -12868,7 +14295,17 @@
     "/v1/approvals/requests/{id}/reject": {
       "post": {
         "operationId": "ApprovalsController_reject",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -12908,7 +14345,17 @@
     "/v1/approvals/requests/{id}/cancel": {
       "post": {
         "operationId": "ApprovalsController_cancel",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -13029,7 +14476,17 @@
     "/v1/bank-accounts/{id}": {
       "patch": {
         "operationId": "BankingController_updateAccount",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -13091,7 +14548,17 @@
     "/v1/bank-accounts/{id}/statements": {
       "post": {
         "operationId": "BankingController_importStatement",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -13185,7 +14652,17 @@
       },
       "get": {
         "operationId": "BankingController_listStatements",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -13204,7 +14681,17 @@
     "/v1/bank-statements/{id}": {
       "get": {
         "operationId": "BankingController_getStatement",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -13223,7 +14710,17 @@
     "/v1/bank-statements/{id}/void": {
       "post": {
         "operationId": "BankingController_voidStatement",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -13263,7 +14760,17 @@
     "/v1/bank-accounts/{id}/statement-lines": {
       "get": {
         "operationId": "BankingController_listLines",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -13282,7 +14789,17 @@
     "/v1/bank-statement-lines/{id}": {
       "get": {
         "operationId": "BankingController_getLine",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -13301,7 +14818,17 @@
     "/v1/bank-statement-lines/{id}/candidates": {
       "get": {
         "operationId": "BankingController_candidates",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -13320,7 +14847,17 @@
     "/v1/bank-statement-lines/{id}/match": {
       "post": {
         "operationId": "BankingController_match",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -13365,7 +14902,17 @@
     "/v1/bank-statement-lines/{id}/unmatch": {
       "post": {
         "operationId": "BankingController_unmatch",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -13405,7 +14952,17 @@
     "/v1/bank-statement-lines/{id}/ignore": {
       "post": {
         "operationId": "BankingController_ignore",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -13445,7 +15002,17 @@
     "/v1/bank-statement-lines/{id}/unignore": {
       "post": {
         "operationId": "BankingController_unignore",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -13464,7 +15031,17 @@
     "/v1/bank-statement-lines/{id}/book": {
       "post": {
         "operationId": "BankingController_book",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -13509,7 +15086,17 @@
     "/v1/bank-accounts/{id}/auto-match": {
       "post": {
         "operationId": "BankingController_autoMatch",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -13552,7 +15139,17 @@
     "/v1/bank-accounts/{id}/reconciliation": {
       "get": {
         "operationId": "BankingController_reconciliation",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -13584,6 +15181,82 @@
         ],
         "tags": [
           "dashboard"
+        ]
+      }
+    },
+    "/v1/companies/{companyId}/setup/status": {
+      "get": {
+        "operationId": "SetupController_status",
+        "parameters": [
+          {
+            "name": "companyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "setup"
+        ]
+      }
+    },
+    "/v1/companies/{companyId}/setup/apply-defaults": {
+      "post": {
+        "operationId": "SetupController_apply",
+        "parameters": [
+          {
+            "name": "companyId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "gstRegistrationId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "setup"
         ]
       }
     }

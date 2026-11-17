@@ -1,7 +1,9 @@
+import { Link } from '@tanstack/react-router'
 import { ApiError } from '@/api/errors'
 import { formatDate, formatInr, todayIso } from '@/domain/format'
 import { useChosenCompany, useCompanies } from '@/features/organization/queries'
 import { Alert, Card, Spinner } from '@/ui/primitives'
+import { useSetupStatus } from '@/features/setup/queries'
 import { useDashboard } from './queries'
 
 function Kpi({ label, value, tone, note }: { label: string; value: string; tone?: 'good' | 'bad'; note?: string | undefined }) {
@@ -21,12 +23,13 @@ export function DashboardPage() {
   const active = list.find((c) => c.id === companyId) ?? list[0]
   const asOf = todayIso()
   const dash = useDashboard(active?.id ?? null, asOf)
+  const setup = useSetupStatus(active?.id)
 
   if (companies.isPending || companies.error || !active) {
     return (
       <div className="flex flex-col gap-4">
         <h1 className="text-lg font-semibold">Dashboard</h1>
-        {companies.isPending ? <Spinner /> : companies.error ? <Alert>{companies.error.message}</Alert> : <Alert tone="info">No company is set up yet. Create one under Organization to see the dashboard.</Alert>}
+        {companies.isPending ? <Spinner /> : companies.error ? <Alert>{companies.error.message}</Alert> : <Alert tone="info">No company is set up yet. <Link to="/setup" className="underline">Set up your business</Link> to see the dashboard.</Alert>}
       </div>
     )
   }
@@ -46,6 +49,7 @@ export function DashboardPage() {
         ) : <span className="text-sm font-medium">{active.tradeName ?? active.legalName}</span>}
       </div>
 
+      {setup.data && !setup.data.ready ? <Alert tone="info">Setup is not finished yet ({setup.data.checks.filter((c) => !c.done).length} steps left). <Link to="/setup" className="underline">Continue setup</Link></Alert> : null}
       {dash.isPending ? <Spinner /> : null}
       {dash.error ? <Alert>{dash.error instanceof ApiError && dash.error.code === 'no_fiscal_year' ? 'There is no fiscal year for today. Create one under Accounting.' : dash.error.message}</Alert> : null}
 

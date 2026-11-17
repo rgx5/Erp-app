@@ -4,6 +4,7 @@ import { ConnectPage } from '@/features/auth/ConnectPage'
 import { LoginPage } from '@/features/auth/LoginPage'
 import { DashboardPage } from '@/features/dashboard/DashboardPage'
 import { CompaniesPage } from '@/features/organization/CompaniesPage'
+import { SetupPage } from '@/features/setup/SetupPage'
 import { Shell } from '@/ui/Shell'
 
 const root = createRootRoute({ component: Outlet })
@@ -33,7 +34,8 @@ const app = createRoute({
 const dashboard = createRoute({ getParentRoute: () => app, path: '/', component: DashboardPage })
 const companies = createRoute({ getParentRoute: () => app, path: '/organization/companies', component: CompaniesPage })
 
-const tree = root.addChildren([connect, login, app.addChildren([dashboard, companies])])
+const setup = createRoute({ getParentRoute: () => app, path: '/setup', component: SetupPage })
+const tree = root.addChildren([connect, login, app.addChildren([dashboard, setup, companies])])
 
 // A hash history works the same on a custom app:// origin and in a browser, with no server-side route fallback to configure.
 import { createHashHistory } from '@tanstack/react-router'

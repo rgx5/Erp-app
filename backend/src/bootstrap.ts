@@ -5,6 +5,7 @@ import { NodeAdapter } from '@nestjs/platform-node';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module.js';
 import type { Env } from './config/env.js';
+import { addPathParameters } from './platform/http/openapi.js';
 import { createValidationPipe } from './platform/http/validation.js';
 import { createLogger, PinoLoggerService } from './platform/logging/logger.js';
 
@@ -43,7 +44,7 @@ export async function createApplication(env: Env): Promise<INestApplication> {
       .setVersion('0.2.0')
       .addBearerAuth()
       .build();
-    SwaggerModule.setup('docs', app, SwaggerModule.createDocument(app, config), { jsonDocumentUrl: 'openapi.json' });
+    SwaggerModule.setup('docs', app, addPathParameters(SwaggerModule.createDocument(app, config)), { jsonDocumentUrl: 'openapi.json' });
   }
   return app;
 }

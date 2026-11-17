@@ -1,4 +1,4 @@
-import { forwardRef, useId, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode } from 'react'
+import { forwardRef, useId, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from 'react'
 import { cn } from './cn'
 
 export function Button({ variant = 'primary', busy, className, children, disabled, ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'ghost'; busy?: boolean }) {
@@ -42,7 +42,7 @@ export const TextField = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLIn
   )
 })
 
-export function Card({ title, action, children, className }: { title?: string; action?: ReactNode; children: ReactNode; className?: string }) {
+export function Card({ title, action, children, className }: { title?: string | undefined; action?: ReactNode; children: ReactNode; className?: string | undefined }) {
   return (
     <section className={cn('rounded-lg border border-line bg-surface', className)}>
       {title ? (
@@ -59,3 +59,16 @@ export function Card({ title, action, children, className }: { title?: string; a
 export function Alert({ tone = 'error', children }: { tone?: 'error' | 'info'; children: ReactNode }) {
   return <div role={tone === 'error' ? 'alert' : 'status'} className={cn('rounded-md border px-3 py-2 text-sm', tone === 'error' ? 'border-bad/40 bg-bad/10 text-bad' : 'border-brand/30 bg-brand/10 text-ink')}>{children}</div>
 }
+
+export const SelectField = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSelectElement> & { label: string; error?: string | undefined; options: readonly { value: string; label: string }[] }>(function SelectField({ label, error, options, className, ...rest }, ref) {
+  const id = useId()
+  return (
+    <div className="flex flex-col gap-1">
+      <label htmlFor={id} className="text-xs font-medium text-muted">{label}</label>
+      <select id={id} ref={ref} aria-invalid={error ? true : undefined} {...rest} className={cn('h-9 rounded-md border bg-surface px-2 text-sm outline-none focus:border-brand focus:ring-2 focus:ring-brand/30', error ? 'border-bad' : 'border-line', className)}>
+        {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+      {error ? <p className="text-xs text-bad">{error}</p> : null}
+    </div>
+  )
+})

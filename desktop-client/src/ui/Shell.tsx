@@ -1,5 +1,5 @@
 import { Link, Outlet } from '@tanstack/react-router'
-import { Building2, LayoutDashboard, LogOut, type LucideIcon } from 'lucide-react'
+import { Building2, ClipboardCheck, LayoutDashboard, LogOut, type LucideIcon } from 'lucide-react'
 import { can } from '@/auth/permissions'
 import { useSession } from '@/auth/session'
 import { cn } from './cn'
@@ -10,6 +10,7 @@ interface NavItem { to: string; label: string; icon: LucideIcon; needs?: string[
 /** What exists today. Each later slice adds its entries here; an entry is hidden when the person lacks the permission it needs. */
 export const NAV: NavItem[] = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, needs: ['dashboard:read'] },
+  { to: '/setup', label: 'Setup', icon: ClipboardCheck, needs: ['organization:write'] },
   { to: '/organization/companies', label: 'Companies', icon: Building2, needs: ['organization:read'] },
 ]
 

@@ -71,7 +71,16 @@ Each slice ends with working, tested software, is committed and pushed, and gets
 | G4 | Item barcodes, categories, brand, MRP, variants | D10 (and nicer D2) | Backend slice, design to be agreed before building. |
 | G5 | Loyalty, coupons, store credit | D10 | Optional; only if you want them. |
 | G6 | Expense vouchers; counter-staff PIN login | D10 | Backend slice before D10. |
+| G9 | Company setup status and standard defaults (done in D1) | D1 | `GET /v1/companies/{id}/setup/status`, `POST .../setup/apply-defaults`. |
 | G7 | Bulk import endpoints (items, parties, opening balances) | D2, migration | Validated dry-run + commit pattern. |
+
+## 5b. Progress
+
+| Slice | State |
+|---|---|
+| D0 Foundation (+ G1 CORS, `/v1/meta`) | done |
+| D1 Sign-in and setup (+ G9 setup service, path parameters in OpenAPI) | done: first-run wizard (company, GST registration, place of business, warehouse, financial year, one-click standard setup) and the setup checklist |
+| D2 onwards | not started |
 
 ## 6. Testing and delivery
 
