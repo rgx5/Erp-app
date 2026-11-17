@@ -49,3 +49,6 @@ Tenant transaction wrapper: mean 0.38 ms vs 0.08 ms for a bare `SELECT 1`.
 
 ## Platform hardening (`test/integration/hardening.int.spec.ts`)
 Retention (dry run, batching, dead letters kept, audit and documents untouched, idempotent, runtime role cannot delete), rate limiting (limit, headers, probe exemption, window recovery, off by default) and the principal cache (TTL bound, immediate forget on API revocation, off by default).
+
+## Approvals (`test/integration/approvals.int.spec.ts`)
+Policies and tiers, the full flow on journals (threshold, multi-approver, payload binding, single use, audit), segregation of duties in the API and the database, reject/cancel finality, expiry and policy change, rollback on a failed command, visibility, idempotent approval, a five-way race for one approval, purchase-order and payment gating, tenant isolation and immutability triggers.

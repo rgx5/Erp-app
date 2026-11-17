@@ -90,3 +90,6 @@ Forward-only; to undo, add a new migration. Expand/contract for breaking changes
 
 ## Retention (migration 0026)
 `erp_migrator` gets SELECT and DELETE row-level-security policies on `idempotency_keys`, `sessions`, `outbox_events` and `outbox_consumed` only; `erp.guard_outbox_event()` replaces the outbox immutability trigger so that DELETE is allowed for that role alone (UPDATE stays forbidden). Everything else, including the audit log, remains undeletable by every role. Purge with `npm run maintenance:retention -- [--dry-run] [--outbox-days N] [--session-days N] [--idempotency-hours N]`.
+
+## Approvals (migration 0027)
+`approval_policies` (editable only in approvals, validity and status; never deleted), `approval_requests` (content immutable; status only moves pending -> approved | rejected | cancelled, approved -> consumed | cancelled; the produced document may be recorded once) and `approval_decisions` (append-only; a trigger refuses a decision by the requester or on a non-pending request). All tenant-scoped with RLS.

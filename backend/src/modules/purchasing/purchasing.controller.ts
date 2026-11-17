@@ -1,8 +1,9 @@
-import { Body, Controller, Get, HttpCode, Inject, Module, Param, Post, Put, Query } from '@nestjs/common';
+import { Body, Controller, Get, Headers, HttpCode, Inject, Module, Param, Post, Put, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { ApiZodBody } from '../../platform/http/validation.js';
 import { Idempotent } from '../../platform/services/idempotency.js';
+import { ApprovalsModule } from '../approvals/approvals.controller.js';
 import { AccountingModule } from '../accounting/accounting.controller.js';
 import { allows } from '../identity/permissions.js';
 import { CurrentPrincipal, type Principal, RequirePermissions, TenantId } from '../identity/principal.js';
@@ -44,7 +45,7 @@ export class PurchasingController {
   async putSettings(@TenantId() t: string, @Param('companyId', { schema: id }) c: string, @Body({ schema: s.purchasingSettingsSchema }) b: s.PurchasingSettingsInput) { return strip(await this.settings.put(t, c, b)); }
 
   @RequirePermissions('purchasing:post') @Idempotent() @Post('purchasing/orders') @ApiZodBody(s.createPurchaseOrderSchema)
-  async createOrder(@CurrentPrincipal() a: Principal, @Body({ schema: s.createPurchaseOrderSchema }) b: s.CreatePurchaseOrderInput) { return presentOrder(await this.orders.createOrder(a.tenantId, a.userId, b)); }
+  async createOrder(@CurrentPrincipal() a: Principal, @Headers('approval-id') approvalId: string | undefined, @Body({ schema: s.createPurchaseOrderSchema }) b: s.CreatePurchaseOrderInput) { return presentOrder(await this.orders.createOrder(a.tenantId, a.userId, b, approvalId)); }
   @RequirePermissions('purchasing:read') @Get('purchasing/orders')
   async listOrders(@TenantId() t: string, @Query({ schema: s.listPurchaseOrdersQuery }) q: z.infer<typeof s.listPurchaseOrdersQuery>) { const p = await this.orders.listOrders(t, q); return { items: p.items.map(strip), nextCursor: p.nextCursor }; }
   @RequirePermissions('purchasing:read') @Get('purchasing/orders/:id')
@@ -105,7 +106,7 @@ export class PayablesController {
 
   /** Records money paid to a supplier. Allocations are optional: unallocated money stays on account as an advance. */
   @RequirePermissions('payables:post') @Idempotent() @Post('payments') @ApiZodBody(s.createPaymentSchema)
-  async createPayment(@CurrentPrincipal() a: Principal, @Body({ schema: s.createPaymentSchema }) b: s.CreatePaymentInput) { return presentPayment(await this.payables.createPayment(a.tenantId, a.userId, b)); }
+  async createPayment(@CurrentPrincipal() a: Principal, @Headers('approval-id') approvalId: string | undefined, @Body({ schema: s.createPaymentSchema }) b: s.CreatePaymentInput) { return presentPayment(await this.payables.createPayment(a.tenantId, a.userId, b, approvalId)); }
   @RequirePermissions('payables:read') @Get('payments')
   async listPayments(@TenantId() t: string, @Query({ schema: s.listPaymentsQuery }) q: z.infer<typeof s.listPaymentsQuery>) { const p = await this.payables.listPayments(t, q); return { items: p.items.map(strip), nextCursor: p.nextCursor }; }
   @RequirePermissions('payables:read') @Get('payments/:id')
@@ -135,7 +136,7 @@ export class PayablesController {
 }
 
 @Module({
-  imports: [AccountingModule, InventoryModule, NumberingModule, MasterDataModule],
+  imports: [AccountingModule, InventoryModule, NumberingModule, MasterDataModule, ApprovalsModule],
   controllers: [PurchasingController, PayablesController],
   providers: [Recorder, PurchasingSettingsService, PurchaseOrdersService, SupplierBillsService, PayablesService, LandedCostService],
   exports: [PurchasingSettingsService, PurchaseOrdersService, SupplierBillsService, PayablesService, LandedCostService],

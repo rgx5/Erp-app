@@ -10,3 +10,4 @@ export * from '../modules/purchasing/purchasing.schema.js';
 export * from '../modules/manufacturing/manufacturing.schema.js';
 export * from '../modules/gst/gst.schema.js';
 export * from '../modules/payroll/payroll.schema.js';
+export * from '../modules/approvals/approvals.schema.js';

@@ -863,7 +863,7 @@
                     "maxLength": 500
                   },
                   "permissions": {
-                    "maxItems": 53,
+                    "maxItems": 56,
                     "type": "array",
                     "items": {
                       "type": "string",
@@ -920,7 +920,10 @@
                         "manufacturing:read",
                         "manufacturing:manage",
                         "manufacturing:produce",
-                        "manufacturing:cancel"
+                        "manufacturing:cancel",
+                        "approvals:read",
+                        "approvals:decide",
+                        "approvals:manage"
                       ]
                     }
                   }
@@ -1006,7 +1009,7 @@
                     "maxLength": 500
                   },
                   "permissions": {
-                    "maxItems": 53,
+                    "maxItems": 56,
                     "type": "array",
                     "items": {
                       "type": "string",
@@ -1063,7 +1066,10 @@
                         "manufacturing:read",
                         "manufacturing:manage",
                         "manufacturing:produce",
-                        "manufacturing:cancel"
+                        "manufacturing:cancel",
+                        "approvals:read",
+                        "approvals:decide",
+                        "approvals:manage"
                       ]
                     }
                   }
@@ -1105,7 +1111,7 @@
                     "maxLength": 100
                   },
                   "permissions": {
-                    "maxItems": 53,
+                    "maxItems": 56,
                     "type": "array",
                     "items": {
                       "type": "string",
@@ -1162,7 +1168,10 @@
                         "manufacturing:read",
                         "manufacturing:manage",
                         "manufacturing:produce",
-                        "manufacturing:cancel"
+                        "manufacturing:cancel",
+                        "approvals:read",
+                        "approvals:decide",
+                        "approvals:manage"
                       ]
                     }
                   },
@@ -12568,6 +12577,342 @@
         ],
         "tags": [
           "payroll"
+        ]
+      }
+    },
+    "/v1/approval-policies": {
+      "post": {
+        "operationId": "ApprovalsController_createPolicy",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "companyId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "documentType": {
+                    "type": "string",
+                    "enum": [
+                      "purchase_order",
+                      "payment",
+                      "journal"
+                    ]
+                  },
+                  "thresholdAmount": {
+                    "type": "string",
+                    "pattern": "^[0-9]{1,14}(\\.[0-9]{1,4})?$"
+                  },
+                  "requiredApprovals": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 5
+                  },
+                  "validDays": {
+                    "default": 7,
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 90
+                  }
+                },
+                "required": [
+                  "companyId",
+                  "documentType",
+                  "thresholdAmount",
+                  "requiredApprovals"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "approvals"
+        ]
+      },
+      "get": {
+        "operationId": "ApprovalsController_listPolicies",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "approvals"
+        ]
+      }
+    },
+    "/v1/approval-policies/{id}": {
+      "patch": {
+        "operationId": "ApprovalsController_updatePolicy",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "requiredApprovals": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 5
+                  },
+                  "validDays": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 90
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "active",
+                      "inactive"
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "approvals"
+        ]
+      }
+    },
+    "/v1/approvals/requests": {
+      "post": {
+        "operationId": "ApprovalsController_createRequest",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "companyId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "documentType": {
+                    "type": "string",
+                    "enum": [
+                      "purchase_order",
+                      "payment",
+                      "journal"
+                    ]
+                  },
+                  "payload": {
+                    "type": "object",
+                    "additionalProperties": {}
+                  }
+                },
+                "required": [
+                  "companyId",
+                  "documentType",
+                  "payload"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "approvals"
+        ]
+      },
+      "get": {
+        "operationId": "ApprovalsController_listRequests",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "approvals"
+        ]
+      }
+    },
+    "/v1/approvals/requests/{id}": {
+      "get": {
+        "operationId": "ApprovalsController_getRequest",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "approvals"
+        ]
+      }
+    },
+    "/v1/approvals/requests/{id}/approve": {
+      "post": {
+        "operationId": "ApprovalsController_approve",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "comment": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "approvals"
+        ]
+      }
+    },
+    "/v1/approvals/requests/{id}/reject": {
+      "post": {
+        "operationId": "ApprovalsController_reject",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "comment": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 500
+                  }
+                },
+                "required": [
+                  "comment"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "approvals"
+        ]
+      }
+    },
+    "/v1/approvals/requests/{id}/cancel": {
+      "post": {
+        "operationId": "ApprovalsController_cancel",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "reason": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 300
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "approvals"
         ]
       }
     }

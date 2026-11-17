@@ -9,6 +9,8 @@ import { CurrentPrincipal, type Principal, RequirePermissions, TenantId } from '
 import { Recorder } from '../masterdata/helpers.js';
 import * as s from './accounting.schemas.js';
 import { AccountsService } from './accounts.service.js';
+import { ApprovalsModule } from '../approvals/approvals.controller.js';
+import { ApprovalsService } from '../approvals/approvals.service.js';
 import { PeriodsService } from './periods.service.js';
 import { PostingService, type EntryRow, type LineRow } from './posting.service.js';
 import { StatementsController } from './statements.controller.js';
@@ -42,6 +44,7 @@ export class AccountingController {
     @Inject(PeriodsService) private readonly periods: PeriodsService,
     @Inject(PostingService) private readonly posting: PostingService,
     @Inject(UnitOfWork) private readonly uow: UnitOfWork,
+    @Inject(ApprovalsService) private readonly approvals: ApprovalsService,
   ) {}
 
   // ---- chart of accounts ------------------------------------------------------------------------------------------
@@ -78,8 +81,13 @@ export class AccountingController {
   // ---- journal --------------------------------------------------------------------------------------------------
   /** Manual journal. Control accounts (receivables, payables, stock, GST ...) are refused: only subledgers post there. */
   @RequirePermissions('accounting:post') @Idempotent() @Post('journal-entries') @ApiZodBody(s.postJournalSchema)
-  async post(@CurrentPrincipal() a: Principal, @Body({ schema: s.postJournalSchema }) b: s.PostJournalInput) {
-    const { entry, lines } = await this.uow.inTenant(a.tenantId, (tx) => this.posting.post(tx, a.tenantId, { ...b, source: { type: 'manual' }, postedBy: a.userId }));
+  async post(@CurrentPrincipal() a: Principal, @Headers('approval-id') approvalId: string | undefined, @Body({ schema: s.postJournalSchema }) b: s.PostJournalInput) {
+    const { entry, lines } = await this.uow.inTenant(a.tenantId, async (tx) => {
+      const approval = await this.approvals.enforce(tx, { tenantId: a.tenantId, userId: a.userId, approvalId }, 'journal', b);
+      const posted = await this.posting.post(tx, a.tenantId, { ...b, source: { type: 'manual' }, postedBy: a.userId });
+      await this.approvals.link(tx, a.tenantId, approval, 'journal_entry', posted.entry.id);
+      return posted;
+    });
     return presentEntry(entry, lines);
   }
   @RequirePermissions('accounting:read') @Get('journal-entries')
@@ -101,6 +109,7 @@ export class AccountingController {
 }
 
 @Module({
+  imports: [ApprovalsModule],
   controllers: [AccountingController, StatementsController],
   providers: [Recorder, AccountsService, PeriodsService, PostingService, StatementsService, YearEndService],
   exports: [AccountsService, PeriodsService, PostingService, StatementsService, YearEndService],

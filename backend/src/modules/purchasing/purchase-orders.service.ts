@@ -7,6 +7,7 @@ import { AppError, validationFailed } from '../../platform/http/errors.js';
 import { decodeCursor, encodeCursor } from '../../platform/http/validation.js';
 import { cost, divRound, qty, value, valueOf } from '../inventory/decimal.js';
 import { StockService, type MoveLine } from '../inventory/stock.service.js';
+import { ApprovalsService } from '../approvals/approvals.service.js';
 import { first, Recorder } from '../masterdata/helpers.js';
 import { items, parties, taxCodes } from '../masterdata/masterdata.schema.js';
 import { gstRegistrations, warehouses, businessLocations } from '../organization/organization.schema.js';
@@ -38,11 +39,13 @@ export class PurchaseOrdersService {
     @Inject(StockService) private readonly stock: StockService,
     @Inject(PurchasingSettingsService) private readonly settings: PurchasingSettingsService,
     @Inject(Recorder) private readonly recorder: Recorder,
+    @Inject(ApprovalsService) private readonly approvals: ApprovalsService,
   ) {}
 
   // ---- purchase orders ------------------------------------------------------------------------------------------------
-  createOrder(tenantId: string, actorId: string, input: CreatePurchaseOrderInput) {
+  createOrder(tenantId: string, actorId: string, input: CreatePurchaseOrderInput, approvalId?: string) {
     return this.uow.inTenant(tenantId, async (tx) => {
+      const approval = await this.approvals.enforce(tx, { tenantId, userId: actorId, approvalId }, 'purchase_order', input);
       await this.requireSupplier(tx, tenantId, input.supplierId);
       const [registration] = await tx.select().from(gstRegistrations).where(and(eq(gstRegistrations.tenantId, tenantId), eq(gstRegistrations.companyId, input.companyId), eq(gstRegistrations.id, input.gstRegistrationId)));
       if (!registration || registration.status !== 'active') throw validationFailed([{ path: 'gstRegistrationId', message: 'This GST registration does not exist for the company or is not active' }]);
@@ -73,7 +76,8 @@ export class PurchaseOrdersService {
         .insert(purchaseOrderLines)
         .values(input.lines.map((l, i) => ({ tenantId, id: uuidv7(), orderId: order.id, lineNo: i + 1, itemId: l.itemId, description: l.description ?? itemRows.get(l.itemId)?.name ?? '', quantity: l.quantity, unitPrice: l.unitPrice, discountPercent: l.discountPercent, taxCodeId: l.taxCodeId ?? itemRows.get(l.itemId)?.taxCodeId ?? null, warehouseId: l.warehouseId ?? null })))
         .returning();
-      await this.recorder.record(tx, tenantId, 'purchase_order', 'created', order, { poNo, supplierId: input.supplierId, lines: lines.length });
+      await this.approvals.link(tx, tenantId, approval, 'purchase_order', order.id);
+      await this.recorder.record(tx, tenantId, 'purchase_order', 'created', order, { poNo, supplierId: input.supplierId, lines: lines.length, ...(approval ? { approvalId: approval } : {}) });
       return { order, lines };
     });
   }

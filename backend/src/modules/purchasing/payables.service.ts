@@ -8,6 +8,7 @@ import { decodeCursor, encodeCursor } from '../../platform/http/validation.js';
 import { accounts } from '../accounting/accounting.schema.js';
 import { fromUnits, toUnits } from '../accounting/money.js';
 import { PostingService } from '../accounting/posting.service.js';
+import { ApprovalsService } from '../approvals/approvals.service.js';
 import { first, Recorder } from '../masterdata/helpers.js';
 import { parties } from '../masterdata/masterdata.schema.js';
 import { nextDocNumber } from '../sales/doc-number.js';
@@ -38,6 +39,7 @@ export class PayablesService {
     @Inject(PurchasingSettingsService) private readonly settings: PurchasingSettingsService,
     @Inject(SupplierBillsService) private readonly bills: SupplierBillsService,
     @Inject(Recorder) private readonly recorder: Recorder,
+    @Inject(ApprovalsService) private readonly approvals: ApprovalsService,
   ) {
     // A bill with money allocated to it cannot be cancelled: release the allocations first.
     this.bills.onCancel(async (tx, tenantId, bill) => {
@@ -47,8 +49,9 @@ export class PayablesService {
   }
 
   // ---- payments -----------------------------------------------------------------------------------------------------
-  createPayment(tenantId: string, actorId: string, input: CreatePaymentInput) {
+  createPayment(tenantId: string, actorId: string, input: CreatePaymentInput, approvalId?: string) {
     return this.uow.inTenant(tenantId, async (tx) => {
+      const approval = await this.approvals.enforce(tx, { tenantId, userId: actorId, approvalId }, 'payment', input);
       const supplier = await this.requireSupplier(tx, tenantId, input.supplierId);
       await this.requireCashAccount(tx, tenantId, input.companyId, input.paidFromAccountId, 'paidFromAccountId');
       const settings = await this.settings.require(tx, tenantId, input.companyId, ['payableAccountId']);
@@ -64,7 +67,8 @@ export class PayablesService {
         'Payment',
       );
       if (input.allocations && input.allocations.length > 0) await this.apply(tx, tenantId, actorId, { companyId: input.companyId, supplierId: supplier.id, source: { type: 'payment', row: payment }, allocatedOn: input.paymentDate, items: input.allocations });
-      await this.recorder.record(tx, tenantId, 'supplier_payment', 'posted', payment, { paymentNo, supplierId: supplier.id, amount: payment.amount });
+      await this.approvals.link(tx, tenantId, approval, 'supplier_payment', payment.id);
+      await this.recorder.record(tx, tenantId, 'supplier_payment', 'posted', payment, { paymentNo, supplierId: supplier.id, amount: payment.amount, ...(approval ? { approvalId: approval } : {}) });
       return this.readPayment(tx, tenantId, id);
     });
   }

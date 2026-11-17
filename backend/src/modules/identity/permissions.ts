@@ -56,6 +56,9 @@ export const PERMISSIONS = [
   'manufacturing:manage',
   'manufacturing:produce',
   'manufacturing:cancel',
+  'approvals:read',
+  'approvals:decide',
+  'approvals:manage',
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];

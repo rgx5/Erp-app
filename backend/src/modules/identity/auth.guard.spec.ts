@@ -6,7 +6,7 @@ import type { PrincipalService } from './principal.service.js';
 
 const principal = (permissions: string[]): Principal => ({ tenantId: 't', kind: 'user', userId: 'u', permissions: new Set(permissions) });
 const guard = (p: Principal) =>
-  new AuthGuard(new Reflector(), { fromAccessToken: async () => p, fromApiKey: async () => p } as unknown as PrincipalService);
+  new AuthGuard(new Reflector(), { resolve: async () => p, fromAccessToken: async () => p, fromApiKey: async () => p } as unknown as PrincipalService);
 
 function context(handler: object, authorization?: string) {
   const request: { headers: Record<string, string>; principal?: Principal } = { headers: authorization ? { authorization } : {} };
