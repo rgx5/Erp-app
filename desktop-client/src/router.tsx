@@ -14,6 +14,16 @@ import { InvoiceEditorPage } from '@/features/sales/InvoiceEditorPage'
 import { InvoicesPage } from '@/features/sales/InvoicesPage'
 import { ReceiptsPage } from '@/features/sales/ReceiptsPage'
 import { ReceivablesPage } from '@/features/sales/ReceivablesPage'
+import { ApprovalsPage } from '@/features/approvals/ApprovalsPage'
+import { BillDetailPage } from '@/features/purchasing/BillDetailPage'
+import { BillEditorPage } from '@/features/purchasing/BillEditorPage'
+import { BillsPage } from '@/features/purchasing/BillsPage'
+import { GoodsReceiptsPage } from '@/features/purchasing/GoodsReceiptsPage'
+import { PayablesPage } from '@/features/purchasing/PayablesPage'
+import { PaymentsPage } from '@/features/purchasing/PaymentsPage'
+import { PurchaseOrderDetailPage } from '@/features/purchasing/PurchaseOrderDetailPage'
+import { PurchaseOrderEditorPage } from '@/features/purchasing/PurchaseOrderEditorPage'
+import { PurchaseOrdersPage } from '@/features/purchasing/PurchaseOrdersPage'
 import { Shell } from '@/ui/Shell'
 
 const root = createRootRoute({ component: Outlet })
@@ -56,7 +66,18 @@ const newInvoice = createRoute({ getParentRoute: () => app, path: '/sales/invoic
 const invoiceDetail = createRoute({ getParentRoute: () => app, path: '/sales/invoices/$invoiceId', component: InvoiceDetailPage })
 const receipts = createRoute({ getParentRoute: () => app, path: '/sales/receipts', component: ReceiptsPage, validateSearch: (s: Record<string, unknown>): { customerId?: string } => (typeof s['customerId'] === 'string' ? { customerId: s['customerId'] } : {}) })
 const receivables = createRoute({ getParentRoute: () => app, path: '/sales/receivables', component: ReceivablesPage })
-const tree = root.addChildren([connect, login, app.addChildren([invoices, newInvoice, invoiceDetail, receipts, receivables, dashboard, setup, companies, items, customers, suppliers, taxCodes, units, paymentTerms, priceLists])])
+const supplierSearch = (s: Record<string, unknown>): { supplierId?: string } => (typeof s['supplierId'] === 'string' ? { supplierId: s['supplierId'] } : {})
+const orders = createRoute({ getParentRoute: () => app, path: '/purchasing/orders', component: PurchaseOrdersPage })
+const newOrder = createRoute({ getParentRoute: () => app, path: '/purchasing/orders/new', component: PurchaseOrderEditorPage })
+const orderDetail = createRoute({ getParentRoute: () => app, path: '/purchasing/orders/$orderId', component: PurchaseOrderDetailPage })
+const goodsReceipts = createRoute({ getParentRoute: () => app, path: '/purchasing/receipts', component: GoodsReceiptsPage })
+const bills = createRoute({ getParentRoute: () => app, path: '/purchasing/bills', component: BillsPage })
+const newBill = createRoute({ getParentRoute: () => app, path: '/purchasing/bills/new', component: BillEditorPage, validateSearch: supplierSearch })
+const billDetail = createRoute({ getParentRoute: () => app, path: '/purchasing/bills/$billId', component: BillDetailPage })
+const payments = createRoute({ getParentRoute: () => app, path: '/purchasing/payments', component: PaymentsPage, validateSearch: supplierSearch })
+const payables = createRoute({ getParentRoute: () => app, path: '/purchasing/payables', component: PayablesPage })
+const approvals = createRoute({ getParentRoute: () => app, path: '/approvals', component: ApprovalsPage })
+const tree = root.addChildren([connect, login, app.addChildren([orders, newOrder, orderDetail, goodsReceipts, bills, newBill, billDetail, payments, payables, approvals, invoices, newInvoice, invoiceDetail, receipts, receivables, dashboard, setup, companies, items, customers, suppliers, taxCodes, units, paymentTerms, priceLists])])
 
 // A hash history works the same on a custom app:// origin and in a browser, with no server-side route fallback to configure.
 import { createHashHistory } from '@tanstack/react-router'

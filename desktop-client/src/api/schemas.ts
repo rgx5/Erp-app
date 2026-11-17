@@ -154,3 +154,62 @@ export type Statement = z.infer<typeof statement>
 
 export const account = z.object({ id: z.string(), code: z.string(), name: z.string(), type: z.string(), isGroup: z.boolean(), controlKind: z.string().nullable(), status: z.string() })
 export type Account = z.infer<typeof account>
+
+// ---- purchasing -----------------------------------------------------------------------------------------------------------
+export const purchaseOrderLine = z.object({ id: z.string(), orderId: z.string(), lineNo: z.number(), itemId: z.string(), description: z.string(), quantity: z.string(), quantityReceived: z.string(), quantityBilled: z.string(), unitPrice: z.string(), discountPercent: z.string(), taxCodeId: z.string().nullable(), warehouseId: z.string().nullable() })
+export const purchaseOrderHeader = z.object({ id: z.string(), companyId: z.string(), poNo: z.string(), gstRegistrationId: z.string(), supplierId: z.string(), orderDate: z.string(), expectedDate: z.string().nullable(), supplierReference: z.string().nullable(), notes: z.string().nullable(), status: z.string(), createdAt: z.string() })
+export const purchaseOrder = purchaseOrderHeader.extend({ lines: z.array(purchaseOrderLine) })
+export type PurchaseOrderHeader = z.infer<typeof purchaseOrderHeader>
+export type PurchaseOrder = z.infer<typeof purchaseOrder>
+
+export const receiptLine = z.object({ id: z.string(), receiptId: z.string(), lineNo: z.number(), orderLineId: z.string().nullable(), itemId: z.string(), warehouseId: z.string(), quantity: z.string(), quantityBilled: z.string(), quantityReturned: z.string(), unitCost: z.string(), value: z.string() })
+export const goodsReceiptHeader = z.object({ id: z.string(), companyId: z.string(), grnNo: z.string(), purchaseOrderId: z.string().nullable(), supplierId: z.string(), receiptDate: z.string(), supplierDeliveryNote: z.string().nullable(), notes: z.string().nullable(), status: z.string(), createdAt: z.string() })
+export const goodsReceipt = goodsReceiptHeader.extend({ lines: z.array(receiptLine) })
+export type GoodsReceiptHeader = z.infer<typeof goodsReceiptHeader>
+export type GoodsReceipt = z.infer<typeof goodsReceipt>
+
+export const grniLine = z.object({ supplierId: z.string(), grnNo: z.string(), receiptDate: z.string(), receiptId: z.string(), lineId: z.string(), itemId: z.string(), openQuantity: z.string(), unitCost: z.string(), openValue: z.string() }).passthrough()
+export const grniReport = z.object({ asOf: z.string(), lines: z.array(grniLine), totalOpenValue: z.string() }).passthrough()
+export type GrniLine = z.infer<typeof grniLine>
+
+export const billLine = z.object({
+  id: z.string(), lineNo: z.number(), itemId: z.string(), description: z.string(), hsnSacCode: z.string().nullable(), quantity: z.string(), unitPrice: z.string(), discountPercent: z.string(), taxableValue: z.string(),
+  igstRate: z.string(), cgstRate: z.string(), sgstRate: z.string(), cgstAmount: z.string(), sgstAmount: z.string(), igstAmount: z.string(), cessAmount: z.string(), lineTotal: z.string(), itcEligible: z.boolean(), grnLineId: z.string().nullable(), priceVariance: z.string(),
+})
+export const bill = z.object({
+  id: z.string(), companyId: z.string(), documentType: z.string(), billNo: z.string(), supplierInvoiceNo: z.string(), supplierInvoiceDate: z.string(), billDate: z.string(), dueDate: z.string().nullable(), gstRegistrationId: z.string(),
+  supplierId: z.string(), supplierName: z.string(), supplierGstin: z.string().nullable(), placeOfSupply: z.string(), taxRegime: z.string(), reverseCharge: z.boolean(),
+  taxableTotal: z.string(), cgstTotal: z.string(), sgstTotal: z.string(), igstTotal: z.string(), cessTotal: z.string(), itcTotal: z.string(), roundOff: z.string(), grandTotal: z.string(),
+  matchStatus: z.string(), matchIssues: z.unknown().nullable(), matchOverrideReason: z.string().nullable(), status: z.string(), cancelDate: z.string().nullable(), cancelReason: z.string().nullable(), createdAt: z.string(), lines: z.array(billLine),
+  preview: z.boolean().optional(),
+})
+export type Bill = z.infer<typeof bill>
+export const billHeader = bill.omit({ lines: true, preview: true })
+export type BillHeader = z.infer<typeof billHeader>
+
+export const supplierPayment = z.object({ id: z.string(), paymentNo: z.string(), supplierId: z.string(), paymentDate: z.string(), amount: z.string(), method: z.string(), paidFromAccountId: z.string(), reference: z.string().nullable(), status: z.string(), cancelReason: z.string().nullable(), createdAt: z.string(), allocations: z.array(z.object({ id: z.string(), billId: z.string().nullable(), amount: z.string() })).optional(), unallocated: z.string().optional() })
+export type SupplierPayment = z.infer<typeof supplierPayment>
+
+export const supplierPosition = z.object({
+  supplier: z.object({ id: z.string(), code: z.string(), name: z.string() }), asOf: z.string(),
+  openBills: z.array(z.object({ id: z.string(), number: z.string(), supplierInvoiceNo: z.string().nullable(), date: z.string(), dueDate: z.string().nullable(), total: z.string(), outstanding: z.string(), daysOverdue: z.number() })),
+  unapplied: z.array(z.object({ kind: z.string(), id: z.string(), number: z.string(), date: z.string(), amount: z.string() })),
+  totalOutstanding: z.string(), totalUnapplied: z.string(), balance: z.string(),
+})
+export type SupplierPosition = z.infer<typeof supplierPosition>
+export const payablesAgeing = z.object({ asOf: z.string(), suppliers: z.array(z.object({ supplierId: z.string(), supplierName: z.string(), ...buckets })), totals: z.object(buckets) })
+export type PayablesAgeing = z.infer<typeof payablesAgeing>
+export const supplierStatement = z.object({ supplier: z.object({ id: z.string(), code: z.string(), name: z.string() }), from: z.string(), to: z.string(), openingBalance: z.string(), closingBalance: z.string(), lines: z.array(z.object({ date: z.string(), kind: z.string(), number: z.string(), debit: z.string(), credit: z.string(), balance: z.string() })) })
+export type SupplierStatement = z.infer<typeof supplierStatement>
+
+// ---- approvals ------------------------------------------------------------------------------------------------------------
+export const approvalDecision = z.object({ id: z.string(), decision: z.string(), decidedBy: z.string(), comment: z.string().nullable(), decidedAt: z.string() })
+export const approvalRequest = z.object({
+  id: z.string(), companyId: z.string(), requestNo: z.string(), documentType: z.enum(['purchase_order', 'payment', 'journal']), amount: z.string(), summary: z.string(), payload: z.record(z.string(), z.unknown()),
+  requiredApprovals: z.number(), approvalsCount: z.number(), status: z.string(), requestedBy: z.string(), requestedAt: z.string(), decidedAt: z.string().nullable(), validUntil: z.string().nullable(),
+  consumedAt: z.string().nullable(), consumedRefType: z.string().nullable(), consumedRefId: z.string().nullable(), expired: z.boolean(), decisions: z.array(approvalDecision).optional(),
+})
+export type ApprovalRequest = z.infer<typeof approvalRequest>
+
+export const approvalPolicy = z.object({ id: z.string(), companyId: z.string(), documentType: z.string(), thresholdAmount: z.string(), requiredApprovals: z.number(), validDays: z.number(), status: z.string(), version: z.number() })
+export type ApprovalPolicy = z.infer<typeof approvalPolicy>

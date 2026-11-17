@@ -2404,6 +2404,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/purchasing/bills/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["PurchasingController_previewBill"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/purchasing/debit-notes": {
         parameters: {
             query?: never;
@@ -9123,6 +9139,69 @@ export interface operations {
         };
         responses: {
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PurchasingController_previewBill: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    companyId: string;
+                    /** Format: uuid */
+                    gstRegistrationId: string;
+                    /** Format: uuid */
+                    businessLocationId?: string;
+                    /** Format: uuid */
+                    supplierId: string;
+                    supplierInvoiceNo: string;
+                    /** Format: date */
+                    supplierInvoiceDate: string;
+                    /** Format: date */
+                    billDate: string;
+                    placeOfSupplyState?: string;
+                    supplierStateCode?: string;
+                    /** @default false */
+                    reverseCharge?: boolean;
+                    overrideMatch?: {
+                        reason: string;
+                    };
+                    lines: {
+                        /** Format: uuid */
+                        itemId: string;
+                        description?: string;
+                        quantity: string;
+                        unitPrice: string;
+                        /** @default 0 */
+                        discountPercent?: string;
+                        /** @default false */
+                        taxInclusive?: boolean;
+                        /** Format: uuid */
+                        taxCodeId?: string;
+                        /** @default true */
+                        itcEligible?: boolean;
+                        /** Format: uuid */
+                        grnLineId?: string;
+                        /** Format: uuid */
+                        poLineId?: string;
+                        /** Format: uuid */
+                        expenseAccountId?: string;
+                    }[];
+                };
+            };
+        };
+        responses: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };

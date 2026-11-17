@@ -71,6 +71,7 @@ test('sales: raise an invoice with live server totals, credit it, take a receipt
   const receipt = page.getByRole('dialog', { name: 'Record a receipt' })
   await expect(receipt.getByRole('textbox', { name: 'Customer' })).toHaveValue(/Asha Traders/)
   await receipt.getByLabel('Amount received').fill('1000')
+  await expect(receipt.getByLabel(/Settle INV/)).toBeVisible() // the open invoices have loaded
   await receipt.getByRole('button', { name: 'Oldest first' }).click()
   await expect(receipt.getByText('Settling ₹ 1,000.00 of ₹ 1,000.00')).toBeVisible()
   await receipt.getByRole('button', { name: 'Record receipt' }).click()

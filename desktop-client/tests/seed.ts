@@ -33,9 +33,11 @@ export async function seedBusiness(base: string, platformToken: string, o: { nam
   for (const item of [widget, cheap]) await call('POST', '/v1/stock/movements', { companyId: company.id, movementType: 'opening', postingDate: `${year}-04-01`, description: 'Opening stock', lines: [{ warehouseId: warehouse.id, itemId: item.id, quantity: '100', unitCost: '400' }] }, token)
   const customer = await call('POST', '/v1/parties', { code: 'C-001', legalName: 'Asha Traders', gstTreatment: 'registered_regular', gstin: makeGstin('27', 'FGHIJ5678K'), isCustomer: true }, token)
   const address = await call('POST', `/v1/parties/${customer.id}/addresses`, { kind: 'billing', line1: '5 Market Street', city: 'Pune', stateCode: '27', pincode: '411001', isDefault: true }, token)
+  const supplier = await call('POST', '/v1/parties', { code: 'S-001', legalName: 'Vendor Supplies', gstTreatment: 'registered_regular', gstin: makeGstin('27', 'PQRST3456U'), isSupplier: true }, token)
+  await call('POST', `/v1/parties/${supplier.id}/addresses`, { kind: 'billing', line1: '1 Industrial Area', city: 'Thane', stateCode: '27', pincode: '400601', isDefault: true }, token)
   const walkIn = await call('POST', '/v1/parties', { code: 'WALKIN', legalName: 'Walk-in customer', gstTreatment: 'consumer', isCustomer: true }, token)
   const accounts = ((await call('GET', `/v1/accounts?companyId=${company.id}&limit=200`, undefined, token)).items as Json[])
   const account = (code: string): string => (accounts.find((a) => a['code'] === code) as Json).id
-  return { base, slug, email, password: PASSWORD, token, year, company, registration, location, warehouse, widget, cheap, customer, address, walkIn, bank: account('1120'), cash: account('1110'), call: (m: string, p: string, b?: unknown) => call(m, p, b, token) }
+  return { base, slug, email, password: PASSWORD, token, year, company, registration, location, warehouse, widget, cheap, customer, address, supplier, walkIn, bank: account('1120'), cash: account('1110'), call: (m: string, p: string, b?: unknown) => call(m, p, b, token) }
 }
 export type Seed = Awaited<ReturnType<typeof seedBusiness>>

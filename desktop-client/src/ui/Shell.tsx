@@ -1,5 +1,5 @@
 import { Link, Outlet } from '@tanstack/react-router'
-import { Boxes, FileText, Landmark, Receipt as ReceiptIcon, Building2, ClipboardCheck, Clock, LayoutDashboard, LogOut, Percent, Ruler, Tags, Truck, Users, type LucideIcon } from 'lucide-react'
+import { BadgeCheck, Boxes, ClipboardList, PackageCheck, ShoppingCart, Wallet, FileText, Landmark, Receipt as ReceiptIcon, Building2, ClipboardCheck, Clock, LayoutDashboard, LogOut, Percent, Ruler, Tags, Truck, Users, type LucideIcon } from 'lucide-react'
 import { can } from '@/auth/permissions'
 import { useSession } from '@/auth/session'
 import { cn } from './cn'
@@ -15,6 +15,12 @@ export const NAV: NavItem[] = [
   { to: '/sales/invoices', label: 'Invoices', icon: FileText, needs: ['sales:read'], section: 'Sales' },
   { to: '/sales/receipts', label: 'Receipts', icon: ReceiptIcon, needs: ['receivables:read'], section: 'Sales' },
   { to: '/sales/receivables', label: 'Receivables', icon: Landmark, needs: ['receivables:read'], section: 'Sales' },
+  { to: '/purchasing/orders', label: 'Purchase orders', icon: ShoppingCart, needs: ['purchasing:read'], section: 'Purchasing' },
+  { to: '/purchasing/receipts', label: 'Goods receipts', icon: PackageCheck, needs: ['purchasing:read'], section: 'Purchasing' },
+  { to: '/purchasing/bills', label: 'Supplier bills', icon: ClipboardList, needs: ['purchasing:read'], section: 'Purchasing' },
+  { to: '/purchasing/payments', label: 'Payments', icon: Wallet, needs: ['payables:read'], section: 'Purchasing' },
+  { to: '/purchasing/payables', label: 'Payables', icon: Landmark, needs: ['payables:read'], section: 'Purchasing' },
+  { to: '/approvals', label: 'Approvals', icon: BadgeCheck, needs: [], section: 'Control' },
   { to: '/organization/companies', label: 'Companies', icon: Building2, needs: ['organization:read'], section: 'Organization' },
   { to: '/masterdata/items', label: 'Items', icon: Boxes, needs: ['masterdata:read'], section: 'Master data' },
   { to: '/masterdata/customers', label: 'Customers', icon: Users, needs: ['masterdata:read'], section: 'Master data' },

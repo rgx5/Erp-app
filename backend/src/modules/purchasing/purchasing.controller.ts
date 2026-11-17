@@ -72,6 +72,9 @@ export class PurchasingController {
   /** Books a supplier bill: three-way match, GST input credit, GRNI cleared, payable raised, atomically. */
   @RequirePermissions('purchasing:post') @Idempotent() @Post('purchasing/bills') @ApiZodBody(s.createBillSchema)
   async createBill(@CurrentPrincipal() a: Principal, @Body({ schema: s.createBillSchema }) b: s.CreateBillInput) { return presentBill(await this.bills.createBill(a.tenantId, a.userId, b, allows(a.permissions, ['purchasing:approve']))); }
+  /** What posting this bill would produce (totals, input credit, match status), with nothing written. */
+  @RequirePermissions('purchasing:post') @Post('purchasing/bills/preview') @HttpCode(200) @ApiZodBody(s.createBillSchema)
+  async previewBill(@CurrentPrincipal() a: Principal, @Body({ schema: s.createBillSchema }) b: s.CreateBillInput) { return { preview: true, ...presentBill(await this.bills.previewBill(a.tenantId, a.userId, b, allows(a.permissions, ['purchasing:approve']))) }; }
   @RequirePermissions('purchasing:post') @Idempotent() @Post('purchasing/debit-notes') @ApiZodBody(s.createDebitNoteSchema)
   async createDebitNote(@CurrentPrincipal() a: Principal, @Body({ schema: s.createDebitNoteSchema }) b: s.CreateDebitNoteInput) { return presentBill(await this.bills.createDebitNote(a.tenantId, a.userId, b)); }
   @RequirePermissions('purchasing:cancel') @Idempotent() @Post('purchasing/bills/:id/cancel') @HttpCode(200) @ApiZodBody(s.cancelBillSchema)

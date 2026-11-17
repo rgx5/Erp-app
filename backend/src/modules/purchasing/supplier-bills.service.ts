@@ -55,6 +55,11 @@ interface PricedBillLine {
  * where it is not creditable), reverse charge, GRNI cleared with the price difference to purchase price variance, debit notes for
  * returns after billing, returns of goods not yet billed, and cancellation.
  */
+/** Carries the result of a posting out of a transaction that is deliberately rolled back. */
+class Preview extends Error {
+  constructor(readonly posted: PostedBill) { super('preview'); }
+}
+
 @Injectable()
 export class SupplierBillsService {
   private readonly cancelHooks: ((tx: Tx, tenantId: string, bill: BillRow) => Promise<void>)[] = [];
@@ -76,6 +81,21 @@ export class SupplierBillsService {
   // ---- the bill ---------------------------------------------------------------------------------------------------------
   createBill(tenantId: string, actorId: string, input: CreateBillInput, canApprove: boolean): Promise<PostedBill> {
     return this.uow.inTenant(tenantId, (tx) => this.postBill(tx, tenantId, actorId, input, canApprove));
+  }
+
+  /**
+   * Runs the whole posting (tax, input credit, three-way match, stock revaluation) and then rolls it back, so the figures and the
+   * match status are exactly what posting would give, with nothing left behind: no number, no entry, no stock change. The usual
+   * commit-time database checks do not run for a rolled-back transaction.
+   */
+  async previewBill(tenantId: string, actorId: string, input: CreateBillInput, canApprove: boolean): Promise<PostedBill> {
+    try {
+      await this.uow.inTenant(tenantId, async (tx) => { throw new Preview(await this.postBill(tx, tenantId, actorId, input, canApprove)); });
+    } catch (e) {
+      if (e instanceof Preview) return e.posted;
+      throw e;
+    }
+    throw new Error('unreachable');
   }
 
   async postBill(tx: Tx, tenantId: string, actorId: string, input: CreateBillInput, canApprove: boolean): Promise<PostedBill> {

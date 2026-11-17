@@ -1,4 +1,4 @@
-import { toUnits } from './money'
+import { toMicro } from './quantity'
 
 /** Indian digit grouping: 12,34,567.89 (the last three digits, then pairs). */
 export function groupIndian(digits: string): string {
@@ -10,10 +10,10 @@ export function groupIndian(digits: string): string {
 /** `1234567.5` -> `₹ 12,34,567.50`. Negative amounts keep the sign in front. Rounds half away from zero to `places`. */
 export function formatInr(amount: string, opts: { places?: 0 | 2 | 4; symbol?: boolean } = {}): string {
   const places = opts.places ?? 2
-  const units = toUnits(amount)
-  const negative = units < 0n
-  const abs = negative ? -units : units
-  const drop = 10n ** BigInt(4 - places)
+  const micro = toMicro(amount) // amounts and unit costs carry up to 6 decimals
+  const negative = micro < 0n
+  const abs = negative ? -micro : micro
+  const drop = 10n ** BigInt(6 - places)
   const rounded = (abs + drop / 2n) / drop
   const base = 10n ** BigInt(places)
   const whole = groupIndian((rounded / base).toString())

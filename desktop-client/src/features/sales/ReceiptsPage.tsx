@@ -80,7 +80,7 @@ function ReceiptDrawer({ companyId, initialCustomer, onClose }: { companyId: str
         <TextField label="Reference (optional)" value={reference} onChange={(e) => setReference(e.target.value)} hint="Cheque number, UTR, UPI reference" />
         {customer ? (
           <section aria-label="Settle invoices" className="flex flex-col gap-2 border-t border-line pt-3">
-            <div className="flex items-center justify-between"><h3 className="text-sm font-semibold">Settle invoices</h3><Button variant="secondary" onClick={autoAllocate} disabled={!amountOk}>Oldest first</Button></div>
+            <div className="flex items-center justify-between"><h3 className="text-sm font-semibold">Settle invoices</h3><Button variant="secondary" onClick={autoAllocate} disabled={!amountOk || !position.data}>Oldest first</Button></div>
             {position.isPending ? <Spinner /> : position.error ? <Alert>{position.error.message}</Alert> : (position.data?.openInvoices ?? []).length === 0 ? <p className="text-sm text-muted">Nothing is outstanding for this customer; the money will be held as an advance.</p> : (
               <table className="w-full text-sm">
                 <thead><tr className="text-left text-xs text-muted"><th className="py-1">Invoice</th><th className="py-1">Date</th><th className="num py-1 text-right">Outstanding</th><th className="py-1 pl-3">Settle</th></tr></thead>

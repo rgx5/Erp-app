@@ -375,3 +375,30 @@ describe('guards and access', () => {
     expect(listed).toHaveLength(1);
   });
 });
+
+describe('POST /v1/purchasing/bills/preview', () => {
+  it('gives the totals and match status posting will give, and leaves nothing behind', async () => {
+    const b = await buyer('Preview Co');
+    const g = await ordered(b, b.sup.intra);
+    const lines = [withItem(b, bl(g.grnLine))];
+    const body = { companyId: b.companyId, gstRegistrationId: b.regId, supplierId: b.sup.intra, supplierInvoiceNo: 'PV-1', supplierInvoiceDate: '2025-04-15', billDate: '2025-04-15', lines };
+    const preview = ok(await call(server, 'POST', '/v1/purchasing/bills/preview', { tenant: b.tenant, body }), 200);
+    expect(preview).toMatchObject({ preview: true, taxableTotal: '5000.0000', cgstTotal: '450.0000', sgstTotal: '450.0000', itcTotal: '900.0000', grandTotal: '5900.0000', matchStatus: 'matched' });
+    // nothing was written: no bill, the receipt line is still unbilled, and the stock ledger and GRNI are untouched
+    expect((await call(server, 'GET', `/v1/purchasing/bills?companyId=${b.companyId}`, { tenant: b.tenant })).json.items).toHaveLength(0);
+    const receipt = ok(await call(server, 'GET', `/v1/purchasing/receipts/${g.receipt.id}`, { tenant: b.tenant }), 200);
+    expect(receipt.lines[0].quantityBilled).toBe('0.000000');
+    const posted = ok(await call(server, 'POST', '/v1/purchasing/bills', { tenant: b.tenant, body }));
+    expect(posted).toMatchObject({ billNo: 'BILL/2526/000001', taxableTotal: preview.taxableTotal, cgstTotal: preview.cgstTotal, grandTotal: preview.grandTotal, matchStatus: preview.matchStatus });
+    // a price outside tolerance is refused by the preview exactly as posting would refuse it, and an approver's override is previewed too
+    const g2 = await ordered(b, b.sup.intra);
+    const dearBody = { ...body, supplierInvoiceNo: 'PV-2', lines: [withItem(b, bl(g2.grnLine, { unitPrice: '650' }))] };
+    const refused = await call(server, 'POST', '/v1/purchasing/bills/preview', { tenant: b.tenant, body: dearBody });
+    expect(refused.status).toBe(409);
+    expect(refused.json).toMatchObject({ code: 'match_failed', issues: [expect.objectContaining({ kind: 'price', expected: '500.000000', actual: '650.000000' })] });
+    const overridden = ok(await call(server, 'POST', '/v1/purchasing/bills/preview', { tenant: b.tenant, body: { ...dearBody, overrideMatch: { reason: 'Supplier price rise agreed by phone' } } }), 200);
+    expect(overridden).toMatchObject({ preview: true, matchStatus: 'overridden', matchOverrideReason: 'Supplier price rise agreed by phone' });
+    expect((await call(server, 'GET', `/v1/purchasing/bills?companyId=${b.companyId}`, { tenant: b.tenant })).json.items).toHaveLength(1); // still only the one posted bill
+    expect((await call(server, 'POST', '/v1/purchasing/bills/preview', { body })).status).toBe(401);
+  });
+});

@@ -43,3 +43,11 @@ describe('Indian formats', () => {
     expect(parseDate('2025-04-01')).toBeNull()
   })
 })
+
+describe('amounts with unit-cost precision', () => {
+  it('formats up to six decimals, rounding half away from zero', () => {
+    expect(formatInr('500.000000')).toBe('₹ 500.00')
+    expect(formatInr('0.125000', { places: 2 })).toBe('₹ 0.13')
+    expect(formatInr('1234.567891', { places: 4 })).toBe('₹ 1,234.5679')
+  })
+})

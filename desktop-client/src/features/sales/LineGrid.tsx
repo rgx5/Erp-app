@@ -23,12 +23,12 @@ export const isBlank = (l: Line): boolean => l.item === null && l.unitPrice === 
 const cell = 'h-8 w-full rounded border border-transparent bg-transparent px-2 text-sm outline-none hover:border-line focus:border-brand focus:bg-surface focus:ring-1 focus:ring-brand/40'
 
 /** The cell where an item is found by typing; arrow keys and Enter choose from the short list. */
-function ItemCell({ line, onPick, onClear, autoFocus }: { line: Line; onPick: (item: Item) => void; onClear: () => void; autoFocus: boolean }) {
+function ItemCell({ line, onPick, onClear, autoFocus, buying, serviceOnly }: { line: Line; onPick: (item: Item) => void; onClear: () => void; autoFocus: boolean; buying: boolean; serviceOnly: boolean }) {
   const [text, setText] = useState('')
   const [active, setActive] = useState(0)
   const q = useDebounced(text.trim(), 200)
   const list = useItems({ ...(q ? { q } : {}), status: 'active' })
-  const options = (list.rows.filter((i) => i.isSellable)).slice(0, 8)
+  const options = (list.rows.filter((i) => (buying ? i.isPurchasable : i.isSellable) && (!serviceOnly || !i.isStocked))).slice(0, 8)
   const open = line.item === null && text.trim().length > 0
   // Enter pressed before the results arrived (a fast typist or a barcode scanner): choose the first result as soon as it is there
   const [wantFirst, setWantFirst] = useState(false)
@@ -59,7 +59,7 @@ function ItemCell({ line, onPick, onClear, autoFocus }: { line: Line; onPick: (i
           {options.map((i, n) => (
             <li key={i.id}><button type="button" role="option" aria-selected={n === active} className={cn('flex w-full justify-between px-3 py-1.5 text-left', n === active ? 'bg-canvas' : '')} onMouseDown={(e) => { e.preventDefault(); onPick(i); setText('') }}><span>{i.code} · {i.name}</span><span className="text-muted">{i.hsnSacCode ?? ''}</span></button></li>
           ))}
-          {!list.isPending && options.length === 0 ? <li className="px-3 py-2 text-muted">No sellable item matches.</li> : null}
+          {!list.isPending && options.length === 0 ? <li className="px-3 py-2 text-muted">No matching item you can {buying ? 'buy' : 'sell'}.</li> : null}
         </ul>
       ) : null}
     </div>
@@ -70,7 +70,11 @@ function ItemCell({ line, onPick, onClear, autoFocus }: { line: Line; onPick: (i
  * The invoice lines: a keyboard-first grid. Enter moves right and then down; Enter on the last cell of the last row adds a row;
  * the arrow keys choose in the item list. Amounts shown beside each line come from the server (`computed`), not from this screen.
  */
-export function LineGrid({ lines, onChange, warehouses, computed, readOnly }: {
+export function LineGrid({ lines, onChange, warehouses, computed, readOnly, buying = false, serviceOnly = false }: {
+  /** Only items that are not stocked (services, charges): for bill lines that are not goods received. */
+  serviceOnly?: boolean
+  /** Buying: items you can purchase, no GST-inclusive switch, and the amount column shows the order value before tax. */
+  buying?: boolean
   lines: Line[]
   onChange: (lines: Line[]) => void
   warehouses: Warehouse[]
@@ -95,17 +99,17 @@ export function LineGrid({ lines, onChange, warehouses, computed, readOnly }: {
   return (
     <div ref={root} className="overflow-visible rounded-lg border border-line bg-surface" role="table" aria-label="Invoice lines">
       <div role="row" className="grid grid-cols-[2.2fr_0.7fr_0.9fr_0.7fr_0.5fr_1fr_1fr_32px] gap-1 border-b border-line bg-canvas px-2 py-1.5 text-xs font-semibold text-muted">
-        <span>Item</span><span className="text-right">Qty</span><span className="text-right">Price</span><span className="text-right">Disc. %</span><span className="text-center">Incl. GST</span><span className="text-right">Taxable</span><span className="text-right">Line total</span><span />
+        <span>Item</span><span className="text-right">Qty</span><span className="text-right">Price</span><span className="text-right">Disc. %</span><span className="text-center">{buying ? '' : 'Incl. GST'}</span><span className="text-right">{buying ? 'Value before tax' : 'Taxable'}</span><span className="text-right">{buying ? '' : 'Line total'}</span><span />
       </div>
       {lines.map((l, i) => {
         const c = computed?.[i]
         return (
           <div key={l.key} role="row" className="grid grid-cols-[2.2fr_0.7fr_0.9fr_0.7fr_0.5fr_1fr_1fr_32px] items-center gap-1 border-b border-line/60 px-2 py-1 last:border-0">
-            <ItemCell line={l} autoFocus={focusKey === l.key} onPick={(item) => patch(l.key, { item, description: item.name, taxInclusive: l.taxInclusive })} onClear={() => patch(l.key, { item: null })} />
+            <ItemCell buying={buying} serviceOnly={serviceOnly} line={l} autoFocus={focusKey === l.key} onPick={(item) => patch(l.key, { item, description: item.name, taxInclusive: l.taxInclusive })} onClear={() => patch(l.key, { item: null })} />
             <input data-nav aria-label="Quantity" inputMode="decimal" className={cn(cell, 'num text-right')} value={l.quantity} onChange={(e) => patch(l.key, { quantity: e.target.value })} onKeyDown={(e) => enter(e, i)} disabled={readOnly} />
             <input data-nav aria-label="Price" inputMode="decimal" className={cn(cell, 'num text-right')} value={l.unitPrice} onChange={(e) => patch(l.key, { unitPrice: e.target.value })} onKeyDown={(e) => enter(e, i)} disabled={readOnly} />
             <input data-nav aria-label="Discount percent" inputMode="decimal" className={cn(cell, 'num text-right')} value={l.discountPercent} onChange={(e) => patch(l.key, { discountPercent: e.target.value })} onKeyDown={(e) => enter(e, i)} disabled={readOnly} />
-            <div className="text-center"><input type="checkbox" aria-label="Price includes GST" checked={l.taxInclusive} onChange={(e) => patch(l.key, { taxInclusive: e.target.checked })} disabled={readOnly} /></div>
+            <div className="text-center">{buying ? null : <input type="checkbox" aria-label="Price includes GST" checked={l.taxInclusive} onChange={(e) => patch(l.key, { taxInclusive: e.target.checked })} disabled={readOnly} />}</div>
             <span className="num text-right text-sm text-muted">{c ? formatInr(c.taxableValue, { symbol: false }) : ''}</span>
             <span className="num text-right text-sm">{c ? formatInr(c.lineTotal, { symbol: false }) : ''}</span>
             <button type="button" aria-label="Remove line" className="grid size-7 place-items-center rounded text-muted hover:bg-canvas hover:text-bad" onClick={() => onChange(lines.length > 1 ? lines.filter((x) => x.key !== l.key) : [emptyLine(warehouses[0]?.id ?? '')])} disabled={readOnly}><Trash2 className="size-4" /></button>
