@@ -98,3 +98,59 @@ export const priceList = z.object({ id: z.string(), code: z.string(), name: z.st
 export type PriceList = z.infer<typeof priceList>
 export const price = z.object({ id: z.string(), priceListId: z.string(), itemId: z.string(), uomId: z.string(), minQty: z.string(), price: z.string(), effectiveFrom: z.string(), effectiveTo: z.string().nullable() })
 export type Price = z.infer<typeof price>
+
+// ---- sales ----------------------------------------------------------------------------------------------------------------
+export const invoiceLine = z.object({
+  id: z.string(), lineNo: z.number(), itemId: z.string(), originalLineId: z.string().nullable(), description: z.string(), hsnSacCode: z.string().nullable(), quantity: z.string(), unitPrice: z.string(),
+  discountPercent: z.string(), taxInclusive: z.boolean(), taxableValue: z.string(), taxCodeId: z.string().nullable(), igstRate: z.string(), cgstRate: z.string(), sgstRate: z.string(), cessRate: z.string(),
+  cgstAmount: z.string(), sgstAmount: z.string(), igstAmount: z.string(), cessAmount: z.string(), lineTotal: z.string(), warehouseId: z.string().nullable(),
+})
+export type InvoiceLine = z.infer<typeof invoiceLine>
+
+export const invoiceHeader = z.object({
+  id: z.string(), companyId: z.string(), gstRegistrationId: z.string(), documentType: z.string(), invoiceNo: z.string(), invoiceDate: z.string(), customerId: z.string(), customerName: z.string(), customerGstin: z.string().nullable(),
+  customerGstTreatment: z.string(), placeOfSupply: z.string(), supplyType: z.string(), taxPayment: z.string().nullable(), reverseCharge: z.boolean(), taxRegime: z.string(),
+  taxableTotal: z.string(), cgstTotal: z.string(), sgstTotal: z.string(), igstTotal: z.string(), cessTotal: z.string(), roundOff: z.string(), grandTotal: z.string(),
+  originalInvoiceId: z.string().nullable(), reason: z.string().nullable(), status: z.string(), cancelledAt: z.string().nullable(), cancelDate: z.string().nullable(), cancelReason: z.string().nullable(), dueDate: z.string().nullable(), createdAt: z.string(),
+})
+export type InvoiceHeader = z.infer<typeof invoiceHeader>
+export const invoice = invoiceHeader.extend({ lines: z.array(invoiceLine), warnings: z.array(z.object({ code: z.string(), message: z.string() }).passthrough()).optional() })
+export type Invoice = z.infer<typeof invoice>
+
+const taxRates = z.object({ igst: z.string(), cgst: z.string(), sgst: z.string(), cess: z.string() })
+export const calculation = z.object({
+  documentType: z.string(), invoiceDate: z.string(), dueDate: z.string().nullable(),
+  customer: z.object({ id: z.string(), code: z.string(), name: z.string(), gstin: z.string().nullable(), gstTreatment: z.string() }),
+  placeOfSupply: z.string(), supplyType: z.string(), taxRegime: z.string(), reverseCharge: z.boolean(),
+  lines: z.array(z.object({ lineNo: z.number(), itemId: z.string(), description: z.string(), hsn: z.string().nullable(), quantity: z.string(), unitPrice: z.string(), discountPercent: z.string(), taxInclusive: z.boolean(), rates: taxRates, taxableValue: z.string(), cgst: z.string(), sgst: z.string(), igst: z.string(), cess: z.string(), lineTotal: z.string() })),
+  totals: z.object({ taxable: z.string(), cgst: z.string(), sgst: z.string(), igst: z.string(), cess: z.string(), payable: z.string(), roundOff: z.string(), grandTotal: z.string() }),
+})
+export type Calculation = z.infer<typeof calculation>
+
+export const allocation = z.object({ id: z.string(), invoiceId: z.string(), receiptId: z.string().nullable(), creditNoteId: z.string().nullable(), amount: z.string(), allocatedOn: z.string(), reversedOn: z.string().nullable() })
+export const receipt = z.object({
+  id: z.string(), receiptNo: z.string(), customerId: z.string(), receiptDate: z.string(), amount: z.string(), method: z.string(), depositAccountId: z.string(), reference: z.string().nullable(), notes: z.string().nullable(), status: z.string(),
+  cancelReason: z.string().nullable(), createdAt: z.string(), allocations: z.array(allocation).optional(), unallocated: z.string().optional(),
+})
+export type Receipt = z.infer<typeof receipt>
+
+export const position = z.object({
+  customer: z.object({ id: z.string(), code: z.string(), name: z.string(), creditLimit: z.string().nullable() }), asOf: z.string(),
+  openInvoices: z.array(z.object({ id: z.string(), number: z.string(), type: z.string(), date: z.string(), dueDate: z.string().nullable(), total: z.string(), outstanding: z.string(), daysOverdue: z.number() })),
+  unapplied: z.array(z.object({ kind: z.string(), id: z.string(), number: z.string(), date: z.string(), amount: z.string() })),
+  totalOutstanding: z.string(), totalUnapplied: z.string(), balance: z.string(), creditLimitExceeded: z.boolean(),
+})
+export type Position = z.infer<typeof position>
+
+const buckets = { current: z.string(), days1to30: z.string(), days31to60: z.string(), days61to90: z.string(), over90: z.string(), total: z.string(), unapplied: z.string() }
+export const ageing = z.object({ asOf: z.string(), customers: z.array(z.object({ customerId: z.string(), customerName: z.string(), ...buckets })), totals: z.object(buckets) })
+export type Ageing = z.infer<typeof ageing>
+
+export const statement = z.object({
+  customer: z.object({ id: z.string(), code: z.string(), name: z.string() }), from: z.string(), to: z.string(), openingBalance: z.string(), closingBalance: z.string(),
+  lines: z.array(z.object({ date: z.string(), kind: z.string(), number: z.string(), debit: z.string(), credit: z.string(), balance: z.string() })),
+})
+export type Statement = z.infer<typeof statement>
+
+export const account = z.object({ id: z.string(), code: z.string(), name: z.string(), type: z.string(), isGroup: z.boolean(), controlKind: z.string().nullable(), status: z.string() })
+export type Account = z.infer<typeof account>

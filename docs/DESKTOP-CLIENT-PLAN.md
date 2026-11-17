@@ -72,6 +72,7 @@ Each slice ends with working, tested software, is committed and pushed, and gets
 | G5 | Loyalty, coupons, store credit | D10 | Optional; only if you want them. |
 | G6 | Expense vouchers; counter-staff PIN login | D10 | Backend slice before D10. |
 | G9 | Company setup status and standard defaults (done in D1) | D1 | `GET /v1/companies/{id}/setup/status`, `POST .../setup/apply-defaults`. |
+| G2 | Invoice calculate endpoint (done in D3a) | D3 | `POST /v1/sales/invoices/calculate`. |
 | G7 | Bulk import endpoints (items, parties, opening balances) | D2, migration | Validated dry-run + commit pattern. |
 
 ## 5b. Progress
@@ -81,7 +82,9 @@ Each slice ends with working, tested software, is committed and pushed, and gets
 | D0 Foundation (+ G1 CORS, `/v1/meta`) | done |
 | D1 Sign-in and setup (+ G9 setup service, path parameters in OpenAPI) | done: first-run wizard (company, GST registration, place of business, warehouse, financial year, one-click standard setup) and the setup checklist |
 | D2 Master data | done: items, customers, suppliers, price lists (with prices), tax codes (with dated rates), units, payment terms; search, filters, paging, CSV export and import with a pre-check report, party addresses; list search widened on the backend |
-| D3 onwards | not started |
+| D3a Sales core (+ G2 calculate) | done: invoice editor (keyboard grid, live server totals), invoice list and detail, cancel, credit and debit notes, A4 invoice PDF/print, receipts with allocation, receivables ageing, customer position and statement with CSV |
+| D3b Quotes and orders | not started |
+| D4 onwards | not started |
 
 ## 6. Testing and delivery
 

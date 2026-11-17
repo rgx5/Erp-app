@@ -63,6 +63,27 @@ export class SalesInvoiceService {
   }
 
   /**
+   * What an invoice would say, without posting anything: place of supply, tax regime, per-line tax and the rounded total. It runs the
+   * very code that posts (`priceDocument`), so the figures cannot differ from the invoice that follows. Nothing is numbered, reserved
+   * or written, and stock levels are not checked (that happens at posting).
+   */
+  calculate(tenantId: string, input: CreateInvoiceInput) {
+    return this.uow.inTenant(tenantId, async (tx) => {
+      const { customer, supplyType, pos, regime, lines, totals } = await this.priceDocument(tx, tenantId, input, { requireWarehouse: false });
+      return {
+        documentType: input.documentType, invoiceDate: input.invoiceDate, dueDate: await this.dueDate(tx, tenantId, customer.paymentTermsId, input.invoiceDate),
+        customer: { id: customer.id, code: customer.code, name: customer.tradeName ?? customer.legalName, gstin: customer.gstin, gstTreatment: customer.gstTreatment },
+        placeOfSupply: pos, supplyType, taxRegime: regime, reverseCharge: input.reverseCharge,
+        lines: lines.map((l, i) => ({
+          lineNo: i + 1, itemId: l.itemId, description: l.description, hsn: l.hsn, quantity: l.quantity, unitPrice: l.unitPrice, discountPercent: l.discountPercent, taxInclusive: l.taxInclusive, taxCodeId: l.taxCodeId,
+          rates: l.rates, taxableValue: moneyOf(l.tax.taxable), cgst: moneyOf(l.tax.cgst), sgst: moneyOf(l.tax.sgst), igst: moneyOf(l.tax.igst), cess: moneyOf(l.tax.cess), lineTotal: moneyOf(l.tax.total),
+        })),
+        totals: { taxable: moneyOf(totals.taxable), cgst: moneyOf(totals.cgst), sgst: moneyOf(totals.sgst), igst: moneyOf(totals.igst), cess: moneyOf(totals.cess), payable: moneyOf(totals.payable), roundOff: moneyOf(totals.roundOff), grandTotal: moneyOf(totals.grand) },
+      };
+    }, { readOnly: true });
+  }
+
+  /**
    * Validates and prices a document without posting anything: registration, customer, place of supply, tax rates in force, per-line
    * tax and totals. Invoices post the result; quotes and orders use it for estimates.
    */

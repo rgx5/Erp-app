@@ -1620,6 +1620,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/sales/invoices/calculate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["SalesController_calculate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/sales/credit-notes": {
         parameters: {
             query?: never;
@@ -7409,6 +7425,70 @@ export interface operations {
         };
         responses: {
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    SalesController_calculate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    companyId: string;
+                    /** Format: uuid */
+                    gstRegistrationId: string;
+                    /** Format: uuid */
+                    businessLocationId?: string;
+                    /**
+                     * @default tax_invoice
+                     * @enum {string}
+                     */
+                    documentType?: "tax_invoice" | "bill_of_supply";
+                    /** Format: date */
+                    invoiceDate: string;
+                    /** Format: uuid */
+                    customerId: string;
+                    /** Format: uuid */
+                    billToAddressId?: string;
+                    /** Format: uuid */
+                    shipToAddressId?: string;
+                    placeOfSupplyState?: string;
+                    /** @default false */
+                    reverseCharge?: boolean;
+                    /** @enum {string} */
+                    taxPayment?: "with_payment" | "without_payment";
+                    lines: {
+                        /** Format: uuid */
+                        itemId: string;
+                        description?: string;
+                        quantity: string;
+                        unitPrice: string;
+                        /** @default 0 */
+                        discountPercent?: string;
+                        /** @default false */
+                        taxInclusive?: boolean;
+                        /** Format: uuid */
+                        taxCodeId?: string;
+                        /** Format: uuid */
+                        warehouseId?: string;
+                        /** Format: uuid */
+                        batchId?: string;
+                        serialNos?: string[];
+                    }[];
+                };
+            };
+        };
+        responses: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -9,6 +9,11 @@ import { ItemsPage } from '@/features/masterdata/ItemsPage'
 import { PartiesPage } from '@/features/masterdata/PartiesPage'
 import { PriceListsPage } from '@/features/masterdata/PriceListsPage'
 import { PaymentTermsPage, TaxCodesPage, UnitsPage } from '@/features/masterdata/ReferencePages'
+import { InvoiceDetailPage } from '@/features/sales/InvoiceDetailPage'
+import { InvoiceEditorPage } from '@/features/sales/InvoiceEditorPage'
+import { InvoicesPage } from '@/features/sales/InvoicesPage'
+import { ReceiptsPage } from '@/features/sales/ReceiptsPage'
+import { ReceivablesPage } from '@/features/sales/ReceivablesPage'
 import { Shell } from '@/ui/Shell'
 
 const root = createRootRoute({ component: Outlet })
@@ -46,7 +51,12 @@ const taxCodes = createRoute({ getParentRoute: () => app, path: '/masterdata/tax
 const units = createRoute({ getParentRoute: () => app, path: '/masterdata/units', component: UnitsPage })
 const paymentTerms = createRoute({ getParentRoute: () => app, path: '/masterdata/payment-terms', component: PaymentTermsPage })
 const priceLists = createRoute({ getParentRoute: () => app, path: '/masterdata/price-lists', component: PriceListsPage })
-const tree = root.addChildren([connect, login, app.addChildren([dashboard, setup, companies, items, customers, suppliers, taxCodes, units, paymentTerms, priceLists])])
+const invoices = createRoute({ getParentRoute: () => app, path: '/sales/invoices', component: InvoicesPage })
+const newInvoice = createRoute({ getParentRoute: () => app, path: '/sales/invoices/new', component: InvoiceEditorPage })
+const invoiceDetail = createRoute({ getParentRoute: () => app, path: '/sales/invoices/$invoiceId', component: InvoiceDetailPage })
+const receipts = createRoute({ getParentRoute: () => app, path: '/sales/receipts', component: ReceiptsPage, validateSearch: (s: Record<string, unknown>): { customerId?: string } => (typeof s['customerId'] === 'string' ? { customerId: s['customerId'] } : {}) })
+const receivables = createRoute({ getParentRoute: () => app, path: '/sales/receivables', component: ReceivablesPage })
+const tree = root.addChildren([connect, login, app.addChildren([invoices, newInvoice, invoiceDetail, receipts, receivables, dashboard, setup, companies, items, customers, suppliers, taxCodes, units, paymentTerms, priceLists])])
 
 // A hash history works the same on a custom app:// origin and in a browser, with no server-side route fallback to configure.
 import { createHashHistory } from '@tanstack/react-router'

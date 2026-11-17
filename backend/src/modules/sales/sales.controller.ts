@@ -39,6 +39,9 @@ export class SalesController {
   /** Posts a tax invoice or bill of supply: number, stock at cost, journal, document, atomically. */
   @RequirePermissions('sales:post') @Idempotent() @Post('sales/invoices') @ApiZodBody(s.createInvoiceSchema)
   async create(@CurrentPrincipal() a: Principal, @Body({ schema: s.createInvoiceSchema }) b: s.CreateInvoiceInput) { return presentInvoice(await this.invoices.createInvoice(a.tenantId, a.userId, b)); }
+  /** Prices a document exactly as posting would, writing nothing: for editors that show totals while a person types. */
+  @RequirePermissions('sales:post') @Post('sales/invoices/calculate') @HttpCode(200) @ApiZodBody(s.createInvoiceSchema)
+  async calculate(@TenantId() t: string, @Body({ schema: s.createInvoiceSchema }) b: s.CreateInvoiceInput) { return this.invoices.calculate(t, b); }
   @RequirePermissions('sales:post') @Idempotent() @Post('sales/credit-notes') @ApiZodBody(s.createNoteSchema)
   async creditNote(@CurrentPrincipal() a: Principal, @Body({ schema: s.createNoteSchema }) b: s.CreateNoteInput) { return presentInvoice(await this.invoices.createCreditNote(a.tenantId, a.userId, b)); }
   @RequirePermissions('sales:post') @Idempotent() @Post('sales/debit-notes') @ApiZodBody(s.createNoteSchema)

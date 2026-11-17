@@ -12,6 +12,20 @@ const web: Omit<DesktopBridge, 'desktop'> = {
       return next as DesktopSettings
     },
   },
+  document: {
+    /** In a browser the document is printed through the print dialog (which can also save as PDF). */
+    async savePdf(html) {
+      const frame = document.createElement('iframe')
+      frame.style.cssText = 'position:fixed;width:0;height:0;border:0;visibility:hidden'
+      frame.srcdoc = html
+      document.body.appendChild(frame)
+      await new Promise<void>((resolve) => { frame.onload = () => resolve() })
+      frame.contentWindow?.focus()
+      frame.contentWindow?.print()
+      setTimeout(() => frame.remove(), 60_000)
+      return null
+    },
+  },
   secure: {
     async get(key) { return sessionStorage.getItem(`onesync.secure.${key}`) },
     async set(key, value) { sessionStorage.setItem(`onesync.secure.${key}`, value); return false }, // false: not remembered after the window closes

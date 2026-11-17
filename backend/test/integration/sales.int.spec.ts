@@ -72,6 +72,7 @@ async function shop(name: string, o: { registrationType?: string } = {}): Promis
 }
 const invoice = (s: Shop, customerId: string, lines: object[], o: object = {}) =>
   call(server, 'POST', '/v1/sales/invoices', { tenant: s.tenant, body: { companyId: s.companyId, gstRegistrationId: s.regId, invoiceDate: '2025-04-10', customerId, lines, ...o } });
+const invoiceBody = (s: Shop, customerId: string, lines: object[], o: object = {}) => ({ companyId: s.companyId, gstRegistrationId: s.regId, invoiceDate: '2025-04-10', customerId, lines, ...o });
 const stocked = (s: Shop, itemId: string, o: object = {}) => ({ itemId, quantity: '1', unitPrice: '1000', warehouseId: s.wh, ...o });
 const journalOf = async (s: Shop, id: string) => (await supers.query(`SELECT a.code, l.debit::text AS dr, l.credit::text AS cr, l.party_id FROM erp.journal_lines l JOIN erp.accounts a ON a.id = l.account_id
   WHERE l.entry_id = (SELECT journal_entry_id FROM erp.sales_invoices WHERE id = $1) ORDER BY a.code`, [id])).rows as { code: string; dr: string; cr: string; party_id: string | null }[];
@@ -434,5 +435,35 @@ describe('access and isolation', () => {
     expect((await call(server, 'POST', '/v1/sales/invoices', { tenant: other.tenant, body: { companyId: other.companyId, gstRegistrationId: other.regId, invoiceDate: '2025-04-10', customerId: s.cust.local, lines: [stocked(other, other.item.widget)] } })).status).toBe(404); // another tenant's customer
     const page = (await call(server, 'GET', `/v1/sales/invoices?companyId=${s.companyId}&customerId=${s.cust.local}&documentType=tax_invoice`, { tenant: s.tenant })).json;
     expect(page.items).toHaveLength(1);
+  });
+});
+
+describe('POST /v1/sales/invoices/calculate', () => {
+  it('gives exactly the figures the posted invoice will have, and writes nothing', async () => {
+    const s = await shop('Calc Co');
+    const cases: { name: string; customer: string; lines: ReturnType<typeof stocked>[]; extra?: object }[] = [
+      { name: 'intra-state retail with rounding', customer: s.cust.consumer, lines: [stocked(s, s.item.widget, { quantity: '3', unitPrice: '1000' }), stocked(s, s.item.cheap, { quantity: '3', unitPrice: '99.99' })] },
+      { name: 'inter-state with a discount', customer: s.cust.other, lines: [stocked(s, s.item.widget, { quantity: '2', unitPrice: '1000', discountPercent: '12.5' })] },
+      { name: 'tax-inclusive pricing', customer: s.cust.local, lines: [stocked(s, s.item.widget, { quantity: '1', unitPrice: '1180', taxInclusive: true })] },
+    ];
+    for (const c of cases) {
+      const estimate = ok(await call(server, 'POST', '/v1/sales/invoices/calculate', { tenant: s.tenant, body: invoiceBody(s, c.customer, c.lines, c.extra) }), 200);
+      expect(estimate.lines, c.name).toHaveLength(c.lines.length);
+      const posted = ok(await invoice(s, c.customer, c.lines, c.extra));
+      expect(estimate, c.name).toMatchObject({ placeOfSupply: posted.placeOfSupply, supplyType: posted.supplyType, taxRegime: posted.taxRegime, dueDate: posted.dueDate, totals: { taxable: posted.taxableTotal, cgst: posted.cgstTotal, sgst: posted.sgstTotal, igst: posted.igstTotal, cess: posted.cessTotal, roundOff: posted.roundOff, grandTotal: posted.grandTotal } });
+      posted.lines.forEach((pl: Record<string, string>, i: number) => expect(estimate.lines[i], `${c.name} line ${i + 1}`).toMatchObject({ taxableValue: pl['taxableValue'], hsn: pl['hsnSacCode'] }));
+    }
+    // nothing was numbered by the estimates: the first posted invoice took number 1, the next numbers follow the posts only
+    const list = (await call(server, 'GET', `/v1/sales/invoices?companyId=${s.companyId}&limit=50`, { tenant: s.tenant })).json.items as { invoiceNo: string }[];
+    expect(list.map((i) => i.invoiceNo).sort((a, b) => a.localeCompare(b))).toEqual(['INV/2526/00001', 'INV/2526/00002', 'INV/2526/00003']);
+  });
+
+  it('refuses what posting would refuse, is permissioned, and is tenant-scoped', async () => {
+    const s = await shop('Calc Guard Co');
+    const bad = await call(server, 'POST', '/v1/sales/invoices/calculate', { tenant: s.tenant, body: invoiceBody(s, s.cust.sez, [stocked(s, s.item.widget, { quantity: '1', unitPrice: '100' })]) });
+    expect(bad.status).toBe(422); // an SEZ customer needs taxPayment, same as posting
+    const other = await shop('Calc Other Co');
+    expect((await call(server, 'POST', '/v1/sales/invoices/calculate', { tenant: other.tenant, body: invoiceBody(s, s.cust.consumer, [stocked(s, s.item.widget, { quantity: '1', unitPrice: '100' })]) })).status).toBeGreaterThanOrEqual(400);
+    expect((await call(server, 'POST', '/v1/sales/invoices/calculate', { body: invoiceBody(s, s.cust.consumer, []) })).status).toBe(401);
   });
 });

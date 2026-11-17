@@ -8,6 +8,7 @@ const bridge: DesktopBridge = {
     get: () => ipcRenderer.invoke('settings:get'),
     set: (patch) => ipcRenderer.invoke('settings:set', patch),
   },
+  document: { savePdf: (html, filename) => ipcRenderer.invoke('document:savePdf', html, filename) },
   secure: {
     get: (key) => ipcRenderer.invoke('secure:get', key),
     set: (key, value) => ipcRenderer.invoke('secure:set', key, value),

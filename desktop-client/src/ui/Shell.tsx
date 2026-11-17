@@ -1,9 +1,10 @@
 import { Link, Outlet } from '@tanstack/react-router'
-import { Boxes, Building2, ClipboardCheck, Clock, LayoutDashboard, LogOut, Percent, Ruler, Tags, Truck, Users, type LucideIcon } from 'lucide-react'
+import { Boxes, FileText, Landmark, Receipt as ReceiptIcon, Building2, ClipboardCheck, Clock, LayoutDashboard, LogOut, Percent, Ruler, Tags, Truck, Users, type LucideIcon } from 'lucide-react'
 import { can } from '@/auth/permissions'
 import { useSession } from '@/auth/session'
 import { cn } from './cn'
-import { Button } from './primitives'
+import { useFlash } from './flash'
+import { Alert, Button } from './primitives'
 
 interface NavItem { to: string; label: string; icon: LucideIcon; needs?: string[]; section?: string }
 
@@ -11,6 +12,9 @@ interface NavItem { to: string; label: string; icon: LucideIcon; needs?: string[
 export const NAV: NavItem[] = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, needs: ['dashboard:read'] },
   { to: '/setup', label: 'Setup', icon: ClipboardCheck, needs: ['organization:write'] },
+  { to: '/sales/invoices', label: 'Invoices', icon: FileText, needs: ['sales:read'], section: 'Sales' },
+  { to: '/sales/receipts', label: 'Receipts', icon: ReceiptIcon, needs: ['receivables:read'], section: 'Sales' },
+  { to: '/sales/receivables', label: 'Receivables', icon: Landmark, needs: ['receivables:read'], section: 'Sales' },
   { to: '/organization/companies', label: 'Companies', icon: Building2, needs: ['organization:read'], section: 'Organization' },
   { to: '/masterdata/items', label: 'Items', icon: Boxes, needs: ['masterdata:read'], section: 'Master data' },
   { to: '/masterdata/customers', label: 'Customers', icon: Users, needs: ['masterdata:read'], section: 'Master data' },
@@ -23,6 +27,7 @@ export const NAV: NavItem[] = [
 
 export function Shell() {
   const { me, logout, server } = useSession()
+  const flash = useFlash()
   const granted = me?.permissions ?? []
   return (
     <div className="grid h-full grid-cols-[220px_1fr]">
@@ -44,7 +49,10 @@ export function Shell() {
           <Button variant="ghost" className="mt-2 w-full justify-start px-2" onClick={() => void logout()}><LogOut className="size-4" aria-hidden /> Sign out</Button>
         </div>
       </aside>
-      <main className="overflow-auto p-6"><Outlet /></main>
+      <main className="overflow-auto p-6">
+        {flash.message ? <div className="mb-4"><Alert tone={flash.tone}><span className="flex items-center justify-between gap-4">{flash.message}<button type="button" className="text-xs underline" onClick={flash.clear}>Dismiss</button></span></Alert></div> : null}
+        <Outlet />
+      </main>
     </div>
   )
 }

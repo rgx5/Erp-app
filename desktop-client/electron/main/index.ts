@@ -1,5 +1,6 @@
 import { join } from 'node:path'
-import { app, BrowserWindow, ipcMain, Menu, protocol, safeStorage, shell, type IpcMainInvokeEvent } from 'electron'
+import { writeFile } from 'node:fs/promises'
+import { app, BrowserWindow, dialog, ipcMain, Menu, protocol, safeStorage, shell, type IpcMainInvokeEvent } from 'electron'
 import type { DesktopSettings } from '../bridge-types'
 import { JsonFile } from './store'
 import { APP_HOST, APP_ORIGIN, APP_SCHEME, readAppFile, resolveAppFile } from './serve'
@@ -27,6 +28,19 @@ const guard = <A extends unknown[], R>(fn: (...a: A) => R) => (e: IpcMainInvokeE
   return fn(...a)
 }
 
+/** Prints generated HTML (our own template, scripts off) to an A4 PDF in a window nobody sees. */
+async function renderPdf(html: string): Promise<Buffer> {
+  const printer = new BrowserWindow({ show: false, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, javascript: false } })
+  try {
+    printer.webContents.on('will-navigate', (e) => e.preventDefault())
+    printer.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+    await printer.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
+    return await printer.webContents.printToPDF({ pageSize: 'A4', printBackground: true })
+  } finally {
+    printer.destroy()
+  }
+}
+
 function registerIpc(): void {
   ipcMain.handle('app:info', guard(() => ({ version: app.getVersion(), platform: process.platform, secureStorage: safeStorage.isEncryptionAvailable() })))
   ipcMain.handle('settings:get', guard(() => settings().read()))
@@ -36,6 +50,15 @@ function registerIpc(): void {
     for (const [k, v] of Object.entries(next)) if (v === null || v === undefined) delete next[k]
     file.write(next as DesktopSettings)
     return next as DesktopSettings
+  }))
+  ipcMain.handle('document:savePdf', guard(async (html: string, filename: string) => {
+    if (typeof html !== 'string' || html.length > 5_000_000) throw new Error('Document too large')
+    const pdf = await renderPdf(html)
+    const name = `${String(filename).replace(/[^A-Za-z0-9._-]+/g, '_').slice(0, 80) || 'document'}.pdf`
+    const choice = await dialog.showSaveDialog(win ?? BrowserWindow.getAllWindows()[0] as BrowserWindow, { defaultPath: name, filters: [{ name: 'PDF', extensions: ['pdf'] }] })
+    if (choice.canceled || !choice.filePath) return null
+    await writeFile(choice.filePath, pdf)
+    return choice.filePath
   }))
   ipcMain.handle('secure:get', guard((key: string) => {
     const stored = secrets().read()[key]

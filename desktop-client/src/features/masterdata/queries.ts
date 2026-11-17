@@ -77,3 +77,19 @@ export const useItemsById = (ids: string[]) => {
     },
   })
 }
+
+export const useParty = (id: string | undefined) =>
+  useQuery({ queryKey: ['party', id], enabled: Boolean(id), queryFn: (): Promise<Party> => { const api = currentApi(); return api.call(api.raw.GET('/v1/parties/{id}', { params: { path: { id: id as string } } }), party) } })
+
+/** Names for a handful of party ids (so a table of documents can show who they are for). */
+export const usePartiesById = (ids: string[]) => {
+  const key = [...new Set(ids)].sort((a, b) => a.localeCompare(b))
+  return useQuery({
+    queryKey: ['parties-by-id', key], enabled: key.length > 0, staleTime: 60_000,
+    queryFn: async (): Promise<Map<string, Party>> => {
+      const api = currentApi()
+      const found = await Promise.all(key.slice(0, 200).map((id) => api.call(api.raw.GET('/v1/parties/{id}', { params: { path: { id } } }), party)))
+      return new Map(found.map((p) => [p.id, p]))
+    },
+  })
+}
