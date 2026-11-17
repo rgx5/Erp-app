@@ -4,7 +4,7 @@ import { v7 as uuidv7 } from 'uuid';
 import { UnitOfWork } from '../../platform/database/unit-of-work.js';
 import { AppError } from '../../platform/http/errors.js';
 import type { Page } from '../../platform/http/validation.js';
-import { first, likePrefix, pageOf, Recorder, updateVersioned } from './helpers.js';
+import { first, likeContains, likePrefix, pageOf, Recorder, updateVersioned } from './helpers.js';
 import { partyAddresses, parties, paymentTerms } from './masterdata.schema.js';
 import type { CreateAddressInput, CreatePartyInput, CreatePaymentTermInput, ListPartiesQuery, UpdatePartyInput } from './masterdata.schemas.js';
 
@@ -43,7 +43,7 @@ export class PartiesService {
     const role = q.role === 'customer' ? eq(parties.isCustomer, true) : q.role === 'supplier' ? eq(parties.isSupplier, true) : q.role === 'subcontractor' ? eq(parties.isSubcontractor, true) : undefined;
     return this.uow.inTenant(
       tenantId,
-      (tx) => pageOf<PartyRow>(tx, parties, tenantId, q.limit, q.cursor, role, q.status ? eq(parties.status, q.status) : undefined, q.q ? or(ilike(parties.code, likePrefix(q.q)), ilike(parties.legalName, likePrefix(q.q))) : undefined),
+      (tx) => pageOf<PartyRow>(tx, parties, tenantId, q.limit, q.cursor, role, q.status ? eq(parties.status, q.status) : undefined, q.q ? or(ilike(parties.code, likePrefix(q.q)), ilike(parties.legalName, likeContains(q.q)), ilike(parties.tradeName, likeContains(q.q)), ilike(parties.gstin, likePrefix(q.q))) : undefined),
       { readOnly: true },
     );
   }

@@ -58,3 +58,5 @@ Bank-account rules, statement import (arithmetic, duplicates, overlaps, continui
 
 ## Company setup (`setup.int.spec.ts`)
 Status checklist, applying the defaults in two rounds (before and after a financial year exists), idempotence, an invoice posted using only the defaults, never overwriting a chosen account, permissions and tenant isolation.
+
+The desktop client's own suites are described in `desktop-client/README.md` (unit, live-backend, Playwright browser and Electron shell tests).

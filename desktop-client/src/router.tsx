@@ -5,6 +5,10 @@ import { LoginPage } from '@/features/auth/LoginPage'
 import { DashboardPage } from '@/features/dashboard/DashboardPage'
 import { CompaniesPage } from '@/features/organization/CompaniesPage'
 import { SetupPage } from '@/features/setup/SetupPage'
+import { ItemsPage } from '@/features/masterdata/ItemsPage'
+import { PartiesPage } from '@/features/masterdata/PartiesPage'
+import { PriceListsPage } from '@/features/masterdata/PriceListsPage'
+import { PaymentTermsPage, TaxCodesPage, UnitsPage } from '@/features/masterdata/ReferencePages'
 import { Shell } from '@/ui/Shell'
 
 const root = createRootRoute({ component: Outlet })
@@ -35,7 +39,14 @@ const dashboard = createRoute({ getParentRoute: () => app, path: '/', component:
 const companies = createRoute({ getParentRoute: () => app, path: '/organization/companies', component: CompaniesPage })
 
 const setup = createRoute({ getParentRoute: () => app, path: '/setup', component: SetupPage })
-const tree = root.addChildren([connect, login, app.addChildren([dashboard, setup, companies])])
+const items = createRoute({ getParentRoute: () => app, path: '/masterdata/items', component: ItemsPage })
+const customers = createRoute({ getParentRoute: () => app, path: '/masterdata/customers', component: () => <PartiesPage role="customer" /> })
+const suppliers = createRoute({ getParentRoute: () => app, path: '/masterdata/suppliers', component: () => <PartiesPage role="supplier" /> })
+const taxCodes = createRoute({ getParentRoute: () => app, path: '/masterdata/tax-codes', component: TaxCodesPage })
+const units = createRoute({ getParentRoute: () => app, path: '/masterdata/units', component: UnitsPage })
+const paymentTerms = createRoute({ getParentRoute: () => app, path: '/masterdata/payment-terms', component: PaymentTermsPage })
+const priceLists = createRoute({ getParentRoute: () => app, path: '/masterdata/price-lists', component: PriceListsPage })
+const tree = root.addChildren([connect, login, app.addChildren([dashboard, setup, companies, items, customers, suppliers, taxCodes, units, paymentTerms, priceLists])])
 
 // A hash history works the same on a custom app:// origin and in a browser, with no server-side route fallback to configure.
 import { createHashHistory } from '@tanstack/react-router'

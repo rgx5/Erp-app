@@ -80,7 +80,8 @@ Each slice ends with working, tested software, is committed and pushed, and gets
 |---|---|
 | D0 Foundation (+ G1 CORS, `/v1/meta`) | done |
 | D1 Sign-in and setup (+ G9 setup service, path parameters in OpenAPI) | done: first-run wizard (company, GST registration, place of business, warehouse, financial year, one-click standard setup) and the setup checklist |
-| D2 onwards | not started |
+| D2 Master data | done: items, customers, suppliers, price lists (with prices), tax codes (with dated rates), units, payment terms; search, filters, paging, CSV export and import with a pre-check report, party addresses; list search widened on the backend |
+| D3 onwards | not started |
 
 ## 6. Testing and delivery
 

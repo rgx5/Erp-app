@@ -55,5 +55,7 @@ export async function pageOf<R extends { id: string }>(tx: Tx, table: Keyed, ten
   return toPage(rows, limit);
 }
 
-/** Escapes LIKE wildcards so a search term is matched literally. */
+/** Matches anywhere in the text (wildcards in the term are matched literally). */
+export const likeContains = (term: string): string => '%' + term.replace(/[\\%_]/g, (c) => `\\${c}`) + '%';
+/** Escapes LIKE wildcards so a search term is matched literally, anchored at the start. */
 export const likePrefix = (term: string): string => term.replace(/[\\%_]/g, (c) => `\\${c}`) + '%';

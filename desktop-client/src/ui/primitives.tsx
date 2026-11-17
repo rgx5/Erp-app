@@ -24,7 +24,7 @@ export function Spinner({ className }: { className?: string }) {
   return <span role="status" aria-label="Loading" className={cn('inline-block size-4 animate-spin rounded-full border-2 border-current border-t-transparent', className)} />
 }
 
-export const TextField = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement> & { label: string; error?: string | undefined; hint?: string }>(function TextField({ label, error, hint, className, ...rest }, ref) {
+export const TextField = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement> & { label: string; error?: string | undefined; hint?: string | undefined }>(function TextField({ label, error, hint, className, ...rest }, ref) {
   const id = useId()
   return (
     <div className="flex flex-col gap-1">
@@ -72,3 +72,17 @@ export const SelectField = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HT
     </div>
   )
 })
+
+export const CheckField = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement> & { label: string; hint?: string }>(function CheckField({ label, hint, ...rest }, ref) {
+  const id = useId()
+  return (
+    <div className="flex items-start gap-2">
+      <input id={id} ref={ref} type="checkbox" className="mt-0.5 size-4" {...rest} />
+      <label htmlFor={id} className="text-sm">{label}{hint ? <span className="block text-xs text-muted">{hint}</span> : null}</label>
+    </div>
+  )
+})
+
+export function Toolbar({ children }: { children: ReactNode }) {
+  return <div className="flex flex-wrap items-end gap-3">{children}</div>
+}

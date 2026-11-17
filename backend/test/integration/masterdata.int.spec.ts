@@ -156,6 +156,8 @@ describe('items', () => {
     expect(all).toEqual(['PG-0', 'PG-1', 'PG-2', 'PG-3']);
     expect((await get('/v1/items?q=paged')).json.items).toHaveLength(4);
     expect((await get('/v1/items?q=%25')).json.items).toHaveLength(0); // wildcards are matched literally
+    expect((await get('/v1/items?q=PG-')).json.items).toHaveLength(4); // a code is found by its start
+    expect((await get('/v1/items?q=aged')).json.items).toHaveLength(4); // a name is found anywhere in it
     expect((await get('/v1/items?status=inactive')).json.items.map((i: { code: string }) => i.code)).toEqual(['RM-001']);
   });
   it('holds alternative units as base-unit factors', async () => {
@@ -193,6 +195,8 @@ describe('parties', () => {
     expect((await post('/v1/parties', { code: 'Z', legalName: 'x', isCustomer: true, gstTreatment: 'overseas', currency: 'EUR' })).json.code).toBe('reference_invalid'); // EUR not enabled in this tenant
     expect((await get('/v1/parties?role=supplier')).json.items.map((p: { code: string }) => p.code)).toEqual(['S-001']);
     expect((await get('/v1/parties?role=customer&q=acme')).json.items).toHaveLength(1);
+    expect((await get('/v1/parties?role=customer&q=cm')).json.items.length).toBeGreaterThanOrEqual(1); // part of the legal name
+    expect((await get('/v1/parties?q=zzz-no-such')).json.items).toHaveLength(0);
     void gstin;
     const blocked = await call(server, 'PATCH', `/v1/parties/${customer.id}`, { tenant, headers: { 'if-match': '1' }, body: { status: 'blocked' } });
     expect(blocked.json.status).toBe('blocked');

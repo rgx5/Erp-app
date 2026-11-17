@@ -182,7 +182,10 @@ describe('transactional outbox', () => {
   });
   const publish = (who: string, aggregateId = uuidv7()) =>
     uow.inTenant(who, (tx) => outbox.publish(tx, who, { eventType, aggregateType: 'thing', aggregateId, payload: { n: 1 } }));
-  const drainAll = async () => { for (let i = 0; i < 500 && (await relay.drainOnce()) > 0; i++); };
+  // The database is shared with every other spec file, whose servers run no relay and leave their events pending. Mark those done so
+  // this relay only works on this spec's own events; otherwise the drain time grows with everything the other specs have produced.
+  const quiesceOthers = () => supers.query("UPDATE erp.outbox_dispatch SET done_at = now() WHERE done_at IS NULL AND dead_at IS NULL AND event_id NOT IN (SELECT id FROM erp.outbox_events WHERE event_type = $1)", [eventType]);
+  const drainAll = async () => { for (let i = 0; i < 500; i++) { await quiesceOthers(); if ((await relay.drainOnce()) === 0) break; } };
 
   it('publishes an event only if the business transaction commits', async () => {
     const aggregateId = uuidv7();

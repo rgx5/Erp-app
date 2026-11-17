@@ -3,7 +3,7 @@ import { and, eq, ilike, or } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 import { UnitOfWork } from '../../platform/database/unit-of-work.js';
 import type { Page } from '../../platform/http/validation.js';
-import { first, likePrefix, pageOf, Recorder, updateVersioned } from './helpers.js';
+import { first, likeContains, likePrefix, pageOf, Recorder, updateVersioned } from './helpers.js';
 import { itemUomConversions, items } from './masterdata.schema.js';
 import type { CreateItemInput, ListItemsQuery, UpdateItemInput } from './masterdata.schemas.js';
 
@@ -31,7 +31,7 @@ export class ItemsService {
     return this.uow.inTenant(
       tenantId,
       (tx) =>
-        pageOf<ItemRow>(tx, items, tenantId, q.limit, q.cursor, q.itemType ? eq(items.itemType, q.itemType) : undefined, q.status ? eq(items.status, q.status) : undefined, q.q ? or(ilike(items.code, likePrefix(q.q)), ilike(items.name, likePrefix(q.q))) : undefined),
+        pageOf<ItemRow>(tx, items, tenantId, q.limit, q.cursor, q.itemType ? eq(items.itemType, q.itemType) : undefined, q.status ? eq(items.status, q.status) : undefined, q.q ? or(ilike(items.code, likePrefix(q.q)), ilike(items.name, likeContains(q.q))) : undefined),
       { readOnly: true },
     );
   }

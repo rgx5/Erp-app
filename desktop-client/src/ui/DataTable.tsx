@@ -1,6 +1,6 @@
 import { flexRender, getCoreRowModel, getSortedRowModel, useReactTable, type ColumnDef, type SortingState } from '@tanstack/react-table'
 import { useVirtualizer } from '@tanstack/react-virtual'
-import { useRef, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { cn } from './cn'
 
 /**
@@ -16,7 +16,10 @@ export function DataTable<T>({ columns, rows, rowKey, onOpen, empty = 'Nothing h
   height?: number
 }) {
   const [sorting, setSorting] = useState<SortingState>([])
-  const table = useReactTable({ data: rows, columns, state: { sorting }, onSortingChange: setSorting, getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(), getRowId: rowKey })
+  // TanStack builds its rows from `data` alone and remembers each cell's value, so a change of columns (for example names that arrive
+  // after the rows) must also be a new `data` array. Callers should keep `columns` stable (useMemo) for big lists.
+  const data = useMemo(() => [...rows], [rows, columns])
+  const table = useReactTable({ data, columns, state: { sorting }, onSortingChange: setSorting, getCoreRowModel: getCoreRowModel(), getSortedRowModel: getSortedRowModel(), getRowId: rowKey })
   const body = useRef<HTMLDivElement>(null)
   const list = table.getRowModel().rows
   const virtual = useVirtualizer({ count: list.length, getScrollElement: () => body.current, estimateSize: () => 38, overscan: 12 })
