@@ -437,3 +437,32 @@ export const payrollLiabilities = z.object({ periods: z.array(z.object({ period:
 export type PayrollLiabilities = z.infer<typeof payrollLiabilities>
 export const remittance = z.object({ id: z.string(), remittanceNo: z.string(), kind: z.string(), period: z.string(), remittedOn: z.string(), amount: z.string(), reference: z.string().nullable() })
 export const payrollSeed = z.object({ effectiveFrom: z.string(), rates: z.number(), slabSets: z.array(z.string()) })
+
+// ---- point of sale --------------------------------------------------------------------------------------------------------
+export const POS_METHODS = ['cash', 'upi', 'card', 'bank_transfer', 'cheque', 'other'] as const
+export const posSettings = z.object({
+  settings: z.object({ companyId: z.string(), walkInCustomerId: z.string().nullable().optional(), cashVarianceAccountId: z.string().nullable().optional() }).nullable(),
+  paymentAccounts: z.array(z.object({ method: z.string(), accountId: z.string() })),
+})
+export type PosSettings = z.infer<typeof posSettings>
+export const posTerminal = z.object({ id: z.string(), code: z.string(), name: z.string(), gstRegistrationId: z.string(), businessLocationId: z.string(), warehouseId: z.string(), status: z.string() })
+export type PosTerminal = z.infer<typeof posTerminal>
+const shiftSummary = z.object({ salesCount: z.number(), salesTotal: z.string(), returnsCount: z.number(), returnsTotal: z.string(), paymentsReceived: z.record(z.string(), z.string()), refundsPaid: z.record(z.string(), z.string()), expectedCash: z.string(), openingCash: z.string() })
+export const posShift = z.object({ id: z.string(), terminalId: z.string(), shiftNo: z.string(), openedAt: z.string(), openingCash: z.string(), status: z.string(), closedAt: z.string().nullable(), countedCash: z.string().nullable(), expectedCash: z.string().nullable(), variance: z.string().nullable(), summary: shiftSummary.optional() })
+export type PosShift = z.infer<typeof posShift>
+const posPayment = z.object({ method: z.string(), amount: z.string(), tendered: z.string().nullable().optional(), reference: z.string().nullable().optional() })
+export const posSaleResult = z.object({ id: z.string(), kind: z.string(), shiftId: z.string(), invoice: invoice.optional(), creditNote: invoice.optional(), payments: z.array(posPayment), changeDue: z.string().optional() })
+export type PosSaleResult = z.infer<typeof posSaleResult>
+export const posSaleHeader = z.object({ id: z.string(), kind: z.string(), documentNo: z.string(), total: z.string(), createdAt: z.string(), shiftId: z.string() })
+export type PosSaleHeader = z.infer<typeof posSaleHeader>
+export const posSaleDetail = z.object({ id: z.string(), kind: z.string(), document: invoice.nullable(), payments: z.array(posPayment) })
+export type PosSaleDetail = z.infer<typeof posSaleDetail>
+export const posDevice = z.object({ id: z.string(), terminalId: z.string(), name: z.string(), status: z.string(), lastSyncAt: z.string().nullable() })
+export type PosDevice = z.infer<typeof posDevice>
+export const posCatalogue = z.object({
+  serverTime: z.string(), walkInCustomerId: z.string().nullable(), paymentMethods: z.array(z.string()),
+  items: z.array(z.object({ id: z.string(), code: z.string(), name: z.string(), hsn: z.string().nullable(), taxCodeId: z.string().nullable(), itemType: z.string(), stocked: z.boolean(), tracking: z.string(), status: z.string() })),
+})
+export type PosCatalogue = z.infer<typeof posCatalogue>
+export const syncResult = z.object({ deviceId: z.string(), received: z.number(), applied: z.number(), duplicates: z.number(), rejected: z.number(), results: z.array(z.object({ clientId: z.string(), status: z.string(), saleId: z.string().optional(), reason: z.string().optional(), code: z.string().optional(), message: z.string().optional() }).passthrough()) })
+export type SyncResult = z.infer<typeof syncResult>

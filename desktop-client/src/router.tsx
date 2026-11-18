@@ -39,6 +39,8 @@ import { EmployeesPage } from '@/features/payroll/EmployeesPage'
 import { RemittancesPage } from '@/features/payroll/RemittancesPage'
 import { PayrollRunsPage } from '@/features/payroll/RunsPage'
 import { PayrollSetupPage } from '@/features/payroll/SetupPage'
+import { PosAdminPage } from '@/features/pos/AdminPage'
+import { CounterPage } from '@/features/pos/CounterPage'
 import { CountsPage } from '@/features/inventory/CountsPage'
 import { MovementsPage } from '@/features/inventory/MovementsPage'
 import { StockPage } from '@/features/inventory/StockPage'
@@ -120,7 +122,9 @@ const payrollSetupRoute = createRoute({ getParentRoute: () => app, path: '/payro
 const peopleRoute = createRoute({ getParentRoute: () => app, path: '/payroll/people', component: EmployeesPage })
 const payrollRunsRoute = createRoute({ getParentRoute: () => app, path: '/payroll/runs', component: PayrollRunsPage })
 const duesRoute = createRoute({ getParentRoute: () => app, path: '/payroll/dues', component: RemittancesPage })
-const tree = root.addChildren([connect, login, app.addChildren([payrollSetupRoute, peopleRoute, payrollRunsRoute, duesRoute, workCentresRoute, bomsRoute, woRoute, woDetailRoute, jobWorkRoute, costingRoute, reportCentreRoute, gstRoute, chartRoute, journalsRoute, newJournalRoute, periodsRoute, reportsRoute, bankRoute, stock, movements, transfers, counts, valuationRoute, orders, newOrder, orderDetail, goodsReceipts, bills, newBill, billDetail, payments, payables, approvals, invoices, newInvoice, invoiceDetail, receipts, receivables, dashboard, setup, companies, items, customers, suppliers, taxCodes, units, paymentTerms, priceLists])])
+const counterRoute = createRoute({ getParentRoute: () => app, path: '/pos/counter', component: CounterPage })
+const posAdminRoute = createRoute({ getParentRoute: () => app, path: '/pos/admin', component: PosAdminPage })
+const tree = root.addChildren([connect, login, app.addChildren([counterRoute, posAdminRoute, payrollSetupRoute, peopleRoute, payrollRunsRoute, duesRoute, workCentresRoute, bomsRoute, woRoute, woDetailRoute, jobWorkRoute, costingRoute, reportCentreRoute, gstRoute, chartRoute, journalsRoute, newJournalRoute, periodsRoute, reportsRoute, bankRoute, stock, movements, transfers, counts, valuationRoute, orders, newOrder, orderDetail, goodsReceipts, bills, newBill, billDetail, payments, payables, approvals, invoices, newInvoice, invoiceDetail, receipts, receivables, dashboard, setup, companies, items, customers, suppliers, taxCodes, units, paymentTerms, priceLists])])
 
 // A hash history works the same on a custom app:// origin and in a browser, with no server-side route fallback to configure.
 import { createHashHistory } from '@tanstack/react-router'

@@ -27,7 +27,7 @@ export const useInvoice = (id: string | undefined) =>
 /** Totals for what is on the screen, from the server's own pricing code. `body` null means the form is not complete enough to ask. */
 export const useCalculation = (body: InvoiceInput | null) =>
   useQuery({
-    queryKey: ['calculate', body], enabled: body !== null, staleTime: 0, gcTime: 30_000, placeholderData: (previous) => previous, retry: false,
+    queryKey: ['calculate', body], enabled: body !== null, networkMode: 'always', staleTime: 0, gcTime: 30_000, placeholderData: (previous) => previous, retry: false,
     queryFn: (): Promise<Calculation> => { const api = currentApi(); return api.call(api.raw.POST('/v1/sales/invoices/calculate', { body: body as InvoiceInput }), calculation) },
   })
 

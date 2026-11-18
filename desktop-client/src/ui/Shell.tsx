@@ -1,5 +1,5 @@
 import { Link, Outlet } from '@tanstack/react-router'
-import { ArrowLeftRight, BadgeCheck, Calculator, ListChecks, Warehouse as WarehouseIcon, Boxes, ClipboardList, PackageCheck, ShoppingCart, Wallet, FileText, Landmark, Receipt as ReceiptIcon, Building2, ClipboardCheck, Clock, LayoutDashboard, LogOut, Percent, Ruler, Tags, Truck, Users, BookOpen, UserRound, Banknote, Settings2, Scale, Factory, Cog, Gauge, Handshake, FileSpreadsheet, FolderOpen, CalendarCheck, LineChart, ListTree, type LucideIcon } from 'lucide-react'
+import { ArrowLeftRight, BadgeCheck, Calculator, ListChecks, Warehouse as WarehouseIcon, Boxes, ClipboardList, PackageCheck, ShoppingCart, Wallet, FileText, Landmark, Receipt as ReceiptIcon, Building2, ClipboardCheck, Clock, LayoutDashboard, LogOut, Percent, Ruler, Tags, Truck, Users, BookOpen, ScanBarcode, Store, UserRound, Banknote, Settings2, Scale, Factory, Cog, Gauge, Handshake, FileSpreadsheet, FolderOpen, CalendarCheck, LineChart, ListTree, type LucideIcon } from 'lucide-react'
 import { can } from '@/auth/permissions'
 import { useSession } from '@/auth/session'
 import { cn } from './cn'
@@ -31,6 +31,8 @@ export const NAV: NavItem[] = [
   { to: '/payroll/people', label: 'People', icon: UserRound, needs: ['payroll:read'], section: 'Payroll' },
   { to: '/payroll/dues', label: 'Statutory dues', icon: Scale, needs: ['payroll:read'], section: 'Payroll' },
   { to: '/payroll/setup', label: 'Payroll setup', icon: Settings2, needs: ['payroll:read'], section: 'Payroll' },
+  { to: '/pos/counter', label: 'Counter', icon: ScanBarcode, needs: ['pos:sell'], section: 'Point of sale' },
+  { to: '/pos/admin', label: 'Shifts and setup', icon: Store, needs: ['pos:read'], section: 'Point of sale' },
   { to: '/inventory/stock', label: 'Stock on hand', icon: WarehouseIcon, needs: ['stock:read'], section: 'Inventory' },
   { to: '/inventory/movements', label: 'Movements', icon: ListChecks, needs: ['stock:read'], section: 'Inventory' },
   { to: '/inventory/transfers', label: 'Transfers', icon: ArrowLeftRight, needs: ['stock:read'], section: 'Inventory' },

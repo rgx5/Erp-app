@@ -1,0 +1,26 @@
+import type { PosSaleResult } from '@/api/schemas'
+import { formatDate, formatInr } from '@/domain/format'
+import type { Seller } from '@/features/sales/invoiceHtml'
+
+const esc = (v: unknown): string => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string)
+const METHOD: Record<string, string> = { cash: 'Cash', upi: 'UPI', card: 'Card', bank_transfer: 'Bank transfer', cheque: 'Cheque', other: 'Other' }
+
+/** A narrow (80 mm) till receipt as a self-contained page. Every amount is the server's, only formatted. */
+export function receiptHtml(sale: PosSaleResult, seller: Seller): string {
+  const doc = sale.invoice ?? sale.creditNote
+  if (!doc) return ''
+  const amt = (v: string): string => formatInr(v, { symbol: false })
+  const lines = doc.lines.map((l) => `<tr><td colspan="3">${esc(l.description)}</td></tr><tr><td>${esc(Number(l.quantity))} x ${amt(l.unitPrice)}${Number(l.discountPercent) ? ` (-${Number(l.discountPercent)}%)` : ''}</td><td></td><td class="r">${amt(l.lineTotal)}</td></tr>`).join('')
+  const tax = (label: string, v: string): string => (Number(v) === 0 ? '' : `<tr><td>${label}</td><td class="r">${amt(v)}</td></tr>`)
+  const pays = sale.payments.map((p) => `<tr><td>${esc(METHOD[p.method] ?? p.method)}</td><td class="r">${amt(p.amount)}</td></tr>`).join('')
+  const title = doc.documentType === 'credit_note' ? 'Credit Note' : 'Tax Invoice'
+  return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(doc.invoiceNo)}</title>
+<style>@page{size:80mm auto;margin:4mm}body{font:11px/1.35 ui-monospace,Menlo,monospace;color:#000;width:72mm}h1{font-size:13px;margin:0;text-align:center}.c{text-align:center}.r{text-align:right}table{width:100%;border-collapse:collapse}hr{border:0;border-top:1px dashed #000;margin:4px 0}.b{font-weight:700}</style></head><body>
+<h1>${esc(seller.tradeName || seller.name)}</h1><div class="c">${seller.address.map(esc).join(', ')}<br>GSTIN ${esc(seller.gstin)}</div><hr>
+<div class="c b">${title}</div><table><tr><td>${esc(doc.invoiceNo)}</td><td class="r">${esc(formatDate(doc.invoiceDate))}</td></tr></table><hr>
+<table>${lines}</table><hr>
+<table><tr><td>Taxable value</td><td class="r">${amt(doc.taxableTotal)}</td></tr>${tax('CGST', doc.cgstTotal)}${tax('SGST', doc.sgstTotal)}${tax('IGST', doc.igstTotal)}${tax('Cess', doc.cessTotal)}${tax('Round off', doc.roundOff)}
+<tr class="b"><td>TOTAL</td><td class="r">${amt(doc.grandTotal)}</td></tr></table><hr>
+<table>${pays}${sale.changeDue && Number(sale.changeDue) > 0 ? `<tr><td>Change</td><td class="r">${amt(sale.changeDue)}</td></tr>` : ''}</table><hr>
+<div class="c">Thank you</div></body></html>`
+}
