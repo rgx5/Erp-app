@@ -61,7 +61,7 @@ test('a new business is set up end to end from the app, and is then ready to inv
 
   // 6. the standard Indian setup in one click
   await expect(page.getByRole('heading', { name: 'Standard setup' })).toBeVisible()
-  await expect(page.getByText('Chart of accounts', { exact: true })).toBeVisible()
+  await expect(page.getByRole('main').getByText('Chart of accounts', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Apply standard setup' }).click()
   await expect(page.getByText('Setup is complete.')).toBeVisible()
   await expect(page.getByLabel('Not done')).toHaveCount(0)

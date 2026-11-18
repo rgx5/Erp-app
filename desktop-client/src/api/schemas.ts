@@ -294,3 +294,46 @@ export const bankReconciliation = z.object({
   statement: z.object({ statementNo: z.string(), asOf: z.string(), closingBalance: z.string() }).nullable(),
 })
 export type BankReconciliation = z.infer<typeof bankReconciliation>
+
+// ---- GST returns (shapes follow the GSTN offline-tool JSON the server produces) --------------------------------------------
+const gstAmounts = z.object({ txval: z.string(), iamt: z.string(), camt: z.string(), samt: z.string(), csamt: z.string() })
+const gstItem = gstAmounts.extend({ rt: z.string() })
+const gstDoc = z.object({ inum: z.string().nullable().optional(), idt: z.string().nullable().optional(), val: z.string(), pos: z.string(), rchrg: z.string(), items: z.array(gstItem) }).passthrough()
+export const gstr1 = z.object({
+  gstin: z.string(), period: z.string(), from: z.string(), to: z.string(),
+  b2b: z.array(z.object({ ctin: z.string(), inv: z.array(gstDoc) })),
+  b2cl: z.array(z.object({ pos: z.string(), inv: z.array(gstDoc) })),
+  b2cs: z.array(gstAmounts.extend({ sply_ty: z.string(), pos: z.string(), rt: z.string() })),
+  exp: z.array(z.object({ exp_typ: z.string(), inv: z.array(gstDoc) })),
+  cdnr: z.array(z.object({ ctin: z.string(), nt: z.array(gstDoc.extend({ nt_num: z.string(), nt_dt: z.string(), ntty: z.string() })) })),
+  cdnur: z.array(gstDoc.extend({ nt_num: z.string(), nt_dt: z.string(), ntty: z.string(), typ: z.string() })),
+  nil: z.record(z.string(), z.string()),
+  hsn: z.array(gstAmounts.extend({ hsn_sc: z.string(), uqc: z.string(), rt: z.string(), qty: z.string() })),
+  doc_issue: z.array(z.object({ doc_typ: z.string(), from: z.string(), to: z.string(), totnum: z.number(), cancel: z.number(), net_issue: z.number() })),
+  summary: z.record(z.string(), gstAmounts),
+})
+export type Gstr1 = z.infer<typeof gstr1>
+const t4 = z.object({ igst: z.string(), cgst: z.string(), sgst: z.string(), cess: z.string() })
+export const gstr3b = z.object({
+  gstin: z.string(), period: z.string(), from: z.string(), to: z.string(),
+  sup_details: z.object({ osup_det: gstAmounts, osup_zero: gstAmounts, osup_nil_exmp: z.object({ txval: z.string() }), isup_rev: gstAmounts, osup_nongst: z.object({ txval: z.string() }), outward_reverse_charge_by_recipient: z.object({ txval: z.string() }) }),
+  inter_sup: z.object({ unreg_details: z.array(z.object({ pos: z.string(), txval: z.string(), iamt: z.string() })), comp_details: z.array(z.object({ pos: z.string(), txval: z.string(), iamt: z.string() })) }),
+  itc_elg: z.object({ itc_avl: z.object({ impg_and_imps: gstAmounts, isrc: gstAmounts, oth: gstAmounts }), itc_rev: z.object({ oth: gstAmounts }), itc_net: gstAmounts, itc_inelg: z.object({ oth: gstAmounts }) }),
+  inward_sup: z.object({ isup_details: z.object({ inter: z.string(), intra: z.string() }) }),
+  tax_pmt: z.object({ liability: t4.extend({ reverse_charge: t4 }), paid_through_itc: t4, payable_in_cash: t4, itc_unused: t4 }),
+})
+export type Gstr3b = z.infer<typeof gstr3b>
+export const itcRegister = z.object({
+  period: z.string(),
+  documents: z.array(z.object({ document: z.string(), type: z.string(), date: z.string(), supplierGstin: z.string().nullable(), supplierTreatment: z.string(), reverseCharge: z.boolean(), taxable: z.string(), igst: z.string(), cgst: z.string(), sgst: z.string(), cess: z.string(), itcAvailable: z.string(), itcBlocked: z.string() })),
+  totals: z.object({ itcAvailable: z.string(), itcBlocked: z.string() }),
+})
+export type ItcRegister = z.infer<typeof itcRegister>
+export const cmp08 = z.object({
+  gstin: z.string(), quarter: z.string(), from: z.string(), to: z.string(),
+  outward: z.object({ turnover: z.string(), ratePercent: z.string(), central: z.string(), state: z.string(), integrated: z.string(), tax: z.string() }),
+  inwardReverseCharge: z.object({ taxable: z.string(), integrated: z.string(), central: z.string(), state: z.string(), cess: z.string() }),
+  totalPayable: z.string(),
+})
+export type Cmp08 = z.infer<typeof cmp08>
+export const returnSettings = z.object({ gstRegistrationId: z.string(), registrationType: z.string(), compositionRate: z.string().nullable() })

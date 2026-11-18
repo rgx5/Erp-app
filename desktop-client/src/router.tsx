@@ -29,6 +29,8 @@ import { ChartPage } from '@/features/accounting/ChartPage'
 import { JournalEditorPage, JournalsPage } from '@/features/accounting/JournalsPage'
 import { PeriodsPage } from '@/features/accounting/PeriodsPage'
 import { ReportsPage } from '@/features/accounting/ReportsPage'
+import { GstPage } from '@/features/gst/GstPage'
+import { ReportCentrePage } from '@/features/gst/ReportCentrePage'
 import { CountsPage } from '@/features/inventory/CountsPage'
 import { MovementsPage } from '@/features/inventory/MovementsPage'
 import { StockPage } from '@/features/inventory/StockPage'
@@ -98,7 +100,9 @@ const newJournalRoute = createRoute({ getParentRoute: () => app, path: '/account
 const periodsRoute = createRoute({ getParentRoute: () => app, path: '/accounting/periods', component: PeriodsPage })
 const reportsRoute = createRoute({ getParentRoute: () => app, path: '/accounting/reports', component: ReportsPage })
 const bankRoute = createRoute({ getParentRoute: () => app, path: '/accounting/bank', component: BankPage })
-const tree = root.addChildren([connect, login, app.addChildren([chartRoute, journalsRoute, newJournalRoute, periodsRoute, reportsRoute, bankRoute, stock, movements, transfers, counts, valuationRoute, orders, newOrder, orderDetail, goodsReceipts, bills, newBill, billDetail, payments, payables, approvals, invoices, newInvoice, invoiceDetail, receipts, receivables, dashboard, setup, companies, items, customers, suppliers, taxCodes, units, paymentTerms, priceLists])])
+const gstRoute = createRoute({ getParentRoute: () => app, path: '/gst', component: GstPage })
+const reportCentreRoute = createRoute({ getParentRoute: () => app, path: '/report-centre', component: ReportCentrePage })
+const tree = root.addChildren([connect, login, app.addChildren([reportCentreRoute, gstRoute, chartRoute, journalsRoute, newJournalRoute, periodsRoute, reportsRoute, bankRoute, stock, movements, transfers, counts, valuationRoute, orders, newOrder, orderDetail, goodsReceipts, bills, newBill, billDetail, payments, payables, approvals, invoices, newInvoice, invoiceDetail, receipts, receivables, dashboard, setup, companies, items, customers, suppliers, taxCodes, units, paymentTerms, priceLists])])
 
 // A hash history works the same on a custom app:// origin and in a browser, with no server-side route fallback to configure.
 import { createHashHistory } from '@tanstack/react-router'
