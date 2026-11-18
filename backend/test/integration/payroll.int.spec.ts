@@ -61,6 +61,9 @@ describe('statutory rules', () => {
     expect(r.pf).toEqual({ employeePercent: '12.0000', employerPercent: '12.0000', ceiling: '15000.0000' });
     expect(r.esi).toEqual({ employeePercent: '0.7500', employerPercent: '3.2500', ceiling: '21000.0000' });
     expect(r.regimes[0]).toMatchObject({ regime: 'new', tdsSlabs: 7, ptSlabs: 3, standardDeduction: '75000.0000', rebateLimit: '1200000.0000', cessPercent: '4.0000', missing: [] });
+    expect(r.regimes[0].tdsSlabDetail[0]).toEqual({ from: '0.0000', to: '400000.0000', ratePercent: '0.0000', fixedAmount: null }); // the app can show and copy the slabs in force
+    expect(r.regimes[0].tdsSlabDetail).toHaveLength(7);
+    expect(r.regimes[0].ptSlabDetail[0].fixedAmount).not.toBeNull();
     expect((await rules('2025-03-31')).json.regimes[0].missing).toContain('pf_employee_percent'); // nothing before the first rules
     // a later change is a new dated rule; earlier dates keep the old one
     ok(await call(server, 'PUT', P(c, 'rules/rates'), { tenant: c.tenant, body: { companyId: c.companyId, effectiveFrom: '2025-09-01', rates: [{ code: 'pf_wage_ceiling', value: '21000' }] } }), 200);

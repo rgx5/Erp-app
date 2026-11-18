@@ -52,3 +52,5 @@ export const useCancelRun = (id: string) => useWrite((b: { date: string; reason:
 export const useLiabilities = (companyId: string | undefined) => useQuery({ queryKey: ['payroll', 'liabilities', companyId], enabled: Boolean(companyId), queryFn: (): Promise<PayrollLiabilities> => get(`${P}/liabilities`, { query: query({ companyId: companyId as string }) }, payrollLiabilities) })
 export const useRemit = () => useWrite(({ body, key }: { body: Record<string, unknown>; key: string }) => send('POST', `${P}/remittances`, body, remittance, key))
 export type { Employee }
+export const usePutRates = () => useWrite((b: { companyId: string; effectiveFrom: string; rates: { code: string; value: string }[] }) => send('PUT', `${P}/rules/rates`, b, z.unknown()))
+export const usePutSlabs = () => useWrite((b: { companyId: string; kind: string; stateCode?: string; effectiveFrom: string; slabs: { from: string; to: string | null; ratePercent?: string; fixedAmount?: string }[] }) => send('PUT', `${P}/rules/slabs`, b, z.unknown()))

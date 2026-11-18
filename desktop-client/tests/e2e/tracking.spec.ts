@@ -48,6 +48,13 @@ test('inventory: stock in with a new batch and serial numbers, see them, hold st
   await page.getByLabel('Serial-tracked item', { exact: true }).fill('phone'); await page.getByRole('option', { name: /PHONE/ }).click()
   await expect(page.getByRole('table', { name: 'Serial numbers' })).toContainText('SN-2')
 
+  // ---- a warehouse may be allowed to go below zero ----
+  await page.getByRole('tab', { name: 'Accounts' }).click()
+  await page.getByLabel(/Allow negative stock in/).first().click()
+  await expect(page.getByRole('status').filter({ hasText: 'may go below zero' })).toBeVisible()
+  await expect(page.getByLabel(/Allow negative stock in/).first()).toBeChecked()
+  await page.getByRole('tab', { name: 'Holds' }).click()
+
   // ---- hold stock, then release it ----
   await page.getByRole('tab', { name: 'Holds' }).click()
   await page.getByRole('button', { name: 'Hold stock' }).first().click()
@@ -77,6 +84,18 @@ test('tracked goods: received into a batch against an order, then sold from that
   await recv.getByLabel('Batch number for MILK').fill('LOT-7')
   await recv.getByRole('button', { name: 'Record receipt' }).click()
   await expect(page.getByRole('status').filter({ hasText: 'GRN/' })).toBeVisible()
+
+  // two litres were spoiled: send them back from that batch
+  await page.getByRole('link', { name: 'Goods receipts' }).click()
+  await page.getByRole('row', { name: /GRN\// }).click()
+  await page.getByRole('button', { name: 'Return goods to the supplier' }).click()
+  const back = page.getByRole('dialog', { name: /GRN\// })
+  await back.getByLabel('Return MILK').fill('2')
+  await back.getByLabel('Batch returned for MILK').selectOption({ label: 'LOT-7' })
+  await back.getByLabel('Reason').fill('Spoiled')
+  await back.getByRole('button', { name: 'Return goods', exact: true }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'returned to the supplier' })).toBeVisible()
+  await page.keyboard.press('Escape')
 
   await page.getByRole('link', { name: 'Invoices', exact: true }).click()
   await page.getByRole('button', { name: 'New invoice' }).click()

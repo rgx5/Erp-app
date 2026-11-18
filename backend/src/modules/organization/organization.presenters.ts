@@ -52,6 +52,7 @@ export const presentWarehouse = (r: WarehouseRow) => ({
   name: r.name,
   kind: r.kind,
   status: r.status,
+  allowNegativeStock: r.allowNegativeStock,
   ...meta(r),
 });
 

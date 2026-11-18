@@ -50,7 +50,7 @@ export const businessLocation = z.object({
 })
 export type BusinessLocation = z.infer<typeof businessLocation>
 
-export const warehouse = z.object({ id: z.string(), businessLocationId: z.string(), code: z.string(), name: z.string(), kind: z.string(), status: z.string() })
+export const warehouse = z.object({ id: z.string(), businessLocationId: z.string(), code: z.string(), name: z.string(), kind: z.string(), status: z.string(), allowNegativeStock: z.boolean().optional() })
 export type Warehouse = z.infer<typeof warehouse>
 
 export const fiscalYear = z.object({ id: z.string(), companyId: z.string(), label: z.string(), startDate: z.string(), endDate: z.string() })
@@ -402,11 +402,13 @@ export type SubcontractPending = z.infer<typeof subcontractPending>
 const acct = z.string().nullable().optional()
 export const payrollSettings = z.object({ companyId: z.string(), salaryExpenseAccountId: acct, employerCostAccountId: acct, salaryPayableAccountId: acct, pfPayableAccountId: acct, esiPayableAccountId: acct, ptPayableAccountId: acct, tdsPayableAccountId: acct, otherDeductionsAccountId: acct })
 export type PayrollSettings = z.infer<typeof payrollSettings>
+const slabRow = z.object({ from: z.string(), to: z.string().nullable(), ratePercent: z.string().nullable(), fixedAmount: z.string().nullable() })
+export type SlabRow = z.infer<typeof slabRow>
 export const payrollRules = z.object({
   date: z.string(), stateCode: z.string().nullable().optional(),
   pf: z.object({ employeePercent: z.string(), employerPercent: z.string(), ceiling: z.string() }).nullable().optional(),
   esi: z.object({ employeePercent: z.string(), employerPercent: z.string(), ceiling: z.string() }).nullable().optional(),
-  regimes: z.array(z.object({ regime: z.string(), missing: z.array(z.string()), tdsSlabs: z.number(), ptSlabs: z.number(), standardDeduction: z.string().nullable().optional(), rebateLimit: z.string().nullable().optional(), rebateAmount: z.string().nullable().optional(), cessPercent: z.string().nullable().optional() })),
+  regimes: z.array(z.object({ regime: z.string(), missing: z.array(z.string()), tdsSlabs: z.number(), ptSlabs: z.number(), tdsSlabDetail: z.array(slabRow).optional(), ptSlabDetail: z.array(slabRow).optional(), standardDeduction: z.string().nullable().optional(), rebateLimit: z.string().nullable().optional(), rebateAmount: z.string().nullable().optional(), cessPercent: z.string().nullable().optional() })),
 })
 export type PayrollRules = z.infer<typeof payrollRules>
 export const payComponent = z.object({ id: z.string(), code: z.string(), name: z.string(), kind: z.string(), calculation: z.string(), percent: z.string().nullable(), isTaxable: z.boolean(), pfWage: z.boolean(), esiWage: z.boolean(), status: z.string() })

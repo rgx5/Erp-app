@@ -1,6 +1,10 @@
 import { fromUnits, toUnits } from '@/domain/money'
 
-export interface CartLine { key: string; itemId: string; code: string; name: string; quantity: string; unitPrice: string; discountPercent: string; taxInclusive: boolean; taxCodeId: string | null }
+export interface CartLine { key: string; itemId: string; code: string; name: string; quantity: string; unitPrice: string; discountPercent: string; taxInclusive: boolean; taxCodeId: string | null; tracking: 'none' | 'batch' | 'serial'; batchId: string; serials: string }
+
+export const serialList = (v: string): string[] => v.split(/[\n,;\s]+/).map((x) => x.trim()).filter(Boolean)
+/** A tracked item is sellable once its batch is chosen, or exactly one distinct serial number per unit is entered. */
+export const trackingReady = (l: CartLine): boolean => (l.tracking === 'batch' ? l.batchId !== '' : l.tracking === 'serial' ? serialList(l.serials).length === Number(l.quantity) && new Set(serialList(l.serials)).size === serialList(l.serials).length : true)
 
 /** Rounds to paise: half up, like the server's line totals. */
 const round2 = (v: bigint): bigint => { const sign = v < 0n ? -1n : 1n; const a = v < 0n ? -v : v; return sign * ((a + 50n) / 100n) * 100n }

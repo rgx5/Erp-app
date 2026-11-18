@@ -28,6 +28,8 @@ const ACCOUNT_RULES: Record<PayrollAccount, { type: string; controls: (string | 
   otherDeductionsAccountId: { type: 'liability', controls: [null], label: 'an ordinary liability account' },
 };
 
+const slabOut = (s: { from: bigint; to: bigint | null; ratePercent?: bigint | null; fixed?: bigint | null }) => ({ from: f4(s.from), to: s.to === null ? null : f4(s.to), ratePercent: s.ratePercent == null ? null : f4(s.ratePercent), fixedAmount: s.fixed == null ? null : f4(s.fixed) });
+
 /** Employees and contract workers, salary components and structures, monthly inputs, and the statutory rules. */
 @Injectable()
 export class PayrollMastersService {
@@ -231,7 +233,7 @@ export class PayrollMastersService {
       const out = [];
       for (const regime of ['new', 'old'] as const) {
         const { rules, missing } = await resolveRules(tx, tenantId, companyId, date, regime, stateCode ?? '00');
-        out.push({ regime, missing: missing.filter((m) => stateCode || !m.startsWith('pt')), tdsSlabs: rules.tdsSlabs.length, ptSlabs: rules.ptSlabs.length, standardDeduction: f4(rules.stdDeduction), rebateLimit: f4(rules.rebateLimit), rebateAmount: f4(rules.rebateAmount), cessPercent: f4(rules.cessPct) });
+        out.push({ regime, missing: missing.filter((m) => stateCode || !m.startsWith('pt')), tdsSlabs: rules.tdsSlabs.length, ptSlabs: rules.ptSlabs.length, tdsSlabDetail: rules.tdsSlabs.map(slabOut), ptSlabDetail: rules.ptSlabs.map(slabOut), standardDeduction: f4(rules.stdDeduction), rebateLimit: f4(rules.rebateLimit), rebateAmount: f4(rules.rebateAmount), cessPercent: f4(rules.cessPct) });
       }
       const { rules } = await resolveRules(tx, tenantId, companyId, date, 'new', stateCode ?? '00');
       return { date, stateCode: stateCode ?? null, pf: { employeePercent: f4(rules.pfEmployeePct), employerPercent: f4(rules.pfEmployerPct), ceiling: f4(rules.pfCeiling) }, esi: { employeePercent: f4(rules.esiEmployeePct), employerPercent: f4(rules.esiEmployerPct), ceiling: f4(rules.esiCeiling) }, regimes: out };

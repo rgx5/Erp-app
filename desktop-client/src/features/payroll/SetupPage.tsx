@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { z } from 'zod'
-import type { LedgerAccount } from '@/api/schemas'
+import type { LedgerAccount, SlabRow } from '@/api/schemas'
 import { can } from '@/auth/permissions'
 import { useSession } from '@/auth/session'
 import { formatInr, todayIso } from '@/domain/format'
@@ -12,7 +12,7 @@ import { Drawer } from '@/ui/Drawer'
 import { useFlash } from '@/ui/flash'
 import { SimpleForm } from '@/ui/SimpleForm'
 import { Alert, Button, Card, CheckField, SelectField, Spinner, TextField } from '@/ui/primitives'
-import { useComponents, useCreateComponent, usePayrollRules, usePayrollSettings, useSavePayrollSettings, useSeedPayrollRules, useUpdateComponent } from './queries'
+import { useComponents, useCreateComponent, usePayrollRules, usePayrollSettings, usePutRates, usePutSlabs, useSavePayrollSettings, useSeedPayrollRules, useUpdateComponent } from './queries'
 
 type Tab = 'accounts' | 'rules' | 'components'
 const expense = (a: LedgerAccount) => a.type === 'expense' && a.controlKind === null
@@ -58,6 +58,7 @@ function Rules({ companyId }: { companyId: string }) {
   const seed = useSeedPayrollRules()
   const flash = useFlash()
   const [problem, setProblem] = useState<string | null>(null)
+  const [editing, setEditing] = useState<null | 'rates' | 'tds_new' | 'tds_old' | 'pt'>(null)
   const fy = (() => { const d = new Date(); return `${d.getMonth() >= 3 ? d.getFullYear() : d.getFullYear() - 1}-04-01` })()
   const r = rules.data
   const ready = Boolean(r?.pf && r?.esi && r.regimes.length && r.regimes.every((x) => x.missing.length === 0))
@@ -81,8 +82,62 @@ function Rules({ companyId }: { companyId: string }) {
         </Card>) : null}
       {problem ? <Alert>{problem}</Alert> : null}
       {canManage ? <Button variant="secondary" className="self-start" busy={seed.isPending} onClick={async () => { setProblem(null); try { const x = await seed.mutateAsync({ companyId, effectiveFrom: fy }); flash.show(`Starting values loaded from ${x.effectiveFrom}: ${x.rates} rates, ${x.slabSets.join(', ')} slabs.`) } catch (e) { setProblem(e instanceof Error ? e.message : 'Could not load the starting values.') } }}>Load starting values (confirm with your accountant)</Button> : null}
-      <p className="text-xs text-muted">Not yet: editing individual rates and slabs, old-regime slabs and other states&apos; professional-tax slabs from the app.</p>
+      {canManage ? <div className="flex flex-wrap gap-2"><Button variant="secondary" onClick={() => setEditing('rates')}>Change rates</Button><Button variant="secondary" onClick={() => setEditing('tds_new')}>Income-tax slabs, new regime</Button><Button variant="secondary" onClick={() => setEditing('tds_old')}>Income-tax slabs, old regime</Button><Button variant="secondary" onClick={() => setEditing('pt')}>Professional-tax slabs for this state</Button></div> : null}
+      {editing === 'rates' ? <RateEditor companyId={companyId} onClose={() => setEditing(null)} /> : null}
+      {editing && editing !== 'rates' ? <SlabEditor key={`${editing}${state}`} companyId={companyId} kind={editing} state={state} current={(editing === 'pt' ? r?.regimes[0]?.ptSlabDetail : r?.regimes.find((x) => x.regime === (editing === 'tds_new' ? 'new' : 'old'))?.tdsSlabDetail) ?? []} onClose={() => setEditing(null)} /> : null}
     </div>
+  )
+}
+
+const RATE_FIELDS = [
+  ['pf_employee_percent', 'PF, employee (%)'], ['pf_employer_percent', 'PF, employer (%)'], ['pf_wage_ceiling', 'PF wage ceiling'], ['esi_employee_percent', 'ESI, employee (%)'], ['esi_employer_percent', 'ESI, employer (%)'], ['esi_wage_ceiling', 'ESI wage ceiling'],
+  ['tds_cess_percent', 'Income-tax cess (%)'], ['tds_std_deduction_new', 'Standard deduction, new regime'], ['tds_rebate_limit_new', 'Rebate limit, new regime'], ['tds_rebate_amount_new', 'Rebate amount, new regime'],
+  ['tds_std_deduction_old', 'Standard deduction, old regime'], ['tds_rebate_limit_old', 'Rebate limit, old regime'], ['tds_rebate_amount_old', 'Rebate amount, old regime'],
+] as const
+const num = /^\d{1,14}(\.\d{1,4})?$/
+
+function RateEditor({ companyId, onClose }: { companyId: string; onClose: () => void }) {
+  const put = usePutRates(); const flash = useFlash()
+  const [from, setFrom] = useState(todayIso())
+  const [vals, setVals] = useState<Record<string, string>>({})
+  const [problem, setProblem] = useState<string | null>(null)
+  const changed = Object.entries(vals).filter(([, v]) => v.trim() !== '')
+  return (
+    <Drawer title="Change statutory rates" onClose={onClose} width={560}>
+      <div className="flex flex-col gap-4">
+        <Alert tone="info">A rate is never edited: the change takes effect from the date you give, and earlier months keep the rate they had. Enter only what changes, and have your accountant confirm the figures.</Alert>
+        <TextField label="Effective from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+        <div className="grid grid-cols-2 gap-3">{RATE_FIELDS.map(([code, label]) => <TextField key={code} label={label} inputMode="decimal" value={vals[code] ?? ''} onChange={(e) => setVals({ ...vals, [code]: e.target.value })} />)}</div>
+        {problem ? <Alert>{problem}</Alert> : null}
+        <Button busy={put.isPending} disabled={changed.length === 0 || changed.some(([, v]) => !num.test(v.trim()))} onClick={async () => { setProblem(null); try { await put.mutateAsync({ companyId, effectiveFrom: from, rates: changed.map(([code, value]) => ({ code, value: value.trim() })) }); flash.show(`${changed.length} rate(s) set from ${from}.`); onClose() } catch (e) { setProblem(e instanceof Error ? e.message : 'Could not save.') } }}>Save rates</Button>
+      </div>
+    </Drawer>
+  )
+}
+
+interface SlabDraft { key: string; from: string; to: string; value: string }
+let slabN = 0
+function SlabEditor({ companyId, kind, state, current, onClose }: { companyId: string; kind: 'tds_new' | 'tds_old' | 'pt'; state: string; current: SlabRow[]; onClose: () => void }) {
+  const put = usePutSlabs(); const flash = useFlash()
+  const pt = kind === 'pt'
+  const [from, setFrom] = useState(todayIso())
+  const [rows, setRows] = useState<SlabDraft[]>(() => (current.length ? current : [{ from: '0', to: null, ratePercent: '0', fixedAmount: '0' }]).map((s) => ({ key: `s${++slabN}`, from: String(Number(s.from)), to: s.to === null ? '' : String(Number(s.to)), value: String(Number(pt ? s.fixedAmount ?? 0 : s.ratePercent ?? 0)) })))
+  const [problem, setProblem] = useState<string | null>(null)
+  const valid = rows.length > 0 && rows.every((r) => num.test(r.from) && (r.to === '' || num.test(r.to)) && num.test(r.value))
+  const title = kind === 'pt' ? `Professional-tax slabs (${STATES.find((s) => s.code === state)?.name ?? state})` : kind === 'tds_new' ? 'Income-tax slabs, new regime' : 'Income-tax slabs, old regime'
+  return (
+    <Drawer title={title} onClose={onClose} width={620}>
+      <div className="flex flex-col gap-4">
+        <Alert tone="info">The slabs shown are the ones in force today. A new set takes effect from the date you give; earlier months keep the old set. Leave &ldquo;up to&rdquo; empty on the last slab. Have your accountant confirm the figures.</Alert>
+        <TextField label="Effective from" type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
+        <table className="w-full text-sm" aria-label="Slabs"><thead><tr className="text-left text-xs text-muted"><th className="py-1">From</th><th className="py-1">Up to</th><th className="py-1">{pt ? 'Tax per month' : 'Rate %'}</th><th /></tr></thead>
+          <tbody>{rows.map((r) => <tr key={r.key}>{(['from', 'to', 'value'] as const).map((f) => <td key={f} className="py-1 pr-2"><input aria-label={`${f === 'value' ? (pt ? 'Amount' : 'Rate') : f === 'from' ? 'From' : 'Up to'} ${rows.indexOf(r) + 1}`} inputMode="decimal" className="h-8 w-full rounded border border-line bg-surface px-2 text-sm" value={r[f]} onChange={(e) => setRows(rows.map((x) => (x.key === r.key ? { ...x, [f]: e.target.value } : x)))} /></td>)}
+            <td><Button variant="ghost" aria-label={`Remove slab ${rows.indexOf(r) + 1}`} onClick={() => setRows(rows.filter((x) => x.key !== r.key))}>×</Button></td></tr>)}</tbody></table>
+        <Button variant="ghost" className="self-start" onClick={() => setRows([...rows, { key: `s${++slabN}`, from: rows.at(-1)?.to ?? '', to: '', value: '0' }])}>+ Add slab</Button>
+        {problem ? <Alert>{problem}</Alert> : null}
+        <Button busy={put.isPending} disabled={!valid} onClick={async () => { setProblem(null); try { await put.mutateAsync({ companyId, kind, ...(pt ? { stateCode: state } : {}), effectiveFrom: from, slabs: rows.map((r) => ({ from: r.from, to: r.to === '' ? null : r.to, ...(pt ? { fixedAmount: r.value } : { ratePercent: r.value }) })) }); flash.show('Slabs saved.'); onClose() } catch (e) { setProblem(e instanceof Error ? e.message : 'Could not save.') } }}>Save slabs</Button>
+      </div>
+    </Drawer>
   )
 }
 

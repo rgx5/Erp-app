@@ -13,7 +13,7 @@ import { useWorkspace } from '@/features/organization/workspace'
 import { Drawer } from '@/ui/Drawer'
 import { useFlash } from '@/ui/flash'
 import { Alert, Button, Card, SelectField, Spinner, TextField } from '@/ui/primitives'
-import { useAvailability, useBatchStatus, useBatches, useCreateBatch, useCreateReservation, useReleaseReservation, useReservations, useSaveStockSettings, useSerials, useStockSettings } from './trackingQueries'
+import { useAvailability, useBatchStatus, useBatches, useCreateBatch, useCreateReservation, useReleaseReservation, useReservations, useSaveStockSettings, useSerials, useSetNegativeStock, useStockSettings } from './trackingQueries'
 
 type Tab = 'batches' | 'serials' | 'reservations' | 'settings'
 const msg = (e: unknown, f: string): string => (e instanceof ApiError ? `${e.message}${e.requestId ? ` (reference ${e.requestId})` : ''}` : f)
@@ -127,6 +127,8 @@ function Settings({ companyId }: { companyId: string }) {
   const accounts = useAccounts(companyId)
   const save = useSaveStockSettings(companyId)
   const flash = useFlash()
+  const ws = useWorkspace()
+  const negative = useSetNegativeStock()
   const [adj, setAdj] = useState<LedgerAccount | null | undefined>(undefined)
   const [opening, setOpening] = useState<LedgerAccount | null | undefined>(undefined)
   const [problem, setProblem] = useState<string | null>(null)
@@ -141,7 +143,10 @@ function Settings({ companyId }: { companyId: string }) {
         <div><AccountPicker label="Opening balances" value={curOpen} filter={(a) => a.controlKind === null} onPick={setOpening} /><p className="mt-0.5 text-xs text-muted">The other side of opening stock.</p></div>
         {problem ? <Alert>{problem}</Alert> : null}
         {canManage ? <Button className="self-start" busy={save.isPending} disabled={!curAdj || !curOpen} onClick={async () => { setProblem(null); try { await save.mutateAsync({ adjustmentAccountId: curAdj?.id ?? null, openingBalanceAccountId: curOpen?.id ?? null }); flash.show('Stock accounts saved.') } catch (e) { setProblem(msg(e, 'Could not save.')) } }}>Save</Button> : null}
-        <p className="text-xs text-muted">Which account suits each purpose is for your accountant to confirm. Not here yet: allowing negative stock per warehouse.</p>
+        <p className="text-xs text-muted">Which account suits each purpose is for your accountant to confirm.</p>
+        <h3 className="mt-2 text-sm font-semibold">Selling more than is on hand</h3>
+        <p className="text-xs text-muted">By default an issue that would take stock below zero is refused. A warehouse can allow it for weighted-average items, at the last cost; it is corrected when the next receipt arrives.</p>
+        {ws.warehouses.map((w) => <label key={w.id} className="flex items-center gap-2 text-sm"><input type="checkbox" aria-label={`Allow negative stock in ${w.name}`} disabled={!canManage} checked={w.allowNegativeStock === true} onChange={async (e) => { const allow = e.target.checked; try { await negative.mutateAsync({ id: w.id, allow }); flash.show(`${w.name}: ${allow ? 'may go below zero' : 'cannot go below zero'}.`) } catch (x) { flash.show(msg(x, 'Could not change it.')) } }} />{w.name}</label>)}
       </div>
     </Card>
   )

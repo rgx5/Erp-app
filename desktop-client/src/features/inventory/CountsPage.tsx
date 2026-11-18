@@ -8,6 +8,7 @@ import { useSession } from '@/auth/session'
 import { formatDate, todayIso } from '@/domain/format'
 import { showQty, subQty } from '@/domain/quantity'
 import { useItemsById } from '@/features/masterdata/queries'
+import { useBatches } from './trackingQueries'
 import { useWorkspace } from '@/features/organization/workspace'
 import { DataTable } from '@/ui/DataTable'
 import { Drawer } from '@/ui/Drawer'
@@ -79,7 +80,7 @@ function Sheet({ id, onClose }: { id: string; onClose: () => void }) {
                 const val = shown(l.id, l.countedQuantity)
                 const diff = l.variance ?? (qtyOk(val) ? subQty(val, l.snapshotQuantity) : null)
                 return (
-                  <tr key={l.id} className="border-t border-line/60"><td className="py-1.5">{items.data?.get(l.itemId)?.code} · {items.data?.get(l.itemId)?.name}</td><td className="num py-1.5 text-right">{showQty(l.snapshotQuantity)}</td>
+                  <tr key={l.id} className="border-t border-line/60"><td className="py-1.5">{items.data?.get(l.itemId)?.code} · {items.data?.get(l.itemId)?.name}{l.batchId ? <BatchTag itemId={l.itemId} batchId={l.batchId} /> : null}</td><td className="num py-1.5 text-right">{showQty(l.snapshotQuantity)}</td>
                     <td className="py-1.5 pl-3"><input aria-label={`Counted ${items.data?.get(l.itemId)?.code ?? ''}`} inputMode="decimal" disabled={!open} className="h-8 w-24 rounded border border-line bg-surface px-2 text-right text-sm disabled:opacity-60" value={val} onChange={(e) => setEntered({ ...entered, [l.id]: e.target.value })} /></td>
                     <td className={`num py-1.5 text-right ${diff && Number(diff) < 0 ? 'text-bad' : diff && Number(diff) > 0 ? 'text-good' : ''}`}>{diff === null ? '' : Number(diff) === 0 ? 'matches' : `${Number(diff) > 0 ? '+' : ''}${showQty(diff)}`}</td></tr>
                 )
@@ -119,4 +120,9 @@ export function CountsPage() {
       {open === 'new' ? <NewCount onClose={() => setOpen(null)} onCreated={(id) => setOpen(id)} /> : open ? <Sheet id={open} onClose={() => setOpen(null)} /> : null}
     </div>
   )
+}
+
+function BatchTag({ itemId, batchId }: { itemId: string; batchId: string }) {
+  const b = useBatches(itemId)
+  return <span className="ml-2 rounded bg-canvas px-1.5 py-0.5 text-xs text-muted">batch {b.data?.find((x) => x.id === batchId)?.batchNo ?? '…'}</span>
 }

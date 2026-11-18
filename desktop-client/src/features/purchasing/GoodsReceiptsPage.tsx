@@ -1,5 +1,5 @@
 import type { ColumnDef } from '@tanstack/react-table'
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { ApiError } from '@/api/errors'
 import type { GoodsReceiptHeader } from '@/api/schemas'
@@ -12,6 +12,7 @@ import { DataTable } from '@/ui/DataTable'
 import { Drawer } from '@/ui/Drawer'
 import { useFlash } from '@/ui/flash'
 import { Alert, Button, Spinner, TextField } from '@/ui/primitives'
+import { useBatches } from '@/features/inventory/trackingQueries'
 import { useGoodsReceipt, useGoodsReceipts } from './queries'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { currentApi } from '@/auth/session'
@@ -20,7 +21,7 @@ import { z } from 'zod'
 function useReturn(id: string) {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (body: { returnDate: string; reason: string; lines: { receiptLineId: string; quantity: string }[] }) => { const api = currentApi(); return api.call(api.raw.POST('/v1/purchasing/receipts/{id}/return', { params: { path: { id } }, body, headers: { 'idempotency-key': crypto.randomUUID() } }), z.object({ id: z.string() }).passthrough()) },
+    mutationFn: (body: { returnDate: string; reason: string; lines: { receiptLineId: string; quantity: string; batchId?: string; serialNos?: string[] }[] }) => { const api = currentApi(); return api.call(api.raw.POST('/v1/purchasing/receipts/{id}/return', { params: { path: { id } }, body, headers: { 'idempotency-key': crypto.randomUUID() } }), z.object({ id: z.string() }).passthrough()) },
     onSuccess: () => Promise.all(['goods-receipts', 'goods-receipt', 'grni', 'purchase-order'].map((k) => qc.invalidateQueries({ queryKey: [k] }))),
   })
 }
@@ -35,13 +36,22 @@ function ReceiptDetail({ id, onClose }: { id: string; onClose: () => void }) {
   const [qty, setQty] = useState<Record<string, string>>({})
   const [reason, setReason] = useState('')
   const [date, setDate] = useState(todayIso())
+  const [track, setTrack] = useState<Record<string, string>>({})
   const [problem, setProblem] = useState<string | null>(null)
   if (q.isPending) return <Drawer title="Goods receipt" onClose={onClose}><Spinner /></Drawer>
   if (!q.data) return <Drawer title="Goods receipt" onClose={onClose}><Alert>{q.error?.message ?? 'Not found.'}</Alert></Drawer>
   const r = q.data
   async function submit() {
     setProblem(null)
-    const lines = r.lines.flatMap((l) => { const v = (qty[l.id] ?? '').trim(); return v && Number(v) > 0 ? [{ receiptLineId: l.id, quantity: v }] : [] })
+    const lines: { receiptLineId: string; quantity: string; batchId?: string; serialNos?: string[] }[] = []
+    for (const l of r.lines) {
+      const v = (qty[l.id] ?? '').trim()
+      if (!v || Number(v) <= 0) continue
+      const it = items.data?.get(l.itemId); const t = (track[l.id] ?? '').trim()
+      if (it?.tracking === 'batch') { if (!t) { setProblem(`${it.code}: choose the batch being returned.`); return } lines.push({ receiptLineId: l.id, quantity: v, batchId: t }) }
+      else if (it?.tracking === 'serial') { const list = t.split(/[\n,;\s]+/).filter(Boolean); if (list.length !== Number(v) || new Set(list).size !== list.length) { setProblem(`${it.code}: enter exactly ${v} different serial numbers.`); return } lines.push({ receiptLineId: l.id, quantity: v, serialNos: list }) }
+      else lines.push({ receiptLineId: l.id, quantity: v })
+    }
     if (lines.length === 0) { setProblem('Enter a quantity to return on at least one line.'); return }
     if (!reason.trim()) { setProblem('A reason is required.'); return }
     try { await ret.mutateAsync({ returnDate: date, reason: reason.trim(), lines }); flash.show(`Goods from ${r.grnNo} returned to the supplier.`); setReturning(false); setQty({}); setReason('') } catch (e) { setProblem(e instanceof ApiError ? e.message : 'Could not return the goods.') }
@@ -54,8 +64,11 @@ function ReceiptDetail({ id, onClose }: { id: string; onClose: () => void }) {
           <thead><tr className="text-left text-xs text-muted"><th className="py-1">Item</th><th className="num py-1 text-right">Received</th><th className="num py-1 text-right">Billed</th><th className="num py-1 text-right">Returned</th><th className="num py-1 text-right">Cost</th><th className="num py-1 text-right">Value</th>{returning ? <th className="py-1 pl-3">Return</th> : null}</tr></thead>
           <tbody>
             {r.lines.map((l) => (
-              <tr key={l.id} className="border-t border-line/60"><td className="py-1.5">{items.data?.get(l.itemId)?.code} · {items.data?.get(l.itemId)?.name}</td><td className="num py-1.5 text-right">{Number(l.quantity)}</td><td className="num py-1.5 text-right">{Number(l.quantityBilled)}</td><td className="num py-1.5 text-right">{Number(l.quantityReturned)}</td><td className="num py-1.5 text-right">{formatInr(l.unitCost, { symbol: false })}</td><td className="num py-1.5 text-right">{formatInr(l.value, { symbol: false })}</td>
+              <Fragment key={l.id}>
+              <tr className="border-t border-line/60"><td className="py-1.5">{items.data?.get(l.itemId)?.code} · {items.data?.get(l.itemId)?.name}</td><td className="num py-1.5 text-right">{Number(l.quantity)}</td><td className="num py-1.5 text-right">{Number(l.quantityBilled)}</td><td className="num py-1.5 text-right">{Number(l.quantityReturned)}</td><td className="num py-1.5 text-right">{formatInr(l.unitCost, { symbol: false })}</td><td className="num py-1.5 text-right">{formatInr(l.value, { symbol: false })}</td>
                 {returning ? <td className="py-1.5 pl-3"><input aria-label={`Return ${items.data?.get(l.itemId)?.code ?? ''}`} inputMode="decimal" className="h-8 w-20 rounded border border-line bg-surface px-2 text-right text-sm" value={qty[l.id] ?? ''} onChange={(e) => setQty({ ...qty, [l.id]: e.target.value })} /></td> : null}</tr>
+              {returning && items.data?.get(l.itemId) && items.data.get(l.itemId)?.tracking !== 'none' && Number(qty[l.id] ?? 0) > 0 ? <tr><td colSpan={7} className="pb-2"><ReturnTracking itemId={l.itemId} code={items.data.get(l.itemId)?.code ?? ''} kind={items.data.get(l.itemId)?.tracking ?? 'none'} value={track[l.id] ?? ''} onChange={(v) => setTrack({ ...track, [l.id]: v })} /></td></tr> : null}
+              </Fragment>
             ))}
           </tbody>
         </table>
@@ -94,4 +107,10 @@ export function GoodsReceiptsPage() {
       {open ? <ReceiptDetail id={open} onClose={() => setOpen(null)} /> : null}
     </div>
   )
+}
+
+function ReturnTracking({ itemId, code, kind, value, onChange }: { itemId: string; code: string; kind: string; value: string; onChange: (v: string) => void }) {
+  const batches = useBatches(kind === 'batch' ? itemId : undefined)
+  if (kind === 'serial') return <textarea aria-label={`Serial numbers returned for ${code}`} rows={2} placeholder="Serial numbers being returned (one per line)" className="w-full rounded border border-line bg-surface px-2 py-1 text-sm" value={value} onChange={(e) => onChange(e.target.value)} />
+  return <select aria-label={`Batch returned for ${code}`} className="h-8 w-full rounded border border-line bg-surface px-2 text-sm" value={value} onChange={(e) => onChange(e.target.value)}><option value="">Choose the batch being returned…</option>{(batches.data ?? []).map((b) => <option key={b.id} value={b.id}>{b.batchNo}</option>)}</select>
 }

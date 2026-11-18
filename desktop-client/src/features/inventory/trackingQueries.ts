@@ -29,3 +29,7 @@ export const useReleaseReservation = () => useWrite((id: string) => send('POST',
 export const useAvailability = (companyId: string | undefined, itemId: string | undefined) => useQuery({ queryKey: ['tracking', 'availability', companyId, itemId], enabled: Boolean(companyId && itemId), queryFn: (): Promise<Availability> => get('/v1/stock/availability', { query: query({ companyId: companyId as string, itemId: itemId as string }) }, availability) })
 export const useStockSettings = (companyId: string | undefined) => useQuery({ queryKey: ['tracking', 'settings', companyId], enabled: Boolean(companyId), queryFn: (): Promise<StockSettings> => get('/v1/companies/{companyId}/stock-settings', { path: { companyId } }, stockSettings) })
 export const useSaveStockSettings = (companyId: string) => useWrite((b: { adjustmentAccountId?: string | null; openingBalanceAccountId?: string | null }) => send('PUT', `/v1/companies/${companyId}/stock-settings`, b, stockSettings))
+export const useSetNegativeStock = () => {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: ({ id, allow }: { id: string; allow: boolean }) => currentApi().call(raw()['PATCH']!(`/v1/warehouses/${id}/stock-settings`, { body: { allowNegativeStock: allow } }) as never, z.unknown()), onSuccess: () => qc.invalidateQueries({ queryKey: ['warehouses'] }) })
+}

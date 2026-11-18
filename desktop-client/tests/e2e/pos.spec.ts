@@ -25,6 +25,10 @@ test('point of sale: open a shift, sell, return, sell offline and upload, cash u
   const list = await s.call('POST', '/v1/price-lists', { code: 'COUNTER', name: 'Counter prices', kind: 'sales', taxInclusive: true })
   await s.call('POST', `/v1/price-lists/${list.id}/prices`, { itemId: s.widget.id, uomId: nos.id, price: '1180', effectiveFrom: `${s.year}-04-01` })
   await s.call('POST', `/v1/price-lists/${list.id}/prices`, { itemId: s.cheap.id, uomId: nos.id, price: '105', effectiveFrom: `${s.year}-04-01` })
+  const tax = ((await s.call('GET', '/v1/tax-codes?limit=50')).items as { id: string; code: string }[]).find((t) => t.code === 'GST18') as { id: string }
+  const phone = await s.call('POST', '/v1/items', { code: 'PHONE', name: 'Phone', baseUomId: nos.id, itemType: 'finished_good', taxCodeId: tax.id, hsnSacCode: '8517', tracking: 'serial' })
+  await s.call('POST', '/v1/stock/movements', { companyId: c, movementType: 'opening', postingDate: `${s.year}-04-01`, description: 'Phones', lines: [{ warehouseId: s.warehouse.id, itemId: phone.id, quantity: '2', unitCost: '9000', serialNos: ['SN-1', 'SN-2'] }] })
+  await s.call('POST', `/v1/price-lists/${list.id}/prices`, { itemId: phone.id, uomId: nos.id, price: '11800', effectiveFrom: `${s.year}-04-01` })
   await signIn(page, s)
 
   // ---- this computer becomes a device for offline selling ----
@@ -60,6 +64,15 @@ test('point of sale: open a shift, sell, return, sell offline and upload, cash u
   await ret.getByRole('button', { name: 'Record return and refund' }).click()
   await expect(page.getByRole('status').filter({ hasText: 'CN/' })).toBeVisible()
 
+  // ---- a serial-numbered phone: charging waits for its serial number ----
+  await scan(page, 'PHONE')
+  await expect(page.getByRole('button', { name: /^Charge/ })).toBeDisabled()
+  await page.getByLabel('Serial numbers of PHONE').fill('SN-1')
+  await expect(page.getByLabel('Sale total')).toHaveText('₹ 11,800.00')
+  await page.getByLabel('Cash given').fill('12000')
+  await page.getByRole('button', { name: /^Charge/ }).click()
+  await expect(page.getByRole('table', { name: 'Cart' })).toContainText('Scan an item to begin')
+
   // ---- the connection drops: a sale is kept on this computer, then uploaded ----
   await context.setOffline(true)
   await scan(page, 'TOY')
@@ -73,8 +86,8 @@ test('point of sale: open a shift, sell, return, sell offline and upload, cash u
   // ---- cash up ----
   await page.getByRole('button', { name: 'Close shift' }).click()
   const close = page.getByRole('dialog', { name: /^Close SHF/ })
-  await expect(close.getByLabel('Shift summary')).toContainText('Sales (2)')
-  await close.getByLabel('Cash counted in the drawer').fill('3470')
+  await expect(close.getByLabel('Shift summary')).toContainText('Sales (3)')
+  await close.getByLabel('Cash counted in the drawer').fill('15270')
   await close.getByRole('button', { name: 'Close shift' }).click()
   await expect(close.getByLabel('Cash-up result')).toContainText('Closed')
 })

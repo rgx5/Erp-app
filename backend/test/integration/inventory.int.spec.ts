@@ -165,6 +165,9 @@ describe('negative stock policy', () => {
     expect(blocked.status).toBe(409);
     expect(blocked.json).toMatchObject({ code: 'insufficient_stock', available: '4.000000' });
     ok(await call(server, 'PATCH', `/v1/warehouses/${w.wh}/stock-settings`, { tenant: w.tenant, body: { allowNegativeStock: true } }), 200);
+    const listed = (await call(server, 'GET', '/v1/warehouses', { tenant: w.tenant })).json.items as { id: string; allowNegativeStock: boolean }[];
+    expect(listed.find((x) => x.id === w.wh)?.allowNegativeStock).toBe(true); // the app shows the policy
+    expect(listed.find((x) => x.id === w.wh2)?.allowNegativeStock).toBe(false);
     const over = ok(await issue(w, i, '6'));
     expect(over.lines[0]).toMatchObject({ quantity: '-6.000000', value: '-150.0000', balanceQuantity: '-2.000000', balanceValue: '-50.0000' }); // 4 @ avg, 2 @ last cost
     expect((await recon(w)).reconciled).toBe(true);

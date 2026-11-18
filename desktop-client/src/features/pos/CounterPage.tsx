@@ -1,5 +1,5 @@
 import { Trash2 } from 'lucide-react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
 import { query } from '@/api/client'
@@ -23,7 +23,8 @@ import { ReturnDrawer } from './ReturnDrawer'
 import { CloseShiftDrawer } from './ShiftDrawers'
 import { fetchCatalogue, postSale, uploadBatch, useOpenShift, usePosSettings, useShifts, useTerminals } from './queries'
 import { receiptHtml } from './receiptHtml'
-import { localTotal, type CartLine } from './totals'
+import { localTotal, serialList, trackingReady, type CartLine } from './totals'
+import { useBatches } from '@/features/inventory/trackingQueries'
 
 interface Tender { key: string; method: string; amount: string; tendered: string }
 const METHOD: Record<string, string> = { cash: 'Cash', upi: 'UPI', card: 'Card', bank_transfer: 'Bank transfer', cheque: 'Cheque', other: 'Other' }
@@ -81,11 +82,12 @@ export function CounterPage() {
   const priceOf = (itemId: string): string | null => priceFrom(prices.data ?? [], itemId)
   const taxInclusive = priceList?.taxInclusive ?? true
 
-  async function addItem(i: { id: string; code: string; name: string; taxCodeId: string | null }, price?: string | null) {
+  async function addItem(i: { id: string; code: string; name: string; taxCodeId: string | null; tracking?: string }, price?: string | null) {
+    const tracking = (i.tracking === 'batch' || i.tracking === 'serial' ? i.tracking : 'none') as CartLine['tracking']
     const p = price ?? priceOf(i.id)
     setCart((c) => {
-      const same = c.find((l) => l.itemId === i.id && (l.unitPrice === (p ?? '') || l.unitPrice === ''))
-      return same ? c.map((l) => (l === same ? { ...l, quantity: String(Number(l.quantity) + 1) } : l)) : [...c, { key: `l${++n}`, itemId: i.id, code: i.code, name: i.name, quantity: '1', unitPrice: p ?? '', discountPercent: '0', taxInclusive, taxCodeId: i.taxCodeId }]
+      const same = tracking === 'serial' ? undefined : c.find((l) => l.itemId === i.id && (l.unitPrice === (p ?? '') || l.unitPrice === ''))
+      return same ? c.map((l) => (l === same ? { ...l, quantity: String(Number(l.quantity) + 1) } : l)) : [...c, { key: `l${++n}`, itemId: i.id, code: i.code, name: i.name, quantity: '1', unitPrice: p ?? '', discountPercent: '0', taxInclusive, taxCodeId: i.taxCodeId, tracking, batchId: '', serials: '' }]
     })
     setFound([])
   }
@@ -104,7 +106,9 @@ export function CounterPage() {
       if (e instanceof NetworkError) {
         const cached = loadCatalogue(tenant).filter((c) => c.code.toLowerCase() === text.toLowerCase() || c.name.toLowerCase().includes(text.toLowerCase()))
         const exact = cached.find((c) => c.code.toLowerCase() === text.toLowerCase())
-        if (exact) await addItem({ ...exact, taxCodeId: exact.taxCodeId }, exact.price)
+        if (exact && exact.tracking !== 'none') setProblem(`${exact.code} is batch or serial tracked: it can only be sold while online.`)
+        else if (exact) await addItem({ ...exact, taxCodeId: exact.taxCodeId }, exact.price)
+        else if (cached.length === 1 && cached[0] && cached[0].tracking !== 'none') setProblem(`${cached[0].code} is batch or serial tracked: it can only be sold while online.`)
         else if (cached.length === 1 && cached[0]) await addItem(cached[0], cached[0].price)
         else if (cached.length === 0) setProblem(`Offline, and "${text}" is not in the saved catalogue.`)
         else setFound(cached.slice(0, 8) as unknown as Item[])
@@ -114,6 +118,7 @@ export function CounterPage() {
 
   // ---- totals: the server's own calculation while online, the till's fallback otherwise ----
   const priced = cart.length > 0 && cart.every((l) => isValid(l.unitPrice) && l.unitPrice !== '' && Number(l.quantity) > 0)
+  const tracked = cart.every(trackingReady)
   const body = useMemo(() => (company && terminal && priced && ws.company ? {
     companyId: company.id, gstRegistrationId: terminal.gstRegistrationId, customerId: '', invoiceDate: today,
     lines: cart.map((l) => ({ itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice, discountPercent: l.discountPercent, taxInclusive: l.taxInclusive, warehouseId: terminal.warehouseId })),
@@ -131,7 +136,7 @@ export function CounterPage() {
   const remaining = sub(total, paid)
   const cashRow = tenders.find((t) => t.method === 'cash')
   const change = cashRow && isValid(cashRow.tendered) && cashRow.tendered !== '' ? (compare(cashRow.tendered, amountOf(cashRow)) > 0 ? sub(cashRow.tendered, amountOf(cashRow)) : '0') : '0'
-  const ready = totalKnown && Number(total) > 0 && compare(remaining, '0') === 0 && tenders.every((t) => isValid(amountOf(t)) && Number(amountOf(t)) > 0)
+  const ready = tracked && totalKnown && Number(total) > 0 && compare(remaining, '0') === 0 && tenders.every((t) => isValid(amountOf(t)) && Number(amountOf(t)) > 0)
 
   function seller(res: PosSaleResult): Seller | null {
     const doc = res.invoice ?? res.creditNote
@@ -146,7 +151,7 @@ export function CounterPage() {
     if (!ready || !shift || busy) return
     setBusy(true); setProblem(null)
     const payments = tenders.map((t) => ({ method: t.method, amount: amountOf(t), ...(t.method === 'cash' && isValid(t.tendered) && t.tendered !== '' ? { tendered: t.tendered } : {}) }))
-    const lines = cart.map((l) => ({ itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice, discountPercent: l.discountPercent, taxInclusive: l.taxInclusive, warehouseId: terminal?.warehouseId }))
+    const lines = cart.map((l) => ({ itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice, discountPercent: l.discountPercent, taxInclusive: l.taxInclusive, warehouseId: terminal?.warehouseId, ...(l.tracking === 'batch' ? { batchId: l.batchId } : {}), ...(l.tracking === 'serial' ? { serialNos: serialList(l.serials) } : {}) }))
     const clientId = crypto.randomUUID()
     try {
       const res = await postSale({ shiftId: shift.id, lines, payments }, clientId)
@@ -198,7 +203,7 @@ export function CounterPage() {
     try {
       const cat = await fetchCatalogue(deviceId)
       const list = priceListId ? prices.data ?? (await prices.refetch()).data ?? [] : []
-      const items: CachedItem[] = cat.items.filter((i) => i.status === 'active').map((i) => ({ id: i.id, code: i.code, name: i.name, taxCodeId: i.taxCodeId, price: priceFrom(list, i.id), taxInclusive }))
+      const items: CachedItem[] = cat.items.filter((i) => i.status === 'active').map((i) => ({ id: i.id, code: i.code, name: i.name, taxCodeId: i.taxCodeId, price: priceFrom(list, i.id), taxInclusive, tracking: i.tracking }))
       if (!saveCatalogue(tenant, items)) { setProblem('This computer has no room to save the catalogue.'); return }
       flash.show(`${items.length} items saved for selling offline.`)
     } catch (e) { setProblem(msg(e, 'Could not download the catalogue.')) }
@@ -261,14 +266,17 @@ export function CounterPage() {
                 const set = (p: Partial<CartLine>): void => setCart(cart.map((x) => (x.key === l.key ? { ...x, ...p } : x)))
                 const row = calc.data && !offline ? calc.data.lines[cart.indexOf(l)] : undefined
                 return (
-                  <tr key={l.key} className="border-t border-line/60">
+                  <Fragment key={l.key}>
+                  <tr className="border-t border-line/60">
                     <td className="p-2">{l.code} · {l.name}</td>
                     <td className="p-1 text-right"><input aria-label={`Quantity of ${l.code}`} inputMode="decimal" className={`${cell} w-20`} value={l.quantity} onChange={(e) => set({ quantity: e.target.value })} /></td>
                     <td className="p-1 text-right"><input aria-label={`Price of ${l.code}`} inputMode="decimal" className={`${cell} w-28 ${l.unitPrice === '' ? 'border-bad' : ''}`} value={l.unitPrice} placeholder="price" onChange={(e) => set({ unitPrice: e.target.value })} /></td>
                     <td className="p-1 text-right"><input aria-label={`Discount of ${l.code}`} inputMode="decimal" className={`${cell} w-20`} value={l.discountPercent} onChange={(e) => set({ discountPercent: e.target.value })} /></td>
                     <td className="num p-2 text-right">{row ? formatInr(row.lineTotal, { symbol: false }) : ''}</td>
                     <td className="p-1"><button type="button" aria-label={`Remove ${l.code}`} className="grid size-7 place-items-center rounded text-muted hover:text-bad" onClick={() => setCart(cart.filter((x) => x.key !== l.key))}><Trash2 className="size-4" /></button></td>
-                  </tr>)
+                  </tr>
+                  {l.tracking !== 'none' ? <tr><td colSpan={6} className="px-2 pb-2"><LineTracking line={l} set={set} /></td></tr> : null}
+                  </Fragment>)
               })}
             </tbody>
           </table>
@@ -303,4 +311,13 @@ export function CounterPage() {
       {closing ? <CloseShiftDrawer shift={closing} onClose={() => setClosing(null)} /> : null}
     </div>
   )
+}
+
+function LineTracking({ line, set }: { line: CartLine; set: (p: Partial<CartLine>) => void }) {
+  const batches = useBatches(line.tracking === 'batch' ? line.itemId : undefined)
+  if (line.tracking === 'serial') {
+    const list = serialList(line.serials)
+    return <textarea aria-label={`Serial numbers of ${line.code}`} rows={1} placeholder={`Scan the serial number of each ${line.code} (${list.length} of ${line.quantity})`} className="w-full rounded border border-line bg-surface px-2 py-1 text-sm" value={line.serials} onChange={(e) => set({ serials: e.target.value, quantity: String(Math.max(1, serialList(e.target.value).length)) })} />
+  }
+  return <select aria-label={`Batch of ${line.code}`} className="h-8 w-full rounded border border-line bg-surface px-2 text-sm" value={line.batchId} onChange={(e) => set({ batchId: e.target.value })}><option value="">Choose the batch of {line.code}…</option>{(batches.data ?? []).filter((b) => b.status === 'active').map((b) => <option key={b.id} value={b.id}>{b.batchNo}{b.expiryDate ? ` (expires ${b.expiryDate})` : ''}</option>)}</select>
 }
