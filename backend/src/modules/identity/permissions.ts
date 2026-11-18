@@ -63,6 +63,10 @@ export const PERMISSIONS = [
   'bank:manage',
   'bank:reconcile',
   'dashboard:read',
+  'expenses:read',
+  'expenses:post',
+  'expenses:cancel',
+  'expenses:manage',
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];

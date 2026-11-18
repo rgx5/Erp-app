@@ -255,6 +255,8 @@ A generic **maker-checker** engine that gates existing commands without changing
 
 54. Retail catalogue (R1): a category is a tree with a no-discount rule that applies to the category and everything below it; an item has at most one category, a free-text brand and an optional MRP (tax-inclusive, as printed). A barcode is an alias for one item, unique per business ignoring case, and is only ever switched on or off (it is never edited or deleted, so a printed barcode cannot be re-pointed silently). The counter's lookup tries an active barcode first and then the item code. The server does not enforce the no-discount rule on a sale (the till honours it and the catalogue carries the flag); selling at MRP is a counter convention, not a server rule. Variants (size/colour) are not modelled: each variant is its own item with its own barcode.
 
+55. Expenses (R2): an expense voucher books Dr the category's expense account, Cr a cash or bank account, in full (no tax is split out and no input credit is claimed: a bill that carries GST input credit belongs in purchasing as a supplier bill). Vouchers are numbered per fiscal year (`EXP/2526/000001`), never edited, and cancelled by reversing the journal. New permissions: `expenses:read`, `expenses:post`, `expenses:cancel`, `expenses:manage` (categories).
+
 ## Deferred on purpose (later slices, not decided here)
 Ledgers and posting (immutable, double-entry, period locks, inventory subledger reconciliation); effective-dated tax rules;
 document numbering per GST registration and financial year (cancelled numbers preserved, no global gapless counter); offline-sync conflict rules (aggregates already carry `version`/`updated_at`); vendor telemetry (not wired).

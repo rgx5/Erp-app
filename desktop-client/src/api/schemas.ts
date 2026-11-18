@@ -519,3 +519,9 @@ export const availability = z.object({ itemId: z.string(), warehouses: z.array(z
 export type Availability = z.infer<typeof availability>
 export const stockSettings = z.object({ companyId: z.string(), adjustmentAccountId: z.string().nullable(), openingBalanceAccountId: z.string().nullable() })
 export type StockSettings = z.infer<typeof stockSettings>
+
+// ---- expenses -------------------------------------------------------------------------------------------------------------
+export const expenseCategory = z.object({ id: z.string(), code: z.string(), name: z.string(), expenseAccountId: z.string(), status: z.string(), version: z.number() })
+export type ExpenseCategory = z.infer<typeof expenseCategory>
+export const expenseVoucher = z.object({ id: z.string(), voucherNo: z.string(), voucherDate: z.string(), categoryId: z.string(), amount: z.string(), paidFromAccountId: z.string(), payee: z.string().nullable(), note: z.string().nullable(), status: z.string(), cancelReason: z.string().nullable() })
+export type ExpenseVoucher = z.infer<typeof expenseVoucher>

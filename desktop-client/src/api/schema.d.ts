@@ -4052,6 +4052,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/expenses/categories": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ExpensesController_categories"];
+        put?: never;
+        post: operations["ExpensesController_createCategory"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/expenses/categories/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["ExpensesController_updateCategory"];
+        trace?: never;
+    };
+    "/v1/expenses/vouchers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ExpensesController_list"];
+        put?: never;
+        post: operations["ExpensesController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/expenses/vouchers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["ExpensesController_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/expenses/vouchers/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["ExpensesController_cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -4619,7 +4699,7 @@ export interface operations {
                 "application/json": {
                     name: string;
                     description?: string;
-                    permissions: ("organization:read" | "organization:write" | "users:read" | "users:write" | "roles:read" | "roles:write" | "api_keys:manage" | "audit:read" | "numbering:read" | "numbering:write" | "masterdata:read" | "masterdata:write" | "tax:manage" | "pricing:manage" | "accounting:read" | "accounting:post" | "accounting:reverse" | "accounting:manage" | "accounting:reopen" | "accounting:close_year" | "stock:read" | "stock:post" | "stock:manage" | "sales:read" | "sales:post" | "sales:cancel" | "sales:manage" | "receivables:read" | "receivables:post" | "receivables:writeoff" | "pos:read" | "pos:sell" | "pos:return" | "pos:manage" | "pos:sync" | "purchasing:read" | "purchasing:post" | "purchasing:cancel" | "purchasing:approve" | "purchasing:manage" | "payables:read" | "payables:post" | "payables:cancel" | "payroll:read" | "payroll:manage" | "payroll:process" | "payroll:cancel" | "gst:read" | "gst:manage" | "manufacturing:read" | "manufacturing:manage" | "manufacturing:produce" | "manufacturing:cancel" | "approvals:read" | "approvals:decide" | "approvals:manage" | "bank:read" | "bank:manage" | "bank:reconcile" | "dashboard:read")[];
+                    permissions: ("organization:read" | "organization:write" | "users:read" | "users:write" | "roles:read" | "roles:write" | "api_keys:manage" | "audit:read" | "numbering:read" | "numbering:write" | "masterdata:read" | "masterdata:write" | "tax:manage" | "pricing:manage" | "accounting:read" | "accounting:post" | "accounting:reverse" | "accounting:manage" | "accounting:reopen" | "accounting:close_year" | "stock:read" | "stock:post" | "stock:manage" | "sales:read" | "sales:post" | "sales:cancel" | "sales:manage" | "receivables:read" | "receivables:post" | "receivables:writeoff" | "pos:read" | "pos:sell" | "pos:return" | "pos:manage" | "pos:sync" | "purchasing:read" | "purchasing:post" | "purchasing:cancel" | "purchasing:approve" | "purchasing:manage" | "payables:read" | "payables:post" | "payables:cancel" | "payroll:read" | "payroll:manage" | "payroll:process" | "payroll:cancel" | "gst:read" | "gst:manage" | "manufacturing:read" | "manufacturing:manage" | "manufacturing:produce" | "manufacturing:cancel" | "approvals:read" | "approvals:decide" | "approvals:manage" | "bank:read" | "bank:manage" | "bank:reconcile" | "dashboard:read" | "expenses:read" | "expenses:post" | "expenses:cancel" | "expenses:manage")[];
                 };
             };
         };
@@ -4682,7 +4762,7 @@ export interface operations {
                 "application/json": {
                     name?: string;
                     description?: string | null;
-                    permissions?: ("organization:read" | "organization:write" | "users:read" | "users:write" | "roles:read" | "roles:write" | "api_keys:manage" | "audit:read" | "numbering:read" | "numbering:write" | "masterdata:read" | "masterdata:write" | "tax:manage" | "pricing:manage" | "accounting:read" | "accounting:post" | "accounting:reverse" | "accounting:manage" | "accounting:reopen" | "accounting:close_year" | "stock:read" | "stock:post" | "stock:manage" | "sales:read" | "sales:post" | "sales:cancel" | "sales:manage" | "receivables:read" | "receivables:post" | "receivables:writeoff" | "pos:read" | "pos:sell" | "pos:return" | "pos:manage" | "pos:sync" | "purchasing:read" | "purchasing:post" | "purchasing:cancel" | "purchasing:approve" | "purchasing:manage" | "payables:read" | "payables:post" | "payables:cancel" | "payroll:read" | "payroll:manage" | "payroll:process" | "payroll:cancel" | "gst:read" | "gst:manage" | "manufacturing:read" | "manufacturing:manage" | "manufacturing:produce" | "manufacturing:cancel" | "approvals:read" | "approvals:decide" | "approvals:manage" | "bank:read" | "bank:manage" | "bank:reconcile" | "dashboard:read")[];
+                    permissions?: ("organization:read" | "organization:write" | "users:read" | "users:write" | "roles:read" | "roles:write" | "api_keys:manage" | "audit:read" | "numbering:read" | "numbering:write" | "masterdata:read" | "masterdata:write" | "tax:manage" | "pricing:manage" | "accounting:read" | "accounting:post" | "accounting:reverse" | "accounting:manage" | "accounting:reopen" | "accounting:close_year" | "stock:read" | "stock:post" | "stock:manage" | "sales:read" | "sales:post" | "sales:cancel" | "sales:manage" | "receivables:read" | "receivables:post" | "receivables:writeoff" | "pos:read" | "pos:sell" | "pos:return" | "pos:manage" | "pos:sync" | "purchasing:read" | "purchasing:post" | "purchasing:cancel" | "purchasing:approve" | "purchasing:manage" | "payables:read" | "payables:post" | "payables:cancel" | "payroll:read" | "payroll:manage" | "payroll:process" | "payroll:cancel" | "gst:read" | "gst:manage" | "manufacturing:read" | "manufacturing:manage" | "manufacturing:produce" | "manufacturing:cancel" | "approvals:read" | "approvals:decide" | "approvals:manage" | "bank:read" | "bank:manage" | "bank:reconcile" | "dashboard:read" | "expenses:read" | "expenses:post" | "expenses:cancel" | "expenses:manage")[];
                 };
             };
         };
@@ -4723,7 +4803,7 @@ export interface operations {
             content: {
                 "application/json": {
                     name: string;
-                    permissions: ("organization:read" | "organization:write" | "users:read" | "users:write" | "roles:read" | "roles:write" | "api_keys:manage" | "audit:read" | "numbering:read" | "numbering:write" | "masterdata:read" | "masterdata:write" | "tax:manage" | "pricing:manage" | "accounting:read" | "accounting:post" | "accounting:reverse" | "accounting:manage" | "accounting:reopen" | "accounting:close_year" | "stock:read" | "stock:post" | "stock:manage" | "sales:read" | "sales:post" | "sales:cancel" | "sales:manage" | "receivables:read" | "receivables:post" | "receivables:writeoff" | "pos:read" | "pos:sell" | "pos:return" | "pos:manage" | "pos:sync" | "purchasing:read" | "purchasing:post" | "purchasing:cancel" | "purchasing:approve" | "purchasing:manage" | "payables:read" | "payables:post" | "payables:cancel" | "payroll:read" | "payroll:manage" | "payroll:process" | "payroll:cancel" | "gst:read" | "gst:manage" | "manufacturing:read" | "manufacturing:manage" | "manufacturing:produce" | "manufacturing:cancel" | "approvals:read" | "approvals:decide" | "approvals:manage" | "bank:read" | "bank:manage" | "bank:reconcile" | "dashboard:read")[];
+                    permissions: ("organization:read" | "organization:write" | "users:read" | "users:write" | "roles:read" | "roles:write" | "api_keys:manage" | "audit:read" | "numbering:read" | "numbering:write" | "masterdata:read" | "masterdata:write" | "tax:manage" | "pricing:manage" | "accounting:read" | "accounting:post" | "accounting:reverse" | "accounting:manage" | "accounting:reopen" | "accounting:close_year" | "stock:read" | "stock:post" | "stock:manage" | "sales:read" | "sales:post" | "sales:cancel" | "sales:manage" | "receivables:read" | "receivables:post" | "receivables:writeoff" | "pos:read" | "pos:sell" | "pos:return" | "pos:manage" | "pos:sync" | "purchasing:read" | "purchasing:post" | "purchasing:cancel" | "purchasing:approve" | "purchasing:manage" | "payables:read" | "payables:post" | "payables:cancel" | "payroll:read" | "payroll:manage" | "payroll:process" | "payroll:cancel" | "gst:read" | "gst:manage" | "manufacturing:read" | "manufacturing:manage" | "manufacturing:produce" | "manufacturing:cancel" | "approvals:read" | "approvals:decide" | "approvals:manage" | "bank:read" | "bank:manage" | "bank:reconcile" | "dashboard:read" | "expenses:read" | "expenses:post" | "expenses:cancel" | "expenses:manage")[];
                     /** Format: date-time */
                     expiresAt?: string;
                 };
@@ -12347,6 +12427,176 @@ export interface operations {
                 "application/json": {
                     /** Format: uuid */
                     gstRegistrationId?: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ExpensesController_categories: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ExpensesController_createCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    companyId: string;
+                    code: string;
+                    name: string;
+                    /** Format: uuid */
+                    expenseAccountId: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ExpensesController_updateCategory: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    name?: string;
+                    /** Format: uuid */
+                    expenseAccountId?: string;
+                    /** @enum {string} */
+                    status?: "active" | "inactive";
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ExpensesController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ExpensesController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    companyId: string;
+                    /** Format: date */
+                    voucherDate: string;
+                    /** Format: uuid */
+                    categoryId: string;
+                    amount: string;
+                    /** Format: uuid */
+                    paidFromAccountId: string;
+                    payee?: string;
+                    note?: string;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ExpensesController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    ExpensesController_cancel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: date */
+                    date: string;
+                    reason: string;
                 };
             };
         };
