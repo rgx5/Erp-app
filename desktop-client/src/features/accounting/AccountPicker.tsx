@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react'
 import type { LedgerAccount } from '@/api/schemas'
-import { useDebounced } from '@/ui/hooks'
 import { useWorkspace } from '@/features/organization/workspace'
 import { cn } from '@/ui/cn'
 import { useAccounts } from './queries'
@@ -11,7 +10,7 @@ export function AccountPicker({ label = 'Account', value, onPick, groups, filter
   const accounts = useAccounts(ws.company?.id)
   const [text, setText] = useState('')
   const [active, setActive] = useState(0)
-  const q = useDebounced(text.trim().toLowerCase(), 120)
+  const q = text.trim().toLowerCase() // the chart is cached locally, so filtering needs no delay
   const options = useMemo(
     () => (accounts.data ?? []).filter((a) => a.status === 'active' && (groups || (!a.isGroup && a.controlKind === null)) && (!filter || filter(a)) && (!q || `${a.code} ${a.name}`.toLowerCase().includes(q))).slice(0, 8),
     [accounts.data, q, groups, filter],

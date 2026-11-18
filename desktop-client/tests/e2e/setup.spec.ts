@@ -71,7 +71,7 @@ test('a new business is set up end to end from the app, and is then ready to inv
   await expect(page.getByText('Setup is not finished')).toHaveCount(0)
 
   // leaving and coming back lands on a finished setup, not on step one
-  await page.getByRole('link', { name: 'Setup' }).click()
+  await page.getByRole('link', { name: 'Setup', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Standard setup' })).toBeVisible()
   await expect(page.getByText('Setup is complete.')).toBeVisible()
 })

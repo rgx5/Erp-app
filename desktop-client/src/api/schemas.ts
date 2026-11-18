@@ -397,3 +397,43 @@ export const subcontractOrder = subcontractHeader.extend({
 export type SubcontractOrder = z.infer<typeof subcontractOrder>
 export const subcontractPending = z.object({ asOf: z.string(), overdueCount: z.number(), orders: z.array(z.object({ orderId: z.string(), woNo: z.string(), subcontractorId: z.string(), firstSentOn: z.string(), returnDueDate: z.string().nullable(), daysOut: z.number(), overdue: z.boolean(), items: z.array(z.object({ itemId: z.string(), quantity: z.string() })) })) })
 export type SubcontractPending = z.infer<typeof subcontractPending>
+
+// ---- payroll --------------------------------------------------------------------------------------------------------------
+const acct = z.string().nullable().optional()
+export const payrollSettings = z.object({ companyId: z.string(), salaryExpenseAccountId: acct, employerCostAccountId: acct, salaryPayableAccountId: acct, pfPayableAccountId: acct, esiPayableAccountId: acct, ptPayableAccountId: acct, tdsPayableAccountId: acct, otherDeductionsAccountId: acct })
+export type PayrollSettings = z.infer<typeof payrollSettings>
+export const payrollRules = z.object({
+  date: z.string(), stateCode: z.string().nullable().optional(),
+  pf: z.object({ employeePercent: z.string(), employerPercent: z.string(), ceiling: z.string() }).nullable().optional(),
+  esi: z.object({ employeePercent: z.string(), employerPercent: z.string(), ceiling: z.string() }).nullable().optional(),
+  regimes: z.array(z.object({ regime: z.string(), missing: z.array(z.string()), tdsSlabs: z.number(), ptSlabs: z.number(), standardDeduction: z.string().nullable().optional(), rebateLimit: z.string().nullable().optional(), rebateAmount: z.string().nullable().optional(), cessPercent: z.string().nullable().optional() })),
+})
+export type PayrollRules = z.infer<typeof payrollRules>
+export const payComponent = z.object({ id: z.string(), code: z.string(), name: z.string(), kind: z.string(), calculation: z.string(), percent: z.string().nullable(), isTaxable: z.boolean(), pfWage: z.boolean(), esiWage: z.boolean(), status: z.string() })
+export type PayComponent = z.infer<typeof payComponent>
+export const employee = z.object({
+  id: z.string(), employeeNo: z.string(), kind: z.string(), fullName: z.string(), pan: z.string().nullable(), uan: z.string().nullable(), esiNo: z.string().nullable(), stateCode: z.string(), dateOfJoining: z.string(), dateOfLeaving: z.string().nullable(),
+  payBasis: z.string(), taxRegime: z.string(), tdsRatePercent: z.string().nullable(), pfApplicable: z.boolean(), esiApplicable: z.boolean(), ptApplicable: z.boolean(), bankAccountRef: z.string().nullable(), status: z.string(), version: z.number(),
+})
+export type Employee = z.infer<typeof employee>
+export const salaryStructure = z.object({ id: z.string(), effectiveFrom: z.string(), basic: z.string(), lines: z.array(z.object({ componentId: z.string(), amount: z.string().nullable() })) })
+export type SalaryStructure = z.infer<typeof salaryStructure>
+export const payrollInput = z.object({ employeeId: z.string(), period: z.string(), lopDays: z.string(), unitsWorked: z.string().nullable(), bonus: z.string(), otherDeduction: z.string(), notes: z.string().nullable() })
+export type PayrollInput = z.infer<typeof payrollInput>
+export const payslip = z.object({
+  id: z.string(), runId: z.string(), employeeId: z.string(), employeeNo: z.string(), employeeName: z.string(), kind: z.string(), period: z.string(), gross: z.string(), pfEmployee: z.string(), pfEmployer: z.string(), esiEmployee: z.string(), esiEmployer: z.string(),
+  professionalTax: z.string(), tds: z.string(), otherDeductions: z.string(), net: z.string(),
+  detail: z.object({ bonus: z.string().optional(), paidDays: z.string().optional(), payBasis: z.string().optional(), employerCost: z.string().optional(), earnings: z.array(z.object({ code: z.string(), name: z.string(), amount: z.string() })).optional(), deductions: z.array(z.object({ code: z.string(), name: z.string(), amount: z.string() })).optional() }).passthrough(),
+})
+export type Payslip = z.infer<typeof payslip>
+export const payrollRunHeader = z.object({
+  id: z.string(), runNo: z.string(), period: z.string(), payDate: z.string(), grossTotal: z.string(), employeeDeductions: z.string(), netTotal: z.string(), employerCostTotal: z.string(), pfTotal: z.string(), esiTotal: z.string(), ptTotal: z.string(), tdsTotal: z.string(),
+  status: z.string(), paidOn: z.string().nullable(), cancelReason: z.string().nullable(),
+})
+export type PayrollRunHeader = z.infer<typeof payrollRunHeader>
+export const payrollRun = payrollRunHeader.extend({ payslips: z.array(payslip) })
+export type PayrollRun = z.infer<typeof payrollRun>
+export const payrollLiabilities = z.object({ periods: z.array(z.object({ period: z.string(), pf: z.string(), esi: z.string(), pt: z.string(), tds: z.string() })) })
+export type PayrollLiabilities = z.infer<typeof payrollLiabilities>
+export const remittance = z.object({ id: z.string(), remittanceNo: z.string(), kind: z.string(), period: z.string(), remittedOn: z.string(), amount: z.string(), reference: z.string().nullable() })
+export const payrollSeed = z.object({ effectiveFrom: z.string(), rates: z.number(), slabSets: z.array(z.string()) })
