@@ -6,6 +6,7 @@ import { Idempotent } from '../../platform/services/idempotency.js';
 import { CurrentPrincipal, type Principal, RequirePermissions, TenantId } from '../identity/principal.js';
 import { AccountingModule } from '../accounting/accounting.controller.js';
 import { RetailModule } from '../retail/retail.controller.js';
+import { StaffService } from '../retail/staff.service.js';
 import { Recorder } from '../masterdata/helpers.js';
 import { SalesModule, presentInvoice } from '../sales/sales.controller.js';
 import * as s from './pos.schemas.js';
@@ -22,7 +23,16 @@ const strip = <T extends object>(row: T): Omit<T, 'tenantId'> => {
 @ApiBearerAuth()
 @Controller('v1/pos')
 export class PosController {
-  constructor(@Inject(PosService) private readonly pos: PosService) {}
+  constructor(@Inject(PosService) private readonly pos: PosService, @Inject(StaffService) private readonly staff: StaffService) {}
+
+  /** Sets the signed-in user's own counter PIN (4 to 8 digits). */
+  @RequirePermissions('pos:sell') @Put('me/pin') @ApiZodBody(s.setPinSchema)
+  setPin(@CurrentPrincipal() a: Principal, @Body({ schema: s.setPinSchema }) b: { pin: string }) { return this.staff.setPin(a.tenantId, a.userId, b.pin); }
+  @RequirePermissions('pos:sell') @Get('approvers')
+  async approvers(@TenantId() t: string) { return { items: await this.staff.approvers(t) }; }
+  /** Checks a manager's PIN before the sale (a wrong PIN counts toward a lock). */
+  @RequirePermissions('pos:sell') @Post('approvals/verify') @HttpCode(200) @ApiZodBody(s.verifyApprovalSchema)
+  verify(@TenantId() t: string, @Body({ schema: s.verifyApprovalSchema }) b: { userId: string; pin: string }) { return this.staff.verify(t, b); }
 
   @RequirePermissions('pos:read') @Get('settings')
   async getSettings(@TenantId() t: string, @Query({ schema: s.companyQuery }) q: { companyId: string }) { const r = await this.pos.getSettings(t, q.companyId); return { settings: r.settings ? strip(r.settings) : null, paymentAccounts: r.paymentAccounts.map(strip) }; }

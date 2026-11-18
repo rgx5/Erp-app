@@ -907,7 +907,7 @@
                     "maxLength": 500
                   },
                   "permissions": {
-                    "maxItems": 66,
+                    "maxItems": 67,
                     "type": "array",
                     "items": {
                       "type": "string",
@@ -977,6 +977,7 @@
                         "expenses:cancel",
                         "expenses:manage",
                         "retail:read",
+                        "pos:approve",
                         "retail:manage"
                       ]
                     }
@@ -1102,7 +1103,7 @@
                     "maxLength": 500
                   },
                   "permissions": {
-                    "maxItems": 66,
+                    "maxItems": 67,
                     "type": "array",
                     "items": {
                       "type": "string",
@@ -1172,6 +1173,7 @@
                         "expenses:cancel",
                         "expenses:manage",
                         "retail:read",
+                        "pos:approve",
                         "retail:manage"
                       ]
                     }
@@ -1214,7 +1216,7 @@
                     "maxLength": 100
                   },
                   "permissions": {
-                    "maxItems": 66,
+                    "maxItems": 67,
                     "type": "array",
                     "items": {
                       "type": "string",
@@ -1284,6 +1286,7 @@
                         "expenses:cancel",
                         "expenses:manage",
                         "retail:read",
+                        "pos:approve",
                         "retail:manage"
                       ]
                     }
@@ -8456,6 +8459,109 @@
         ]
       }
     },
+    "/v1/pos/me/pin": {
+      "put": {
+        "operationId": "PosController_setPin",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "pin": {
+                    "type": "string",
+                    "pattern": "^[0-9]{4,8}$"
+                  }
+                },
+                "required": [
+                  "pin"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "pos"
+        ]
+      }
+    },
+    "/v1/pos/approvers": {
+      "get": {
+        "operationId": "PosController_approvers",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "pos"
+        ]
+      }
+    },
+    "/v1/pos/approvals/verify": {
+      "post": {
+        "operationId": "PosController_verify",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "userId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "pin": {
+                    "type": "string",
+                    "pattern": "^[0-9]{4,8}$"
+                  }
+                },
+                "required": [
+                  "userId",
+                  "pin"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "pos"
+        ]
+      }
+    },
     "/v1/pos/settings": {
       "get": {
         "operationId": "PosController_getSettings",
@@ -8888,6 +8994,11 @@
                             "type": "string",
                             "pattern": "^[A-Za-z0-9][A-Za-z0-9._/-]{0,59}$"
                           }
+                        },
+                        "salespersonId": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
                         }
                       },
                       "required": [
@@ -8948,6 +9059,25 @@
                   "storeCredit": {
                     "type": "string",
                     "pattern": "^[0-9]{1,14}(\\.[0-9]{1,4})?$"
+                  },
+                  "approval": {
+                    "type": "object",
+                    "properties": {
+                      "userId": {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                      },
+                      "pin": {
+                        "type": "string",
+                        "pattern": "^[0-9]{4,8}$"
+                      }
+                    },
+                    "required": [
+                      "userId",
+                      "pin"
+                    ],
+                    "additionalProperties": false
                   }
                 },
                 "required": [
@@ -16298,6 +16428,11 @@
                   "loyaltyRupeesPerPoint": {
                     "type": "string",
                     "pattern": "^[0-9]{1,6}(\\.[0-9]{1,4})?$"
+                  },
+                  "maxDiscountWithoutApproval": {
+                    "nullable": true,
+                    "type": "string",
+                    "pattern": "^(100(\\.0{1,4})?|[0-9]{1,2}(\\.[0-9]{1,4})?)$"
                   }
                 },
                 "additionalProperties": false

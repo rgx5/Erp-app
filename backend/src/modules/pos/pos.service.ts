@@ -16,6 +16,8 @@ import { salesInvoiceLines, salesInvoices } from '../sales/sales.schema.js';
 import { SalesInvoiceService } from '../sales/sales-invoice.service.js';
 import { businessLocations, gstRegistrations, warehouses } from '../organization/organization.schema.js';
 import { WalletService } from '../retail/wallet.service.js';
+import { StaffService } from '../retail/staff.service.js';
+import { retailSettings } from '../retail/retail.schema.js';
 import { posPaymentAccounts, posPayments, posSales, posSettings, posShifts, posTerminals } from './pos.schema.js';
 import type { PosReturnInput, PosSaleInput } from './pos.schemas.js';
 
@@ -38,6 +40,7 @@ export class PosService {
     @Inject(ReceivablesService) private readonly receivables: ReceivablesService,
     @Inject(PostingService) private readonly posting: PostingService,
     @Inject(Recorder) private readonly recorder: Recorder,
+    @Inject(StaffService) private readonly staff: StaffService,
     @Inject(WalletService) private readonly wallet: WalletService,
   ) {}
 
@@ -148,6 +151,12 @@ export class PosService {
       if ((input.storeCredit !== undefined || input.loyaltyPoints !== undefined) && !named) throw validationFailed([{ path: input.storeCredit !== undefined ? 'storeCredit' : 'loyaltyPoints', message: 'Store credit and points belong to a named customer, not the walk-in customer' }]);
       if (input.payments.length === 0 && input.storeCredit === undefined) throw validationFailed([{ path: 'payments', message: 'Take at least one payment' }]);
 
+      // a discount above the company's limit needs a manager's PIN
+      const [retail] = await tx.select({ limit: retailSettings.maxDiscountWithoutApproval }).from(retailSettings).where(and(eq(retailSettings.tenantId, tenantId), eq(retailSettings.companyId, shift.companyId)));
+      const highest = input.lines.reduce((m, l) => (Number(l.discountPercent) > m ? Number(l.discountPercent) : m), 0);
+      const needsApproval = retail?.limit != null && highest > Number(retail.limit);
+      if (needsApproval && !input.approval) throw new AppError(409, 'approval_required', `A discount above ${Number(retail?.limit)}% needs a manager's approval`, { limit: String(Number(retail?.limit)), highest: String(highest) });
+
       const posted = await this.invoices.postInvoice(tx, tenantId, actorId, {
         companyId: shift.companyId, gstRegistrationId: terminal.gstRegistrationId, businessLocationId: terminal.businessLocationId, documentType: 'tax_invoice', invoiceDate: date, customerId, reverseCharge: false,
         lines: input.lines.map((l) => ({ itemId: l.itemId, description: l.description, quantity: l.quantity, unitPrice: l.unitPrice, discountPercent: l.discountPercent, taxInclusive: l.taxInclusive, taxCodeId: l.taxCodeId, warehouseId: l.warehouseId ?? terminal.warehouseId, batchId: l.batchId, serialNos: l.serialNos })),
@@ -158,6 +167,8 @@ export class PosService {
       if (paid !== grand) throw new AppError(422, 'payment_mismatch', `The payments${credit > 0n ? ' and store credit' : ''} (${fromUnits(paid)}) must equal the sale total (${fromUnits(grand)})`, { total: fromUnits(grand), paid: fromUnits(paid) });
 
       const sale = first(await tx.insert(posSales).values({ tenantId, id: uuidv7(), companyId: shift.companyId, shiftId: shift.id, terminalId: terminal.id, kind: 'sale', documentId: posted.invoice.id, createdBy: actorId }).returning(), 'POS sale');
+      await this.staff.creditLines(tx, tenantId, sale.id, input.lines);
+      if (needsApproval && input.approval) await this.staff.approveSale(tx, tenantId, sale.id, input.approval, String(highest));
       const payments = [];
       let change = 0n;
       for (const p of input.payments) {

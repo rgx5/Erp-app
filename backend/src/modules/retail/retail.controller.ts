@@ -10,6 +10,7 @@ import { Recorder } from '../masterdata/helpers.js';
 import { SalesModule } from '../sales/sales.controller.js';
 import * as e from './expenses.schemas.js';
 import * as w from './wallet.schemas.js';
+import { StaffService } from './staff.service.js';
 import { WalletService } from './wallet.service.js';
 import { ExpensesService } from './expenses.service.js';
 
@@ -68,5 +69,5 @@ export class RetailController {
   validate(@TenantId() t: string, @Body({ schema: w.validateCouponSchema }) b: { companyId: string; code: string; billTotal: string; date?: string }) { return this.wallet.validateCoupon(t, b); }
 }
 
-@Module({ imports: [AccountingModule, SalesModule], controllers: [ExpensesController, RetailController], providers: [Recorder, ExpensesService, WalletService], exports: [ExpensesService, WalletService] })
+@Module({ imports: [AccountingModule, SalesModule], controllers: [ExpensesController, RetailController], providers: [Recorder, ExpensesService, WalletService, StaffService], exports: [ExpensesService, WalletService, StaffService] })
 export class RetailModule {}

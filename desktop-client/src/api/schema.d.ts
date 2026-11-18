@@ -2116,6 +2116,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/pos/me/pin": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put: operations["PosController_setPin"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/pos/approvers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["PosController_approvers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/pos/approvals/verify": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["PosController_verify"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/pos/settings": {
         parameters: {
             query?: never;
@@ -4795,7 +4843,7 @@ export interface operations {
                 "application/json": {
                     name: string;
                     description?: string;
-                    permissions: ("organization:read" | "organization:write" | "users:read" | "users:write" | "roles:read" | "roles:write" | "api_keys:manage" | "audit:read" | "numbering:read" | "numbering:write" | "masterdata:read" | "masterdata:write" | "tax:manage" | "pricing:manage" | "accounting:read" | "accounting:post" | "accounting:reverse" | "accounting:manage" | "accounting:reopen" | "accounting:close_year" | "stock:read" | "stock:post" | "stock:manage" | "sales:read" | "sales:post" | "sales:cancel" | "sales:manage" | "receivables:read" | "receivables:post" | "receivables:writeoff" | "pos:read" | "pos:sell" | "pos:return" | "pos:manage" | "pos:sync" | "purchasing:read" | "purchasing:post" | "purchasing:cancel" | "purchasing:approve" | "purchasing:manage" | "payables:read" | "payables:post" | "payables:cancel" | "payroll:read" | "payroll:manage" | "payroll:process" | "payroll:cancel" | "gst:read" | "gst:manage" | "manufacturing:read" | "manufacturing:manage" | "manufacturing:produce" | "manufacturing:cancel" | "approvals:read" | "approvals:decide" | "approvals:manage" | "bank:read" | "bank:manage" | "bank:reconcile" | "dashboard:read" | "expenses:read" | "expenses:post" | "expenses:cancel" | "expenses:manage" | "retail:read" | "retail:manage")[];
+                    permissions: ("organization:read" | "organization:write" | "users:read" | "users:write" | "roles:read" | "roles:write" | "api_keys:manage" | "audit:read" | "numbering:read" | "numbering:write" | "masterdata:read" | "masterdata:write" | "tax:manage" | "pricing:manage" | "accounting:read" | "accounting:post" | "accounting:reverse" | "accounting:manage" | "accounting:reopen" | "accounting:close_year" | "stock:read" | "stock:post" | "stock:manage" | "sales:read" | "sales:post" | "sales:cancel" | "sales:manage" | "receivables:read" | "receivables:post" | "receivables:writeoff" | "pos:read" | "pos:sell" | "pos:return" | "pos:manage" | "pos:sync" | "purchasing:read" | "purchasing:post" | "purchasing:cancel" | "purchasing:approve" | "purchasing:manage" | "payables:read" | "payables:post" | "payables:cancel" | "payroll:read" | "payroll:manage" | "payroll:process" | "payroll:cancel" | "gst:read" | "gst:manage" | "manufacturing:read" | "manufacturing:manage" | "manufacturing:produce" | "manufacturing:cancel" | "approvals:read" | "approvals:decide" | "approvals:manage" | "bank:read" | "bank:manage" | "bank:reconcile" | "dashboard:read" | "expenses:read" | "expenses:post" | "expenses:cancel" | "expenses:manage" | "retail:read" | "pos:approve" | "retail:manage")[];
                 };
             };
         };
@@ -4858,7 +4906,7 @@ export interface operations {
                 "application/json": {
                     name?: string;
                     description?: string | null;
-                    permissions?: ("organization:read" | "organization:write" | "users:read" | "users:write" | "roles:read" | "roles:write" | "api_keys:manage" | "audit:read" | "numbering:read" | "numbering:write" | "masterdata:read" | "masterdata:write" | "tax:manage" | "pricing:manage" | "accounting:read" | "accounting:post" | "accounting:reverse" | "accounting:manage" | "accounting:reopen" | "accounting:close_year" | "stock:read" | "stock:post" | "stock:manage" | "sales:read" | "sales:post" | "sales:cancel" | "sales:manage" | "receivables:read" | "receivables:post" | "receivables:writeoff" | "pos:read" | "pos:sell" | "pos:return" | "pos:manage" | "pos:sync" | "purchasing:read" | "purchasing:post" | "purchasing:cancel" | "purchasing:approve" | "purchasing:manage" | "payables:read" | "payables:post" | "payables:cancel" | "payroll:read" | "payroll:manage" | "payroll:process" | "payroll:cancel" | "gst:read" | "gst:manage" | "manufacturing:read" | "manufacturing:manage" | "manufacturing:produce" | "manufacturing:cancel" | "approvals:read" | "approvals:decide" | "approvals:manage" | "bank:read" | "bank:manage" | "bank:reconcile" | "dashboard:read" | "expenses:read" | "expenses:post" | "expenses:cancel" | "expenses:manage" | "retail:read" | "retail:manage")[];
+                    permissions?: ("organization:read" | "organization:write" | "users:read" | "users:write" | "roles:read" | "roles:write" | "api_keys:manage" | "audit:read" | "numbering:read" | "numbering:write" | "masterdata:read" | "masterdata:write" | "tax:manage" | "pricing:manage" | "accounting:read" | "accounting:post" | "accounting:reverse" | "accounting:manage" | "accounting:reopen" | "accounting:close_year" | "stock:read" | "stock:post" | "stock:manage" | "sales:read" | "sales:post" | "sales:cancel" | "sales:manage" | "receivables:read" | "receivables:post" | "receivables:writeoff" | "pos:read" | "pos:sell" | "pos:return" | "pos:manage" | "pos:sync" | "purchasing:read" | "purchasing:post" | "purchasing:cancel" | "purchasing:approve" | "purchasing:manage" | "payables:read" | "payables:post" | "payables:cancel" | "payroll:read" | "payroll:manage" | "payroll:process" | "payroll:cancel" | "gst:read" | "gst:manage" | "manufacturing:read" | "manufacturing:manage" | "manufacturing:produce" | "manufacturing:cancel" | "approvals:read" | "approvals:decide" | "approvals:manage" | "bank:read" | "bank:manage" | "bank:reconcile" | "dashboard:read" | "expenses:read" | "expenses:post" | "expenses:cancel" | "expenses:manage" | "retail:read" | "pos:approve" | "retail:manage")[];
                 };
             };
         };
@@ -4899,7 +4947,7 @@ export interface operations {
             content: {
                 "application/json": {
                     name: string;
-                    permissions: ("organization:read" | "organization:write" | "users:read" | "users:write" | "roles:read" | "roles:write" | "api_keys:manage" | "audit:read" | "numbering:read" | "numbering:write" | "masterdata:read" | "masterdata:write" | "tax:manage" | "pricing:manage" | "accounting:read" | "accounting:post" | "accounting:reverse" | "accounting:manage" | "accounting:reopen" | "accounting:close_year" | "stock:read" | "stock:post" | "stock:manage" | "sales:read" | "sales:post" | "sales:cancel" | "sales:manage" | "receivables:read" | "receivables:post" | "receivables:writeoff" | "pos:read" | "pos:sell" | "pos:return" | "pos:manage" | "pos:sync" | "purchasing:read" | "purchasing:post" | "purchasing:cancel" | "purchasing:approve" | "purchasing:manage" | "payables:read" | "payables:post" | "payables:cancel" | "payroll:read" | "payroll:manage" | "payroll:process" | "payroll:cancel" | "gst:read" | "gst:manage" | "manufacturing:read" | "manufacturing:manage" | "manufacturing:produce" | "manufacturing:cancel" | "approvals:read" | "approvals:decide" | "approvals:manage" | "bank:read" | "bank:manage" | "bank:reconcile" | "dashboard:read" | "expenses:read" | "expenses:post" | "expenses:cancel" | "expenses:manage" | "retail:read" | "retail:manage")[];
+                    permissions: ("organization:read" | "organization:write" | "users:read" | "users:write" | "roles:read" | "roles:write" | "api_keys:manage" | "audit:read" | "numbering:read" | "numbering:write" | "masterdata:read" | "masterdata:write" | "tax:manage" | "pricing:manage" | "accounting:read" | "accounting:post" | "accounting:reverse" | "accounting:manage" | "accounting:reopen" | "accounting:close_year" | "stock:read" | "stock:post" | "stock:manage" | "sales:read" | "sales:post" | "sales:cancel" | "sales:manage" | "receivables:read" | "receivables:post" | "receivables:writeoff" | "pos:read" | "pos:sell" | "pos:return" | "pos:manage" | "pos:sync" | "purchasing:read" | "purchasing:post" | "purchasing:cancel" | "purchasing:approve" | "purchasing:manage" | "payables:read" | "payables:post" | "payables:cancel" | "payroll:read" | "payroll:manage" | "payroll:process" | "payroll:cancel" | "gst:read" | "gst:manage" | "manufacturing:read" | "manufacturing:manage" | "manufacturing:produce" | "manufacturing:cancel" | "approvals:read" | "approvals:decide" | "approvals:manage" | "bank:read" | "bank:manage" | "bank:reconcile" | "dashboard:read" | "expenses:read" | "expenses:post" | "expenses:cancel" | "expenses:manage" | "retail:read" | "pos:approve" | "retail:manage")[];
                     /** Format: date-time */
                     expiresAt?: string;
                 };
@@ -8714,6 +8762,71 @@ export interface operations {
             };
         };
     };
+    PosController_setPin: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    pin: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PosController_approvers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    PosController_verify: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    userId: string;
+                    pin: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     PosController_getSettings: {
         parameters: {
             query?: never;
@@ -8973,6 +9086,8 @@ export interface operations {
                         /** Format: uuid */
                         batchId?: string;
                         serialNos?: string[];
+                        /** Format: uuid */
+                        salespersonId?: string;
                     }[];
                     payments: {
                         /** @enum {string} */
@@ -8984,6 +9099,11 @@ export interface operations {
                     couponCode?: string;
                     loyaltyPoints?: string;
                     storeCredit?: string;
+                    approval?: {
+                        /** Format: uuid */
+                        userId: string;
+                        pin: string;
+                    };
                 };
             };
         };
@@ -12737,6 +12857,7 @@ export interface operations {
                 "application/json": {
                     loyaltyPointsPerHundred?: string;
                     loyaltyRupeesPerPoint?: string;
+                    maxDiscountWithoutApproval?: string | null;
                 };
             };
         };

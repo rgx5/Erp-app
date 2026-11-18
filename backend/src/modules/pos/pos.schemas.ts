@@ -42,6 +42,8 @@ export const posSaleSchema = z.strictObject({
         warehouseId: z.uuid().optional(),
         batchId: z.uuid().optional(),
         serialNos: serials.optional(),
+        /** The user credited with this line (commission and sales reports). */
+        salespersonId: z.uuid().optional(),
       }),
     )
     .min(1)
@@ -54,7 +56,11 @@ export const posSaleSchema = z.strictObject({
   loyaltyPoints: z.string().regex(/^[0-9]{1,10}(\.[0-9]{1,2})?$/, 'Points, up to 2 decimals').refine((v) => Number(v) > 0, 'Must be greater than zero').optional(),
   /** Store credit (the customer's unused credit) settling part of the bill. Needs a named customer. */
   storeCredit: positive.optional(),
+  /** A manager's approval of a discount above the company limit: their user and counter PIN. */
+  approval: z.strictObject({ userId: z.uuid(), pin: z.string().regex(/^[0-9]{4,8}$/) }).optional(),
 });
+export const setPinSchema = z.strictObject({ pin: z.string().regex(/^[0-9]{4,8}$/, 'A PIN is 4 to 8 digits') });
+export const verifyApprovalSchema = z.strictObject({ userId: z.uuid(), pin: z.string().regex(/^[0-9]{4,8}$/) });
 export const posReturnSchema = z.strictObject({
   shiftId: z.uuid(),
   date: isoDate.optional(),

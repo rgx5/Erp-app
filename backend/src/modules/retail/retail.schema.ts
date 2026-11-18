@@ -43,6 +43,7 @@ export const retailSettings = erp.table('retail_settings', {
   companyId: uuid('company_id').notNull(),
   loyaltyPointsPerHundred: numeric('loyalty_points_per_hundred', { precision: 10, scale: 4 }).notNull().default('0'),
   loyaltyRupeesPerPoint: numeric('loyalty_rupees_per_point', { precision: 10, scale: 4 }).notNull().default('0'),
+  maxDiscountWithoutApproval: numeric('max_discount_without_approval', { precision: 7, scale: 4 }),
   version: integer('version').notNull().default(1),
   createdAt: ts('created_at').notNull().defaultNow(),
   updatedAt: ts('updated_at').notNull().defaultNow(),
@@ -100,4 +101,25 @@ export const posWalletUses = erp.table('pos_wallet_uses', {
   amount: numeric('amount', { precision: 18, scale: 4 }).notNull(),
   points: numeric('points', { precision: 18, scale: 2 }),
   reference: text('reference'),
+});
+
+export const posStaffPins = erp.table('pos_staff_pins', {
+  tenantId: uuid('tenant_id').notNull(),
+  userId: uuid('user_id').notNull(),
+  pinHash: text('pin_hash').notNull(),
+  failedAttempts: integer('failed_attempts').notNull().default(0),
+  lockedUntil: ts('locked_until'),
+  updatedAt: ts('updated_at').notNull().defaultNow(),
+});
+export const posSaleStaff = erp.table('pos_sale_staff', {
+  tenantId: uuid('tenant_id').notNull(),
+  posSaleId: uuid('pos_sale_id').notNull(),
+  lineNo: integer('line_no').notNull(),
+  salespersonId: uuid('salesperson_id').notNull(),
+});
+export const posSaleApprovals = erp.table('pos_sale_approvals', {
+  tenantId: uuid('tenant_id').notNull(),
+  posSaleId: uuid('pos_sale_id').notNull(),
+  approvedBy: uuid('approved_by').notNull(),
+  highestDiscount: numeric('highest_discount', { precision: 7, scale: 4 }).notNull(),
 });

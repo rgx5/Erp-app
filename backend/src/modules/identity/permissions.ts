@@ -67,7 +67,7 @@ export const PERMISSIONS = [
   'expenses:post',
   'expenses:cancel',
   'expenses:manage',
-  'retail:read',
+  'retail:read', 'pos:approve',
   'retail:manage',
 ] as const;
 
