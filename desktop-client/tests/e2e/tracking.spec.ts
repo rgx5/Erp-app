@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { goTo } from '../nav'
 import { seedBusiness } from '../seed'
 
 async function signIn(page: Page, s: { base: string; slug: string; email: string; password: string }) {
@@ -20,7 +21,7 @@ test('inventory: stock in with a new batch and serial numbers, see them, hold st
   await s.call('POST', '/v1/items', { code: 'PHONE', name: 'Phone', baseUomId: nos.id, itemType: 'finished_good', taxCodeId: tax.id, hsnSacCode: '8517', tracking: 'serial' })
   await signIn(page, s)
 
-  await page.getByRole('link', { name: 'Stock on hand' }).click()
+  await goTo(page, 'Stock on hand')
   await page.getByRole('button', { name: 'Adjust stock' }).click()
   const adj = page.getByRole('dialog', { name: 'Adjust stock' })
   await adj.getByLabel('Reason').fill('Opening tracked stock')
@@ -39,7 +40,7 @@ test('inventory: stock in with a new batch and serial numbers, see them, hold st
   await expect(page.getByRole('status').filter({ hasText: 'SA/' })).toBeVisible()
 
   // ---- what was created ----
-  await page.getByRole('link', { name: 'Batches and serials' }).click()
+  await goTo(page, 'Batches and serials')
   await page.getByLabel('Batch-tracked item', { exact: true }).fill('milk'); await page.getByRole('option', { name: /MILK/ }).click()
   await expect(page.getByRole('table', { name: 'Batches' })).toContainText('B-100')
   await page.getByRole('button', { name: 'Block B-100' }).click()
@@ -77,7 +78,7 @@ test('tracked goods: received into a batch against an order, then sold from that
   await s.call('POST', '/v1/purchasing/orders', { companyId: s.company.id, gstRegistrationId: s.registration.id, supplierId: s.supplier.id, orderDate: d, lines: [{ itemId: milk.id, quantity: '10', unitPrice: '30', warehouseId: s.warehouse.id }] })
   await signIn(page, s)
 
-  await page.getByRole('link', { name: 'Purchase orders', exact: true }).click()
+  await goTo(page, 'Purchase orders')
   await page.getByRole('row', { name: /PO\// }).click()
   await page.getByRole('button', { name: 'Receive goods' }).click()
   const recv = page.getByRole('dialog', { name: /Receive goods/ })
@@ -86,7 +87,7 @@ test('tracked goods: received into a batch against an order, then sold from that
   await expect(page.getByRole('status').filter({ hasText: 'GRN/' })).toBeVisible()
 
   // two litres were spoiled: send them back from that batch
-  await page.getByRole('link', { name: 'Goods receipts' }).click()
+  await goTo(page, 'Goods receipts')
   await page.getByRole('row', { name: /GRN\// }).click()
   await page.getByRole('button', { name: 'Return goods to the supplier' }).click()
   const back = page.getByRole('dialog', { name: /GRN\// })
@@ -97,7 +98,7 @@ test('tracked goods: received into a batch against an order, then sold from that
   await expect(page.getByRole('status').filter({ hasText: 'returned to the supplier' })).toBeVisible()
   await page.keyboard.press('Escape')
 
-  await page.getByRole('link', { name: 'Invoices', exact: true }).click()
+  await goTo(page, 'Invoices')
   await page.getByRole('button', { name: 'New invoice' }).click()
   await page.getByLabel('Customer', { exact: true }).fill('Asha'); await page.getByRole('option', { name: /Asha Traders/ }).click()
   await page.getByLabel('Item', { exact: true }).first().fill('milk'); await page.getByRole('option', { name: /MILK/ }).first().click()

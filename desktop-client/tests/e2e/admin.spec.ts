@@ -1,5 +1,6 @@
 import { createHmac } from 'node:crypto'
 import { expect, test, type Page } from '@playwright/test'
+import { goTo } from '../nav'
 import { seedBusiness } from '../seed'
 
 async function signIn(page: Page, s: { base: string; slug: string; email: string; password: string }, code?: string) {
@@ -30,7 +31,7 @@ test('administration: a limited role and user, an API key shown once, the audit 
   await signIn(page, s)
 
   // ---- a role with a few permissions ----
-  await page.getByRole('link', { name: 'Roles' }).click()
+  await goTo(page, 'Roles')
   await expect(page.getByRole('cell', { name: 'Owner' })).toBeVisible()
   await page.getByRole('button', { name: 'New role' }).click()
   const role = page.getByRole('dialog', { name: 'New role' })
@@ -40,7 +41,7 @@ test('administration: a limited role and user, an API key shown once, the audit 
   await expect(page.getByRole('cell', { name: 'Shop assistant' })).toBeVisible()
 
   // ---- a user with that role ----
-  await page.getByRole('link', { name: 'Users', exact: true }).click()
+  await goTo(page, 'Users')
   await page.getByRole('button', { name: 'Add user' }).click()
   const user = page.getByRole('dialog', { name: 'Add a user' })
   await user.getByLabel('Email').fill('asha@example.com'); await user.getByLabel('Name').fill('Asha Rao'); await user.getByLabel('Starting password').fill('a long starting passphrase 7')
@@ -50,7 +51,7 @@ test('administration: a limited role and user, an API key shown once, the audit 
   await expect(page.getByRole('row', { name: /Asha Rao/ })).toContainText('Shop assistant')
 
   // ---- an API key: shown once ----
-  await page.getByRole('link', { name: 'API keys' }).click()
+  await goTo(page, 'API keys')
   await page.getByRole('button', { name: 'New API key' }).click()
   const key = page.getByRole('dialog', { name: 'New API key' })
   await key.getByLabel('Name', { exact: true }).fill('Accountant export'); await key.getByLabel('accounting:read').check()
@@ -63,7 +64,7 @@ test('administration: a limited role and user, an API key shown once, the audit 
   await expect(page.getByRole('status').filter({ hasText: 'revoked' })).toBeVisible()
 
   // ---- the audit log has all of it ----
-  await page.getByRole('link', { name: 'Audit log' }).click()
+  await goTo(page, 'Audit log')
   await expect(page.getByRole('heading', { name: 'Audit log' })).toBeVisible()
   await expect(page.getByRole('cell', { name: /user/i }).first()).toBeVisible()
   await page.getByRole('row').nth(1).click()
@@ -71,7 +72,7 @@ test('administration: a limited role and user, an API key shown once, the audit 
   await page.keyboard.press('Escape')
 
   // ---- two-step sign-in on my own account ----
-  await page.getByRole('link', { name: 'My account' }).click()
+  await goTo(page, 'My account')
   await page.getByRole('button', { name: 'Set up' }).click()
   const secret = (await page.getByLabel('Authenticator key').innerText()).trim()
   await page.getByLabel('6-digit code').fill(totp(secret))

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { goTo } from '../nav'
 import { seedBusiness } from '../seed'
 
 async function signIn(page: Page, s: { base: string; slug: string; email: string; password: string }) {
@@ -24,7 +25,7 @@ test('retail catalogue: a no-discount category, an item with MRP and a barcode, 
   await signIn(page, s)
 
   // ---- a category that forbids discounts ----
-  await page.getByRole('link', { name: 'Categories' }).click()
+  await goTo(page, 'Categories')
   await page.getByRole('button', { name: 'New category' }).click()
   const cat = page.getByRole('dialog', { name: 'New category' })
   await cat.getByLabel('Code', { exact: true }).fill('LIQ'); await cat.getByLabel('Name').fill('Liquor')
@@ -33,7 +34,7 @@ test('retail catalogue: a no-discount category, an item with MRP and a barcode, 
   await expect(page.getByRole('table', { name: 'Categories' })).toContainText('Not allowed')
 
   // ---- an item in it, with a brand, an MRP and a barcode ----
-  await page.getByRole('link', { name: 'Items', exact: true }).click()
+  await goTo(page, 'Items')
   await page.getByRole('button', { name: 'New item' }).click()
   const item = page.getByRole('dialog', { name: 'New item' })
   await item.getByLabel('Code', { exact: true }).fill('WHISKY1'); await item.getByLabel('Name', { exact: true }).fill('Royal whisky 750ml')
@@ -52,7 +53,7 @@ test('retail catalogue: a no-discount category, an item with MRP and a barcode, 
   await s.call('POST', '/v1/stock/movements', { companyId: c, movementType: 'opening', postingDate: `${s.year}-04-01`, description: 'Opening', lines: [{ warehouseId: s.warehouse.id, itemId: ((await s.call('GET', '/v1/items/lookup?code=WHISKY1')) as unknown as { item: { id: string } }).item.id, quantity: '10', unitCost: '600' }] })
 
   // ---- the counter: scanning the barcode finds it, prices it at MRP, and refuses a discount ----
-  await page.getByRole('link', { name: 'Counter', exact: true }).click()
+  await goTo(page, 'Counter')
   await page.getByLabel('Cash in the drawer').fill('0')
   await page.getByRole('button', { name: 'Open shift' }).click()
   await expect(page.getByLabel(/Scan or type item/)).toBeVisible()
@@ -68,7 +69,7 @@ test('retail catalogue: a no-discount category, an item with MRP and a barcode, 
 test('expenses: a category, a voucher paid from cash, and cancelling it', async ({ page }) => {
   const s = await seedBusiness(process.env['E2E_BACKEND_URL'] as string, process.env['E2E_PLATFORM_TOKEN'] as string, { prefix: 'exp' })
   await signIn(page, s)
-  await page.getByRole('link', { name: 'Expenses', exact: true }).click()
+  await goTo(page, 'Expenses')
   await page.getByRole('tab', { name: 'Categories' }).click()
   await page.getByRole('button', { name: 'New category' }).click()
   const cat = page.getByRole('dialog', { name: 'New expense category' })
@@ -108,7 +109,7 @@ test('customer wallet: loyalty rates and a coupon, a coupon sale, a return kept 
   await signIn(page, s)
 
   // ---- loyalty rates and a coupon ----
-  await page.getByRole('link', { name: 'Loyalty and coupons' }).click()
+  await goTo(page, 'Loyalty and coupons')
   await page.getByLabel('Points earned per ₹100 spent').fill('1')
   await page.getByLabel('Value of one point (₹)').fill('0.5')
   await page.getByRole('button', { name: 'Save rates' }).click()
@@ -120,7 +121,7 @@ test('customer wallet: loyalty rates and a coupon, a coupon sale, a return kept 
   await expect(page.getByRole('table', { name: 'Coupons' })).toContainText('10% off over')
 
   // ---- a sale with the coupon, to a named customer ----
-  await page.getByRole('link', { name: 'Counter', exact: true }).click()
+  await goTo(page, 'Counter')
   await page.getByLabel('Sell from price list').selectOption({ label: 'Counter prices (prices include tax)' })
   await page.getByLabel('Cash in the drawer').fill('0')
   await page.getByRole('button', { name: 'Open shift' }).click()
@@ -172,7 +173,7 @@ test('counter: hold a bill while serving someone else, recall it, and share the 
   await s.call('POST', `/v1/price-lists/${list.id}/prices`, { itemId: s.widget.id, uomId: nos.id, price: '1180', effectiveFrom: `${s.year}-04-01` })
   await s.call('POST', `/v1/price-lists/${list.id}/prices`, { itemId: s.cheap.id, uomId: nos.id, price: '105', effectiveFrom: `${s.year}-04-01` })
   await signIn(page, s)
-  await page.getByRole('link', { name: 'Counter', exact: true }).click()
+  await goTo(page, 'Counter')
   await page.getByLabel('Sell from price list').selectOption({ label: 'Counter prices (prices include tax)' })
   await page.getByLabel('Cash in the drawer').fill('0')
   await page.getByRole('button', { name: 'Open shift' }).click()
@@ -194,4 +195,22 @@ test('counter: hold a bill while serving someone else, recall it, and share the 
   await expect(page.getByRole('table', { name: 'Cart' })).toContainText('WIDGET')
   await expect(page.getByLabel('Sale total')).toHaveText('₹ 1,180.00')
   await expect(page.getByRole('button', { name: 'Held bills (0)' })).toBeVisible()
+})
+
+test('layout: the sidebar is the default, and the command centre can be chosen in My account and kept', async ({ page }) => {
+  const s = await seedBusiness(process.env['E2E_BACKEND_URL'] as string, process.env['E2E_PLATFORM_TOKEN'] as string, { prefix: 'lay' })
+  await signIn(page, s)
+  await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Invoices' })).toBeVisible() // the sidebar lists pages directly
+  await page.getByRole('link', { name: 'My account' }).click()
+  await page.getByLabel(/Command centre/).check()
+  await expect(page.getByRole('navigation', { name: 'Admin pages' })).toBeVisible()
+  await page.reload()
+  await expect(page.getByRole('navigation', { name: 'Admin pages' })).toBeVisible() // remembered
+  await goTo(page, 'Items')
+  await page.getByRole('button', { name: 'New item' }).click()
+  await expect(page.getByRole('complementary', { name: 'Record' }).getByRole('dialog', { name: 'New item' })).toBeVisible() // docked beside the list
+  await page.keyboard.press('Escape')
+  await page.getByRole('link', { name: 'My account' }).click()
+  await page.getByLabel(/^Sidebar/).check()
+  await expect(page.getByRole('navigation', { name: 'Admin pages' })).toHaveCount(0)
 })

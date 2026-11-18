@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { ApiError } from '@/api/errors'
 import { useSession } from '@/auth/session'
 import { useFlash } from '@/ui/flash'
+import { useLayout, type Layout } from '@/ui/layout'
 import { SimpleForm } from '@/ui/SimpleForm'
 import { Alert, Button, Card, TextField } from '@/ui/primitives'
 import { changePassword, mfaActivate, mfaDisable, mfaEnroll } from './queries'
@@ -13,6 +14,8 @@ export function AccountPage() {
   const me = useSession((s) => s.me)
   const refresh = useSession((s) => s.refreshMe)
   const flash = useFlash()
+  const layout = useLayout((l) => l.layout)
+  const setLayout = useLayout((l) => l.set)
   const [enrol, setEnrol] = useState<{ secret: string; otpauthUri: string } | null>(null)
   const [code, setCode] = useState('')
   const [codes, setCodes] = useState<string[] | null>(null)
@@ -24,6 +27,15 @@ export function AccountPage() {
     <div className="mx-auto flex max-w-xl flex-col gap-4">
       <h1 className="text-lg font-semibold">My account</h1>
       <p className="text-sm text-muted">{me?.user?.displayName} · {me?.user?.email}</p>
+      <Card title="Appearance">
+        <fieldset className="flex flex-col gap-2">
+          <legend className="mb-1 text-xs font-medium text-muted">Layout (kept on this computer)</legend>
+          {([['classic', 'Sidebar', 'A menu down the left, grouped by area.'], ['command', 'Command centre', 'A slim rail of areas, the pages of each area as tabs, a search box (Ctrl+K), and the record you open beside the list instead of over it.']] as [Layout, string, string][]).map(([id, name, text]) => (
+            <label key={id} className={`flex cursor-pointer items-start gap-3 rounded-lg border p-3 ${layout === id ? 'border-brand bg-brand-soft' : 'border-line'}`}>
+              <input type="radio" name="layout" className="mt-1" checked={layout === id} onChange={() => setLayout(id)} /><span><span className="block text-sm font-medium">{name}</span><span className="block text-xs text-muted">{text}</span></span>
+            </label>))}
+        </fieldset>
+      </Card>
       <Card title="Change password">
         <SimpleForm schema={schema} defaults={{ currentPassword: '', newPassword: '', again: '' }} fields={['currentPassword', 'newPassword', 'again']} label="Change password"
           submit={async (v) => { try { await changePassword(v.currentPassword, v.newPassword); flash.show('Password changed.') } catch (e) { throw new Error(msg(e, 'Could not change the password.')) } }}>

@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { goTo } from '../nav'
 
 const PASSWORD = 'a long passphrase for tests 42'
 
@@ -50,7 +51,7 @@ test('connects to a server, signs in, sees the dashboard and companies, and sign
   await expect(page.getByText('₹ 0.00').first()).toBeVisible()
   await expect(page.getByText('Asha Owner')).toBeVisible()
 
-  await page.getByRole('link', { name: 'Companies' }).click()
+  await goTo(page, 'Companies')
   await expect(page.getByRole('heading', { name: 'Companies' })).toBeVisible()
   await expect(page.getByRole('cell', { name: 'Sunrise Traders Pvt Ltd' })).toBeVisible()
 

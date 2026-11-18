@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { goTo } from '../nav'
 import { seedBusiness } from '../seed'
 
 async function signIn(page: Page, s: { base: string; slug: string; email: string; password: string }) {
@@ -18,7 +19,7 @@ test('inventory: stock on hand, an adjustment, a transfer, a count, and valuatio
   await signIn(page, s)
 
   // ---- stock on hand and a stock card ----
-  await page.getByRole('link', { name: 'Stock on hand' }).click()
+  await goTo(page, 'Stock on hand')
   await expect(page.getByRole('heading', { name: 'Stock on hand' })).toBeVisible()
   await expect(page.getByRole('cell', { name: 'WIDGET · Steel widget' })).toBeVisible()
   await expect(page.getByRole('status')).toContainText('₹ 80,000.00')
@@ -51,7 +52,7 @@ test('inventory: stock on hand, an adjustment, a transfer, a count, and valuatio
   await expect(page.getByRole('status').filter({ hasText: 'total value' })).toContainText('₹ 80,800.00')
 
   // ---- a transfer to the second store ----
-  await page.getByRole('link', { name: 'Transfers' }).click()
+  await goTo(page, 'Transfers')
   await page.getByRole('button', { name: 'New transfer' }).click()
   const tr = page.getByRole('dialog', { name: 'New stock transfer' })
   await tr.getByLabel('Note').fill('Stock the second store')
@@ -60,13 +61,13 @@ test('inventory: stock on hand, an adjustment, a transfer, a count, and valuatio
   await tr.getByLabel('Quantity').fill('5')
   await tr.getByRole('button', { name: 'Transfer stock' }).click()
   await expect(page.getByRole('cell', { name: /TF\/\d{4}\/000001/ })).toBeVisible()
-  await page.getByRole('link', { name: 'Stock on hand' }).click()
+  await goTo(page, 'Stock on hand')
   await page.getByLabel('Warehouse').selectOption({ label: 'Second store' })
   await expect(page.getByRole('cell', { name: 'WIDGET · Steel widget' })).toBeVisible()
   await expect(page.getByRole('cell', { name: '5', exact: true })).toBeVisible()
 
   // ---- a count finds two missing ----
-  await page.getByRole('link', { name: 'Stock counts' }).click()
+  await goTo(page, 'Stock counts')
   await page.getByRole('button', { name: 'New count' }).click()
   const start = page.getByRole('dialog', { name: 'Start a stock count' })
   await start.getByLabel('Description').fill('November cycle count')
@@ -80,11 +81,11 @@ test('inventory: stock on hand, an adjustment, a transfer, a count, and valuatio
   await expect(page.getByRole('status').filter({ hasText: 'differences were adjusted' })).toBeVisible()
 
   // ---- valuation agrees with the books ----
-  await page.getByRole('link', { name: 'Valuation' }).click()
+  await goTo(page, 'Valuation')
   await expect(page.getByText('The stock records agree with the inventory accounts.')).toBeVisible()
 
   // ---- every movement is on record ----
-  await page.getByRole('link', { name: 'Movements' }).click()
+  await goTo(page, 'Movements')
   await expect(page.getByRole('cell', { name: /SA\/\d{4}\/000001/ })).toBeVisible()
   await expect(page.getByRole('cell', { name: 'Stock count' })).toBeVisible()
   await page.getByRole('cell', { name: /SA\/\d{4}\/000001/ }).click()

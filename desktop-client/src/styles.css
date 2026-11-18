@@ -3,9 +3,13 @@
 /* One light theme. The app does not follow the operating system's dark setting: it is meant to be read in a bright office. */
 @theme {
   --font-sans: "Inter Variable", Inter, "Segoe UI", system-ui, -apple-system, "Helvetica Neue", sans-serif;
-  --color-canvas: #f3f5f9;
+  --color-canvas: #f4f5f9;
   --color-surface: #ffffff;
-  --color-line: #e2e7ef;
+  --color-line: #e4e7ef;
+  --color-line-strong: #cdd2e0;
+  --color-good-soft: #e6f6ee;
+  --color-bad-soft: #fdeff0;
+  --color-warn-soft: #fff4e0;
   --color-ink: #151c2c;
   --color-muted: #5a6577;
   --color-brand: #3358d4;
@@ -21,7 +25,7 @@
 :root { color-scheme: light; }
 html, body, #root { height: 100%; }
 body {
-  margin: 0; background: var(--color-canvas); color: var(--color-ink); font-family: var(--font-sans); font-size: 14px; line-height: 1.45;
+  margin: 0; background: var(--color-canvas); color: var(--color-ink); font-family: var(--font-sans); font-size: 13px; line-height: 1.45;
   -webkit-font-smoothing: antialiased; font-feature-settings: "cv11", "ss01";
 }
 .num { font-variant-numeric: tabular-nums; }

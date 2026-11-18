@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { goTo } from '../nav'
 import { gstinCheckCharacter } from '../../src/domain/india'
 
 const PASSWORD = 'a long passphrase for tests 42'
@@ -35,7 +36,7 @@ test('master data: items, customers, tax rates and price lists from the app', as
   await signIn(page, s)
 
   // ---- items ----
-  await page.getByRole('link', { name: 'Items' }).click()
+  await goTo(page, 'Items')
   await expect(page.getByRole('heading', { name: 'Items' })).toBeVisible()
   await page.getByRole('button', { name: 'New item' }).click()
   const drawer = page.getByRole('dialog', { name: 'New item' })
@@ -89,7 +90,7 @@ test('master data: items, customers, tax rates and price lists from the app', as
   expect(exported).not.toContain('SHIRT-M')
 
   // ---- customers ----
-  await page.getByRole('link', { name: 'Customers' }).click()
+  await goTo(page, 'Customers')
   await page.getByRole('button', { name: 'New customer' }).click()
   const cust = page.getByRole('dialog', { name: 'New customer' })
   await cust.getByLabel('Code', { exact: true }).fill('C-001')
@@ -112,7 +113,7 @@ test('master data: items, customers, tax rates and price lists from the app', as
   await page.keyboard.press('Escape')
 
   // ---- tax rates ----
-  await page.getByRole('link', { name: 'Tax codes' }).click()
+  await goTo(page, 'Tax codes')
   await page.getByRole('cell', { name: 'GST12', exact: true }).click()
   const tax = page.getByRole('dialog', { name: 'GST12' })
   await expect(tax.getByText('12%').first()).toBeVisible()
@@ -123,7 +124,7 @@ test('master data: items, customers, tax rates and price lists from the app', as
   await page.keyboard.press('Escape')
 
   // ---- price lists ----
-  await page.getByRole('link', { name: 'Price lists' }).click()
+  await goTo(page, 'Price lists')
   await page.getByRole('button', { name: 'New price list' }).click()
   const pl = page.getByRole('dialog', { name: 'New price list' })
   await pl.getByLabel('Code', { exact: true }).fill('RETAIL')

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { goTo } from '../nav'
 import { seedBusiness } from '../seed'
 
 async function signIn(page: Page, s: { base: string; slug: string; email: string; password: string }) {
@@ -23,7 +24,7 @@ test('purchasing: freight added to the cost of received goods, and a debit note 
   await signIn(page, s)
 
   // ---- landed cost ----
-  await page.getByRole('link', { name: 'Landed costs' }).click()
+  await goTo(page, 'Landed costs')
   await page.getByRole('button', { name: 'New voucher' }).click()
   const v = page.getByRole('dialog', { name: 'New landed-cost voucher' })
   await v.getByLabel('Description').fill('Freight inward')
@@ -39,7 +40,7 @@ test('purchasing: freight added to the cost of received goods, and a debit note 
   await page.keyboard.press('Escape')
 
   // ---- a debit note against the bill ----
-  await page.getByRole('link', { name: 'Supplier bills' }).click()
+  await goTo(page, 'Supplier bills')
   await page.getByRole('row', { name: /V-9|BILL|PB/ }).first().click()
   await page.getByRole('button', { name: 'Debit note' }).click()
   const dn = page.getByRole('dialog', { name: /Debit note against/ })

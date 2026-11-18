@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { goTo } from '../nav'
 import { seedBusiness } from '../seed'
 
 async function signIn(page: Page, s: { base: string; slug: string; email: string; password: string }) {
@@ -17,7 +18,7 @@ test('sales: a quote becomes an order that is invoiced in two parts', async ({ p
   await signIn(page, s)
 
   // ---- a quote ----
-  await page.getByRole('link', { name: 'Quotes' }).click()
+  await goTo(page, 'Quotes')
   await page.getByRole('button', { name: 'New quote' }).click()
   await page.getByLabel('Customer', { exact: true }).fill('Asha'); await page.getByRole('option', { name: /Asha Traders/ }).click()
   await page.getByLabel('Notes (optional)').fill('Delivery in two weeks')
@@ -39,11 +40,11 @@ test('sales: a quote becomes an order that is invoiced in two parts', async ({ p
   await order.getByLabel('Invoice WIDGET').fill('1')
   await order.getByRole('button', { name: 'Invoice', exact: true }).click()
   await expect(page.getByRole('heading', { name: /INV\// })).toBeVisible()
-  await page.getByRole('link', { name: 'Sales orders' }).click()
+  await goTo(page, 'Sales orders')
   await expect(page.getByRole('row', { name: /ORD\// })).toContainText('Partly invoiced')
   await page.getByRole('row', { name: /ORD\// }).click()
   await page.getByRole('dialog', { name: /ORD\// }).getByRole('button', { name: 'Invoice', exact: true }).click()
   await expect(page.getByRole('heading', { name: /INV\// })).toBeVisible()
-  await page.getByRole('link', { name: 'Sales orders' }).click()
+  await goTo(page, 'Sales orders')
   await expect(page.getByRole('row', { name: /ORD\// })).toContainText('Invoiced')
 })

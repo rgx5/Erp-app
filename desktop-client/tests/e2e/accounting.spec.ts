@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { goTo } from '../nav'
 import { seedBusiness } from '../seed'
 
 async function signIn(page: Page, s: { base: string; slug: string; email: string; password: string }) {
@@ -18,12 +19,12 @@ test('accounting: a manual journal, its reversal, reports, periods and a bank st
   await signIn(page, s)
 
   // ---- chart of accounts ----
-  await page.getByRole('link', { name: 'Chart of accounts' }).click()
+  await goTo(page, 'Chart of accounts')
   await expect(page.getByRole('heading', { name: 'Chart of accounts' })).toBeVisible()
   await expect(page.getByRole('cell', { name: '1110' }).first()).toBeVisible()
 
   // ---- a manual journal that does not balance cannot be posted ----
-  await page.getByRole('link', { name: 'Journal entries' }).click()
+  await goTo(page, 'Journal entries')
   await page.getByRole('button', { name: 'New journal' }).click()
   await page.getByLabel('Description').fill('Tea and snacks for the office')
   const accountsIn = page.getByLabel('Account', { exact: true })
@@ -50,7 +51,7 @@ test('accounting: a manual journal, its reversal, reports, periods and a bank st
   await expect(page.getByRole('status').filter({ hasText: 'reverses' })).toBeVisible()
 
   // ---- reports ----
-  await page.getByRole('link', { name: 'Financial reports' }).click()
+  await goTo(page, 'Financial reports')
   await expect(page.getByRole('table', { name: 'Trial balance' })).toBeVisible()
   await page.getByRole('tab', { name: 'Profit and loss' }).click()
   await expect(page.getByText('Profit for the period').first()).toBeVisible()
@@ -60,7 +61,7 @@ test('accounting: a manual journal, its reversal, reports, periods and a bank st
   await expect(page.getByText('Agrees with the cash and bank balances in the books.')).toBeVisible()
 
   // ---- periods ----
-  await page.getByRole('link', { name: 'Periods and year-end' }).click()
+  await goTo(page, 'Periods and year-end')
   await expect(page.getByRole('heading', { name: 'Periods and year-end' })).toBeVisible()
   const first = page.getByRole('button', { name: /^Close [A-Z][a-z]{2} \d{4}$/ }).first()
   const label = ((await first.getAttribute('aria-label')) ?? '').replace('Close ', '')
@@ -70,7 +71,7 @@ test('accounting: a manual journal, its reversal, reports, periods and a bank st
   await expect(page.getByRole('status').filter({ hasText: 'reopened' })).toBeVisible()
 
   // ---- bank: import a statement, book the charge, reconcile ----
-  await page.getByRole('link', { name: 'Bank reconciliation', exact: true }).click()
+  await goTo(page, 'Bank reconciliation')
   await expect(page.getByRole('heading', { name: 'Bank reconciliation' })).toBeVisible()
   const today = new Date().toISOString().slice(0, 10)
   await page.getByRole('button', { name: 'Import statement' }).click()

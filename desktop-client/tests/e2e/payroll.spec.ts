@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { goTo } from '../nav'
 import { seedBusiness } from '../seed'
 
 async function signIn(page: Page, s: { base: string; slug: string; email: string; password: string }) {
@@ -21,7 +22,7 @@ test('payroll: set up, add a person, run the month, pay the salaries and the sta
   await signIn(page, s)
 
   // ---- setup: accounts, statutory rules, a component ----
-  await page.getByRole('link', { name: 'Payroll setup' }).click()
+  await goTo(page, 'Payroll setup')
   await pick(page, 'Salary expense', '5500'); await pick(page, 'Employer contributions expense', '5500')
   await pick(page, 'Salary payable', '2150'); await pick(page, 'PF payable', '2160'); await pick(page, 'ESI payable', '2170'); await pick(page, 'Professional tax payable', '2180')
   await pick(page, 'TDS on salary payable', '2240'); await pick(page, 'Other deductions payable', '2190')
@@ -53,7 +54,7 @@ test('payroll: set up, add a person, run the month, pay the salaries and the sta
   await expect(page.getByRole('table', { name: 'Pay components' })).toContainText('40% of basic')
 
   // ---- a person with a salary structure ----
-  await page.getByRole('link', { name: 'People' }).click()
+  await goTo(page, 'People')
   await page.getByRole('button', { name: 'Add person' }).click()
   const person = page.getByRole('dialog', { name: 'Add a person' })
   await person.getByLabel('Full name').fill('Ravi Kumar')
@@ -70,7 +71,7 @@ test('payroll: set up, add a person, run the month, pay the salaries and the sta
   await page.keyboard.press('Escape')
 
   // ---- this month's inputs, then the run ----
-  await page.getByRole('link', { name: 'Payroll runs' }).click()
+  await goTo(page, 'Payroll runs')
   await page.getByRole('tab', { name: 'Monthly inputs' }).click()
   await page.getByLabel('Bonus for Ravi Kumar').fill('1000')
   await page.getByRole('button', { name: 'Save Ravi Kumar' }).click()
@@ -94,7 +95,7 @@ test('payroll: set up, add a person, run the month, pay the salaries and the sta
   await page.keyboard.press('Escape')
 
   // ---- statutory dues ----
-  await page.getByRole('link', { name: 'Statutory dues' }).click()
+  await goTo(page, 'Statutory dues')
   await expect(page.getByRole('table', { name: 'Statutory dues' })).toBeVisible()
   await page.getByRole('button', { name: /^Remit pf/ }).click()
   await pick(page, 'Paid from (bank or cash)', '1120')

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { goTo } from '../nav'
 import { seedBusiness } from '../seed'
 
 async function signIn(page: Page, s: { base: string; slug: string; email: string; password: string }) {
@@ -20,7 +21,7 @@ test('manufacturing: set up, make a work order from a bill of materials, see its
   await signIn(page, s)
 
   // ---- the accounts production posts to ----
-  await page.getByRole('link', { name: 'Production costing' }).click()
+  await goTo(page, 'Production costing')
   await page.getByRole('tab', { name: 'Accounts' }).click()
   await pick(page, 'Work in progress', '1230', /1230/)
   await pick(page, 'Labour and machine cost absorbed', '5210', /5210/)
@@ -31,7 +32,7 @@ test('manufacturing: set up, make a work order from a bill of materials, see its
   await expect(page.getByRole('status').filter({ hasText: 'Production accounts saved' })).toBeVisible()
 
   // ---- a work centre ----
-  await page.getByRole('link', { name: 'Work centres' }).click()
+  await goTo(page, 'Work centres')
   await page.getByRole('button', { name: 'New work centre' }).click()
   const wc = page.getByRole('dialog', { name: 'New work centre' })
   await wc.getByLabel('Code').fill('ASM'); await wc.getByLabel('Name').fill('Assembly')
@@ -40,7 +41,7 @@ test('manufacturing: set up, make a work order from a bill of materials, see its
   await expect(page.getByRole('cell', { name: 'Assembly' })).toBeVisible()
 
   // ---- a bill of materials: a widget is made of 2 toys (5% scrap) and one assembly operation ----
-  await page.getByRole('link', { name: 'Bills of material' }).click()
+  await goTo(page, 'Bills of material')
   await page.getByRole('button', { name: 'New bill of materials' }).click()
   const bom = page.getByRole('dialog', { name: 'New bill of materials' })
   await bom.getByLabel('Finished item', { exact: true }).fill('wid'); await bom.getByRole('option', { name: /WIDGET/ }).click()
@@ -56,7 +57,7 @@ test('manufacturing: set up, make a work order from a bill of materials, see its
   await page.keyboard.press('Escape')
 
   // ---- a work order: release, issue, report time and output, complete ----
-  await page.getByRole('link', { name: 'Work orders', exact: true }).click()
+  await goTo(page, 'Work orders')
   await page.getByRole('button', { name: 'New work order' }).click()
   const wo = page.getByRole('dialog', { name: 'New work order' })
   await wo.getByLabel('Item to make', { exact: true }).fill('wid'); await wo.getByRole('option', { name: /WIDGET/ }).click()
@@ -85,13 +86,13 @@ test('manufacturing: set up, make a work order from a bill of materials, see its
   await expect(page.getByRole('table', { name: 'Variance' })).toContainText('Total')
 
   // ---- costing reports ----
-  await page.getByRole('link', { name: 'Production costing' }).click()
+  await goTo(page, 'Production costing')
   await expect(page.getByRole('table', { name: 'Variances' })).toContainText('WO/')
   await page.getByRole('tab', { name: 'Work in progress' }).click()
   await expect(page.getByText('The books agree with the open work orders.')).toBeVisible()
 
   // ---- job work ----
-  await page.getByRole('link', { name: 'Job work' }).click()
+  await goTo(page, 'Job work')
   await page.getByRole('button', { name: 'New job-work order' }).click()
   const jw = page.getByRole('dialog', { name: 'New job-work order' })
   await jw.getByLabel('Job worker', { exact: true }).fill('Job'); await jw.getByRole('option', { name: /Job Works/ }).click()

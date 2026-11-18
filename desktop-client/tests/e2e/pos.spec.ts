@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { goTo } from '../nav'
 import { seedBusiness } from '../seed'
 
 async function signIn(page: Page, s: { base: string; slug: string; email: string; password: string }) {
@@ -32,13 +33,13 @@ test('point of sale: open a shift, sell, return, sell offline and upload, cash u
   await signIn(page, s)
 
   // ---- this computer becomes a device for offline selling ----
-  await page.getByRole('link', { name: 'Shifts and setup' }).click()
+  await goTo(page, 'Shifts and setup')
   await page.getByRole('tab', { name: 'Setup' }).click()
   await page.getByRole('button', { name: /Register this computer for T1|Use this computer for offline selling/ }).click()
   await expect(page.getByRole('status').filter({ hasText: 'sell offline' })).toBeVisible()
 
   // ---- open the shift ----
-  await page.getByRole('link', { name: 'Counter', exact: true }).click()
+  await goTo(page, 'Counter')
   await page.getByLabel('Sell from price list').selectOption({ label: 'Counter prices (prices include tax)' })
   await page.getByLabel('Cash in the drawer').fill('500')
   await page.getByRole('button', { name: 'Open shift' }).click()

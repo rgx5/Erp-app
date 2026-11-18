@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { goTo } from '../nav'
 import { makeGstin, seedBusiness } from '../seed'
 
 async function signIn(page: Page, s: { base: string; slug: string; email: string; password: string }) {
@@ -23,7 +24,7 @@ test('GST returns: GSTR-1, GSTR-3B and the ITC register for the month of the doc
   await s.call('POST', '/v1/purchasing/bills', { companyId: s.company.id, gstRegistrationId: s.registration.id, supplierId: s.supplier.id, supplierInvoiceNo: 'V-1', supplierInvoiceDate: today, billDate: today, lines: [{ itemId: svc.id, quantity: '1', unitPrice: '500' }] })
   await signIn(page, s)
 
-  await page.getByRole('link', { name: 'Report centre' }).click()
+  await goTo(page, 'Report centre')
   await page.getByRole('link', { name: /^GSTR-1/ }).click()
   await expect(page.getByRole('heading', { name: 'GST returns' })).toBeVisible()
   await page.getByLabel('Month').fill(today.slice(0, 7))
@@ -48,7 +49,7 @@ test('GST returns: a composition registration prepares CMP-08 once its rate is s
   const s = await seedBusiness(process.env['E2E_BACKEND_URL'] as string, process.env['E2E_PLATFORM_TOKEN'] as string, { prefix: 'cmp' })
   const comp = await s.call('POST', `/v1/companies/${s.company.id}/gst-registrations`, { gstin: makeGstin('29', 'ABCDE1234F'), legalName: 'Sunrise Karnataka', registrationType: 'composition', effectiveFrom: '2025-04-01' })
   await signIn(page, s)
-  await page.getByRole('link', { name: 'GST returns' }).click()
+  await goTo(page, 'GST returns')
   await page.getByLabel('GST registration').selectOption(comp.id)
   await expect(page.getByRole('tab', { name: 'CMP-08' })).toBeVisible()
   await expect(page.getByRole('tab', { name: 'GSTR-1' })).toHaveCount(0)

@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import { goTo } from '../nav'
 import { makeGstin, seedBusiness, type Seed } from '../seed'
 
 async function signIn(page: Page, s: Seed) {
@@ -19,7 +20,7 @@ test('sales: raise an invoice with live server totals, credit it, take a receipt
   await s.call('POST', `/v1/parties/${other.id}/addresses`, { kind: 'billing', line1: '9 MG Road', city: 'Bengaluru', stateCode: '29', pincode: '560001', isDefault: true })
   await signIn(page, s)
 
-  await page.getByRole('link', { name: 'Invoices' }).click()
+  await goTo(page, 'Invoices')
   await expect(page.getByRole('heading', { name: 'Sales invoices' })).toBeVisible()
   await page.getByRole('button', { name: 'New invoice' }).click()
   await expect(page.getByRole('heading', { name: 'New invoice' })).toBeVisible()
@@ -79,7 +80,7 @@ test('sales: raise an invoice with live server totals, credit it, take a receipt
   await expect(page.getByRole('cell', { name: /RCT\/\d{4}\/000001/ })).toBeVisible()
 
   // receivables: ₹ 1,360 still owed on the invoice; the statement lists both documents
-  await page.getByRole('link', { name: 'Receivables', exact: true }).click()
+  await goTo(page, 'Receivables')
   await expect(page.getByRole('status').filter({ hasText: 'Total outstanding' })).toContainText('₹ 1,360.00')
   await page.getByRole('cell', { name: 'Asha Traders' }).click()
   const panel = page.getByRole('dialog', { name: 'Asha Traders' })

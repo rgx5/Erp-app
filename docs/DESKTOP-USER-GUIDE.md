@@ -31,6 +31,10 @@ Only the menu items your role allows are shown. If something you expect is missi
 - **A period that is closed accepts no postings.** Reopen it (if you have the right) or post in the next one.
 - **Large payments, purchase orders and journals may need approval.** The app asks for it and a second person approves under *Purchasing, Approvals*.
 
+## Layout
+
+*My account, Appearance* chooses between the **Sidebar** (a menu down the left) and the **Command centre** (a slim rail of areas, the pages of each area as tabs, and records that open beside the list). The choice is kept on this computer.
+
 ## Keyboard
 
 | Key | Where | Does |
@@ -38,6 +42,8 @@ Only the menu items your role allows are shown. If something you expect is missi
 | Ctrl+S / Ctrl+Enter | Journal editor | Posts a balanced entry |
 | F2 | Counter | Back to the scan box |
 | F9 | Counter | Charge the sale |
+| Ctrl+K | Anywhere | Search for a page, or start something new (new invoice, open the counter) |
+| Up / Down, Enter | Any list | Moves along the rows and opens the highlighted one |
 | Esc | Any side panel | Closes it |
 
 ## The counter

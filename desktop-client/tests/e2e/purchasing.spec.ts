@@ -1,4 +1,5 @@
 import { expect, test, type Browser, type Page } from '@playwright/test'
+import { goTo } from '../nav'
 import { seedBusiness, type Seed } from '../seed'
 
 async function signIn(page: Page, s: { base: string; slug: string; email: string; password: string }) {
@@ -18,7 +19,7 @@ test('purchasing: order, receive, bill (with an approved price exception), pay, 
   await signIn(page, s)
 
   // ---- purchase order ----
-  await page.getByRole('link', { name: 'Purchase orders', exact: true }).click()
+  await goTo(page, 'Purchase orders')
   await page.getByRole('button', { name: 'New order' }).click()
   await page.getByRole('textbox', { name: 'Supplier', exact: true }).fill('vendor')
   await page.getByRole('option', { name: /Vendor Supplies/ }).click()
@@ -64,7 +65,7 @@ test('purchasing: order, receive, bill (with an approved price exception), pay, 
   await expect(page.getByRole('status').filter({ hasText: 'PAY/' })).toBeVisible()
 
   // ---- payables ----
-  await page.getByRole('link', { name: 'Payables', exact: true }).click()
+  await goTo(page, 'Payables')
   await expect(page.getByRole('status').filter({ hasText: 'Total payable' })).toContainText('₹ 3,900.00')
   await page.getByRole('cell', { name: 'Vendor Supplies' }).click()
   await expect(page.getByRole('dialog', { name: 'Vendor Supplies' }).getByLabel('Open bills').getByRole('link', { name: /BILL\// })).toBeVisible()
@@ -115,7 +116,7 @@ test('approvals: a payment above the limit is requested, approved by someone els
   await s.call('POST', '/v1/approval-policies', { companyId: s.company.id, documentType: 'payment', thresholdAmount: '10000', requiredApprovals: 1 })
   await signIn(page, s)
 
-  await page.getByRole('link', { name: 'Payments' }).click()
+  await goTo(page, 'Payments')
   await page.getByRole('button', { name: 'New payment' }).click()
   const pay = page.getByRole('dialog', { name: 'Record a payment' })
   await pay.getByRole('textbox', { name: 'Supplier', exact: true }).fill('vendor')
@@ -128,7 +129,7 @@ test('approvals: a payment above the limit is requested, approved by someone els
   await page.keyboard.press('Escape')
 
   // nobody can approve their own request
-  await page.getByRole('link', { name: 'Approvals', exact: true }).click()
+  await goTo(page, 'Approvals')
   await page.getByRole('cell', { name: 'APR-000001' }).click()
   const mine = page.getByRole('dialog', { name: /APR-000001/ })
   await expect(mine.getByText('someone else has to decide it')).toBeVisible()

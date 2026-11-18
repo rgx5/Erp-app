@@ -1,0 +1,80 @@
+import { ArrowLeftRight, BadgeCheck, Calculator, ListChecks, Warehouse as WarehouseIcon, Boxes, ClipboardList, PackageCheck, ShoppingCart, Wallet, FileText, Landmark, Receipt as ReceiptIcon, Building2, ClipboardCheck, Clock, LayoutDashboard, Percent, Ruler, Tags, Truck, Users, BookOpen, Layers, Users2, ShieldCheck, KeyRound, ScrollText, UserCog, ScanBarcode, Store, UserRound, Banknote, Settings2, Scale, Factory, Cog, Gauge, Handshake, FileSpreadsheet, FolderOpen, CalendarCheck, LineChart, ListTree, type LucideIcon } from 'lucide-react'
+
+export interface NavItem { to: string; label: string; icon: LucideIcon; needs?: string[]; section?: string }
+
+/** What exists today. Each later slice adds its entries here; an entry is hidden when the person lacks the permission it needs. */
+export const NAV: NavItem[] = [
+  { to: '/', label: 'Dashboard', icon: LayoutDashboard, needs: ['dashboard:read'] },
+  { to: '/setup', label: 'Setup', icon: ClipboardCheck, needs: ['organization:write'] },
+  { to: '/sales/quotes', label: 'Quotes', icon: FileText, needs: ['sales:read'], section: 'Sales' },
+  { to: '/sales/orders', label: 'Sales orders', icon: ClipboardList, needs: ['sales:read'], section: 'Sales' },
+  { to: '/sales/invoices', label: 'Invoices', icon: FileText, needs: ['sales:read'], section: 'Sales' },
+  { to: '/sales/receipts', label: 'Receipts', icon: ReceiptIcon, needs: ['receivables:read'], section: 'Sales' },
+  { to: '/sales/receivables', label: 'Receivables', icon: Landmark, needs: ['receivables:read'], section: 'Sales' },
+  { to: '/accounting/journals', label: 'Journal entries', icon: BookOpen, needs: ['accounting:read'], section: 'Accounting' },
+  { to: '/accounting/expenses', label: 'Expenses', icon: Wallet, needs: ['expenses:read'], section: 'Accounting' },
+  { to: '/accounting/chart', label: 'Chart of accounts', icon: ListTree, needs: ['accounting:read'], section: 'Accounting' },
+  { to: '/accounting/reports', label: 'Financial reports', icon: LineChart, needs: ['accounting:read'], section: 'Accounting' },
+  { to: '/accounting/bank', label: 'Bank reconciliation', icon: Landmark, needs: ['bank:read'], section: 'Accounting' },
+  { to: '/accounting/periods', label: 'Periods and year-end', icon: CalendarCheck, needs: ['accounting:read'], section: 'Accounting' },
+  { to: '/report-centre', label: 'Report centre', icon: FolderOpen, needs: ['accounting:read'], section: 'Accounting' },
+  { to: '/gst', label: 'GST returns', icon: FileSpreadsheet, needs: ['gst:read'], section: 'Accounting' },
+  { to: '/manufacturing/orders', label: 'Work orders', icon: Factory, needs: ['manufacturing:read'], section: 'Manufacturing' },
+  { to: '/manufacturing/boms', label: 'Bills of material', icon: ListTree, needs: ['manufacturing:read'], section: 'Manufacturing' },
+  { to: '/manufacturing/work-centres', label: 'Work centres', icon: Cog, needs: ['manufacturing:read'], section: 'Manufacturing' },
+  { to: '/manufacturing/job-work', label: 'Job work', icon: Handshake, needs: ['manufacturing:read'], section: 'Manufacturing' },
+  { to: '/manufacturing/costing', label: 'Production costing', icon: Gauge, needs: ['manufacturing:read'], section: 'Manufacturing' },
+  { to: '/payroll/runs', label: 'Payroll runs', icon: Banknote, needs: ['payroll:read'], section: 'Payroll' },
+  { to: '/payroll/people', label: 'People', icon: UserRound, needs: ['payroll:read'], section: 'Payroll' },
+  { to: '/payroll/dues', label: 'Statutory dues', icon: Scale, needs: ['payroll:read'], section: 'Payroll' },
+  { to: '/payroll/setup', label: 'Payroll setup', icon: Settings2, needs: ['payroll:read'], section: 'Payroll' },
+  { to: '/pos/counter', label: 'Counter', icon: ScanBarcode, needs: ['pos:sell'], section: 'Point of sale' },
+  { to: '/retail/loyalty', label: 'Loyalty and coupons', icon: Percent, needs: ['retail:read'], section: 'Point of sale' },
+  { to: '/pos/admin', label: 'Shifts and setup', icon: Store, needs: ['pos:read'], section: 'Point of sale' },
+  { to: '/admin/users', label: 'Users', icon: Users2, needs: ['users:read'], section: 'Administration' },
+  { to: '/admin/roles', label: 'Roles', icon: ShieldCheck, needs: ['roles:read'], section: 'Administration' },
+  { to: '/admin/api-keys', label: 'API keys', icon: KeyRound, needs: ['api_keys:manage'], section: 'Administration' },
+  { to: '/admin/audit', label: 'Audit log', icon: ScrollText, needs: ['audit:read'], section: 'Administration' },
+  { to: '/account', label: 'My account', icon: UserCog, section: 'Administration' },
+  { to: '/inventory/stock', label: 'Stock on hand', icon: WarehouseIcon, needs: ['stock:read'], section: 'Inventory' },
+  { to: '/inventory/movements', label: 'Movements', icon: ListChecks, needs: ['stock:read'], section: 'Inventory' },
+  { to: '/inventory/transfers', label: 'Transfers', icon: ArrowLeftRight, needs: ['stock:read'], section: 'Inventory' },
+  { to: '/inventory/counts', label: 'Stock counts', icon: ClipboardCheck, needs: ['stock:read'], section: 'Inventory' },
+  { to: '/inventory/tracking', label: 'Batches and serials', icon: Layers, needs: ['stock:read'], section: 'Inventory' },
+  { to: '/inventory/valuation', label: 'Valuation', icon: Calculator, needs: ['stock:read'], section: 'Inventory' },
+  { to: '/purchasing/orders', label: 'Purchase orders', icon: ShoppingCart, needs: ['purchasing:read'], section: 'Purchasing' },
+  { to: '/purchasing/receipts', label: 'Goods receipts', icon: PackageCheck, needs: ['purchasing:read'], section: 'Purchasing' },
+  { to: '/purchasing/bills', label: 'Supplier bills', icon: ClipboardList, needs: ['purchasing:read'], section: 'Purchasing' },
+  { to: '/purchasing/payments', label: 'Payments', icon: Wallet, needs: ['payables:read'], section: 'Purchasing' },
+  { to: '/purchasing/payables', label: 'Payables', icon: Landmark, needs: ['payables:read'], section: 'Purchasing' },
+  { to: '/purchasing/landed-costs', label: 'Landed costs', icon: ReceiptIcon, needs: ['purchasing:read'], section: 'Purchasing' },
+  { to: '/approvals', label: 'Approvals', icon: BadgeCheck, needs: [], section: 'Control' },
+  { to: '/organization/companies', label: 'Companies', icon: Building2, needs: ['organization:read'], section: 'Organization' },
+  { to: '/masterdata/items', label: 'Items', icon: Boxes, needs: ['masterdata:read'], section: 'Master data' },
+  { to: '/masterdata/customers', label: 'Customers', icon: Users, needs: ['masterdata:read'], section: 'Master data' },
+  { to: '/masterdata/suppliers', label: 'Suppliers', icon: Truck, needs: ['masterdata:read'], section: 'Master data' },
+  { to: '/masterdata/categories', label: 'Categories', icon: FolderOpen, needs: ['masterdata:read'], section: 'Master data' },
+  { to: '/masterdata/price-lists', label: 'Price lists', icon: Tags, needs: ['masterdata:read'], section: 'Master data' },
+  { to: '/masterdata/tax-codes', label: 'Tax codes', icon: Percent, needs: ['masterdata:read'], section: 'Master data' },
+  { to: '/masterdata/units', label: 'Units', icon: Ruler, needs: ['masterdata:read'], section: 'Master data' },
+  { to: '/masterdata/payment-terms', label: 'Payment terms', icon: Clock, needs: ['masterdata:read'], section: 'Master data' },
+]
+
+
+/** The areas shown on the rail. Each owns some sections of the menu; its pages become the tabs under the top bar. */
+export interface AppModule { id: string; label: string; icon: LucideIcon; sections: (string | null)[] }
+export const MODULES: AppModule[] = [
+  { id: 'home', label: 'Home', icon: LayoutDashboard, sections: [null, 'Control'] },
+  { id: 'sales', label: 'Sales', icon: FileText, sections: ['Sales'] },
+  { id: 'buy', label: 'Buy', icon: ShoppingCart, sections: ['Purchasing'] },
+  { id: 'stock', label: 'Stock', icon: Boxes, sections: ['Inventory', 'Master data'] },
+  { id: 'books', label: 'Books', icon: BookOpen, sections: ['Accounting'] },
+  { id: 'pos', label: 'POS', icon: ScanBarcode, sections: ['Point of sale'] },
+  { id: 'make', label: 'Make', icon: Factory, sections: ['Manufacturing'] },
+  { id: 'people', label: 'Payroll', icon: Users2, sections: ['Payroll'] },
+  { id: 'admin', label: 'Admin', icon: Settings2, sections: ['Administration', 'Organization'] },
+]
+export const moduleOf = (n: NavItem): AppModule => MODULES.find((m) => m.sections.includes(n.section ?? null)) ?? (MODULES[0] as AppModule)
+export const isHere = (n: NavItem, path: string): boolean => (n.to === '/' ? path === '/' : path === n.to || path.startsWith(`${n.to}/`))
+/** The menu entry the current path belongs to (the longest match, so /sales/invoices/new counts as Invoices). */
+export const currentNav = (items: NavItem[], path: string): NavItem | undefined => items.filter((n) => isHere(n, path)).sort((a, b) => b.to.length - a.to.length)[0]
