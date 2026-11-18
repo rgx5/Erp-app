@@ -13,3 +13,14 @@ describe('requirement', () => {
     expect(need('1', '50', '3', '1')).toBe('6.000000');
   });
 });
+
+import { pct } from './costing.service.js';
+
+describe('pct', () => {
+  it('formats four decimals and keeps a single leading minus', () => {
+    expect(pct(1n, 4n)).toBe('25.0000');
+    expect(pct(-1n, 400n)).toBe('-0.2500');
+    expect(pct(-196_0528n, 12096_0528n)).toBe('-1.6208');
+    expect(pct(5n, 0n)).toBeNull();
+  });
+});

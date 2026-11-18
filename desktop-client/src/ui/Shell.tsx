@@ -1,5 +1,5 @@
 import { Link, Outlet } from '@tanstack/react-router'
-import { ArrowLeftRight, BadgeCheck, Calculator, ListChecks, Warehouse as WarehouseIcon, Boxes, ClipboardList, PackageCheck, ShoppingCart, Wallet, FileText, Landmark, Receipt as ReceiptIcon, Building2, ClipboardCheck, Clock, LayoutDashboard, LogOut, Percent, Ruler, Tags, Truck, Users, BookOpen, FileSpreadsheet, FolderOpen, CalendarCheck, LineChart, ListTree, type LucideIcon } from 'lucide-react'
+import { ArrowLeftRight, BadgeCheck, Calculator, ListChecks, Warehouse as WarehouseIcon, Boxes, ClipboardList, PackageCheck, ShoppingCart, Wallet, FileText, Landmark, Receipt as ReceiptIcon, Building2, ClipboardCheck, Clock, LayoutDashboard, LogOut, Percent, Ruler, Tags, Truck, Users, BookOpen, Factory, Cog, Gauge, Handshake, FileSpreadsheet, FolderOpen, CalendarCheck, LineChart, ListTree, type LucideIcon } from 'lucide-react'
 import { can } from '@/auth/permissions'
 import { useSession } from '@/auth/session'
 import { cn } from './cn'
@@ -22,6 +22,11 @@ export const NAV: NavItem[] = [
   { to: '/accounting/periods', label: 'Periods and year-end', icon: CalendarCheck, needs: ['accounting:read'], section: 'Accounting' },
   { to: '/report-centre', label: 'Report centre', icon: FolderOpen, needs: ['accounting:read'], section: 'Accounting' },
   { to: '/gst', label: 'GST returns', icon: FileSpreadsheet, needs: ['gst:read'], section: 'Accounting' },
+  { to: '/manufacturing/orders', label: 'Work orders', icon: Factory, needs: ['manufacturing:read'], section: 'Manufacturing' },
+  { to: '/manufacturing/boms', label: 'Bills of material', icon: ListTree, needs: ['manufacturing:read'], section: 'Manufacturing' },
+  { to: '/manufacturing/work-centres', label: 'Work centres', icon: Cog, needs: ['manufacturing:read'], section: 'Manufacturing' },
+  { to: '/manufacturing/job-work', label: 'Job work', icon: Handshake, needs: ['manufacturing:read'], section: 'Manufacturing' },
+  { to: '/manufacturing/costing', label: 'Production costing', icon: Gauge, needs: ['manufacturing:read'], section: 'Manufacturing' },
   { to: '/inventory/stock', label: 'Stock on hand', icon: WarehouseIcon, needs: ['stock:read'], section: 'Inventory' },
   { to: '/inventory/movements', label: 'Movements', icon: ListChecks, needs: ['stock:read'], section: 'Inventory' },
   { to: '/inventory/transfers', label: 'Transfers', icon: ArrowLeftRight, needs: ['stock:read'], section: 'Inventory' },

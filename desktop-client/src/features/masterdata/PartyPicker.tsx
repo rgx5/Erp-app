@@ -5,7 +5,7 @@ import { TextField } from '@/ui/primitives'
 import { useParties } from './queries'
 
 /** Type to find a customer or supplier by name, code or GSTIN, pick one from the short list. */
-export function PartyPicker({ label = 'Customer', role, value, onPick, error, autoFocus }: { label?: string; role: 'customer' | 'supplier'; value?: Party | null | undefined; onPick: (party: Party | null) => void; error?: string | undefined; autoFocus?: boolean }) {
+export function PartyPicker({ label = 'Customer', role, value, onPick, error, autoFocus }: { label?: string; role: 'customer' | 'supplier' | 'subcontractor'; value?: Party | null | undefined; onPick: (party: Party | null) => void; error?: string | undefined; autoFocus?: boolean }) {
   const [text, setText] = useState('')
   const q = useDebounced(text.trim())
   const list = useParties({ role, status: 'active', ...(q ? { q } : {}) })

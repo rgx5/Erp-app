@@ -337,3 +337,63 @@ export const cmp08 = z.object({
 })
 export type Cmp08 = z.infer<typeof cmp08>
 export const returnSettings = z.object({ gstRegistrationId: z.string(), registrationType: z.string(), compositionRate: z.string().nullable() })
+
+// ---- manufacturing --------------------------------------------------------------------------------------------------------
+export const mfgSettings = z.object({ companyId: z.string(), wipAccountId: z.string().nullable().optional(), labourAbsorbedAccountId: z.string().nullable().optional(), overheadAbsorbedAccountId: z.string().nullable().optional(), productionVarianceAccountId: z.string().nullable().optional(), subcontractClearingAccountId: z.string().nullable().optional(), version: z.number().optional() })
+export type MfgSettings = z.infer<typeof mfgSettings>
+export const workCentre = z.object({ id: z.string(), companyId: z.string(), code: z.string(), name: z.string(), labourRatePerHour: z.string(), machineRatePerHour: z.string(), overheadRatePerHour: z.string(), status: z.string(), version: z.number() })
+export type WorkCentre = z.infer<typeof workCentre>
+export const bomHeader = z.object({ id: z.string(), itemId: z.string(), bomNo: z.string(), version: z.number(), description: z.string().nullable(), baseQuantity: z.string(), effectiveFrom: z.string(), effectiveTo: z.string().nullable(), status: z.string() })
+export type BomHeader = z.infer<typeof bomHeader>
+export const bom = bomHeader.extend({
+  lines: z.array(z.object({ id: z.string(), lineNo: z.number(), itemId: z.string(), quantity: z.string(), scrapPercent: z.string(), notes: z.string().nullable() })),
+  operations: z.array(z.object({ id: z.string(), opNo: z.number(), name: z.string(), workCentreId: z.string(), setupHours: z.string(), runHours: z.string() })),
+})
+export type Bom = z.infer<typeof bom>
+export interface RollupNode { itemId: string; itemCode: string; quantity: string; unitCost: string; value: string; source: string; children: RollupNode[] }
+const rollupNode: z.ZodType<RollupNode> = z.lazy(() => z.object({ itemId: z.string(), itemCode: z.string(), quantity: z.string(), unitCost: z.string(), value: z.string(), source: z.string(), children: z.array(rollupNode) }))
+export const rollup = z.object({ quantity: z.string(), tree: z.array(rollupNode), material: z.string(), labour: z.string(), overhead: z.string(), total: z.string(), unitCost: z.string(), complete: z.boolean(), itemsWithoutCost: z.array(z.unknown()) })
+export type Rollup = z.infer<typeof rollup>
+export const explosion = z.object({ rawRequirements: z.array(z.object({ itemId: z.string(), itemCode: z.string(), quantity: z.string() })) })
+export type Explosion = z.infer<typeof explosion>
+export const workOrderHeader = z.object({
+  id: z.string(), woNo: z.string(), itemId: z.string(), bomId: z.string().nullable(), plannedQuantity: z.string(), producedQuantity: z.string(), scrapQuantity: z.string(),
+  outputWarehouseId: z.string(), materialsWarehouseId: z.string(), plannedStart: z.string().nullable(), dueDate: z.string().nullable(), notes: z.string().nullable(), status: z.string(),
+})
+export type WorkOrderHeader = z.infer<typeof workOrderHeader>
+export const workOrder = workOrderHeader.extend({
+  materials: z.array(z.object({ id: z.string(), lineNo: z.number(), itemId: z.string(), requiredQuantity: z.string(), issuedQuantity: z.string(), returnedQuantity: z.string() })),
+  operations: z.array(z.object({ id: z.string(), opNo: z.number(), name: z.string(), workCentreId: z.string(), plannedHours: z.string(), actualHours: z.string() })),
+  transactions: z.array(z.object({ id: z.string(), kind: z.string(), txnDate: z.string(), itemId: z.string().nullable(), quantity: z.string().nullable(), hours: z.string().nullable(), value: z.string(), note: z.string().nullable() })),
+  cost: z.object({ materials: z.string(), labour: z.string(), overhead: z.string(), subcontract: z.string(), finishedGoods: z.string(), residualCleared: z.string(), wip: z.string() }),
+})
+export type WorkOrder = z.infer<typeof workOrder>
+const ratio = z.string().nullable()
+export const woVariance = z.object({
+  workOrderId: z.string(), woNo: z.string(), status: z.string(), plannedQuantity: z.string(), producedQuantity: z.string(), scrapQuantity: z.string(),
+  materials: z.array(z.object({ itemCode: z.string(), requiredQuantity: z.string(), netIssuedQuantity: z.string(), plannedValue: z.string(), actualValue: z.string(), usageVariance: z.string(), usageVariancePercent: ratio })),
+  operations: z.array(z.object({ opNo: z.number(), name: z.string(), plannedHours: z.string(), actualHours: z.string(), hoursVariance: z.string(), hoursOver: z.boolean(), plannedValue: z.string(), actualValue: z.string(), efficiencyVariance: z.string(), efficiencyVariancePercent: ratio })),
+  subcontractCharges: z.string(),
+  totals: z.object({ planned: z.string(), actual: z.string(), variance: z.string(), variancePercent: ratio, usage: z.string(), efficiency: z.string() }),
+  yield: z.object({ percent: ratio, shortfallQuantity: z.string(), scrapRatePercent: ratio }),
+  unitCost: z.object({ actual: z.string().nullable(), planned: z.string().nullable() }),
+})
+export type WoVariance = z.infer<typeof woVariance>
+export const variances = z.object({
+  from: z.string(), to: z.string(),
+  workOrders: z.array(z.object({ workOrderId: z.string(), woNo: z.string(), itemId: z.string(), planned: z.string(), actual: z.string(), variance: z.string(), usage: z.string(), efficiency: z.string(), yieldPercent: ratio })),
+  totals: z.object({ planned: z.string(), actual: z.string(), variance: z.string(), usage: z.string(), efficiency: z.string() }),
+})
+export type Variances = z.infer<typeof variances>
+export const wipReconciliation = z.object({ asOf: z.string(), workOrders: z.array(z.object({ id: z.string(), woNo: z.string(), status: z.string(), wip: z.string() })), documents: z.string(), ledger: z.string(), difference: z.string(), reconciled: z.boolean() })
+export type WipReconciliation = z.infer<typeof wipReconciliation>
+export const subcontractHeader = z.object({ id: z.string(), workOrderId: z.string(), subcontractorId: z.string(), jobworkerWarehouseId: z.string(), sourceWarehouseId: z.string(), ratePerUnit: z.string(), firstSentOn: z.string().nullable(), returnDueDate: z.string().nullable(), status: z.string() })
+export type SubcontractHeader = z.infer<typeof subcontractHeader>
+export const subcontractOrder = subcontractHeader.extend({
+  workOrder: workOrder,
+  challans: z.array(z.object({ id: z.string(), challanNo: z.string(), kind: z.string(), challanDate: z.string(), vehicleNo: z.string().nullable(), ewayBillNo: z.string().nullable(), lines: z.array(z.object({ itemId: z.string(), quantity: z.string() })) })),
+  pending: z.array(z.object({ itemId: z.string(), quantity: z.string() }).passthrough()),
+})
+export type SubcontractOrder = z.infer<typeof subcontractOrder>
+export const subcontractPending = z.object({ asOf: z.string(), overdueCount: z.number(), orders: z.array(z.object({ orderId: z.string(), woNo: z.string(), subcontractorId: z.string(), firstSentOn: z.string(), returnDueDate: z.string().nullable(), daysOut: z.number(), overdue: z.boolean(), items: z.array(z.object({ itemId: z.string(), quantity: z.string() })) })) })
+export type SubcontractPending = z.infer<typeof subcontractPending>

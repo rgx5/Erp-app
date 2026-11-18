@@ -13,7 +13,13 @@ import { ManufacturingMastersService, requirement } from './masters.service.js';
 const hoursUnits = (text: string): bigint => { const [i = '0', f = ''] = text.split('.'); return BigInt(i) * 10_000n + BigInt(f.padEnd(4, '0').slice(0, 4)); };
 const hoursText = (u: bigint): string => `${u / 10_000n}.${(u % 10_000n).toString().padStart(4, '0')}`;
 const costOfHours = (hours: bigint, rate: bigint): bigint => divRound(hours * rate, 10_000n);
-const pct = (num: bigint, den: bigint): string | null => (den === 0n ? null : `${divRound(num * 1_000_000n, den) / 10_000n}.${(divRound(num * 1_000_000n, den) % 10_000n).toString().padStart(4, '0')}`);
+/** A percentage with four decimals; negative values keep one leading minus ("-0.2500", never "0.-2500"). */
+export const pct = (num: bigint, den: bigint): string | null => {
+  if (den === 0n) return null;
+  const v = divRound(num * 1_000_000n, den);
+  const a = v < 0n ? -v : v;
+  return `${v < 0n ? '-' : ''}${a / 10_000n}.${(a % 10_000n).toString().padStart(4, '0')}`;
+};
 
 export interface RollupNode { itemId: string; itemCode: string; quantity: string; unitCost: string; value: string; source: 'bom' | 'stock' | 'unknown'; children: RollupNode[] }
 
