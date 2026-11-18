@@ -59,6 +59,12 @@ Only the menu items your role allows are shown. If something you expect is missi
 
 **Hold a bill.** Press *Hold bill* to set the current bill aside while you serve someone else; *Held bills* brings it back (it is kept on this computer and is not a sale until charged). After a sale, type the customer's mobile number and press *Send on WhatsApp* to open WhatsApp with the receipt ready to send.
 
+**Staff at the counter.** Each line is credited to the signed-in cashier; pick another name under the item to credit someone else (needs permission to see users). A manager sets a PIN under *My account, Counter PIN*. If a limit is set under *Point of sale, Loyalty and coupons*, a discount above it asks for a manager to be chosen and their PIN entered before the sale goes through; five wrong PINs lock that manager for 15 minutes. A sale that needs approval cannot be saved offline.
+
+**Receipt printer.** In the desktop app, *Shifts and setup, Setup, Receipt printer* chooses the printer receipts go to without a dialog (laid out for an 80 mm roll), and whether a receipt prints by itself after each sale. To open a cash drawer wired to the printer, turn on its "open drawer" option in the printer's driver.
+
+**Starting categories.** *Master data, Categories, Start from a template* adds a ready set of categories for your kind of shop. Items can be imported with a *Category code*, *Brand* and *MRP* column, and the items list can be filtered by category.
+
 **No connection?** If the counter was registered for offline selling (*Shifts and setup, Setup, Use this computer for offline selling*), sales are kept on the computer and uploaded with *Upload offline sales* when the connection is back. A sale the server refuses stays on screen with the reason and is not in the books: ask a manager before handing over the goods again. Returns need the connection.
 
 ## Your account

@@ -14,7 +14,8 @@ import { download, toCsv } from './csv'
 import { ImportDialog, type ImportSpec } from './ImportDialog'
 import { ItemBarcodes } from '@/features/retail/ItemBarcodes'
 import { hsnProblem, ITEM_TYPES, itemTypeLabel, ItemForm } from './ItemForm'
-import { createItemRequest, useItems, useTaxCodes, useUnits } from './queries'
+import { formatInr } from '@/domain/format'
+import { createItemRequest, useCategories, useItems, useTaxCodes, useUnits } from './queries'
 
 type ItemInput = Parameters<typeof createItemRequest>[0]
 const yes = (v: string, fallback: boolean): boolean => (v === '' ? fallback : /^(y|yes|true|1)$/i.test(v))
@@ -25,6 +26,8 @@ export function ItemsPage() {
   const [search, setSearch] = useState('')
   const [type, setType] = useState('')
   const [status, setStatus] = useState('active')
+  const [categoryId, setCategoryId] = useState('')
+  const categories = useCategories()
   const q = useDebounced(search.trim())
   const list = useItems({ ...(q ? { q } : {}), ...(type ? { itemType: type } : {}), ...(status ? { status } : {}) })
   const units = useUnits()
@@ -34,22 +37,29 @@ export function ItemsPage() {
 
   const unitCode = useMemo(() => new Map((units.data ?? []).map((u) => [u.id, u.code])), [units.data])
   const taxCode = useMemo(() => new Map((taxes.data ?? []).map((t) => [t.id, t.code])), [taxes.data])
+  const catName = useMemo(() => new Map((categories.data ?? []).map((c) => [c.id, c.name])), [categories.data])
+  const catByCode = useMemo(() => new Map((categories.data ?? []).map((c) => [c.code.toLowerCase(), c.id])), [categories.data])
+  const catCode = useMemo(() => new Map((categories.data ?? []).map((c) => [c.id, c.code])), [categories.data])
+  const rows = useMemo(() => (categoryId ? list.rows.filter((i) => i.categoryId === categoryId) : list.rows), [list.rows, categoryId])
   const columns = useMemo<ColumnDef<Item, unknown>[]>(() => [
     { header: 'Code', accessorKey: 'code', size: 130 },
     { header: 'Name', accessorKey: 'name', size: 280 },
     { header: 'Type', accessorFn: (i) => itemTypeLabel(i.itemType), size: 140 },
     { header: 'HSN / SAC', accessorFn: (i) => i.hsnSacCode ?? '', size: 100 },
     { header: 'GST', accessorFn: (i) => (i.taxCodeId ? taxCode.get(i.taxCodeId) ?? '' : ''), size: 90 },
+    { header: 'Category', accessorFn: (i) => (i.categoryId ? catName.get(i.categoryId) ?? '' : ''), size: 130 },
+    { header: 'Brand', accessorFn: (i) => i.brand ?? '', size: 100 },
+    { header: 'MRP', accessorFn: (i) => (i.mrp ? formatInr(i.mrp, { symbol: false }) : ''), size: 90, meta: { align: 'right' } },
     { header: 'Unit', accessorFn: (i) => unitCode.get(i.baseUomId) ?? '', size: 70 },
     { header: 'Status', accessorKey: 'status', size: 90 },
-  ], [taxCode, unitCode])
+  ], [taxCode, unitCode, catName])
 
   const spec: ImportSpec<ItemInput> = useMemo(() => {
     const unitByCode = new Map((units.data ?? []).map((u) => [u.code.toLowerCase(), u.id]))
     const taxByCode = new Map((taxes.data ?? []).map((t) => [t.code.toLowerCase(), t.id]))
     return {
       title: 'Import items',
-      template: { filename: 'items-template.csv', header: ['Code', 'Name', 'Type', 'Unit', 'HSN/SAC', 'GST code', 'Sellable', 'Purchasable'], example: ['SHIRT-M', 'Cotton shirt (M)', 'finished_good', 'NOS', '6205', 'GST12', 'yes', 'yes'] },
+      template: { filename: 'items-template.csv', header: ['Code', 'Name', 'Type', 'Unit', 'HSN/SAC', 'GST code', 'Sellable', 'Purchasable', 'Category code', 'Brand', 'MRP'], example: ['SHIRT-M', 'Cotton shirt (M)', 'finished_good', 'NOS', '6205', 'GST12', 'yes', 'yes', 'MEN-SHIRTS', 'Acme', '1299'] },
       invalidate: ['items'],
       describe: (i) => `${i.code} · ${i.name}`,
       create: (input, key) => createItemRequest(input, key),
@@ -65,11 +75,15 @@ export function ItemsPage() {
         if (problem) return { error: problem }
         const tax = r['gstcode'] ? taxByCode.get(r['gstcode'].toLowerCase()) : undefined
         if (r['gstcode'] && !tax) return { error: `Unknown GST code "${r['gstcode']}"` }
+        const category = r['categorycode'] ? catByCode.get(r['categorycode'].toLowerCase()) : undefined
+        if (r['categorycode'] && !category) return { error: `Unknown category code "${r['categorycode']}"` }
+        if (r['mrp'] && !/^\d{1,14}(\.\d{1,4})?$/.test(r['mrp'])) return { error: 'MRP must be an amount such as 1299' }
+        if ((r['brand'] ?? '').length > 100) return { error: 'Brand is too long' }
         const service = itemType === 'service'
-        return { input: { code: r['code'], name: r['name'], itemType: itemType as 'service', baseUomId: uom, ...(hsn ? { hsnSacCode: hsn } : {}), ...(tax ? { taxCodeId: tax } : {}), isStocked: !service, isSellable: yes(r['sellable'] ?? '', true), isPurchasable: yes(r['purchasable'] ?? '', true) } }
+        return { input: { code: r['code'], name: r['name'], itemType: itemType as 'service', baseUomId: uom, ...(hsn ? { hsnSacCode: hsn } : {}), ...(tax ? { taxCodeId: tax } : {}), isStocked: !service, isSellable: yes(r['sellable'] ?? '', true), isPurchasable: yes(r['purchasable'] ?? '', true), ...(category ? { categoryId: category } : {}), ...(r['brand'] ? { brand: r['brand'] } : {}), ...(r['mrp'] ? { mrp: r['mrp'] } : {}) } }
       },
     }
-  }, [units.data, taxes.data])
+  }, [units.data, taxes.data, catByCode])
 
   async function exportAll() {
     const all: Item[] = []
@@ -79,7 +93,7 @@ export function ItemsPage() {
       const p = await api.call(api.raw.GET('/v1/items', { params: { query: query({ limit: 200, cursor, ...(q ? { q } : {}), ...(type ? { itemType: type } : {}), ...(status ? { status } : {}) }) } }), page(itemSchema))
       all.push(...p.items); cursor = p.nextCursor ?? undefined
     } while (cursor)
-    download('items.csv', toCsv(['Code', 'Name', 'Type', 'Unit', 'HSN/SAC', 'GST code', 'Sellable', 'Purchasable', 'Status'], all.map((i) => [i.code, i.name, i.itemType, unitCode.get(i.baseUomId) ?? '', i.hsnSacCode ?? '', i.taxCodeId ? taxCode.get(i.taxCodeId) ?? '' : '', i.isSellable ? 'yes' : 'no', i.isPurchasable ? 'yes' : 'no', i.status])))
+    download('items.csv', toCsv(['Code', 'Name', 'Type', 'Unit', 'HSN/SAC', 'GST code', 'Sellable', 'Purchasable', 'Status', 'Category code', 'Brand', 'MRP'], all.map((i) => [i.code, i.name, i.itemType, unitCode.get(i.baseUomId) ?? '', i.hsnSacCode ?? '', i.taxCodeId ? taxCode.get(i.taxCodeId) ?? '' : '', i.isSellable ? 'yes' : 'no', i.isPurchasable ? 'yes' : 'no', i.status, i.categoryId ? catCode.get(i.categoryId) ?? '' : '', i.brand ?? '', i.mrp ?? ''])))
   }
 
   return (
@@ -95,10 +109,11 @@ export function ItemsPage() {
       <Toolbar>
         <div className="w-72"><TextField label="Search" placeholder="Code or name" value={search} onChange={(e) => setSearch(e.target.value)} /></div>
         <div className="w-48"><SelectField label="Type" value={type} onChange={(e) => setType(e.target.value)} options={[{ value: '', label: 'All types' }, ...ITEM_TYPES]} /></div>
+        <div className="w-48"><SelectField label="Category" value={categoryId} onChange={(e) => setCategoryId(e.target.value)} options={[{ value: '', label: 'All categories' }, ...(categories.data ?? []).map((c) => ({ value: c.id, label: c.name }))]} /></div>
         <div className="w-40"><SelectField label="Status" value={status} onChange={(e) => setStatus(e.target.value)} options={[{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }, { value: '', label: 'All' }]} /></div>
       </Toolbar>
       {list.error ? <Alert>{list.error instanceof ApiError ? list.error.message : 'Could not load items.'}</Alert> : null}
-      {list.isPending ? <Spinner /> : <DataTable columns={columns} rows={list.rows} rowKey={(i) => i.id} onOpen={(i) => setEditing(i)} empty={q ? 'No item matches that search.' : 'No items yet.'} height={560} />}
+      {list.isPending ? <Spinner /> : <DataTable columns={columns} rows={rows} rowKey={(i) => i.id} onOpen={(i) => setEditing(i)} empty={q ? 'No item matches that search.' : 'No items yet.'} height={560} />}
       {list.hasNextPage ? <Button variant="secondary" className="self-start" busy={list.isFetchingNextPage} onClick={() => void list.fetchNextPage()}>Load more</Button> : list.rows.length > 0 ? <p className="text-xs text-muted">{list.rows.length} item{list.rows.length === 1 ? '' : 's'}</p> : null}
       {editing ? <Drawer title={editing === 'new' ? 'New item' : editing.name} onClose={() => setEditing(null)}><ItemForm item={editing === 'new' ? undefined : editing} canWrite={canWrite} onDone={() => setEditing(null)} />{editing === 'new' ? null : <ItemBarcodes item={editing} />}</Drawer> : null}
       {importing ? <ImportDialog spec={spec} onClose={() => setImporting(false)} /> : null}

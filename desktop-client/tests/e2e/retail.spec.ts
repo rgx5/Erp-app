@@ -249,3 +249,35 @@ test('counter staff: a discount above the limit needs a manager PIN, and a line 
   await box.getByRole('button', { name: 'Approve and charge' }).click()
   await expect(page.getByLabel('Last sale')).toContainText('INV/')
 })
+
+test('industry template: categories for a kind of shop in one step, then filtering items by category', async ({ page }) => {
+  const s = await seedBusiness(process.env['E2E_BACKEND_URL'] as string, process.env['E2E_PLATFORM_TOKEN'] as string, { prefix: 'tpl' })
+  await signIn(page, s)
+  await goTo(page, 'Categories')
+  await page.getByRole('button', { name: 'Start from a template' }).click()
+  const d = page.getByRole('dialog', { name: 'Start from a template' })
+  await d.getByLabel('Kind of shop').selectOption({ label: 'Grocery and kirana' })
+  await expect(d.getByLabel('Categories in this template')).toContainText('Staples')
+  await d.getByRole('button', { name: 'Create these categories' }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'categories created' })).toBeVisible()
+  const table = page.getByRole('table', { name: 'Categories' })
+  await expect(table).toContainText('Staples'); await expect(table).toContainText('Rice and grains')
+  // running it again creates nothing new
+  await page.getByRole('button', { name: 'Start from a template' }).click()
+  await page.getByRole('dialog', { name: 'Start from a template' }).getByRole('button', { name: 'Create these categories' }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'already exist' })).toBeVisible()
+
+  // items carry a category, shown and filterable on the items list
+  const cats = (await s.call('GET', '/v1/item-categories?limit=200')).items as { id: string; name: string }[]
+  const rice = cats.find((c) => c.name === 'Rice and grains') as { id: string }
+  const nos = ((await s.call('GET', '/v1/units?limit=200')).items as { id: string; code: string }[]).find((u) => u.code === 'NOS') as { id: string }
+  await s.call('POST', '/v1/items', { code: 'BASMATI', name: 'Basmati rice 5kg', baseUomId: nos.id, itemType: 'finished_good', taxCodeId: s.widget.taxCodeId, hsnSacCode: '1006', categoryId: rice.id, brand: 'Daawat', mrp: '620' })
+  await goTo(page, 'Items')
+  await expect(page.getByRole('cell', { name: 'BASMATI', exact: true })).toBeVisible()
+  await expect(page.getByRole('cell', { name: 'WIDGET', exact: true })).toBeVisible()
+  await page.getByLabel('Category', { exact: true }).selectOption({ label: 'Rice and grains' })
+  await expect(page.getByRole('cell', { name: 'WIDGET', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('cell', { name: 'BASMATI', exact: true })).toBeVisible()
+  await expect(page.getByRole('cell', { name: 'Daawat', exact: true })).toBeVisible()
+  await expect(page.getByRole('cell', { name: '620.00' })).toBeVisible()
+})
