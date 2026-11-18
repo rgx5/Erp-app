@@ -1,5 +1,5 @@
 import { Link, Outlet } from '@tanstack/react-router'
-import { ArrowLeftRight, BadgeCheck, Calculator, ListChecks, Warehouse as WarehouseIcon, Boxes, ClipboardList, PackageCheck, ShoppingCart, Wallet, FileText, Landmark, Receipt as ReceiptIcon, Building2, ClipboardCheck, Clock, LayoutDashboard, LogOut, Percent, Ruler, Tags, Truck, Users, type LucideIcon } from 'lucide-react'
+import { ArrowLeftRight, BadgeCheck, Calculator, ListChecks, Warehouse as WarehouseIcon, Boxes, ClipboardList, PackageCheck, ShoppingCart, Wallet, FileText, Landmark, Receipt as ReceiptIcon, Building2, ClipboardCheck, Clock, LayoutDashboard, LogOut, Percent, Ruler, Tags, Truck, Users, BookOpen, CalendarCheck, LineChart, ListTree, type LucideIcon } from 'lucide-react'
 import { can } from '@/auth/permissions'
 import { useSession } from '@/auth/session'
 import { cn } from './cn'
@@ -15,6 +15,11 @@ export const NAV: NavItem[] = [
   { to: '/sales/invoices', label: 'Invoices', icon: FileText, needs: ['sales:read'], section: 'Sales' },
   { to: '/sales/receipts', label: 'Receipts', icon: ReceiptIcon, needs: ['receivables:read'], section: 'Sales' },
   { to: '/sales/receivables', label: 'Receivables', icon: Landmark, needs: ['receivables:read'], section: 'Sales' },
+  { to: '/accounting/journals', label: 'Journal entries', icon: BookOpen, needs: ['accounting:read'], section: 'Accounting' },
+  { to: '/accounting/chart', label: 'Chart of accounts', icon: ListTree, needs: ['accounting:read'], section: 'Accounting' },
+  { to: '/accounting/reports', label: 'Financial reports', icon: LineChart, needs: ['accounting:read'], section: 'Accounting' },
+  { to: '/accounting/bank', label: 'Bank reconciliation', icon: Landmark, needs: ['bank:read'], section: 'Accounting' },
+  { to: '/accounting/periods', label: 'Periods and year-end', icon: CalendarCheck, needs: ['accounting:read'], section: 'Accounting' },
   { to: '/inventory/stock', label: 'Stock on hand', icon: WarehouseIcon, needs: ['stock:read'], section: 'Inventory' },
   { to: '/inventory/movements', label: 'Movements', icon: ListChecks, needs: ['stock:read'], section: 'Inventory' },
   { to: '/inventory/transfers', label: 'Transfers', icon: ArrowLeftRight, needs: ['stock:read'], section: 'Inventory' },

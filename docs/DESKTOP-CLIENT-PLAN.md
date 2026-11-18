@@ -86,7 +86,8 @@ Each slice ends with working, tested software, is committed and pushed, and gets
 | D3b Quotes and orders | not started |
 | D4 Purchasing, payables, approvals (+ G2b bill preview) | done: purchase orders (editor, receive goods, close/cancel), goods receipts with returns, supplier bills (from received goods and service lines, "Check bill" preview with match status and approver override, cancel), supplier payments with allocation, payables ageing, position and statement, approvals inbox with rules, request flow and "Post now". Not yet: debit notes, landed cost, journals editor (D6) |
 | D5 Inventory | done: stock on hand by warehouse with item stock card (date range, running balance), adjustments (take out / put in with cost), movements ledger with detail, transfers (direct or via in-transit, receive, cancel), stock counts (freeze, enter counted, post differences), valuation with a check against the inventory accounts, CSV export. No backend change was needed. Not yet: batches and serial numbers, reservations, negative-stock settings |
-| D6 onwards | not started |
+| D6 Accounting and bank reconciliation | done: chart of accounts (create, edit, CSV), manual journals (balanced-entry editor, approval request flow, reverse with reason), journal list with filters, financial reports (trial balance with account-ledger drill-down, profit and loss, balance sheet, cash flow, CSV), periods (close, reopen, lock), new financial year, year-end close and reopen, bank accounts, CSV statement import (signed amount or withdrawal/deposit columns), auto-match, match, book charges, ignore, unmatch, reconciliation statement. No backend change was needed. Not yet: dashboard polish, Schedule III notes, statement PDF export |
+| D7 onwards | not started |
 
 ## 6. Testing and delivery
 

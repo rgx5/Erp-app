@@ -239,3 +239,58 @@ export const countHeader = z.object({ id: z.string(), countNo: z.string(), wareh
 export const stockCount = countHeader.extend({ lines: z.array(countLine) })
 export type CountHeader = z.infer<typeof countHeader>
 export type StockCount = z.infer<typeof stockCount>
+
+// ---- accounting -----------------------------------------------------------------------------------------------------------
+export const ledgerAccount = z.object({ id: z.string(), code: z.string(), name: z.string(), type: z.string(), parentId: z.string().nullable(), isGroup: z.boolean(), controlKind: z.string().nullable(), status: z.string(), version: z.number() })
+export type LedgerAccount = z.infer<typeof ledgerAccount>
+
+export const journalHeader = z.object({ id: z.string(), entryNo: z.string(), journalType: z.string(), sourceType: z.string(), postingDate: z.string(), description: z.string(), totalDebit: z.string(), totalCredit: z.string(), lineCount: z.number(), reversesEntryId: z.string().nullable(), reversalReason: z.string().nullable(), postedAt: z.string() })
+export type JournalHeader = z.infer<typeof journalHeader>
+export const journalEntry = journalHeader.extend({ lines: z.array(z.object({ id: z.string(), lineNo: z.number(), accountId: z.string(), debit: z.string(), credit: z.string(), description: z.string().nullable() })), reversedBy: z.string().nullable().optional() })
+export type JournalEntry = z.infer<typeof journalEntry>
+
+export const accountingPeriod = z.object({ id: z.string(), periodNo: z.number(), name: z.string(), startDate: z.string(), endDate: z.string(), status: z.string(), version: z.number() })
+export type AccountingPeriod = z.infer<typeof accountingPeriod>
+export const fiscalYearWithPeriods = z.object({ id: z.string(), label: z.string(), startDate: z.string(), endDate: z.string(), periods: z.array(accountingPeriod) })
+export type FiscalYearWithPeriods = z.infer<typeof fiscalYearWithPeriods>
+export const yearClosing = z.object({ id: z.string(), fiscalYearId: z.string(), closingEntryId: z.string().nullable(), netProfit: z.string(), status: z.string(), closedAt: z.string(), reopenedAt: z.string().nullable(), reopenReason: z.string().nullable() })
+export type YearClosing = z.infer<typeof yearClosing>
+
+export const trialBalance = z.object({
+  from: z.string(), to: z.string(), balanced: z.boolean(),
+  rows: z.array(z.object({ accountId: z.string(), code: z.string(), name: z.string(), type: z.string(), openingDebit: z.string(), openingCredit: z.string(), debit: z.string(), credit: z.string(), closingDebit: z.string(), closingCredit: z.string() })),
+  totals: z.object({ openingDebit: z.string(), openingCredit: z.string(), debit: z.string(), credit: z.string(), closingDebit: z.string(), closingCredit: z.string() }),
+})
+export type TrialBalance = z.infer<typeof trialBalance>
+export const accountLedger = z.object({ account: z.object({ id: z.string(), code: z.string(), name: z.string() }), from: z.string(), to: z.string(), openingBalance: z.string(), hasMore: z.boolean(), lines: z.array(z.object({ entryId: z.string(), entryNo: z.string(), postingDate: z.string(), description: z.string().nullable(), debit: z.string(), credit: z.string(), balance: z.string() })) })
+export type AccountLedger = z.infer<typeof accountLedger>
+
+const stLine = z.object({ code: z.string(), label: z.string(), amount: z.string(), accounts: z.array(z.object({ accountId: z.string(), code: z.string(), name: z.string(), amount: z.string() })) })
+export const profitLoss = z.object({ from: z.string(), to: z.string(), lines: z.array(stLine), revenueFromOperations: z.string(), otherIncome: z.string(), totalRevenue: z.string(), totalExpenses: z.string(), profitBeforeTax: z.string(), taxExpense: z.string(), profitForThePeriod: z.string(), unmappedAccounts: z.array(z.string()) })
+export type ProfitLoss = z.infer<typeof profitLoss>
+export const balanceSheet = z.object({
+  asOf: z.string(), balanced: z.boolean(), difference: z.string(), unmappedAccounts: z.array(z.string()),
+  equityAndLiabilities: z.object({ lines: z.array(stLine), profitAndLossAccount: z.string(), shareholdersFunds: z.string(), total: z.string() }),
+  assets: z.object({ lines: z.array(stLine), total: z.string() }),
+})
+export type BalanceSheet = z.infer<typeof balanceSheet>
+export const cashFlow = z.object({ from: z.string(), to: z.string(), operating: z.object({ profitForThePeriod: z.string(), depreciation: z.string(), changeInWorkingCapital: z.string(), net: z.string() }), investing: z.object({ net: z.string() }), financing: z.object({ borrowings: z.string(), equityOtherThanProfit: z.string(), net: z.string() }), netChangeInCash: z.string(), openingCash: z.string(), closingCash: z.string(), reconciled: z.boolean() })
+export type CashFlow = z.infer<typeof cashFlow>
+
+// ---- bank reconciliation --------------------------------------------------------------------------------------------------
+export const bankAccount = z.object({ id: z.string(), accountId: z.string(), name: z.string(), bankName: z.string().nullable(), accountRef: z.string().nullable(), clearedThrough: z.string().nullable(), status: z.string(), version: z.number() })
+export type BankAccount = z.infer<typeof bankAccount>
+export const bankStatement = z.object({ id: z.string(), statementNo: z.string(), periodFrom: z.string(), periodTo: z.string(), openingBalance: z.string(), closingBalance: z.string(), lineCount: z.number(), status: z.string() })
+export type BankStatement = z.infer<typeof bankStatement>
+export const bankLine = z.object({ id: z.string(), statementId: z.string(), lineNo: z.number(), lineDate: z.string(), description: z.string(), reference: z.string().nullable(), amount: z.string(), status: z.string(), ignoreReason: z.string().nullable() })
+export type BankLine = z.infer<typeof bankLine>
+export const bankCandidate = z.object({ journalLineId: z.string(), entryNo: z.string(), postingDate: z.string(), amount: z.string(), description: z.string().nullable(), daysApart: z.number() })
+export type BankCandidate = z.infer<typeof bankCandidate>
+const reconItem = z.object({ amount: z.string(), description: z.string().nullable().optional(), postingDate: z.string().optional(), entryNo: z.string().optional(), date: z.string().optional(), statementLineId: z.string().optional(), journalLineId: z.string().optional() }).passthrough()
+export const bankReconciliation = z.object({
+  asOf: z.string(), balancePerBooks: z.string(), expectedStatementBalance: z.string(), difference: z.string().nullable(), reconciled: z.boolean(), fullyMatched: z.boolean(), clearedThrough: z.string().nullable(),
+  depositsInTransit: z.object({ total: z.string(), items: z.array(reconItem) }), outstandingPayments: z.object({ total: z.string(), items: z.array(reconItem) }),
+  bankItemsNotInBooks: z.object({ total: z.string(), items: z.array(reconItem) }), ignoredBankItems: z.object({ total: z.string(), items: z.array(reconItem) }),
+  statement: z.object({ statementNo: z.string(), asOf: z.string(), closingBalance: z.string() }).nullable(),
+})
+export type BankReconciliation = z.infer<typeof bankReconciliation>

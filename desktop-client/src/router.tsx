@@ -24,6 +24,11 @@ import { PaymentsPage } from '@/features/purchasing/PaymentsPage'
 import { PurchaseOrderDetailPage } from '@/features/purchasing/PurchaseOrderDetailPage'
 import { PurchaseOrderEditorPage } from '@/features/purchasing/PurchaseOrderEditorPage'
 import { PurchaseOrdersPage } from '@/features/purchasing/PurchaseOrdersPage'
+import { BankPage } from '@/features/accounting/BankPage'
+import { ChartPage } from '@/features/accounting/ChartPage'
+import { JournalEditorPage, JournalsPage } from '@/features/accounting/JournalsPage'
+import { PeriodsPage } from '@/features/accounting/PeriodsPage'
+import { ReportsPage } from '@/features/accounting/ReportsPage'
 import { CountsPage } from '@/features/inventory/CountsPage'
 import { MovementsPage } from '@/features/inventory/MovementsPage'
 import { StockPage } from '@/features/inventory/StockPage'
@@ -87,7 +92,13 @@ const movements = createRoute({ getParentRoute: () => app, path: '/inventory/mov
 const transfers = createRoute({ getParentRoute: () => app, path: '/inventory/transfers', component: TransfersPage })
 const counts = createRoute({ getParentRoute: () => app, path: '/inventory/counts', component: CountsPage })
 const valuationRoute = createRoute({ getParentRoute: () => app, path: '/inventory/valuation', component: ValuationPage })
-const tree = root.addChildren([connect, login, app.addChildren([stock, movements, transfers, counts, valuationRoute, orders, newOrder, orderDetail, goodsReceipts, bills, newBill, billDetail, payments, payables, approvals, invoices, newInvoice, invoiceDetail, receipts, receivables, dashboard, setup, companies, items, customers, suppliers, taxCodes, units, paymentTerms, priceLists])])
+const chartRoute = createRoute({ getParentRoute: () => app, path: '/accounting/chart', component: ChartPage })
+const journalsRoute = createRoute({ getParentRoute: () => app, path: '/accounting/journals', component: JournalsPage })
+const newJournalRoute = createRoute({ getParentRoute: () => app, path: '/accounting/journals/new', component: JournalEditorPage })
+const periodsRoute = createRoute({ getParentRoute: () => app, path: '/accounting/periods', component: PeriodsPage })
+const reportsRoute = createRoute({ getParentRoute: () => app, path: '/accounting/reports', component: ReportsPage })
+const bankRoute = createRoute({ getParentRoute: () => app, path: '/accounting/bank', component: BankPage })
+const tree = root.addChildren([connect, login, app.addChildren([chartRoute, journalsRoute, newJournalRoute, periodsRoute, reportsRoute, bankRoute, stock, movements, transfers, counts, valuationRoute, orders, newOrder, orderDetail, goodsReceipts, bills, newBill, billDetail, payments, payables, approvals, invoices, newInvoice, invoiceDetail, receipts, receivables, dashboard, setup, companies, items, customers, suppliers, taxCodes, units, paymentTerms, priceLists])])
 
 // A hash history works the same on a custom app:// origin and in a browser, with no server-side route fallback to configure.
 import { createHashHistory } from '@tanstack/react-router'
