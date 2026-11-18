@@ -85,7 +85,8 @@ Each slice ends with working, tested software, is committed and pushed, and gets
 | D3a Sales core (+ G2 calculate) | done: invoice editor (keyboard grid, live server totals), invoice list and detail, cancel, credit and debit notes, A4 invoice PDF/print, receipts with allocation, receivables ageing, customer position and statement with CSV |
 | D3b Quotes and orders | not started |
 | D4 Purchasing, payables, approvals (+ G2b bill preview) | done: purchase orders (editor, receive goods, close/cancel), goods receipts with returns, supplier bills (from received goods and service lines, "Check bill" preview with match status and approver override, cancel), supplier payments with allocation, payables ageing, position and statement, approvals inbox with rules, request flow and "Post now". Not yet: debit notes, landed cost, journals editor (D6) |
-| D5 onwards | not started |
+| D5 Inventory | done: stock on hand by warehouse with item stock card (date range, running balance), adjustments (take out / put in with cost), movements ledger with detail, transfers (direct or via in-transit, receive, cancel), stock counts (freeze, enter counted, post differences), valuation with a check against the inventory accounts, CSV export. No backend change was needed. Not yet: batches and serial numbers, reservations, negative-stock settings |
+| D6 onwards | not started |
 
 ## 6. Testing and delivery
 

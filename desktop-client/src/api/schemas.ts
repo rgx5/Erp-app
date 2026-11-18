@@ -213,3 +213,29 @@ export type ApprovalRequest = z.infer<typeof approvalRequest>
 
 export const approvalPolicy = z.object({ id: z.string(), companyId: z.string(), documentType: z.string(), thresholdAmount: z.string(), requiredApprovals: z.number(), validDays: z.number(), status: z.string(), version: z.number() })
 export type ApprovalPolicy = z.infer<typeof approvalPolicy>
+
+// ---- inventory ------------------------------------------------------------------------------------------------------------
+export const stockBalance = z.object({ warehouseId: z.string(), warehouseCode: z.string(), itemId: z.string(), itemCode: z.string(), itemName: z.string(), costingMethod: z.string(), quantity: z.string(), value: z.string(), averageCost: z.string() })
+export type StockBalance = z.infer<typeof stockBalance>
+export const stockLedgerRow = z.object({ id: z.string(), movementId: z.string(), lineNo: z.number(), warehouseId: z.string(), itemId: z.string(), postingDate: z.string(), quantity: z.string(), unitCost: z.string(), value: z.string(), balanceQuantity: z.string(), balanceValue: z.string(), movementNo: z.string(), movementType: z.string(), description: z.string() })
+export type StockLedgerRow = z.infer<typeof stockLedgerRow>
+export const movementHeader = z.object({ id: z.string(), movementNo: z.string(), movementType: z.string(), postingDate: z.string(), description: z.string(), sourceType: z.string(), sourceId: z.string().nullable(), journalEntryId: z.string().nullable(), postedAt: z.string() })
+export type MovementHeader = z.infer<typeof movementHeader>
+export const movement = movementHeader.extend({ lines: z.array(z.object({ id: z.string(), lineNo: z.number(), warehouseId: z.string(), itemId: z.string(), quantity: z.string(), unitCost: z.string(), value: z.string(), balanceQuantity: z.string() })) })
+export type Movement = z.infer<typeof movement>
+export const valuation = z.object({ asOf: z.string(), rows: z.array(z.object({ warehouseCode: z.string(), itemId: z.string(), itemCode: z.string(), itemName: z.string(), itemType: z.string(), costingMethod: z.string(), quantity: z.string(), value: z.string(), averageCost: z.string() })), totalValue: z.string() })
+export type Valuation = z.infer<typeof valuation>
+export const reconciliation = z.object({ asOf: z.string(), rows: z.array(z.object({ accountId: z.string(), code: z.string(), name: z.string(), stockValue: z.string(), glBalance: z.string(), difference: z.string(), reconciled: z.boolean() })), stockTotal: z.string(), glTotal: z.string(), difference: z.string(), reconciled: z.boolean() })
+export type InventoryReconciliation = z.infer<typeof reconciliation>
+
+export const transferLine = z.object({ id: z.string(), lineNo: z.number(), itemId: z.string(), quantity: z.string(), receivedQuantity: z.string() })
+export const transferHeader = z.object({ id: z.string(), transferNo: z.string(), fromWarehouseId: z.string(), toWarehouseId: z.string(), transitWarehouseId: z.string().nullable(), status: z.string(), postingDate: z.string(), description: z.string(), version: z.number() })
+export const transfer = transferHeader.extend({ lines: z.array(transferLine) })
+export type TransferHeader = z.infer<typeof transferHeader>
+export type Transfer = z.infer<typeof transfer>
+
+export const countLine = z.object({ id: z.string(), itemId: z.string(), batchId: z.string().nullable(), snapshotQuantity: z.string(), countedQuantity: z.string().nullable(), unitCost: z.string().nullable(), systemQuantity: z.string().nullable(), variance: z.string().nullable() })
+export const countHeader = z.object({ id: z.string(), countNo: z.string(), warehouseId: z.string(), countDate: z.string(), description: z.string(), status: z.string(), movementId: z.string().nullable(), version: z.number() })
+export const stockCount = countHeader.extend({ lines: z.array(countLine) })
+export type CountHeader = z.infer<typeof countHeader>
+export type StockCount = z.infer<typeof stockCount>

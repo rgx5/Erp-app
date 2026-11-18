@@ -24,6 +24,11 @@ import { PaymentsPage } from '@/features/purchasing/PaymentsPage'
 import { PurchaseOrderDetailPage } from '@/features/purchasing/PurchaseOrderDetailPage'
 import { PurchaseOrderEditorPage } from '@/features/purchasing/PurchaseOrderEditorPage'
 import { PurchaseOrdersPage } from '@/features/purchasing/PurchaseOrdersPage'
+import { CountsPage } from '@/features/inventory/CountsPage'
+import { MovementsPage } from '@/features/inventory/MovementsPage'
+import { StockPage } from '@/features/inventory/StockPage'
+import { TransfersPage } from '@/features/inventory/TransfersPage'
+import { ValuationPage } from '@/features/inventory/ValuationPage'
 import { Shell } from '@/ui/Shell'
 
 const root = createRootRoute({ component: Outlet })
@@ -77,7 +82,12 @@ const billDetail = createRoute({ getParentRoute: () => app, path: '/purchasing/b
 const payments = createRoute({ getParentRoute: () => app, path: '/purchasing/payments', component: PaymentsPage, validateSearch: supplierSearch })
 const payables = createRoute({ getParentRoute: () => app, path: '/purchasing/payables', component: PayablesPage })
 const approvals = createRoute({ getParentRoute: () => app, path: '/approvals', component: ApprovalsPage })
-const tree = root.addChildren([connect, login, app.addChildren([orders, newOrder, orderDetail, goodsReceipts, bills, newBill, billDetail, payments, payables, approvals, invoices, newInvoice, invoiceDetail, receipts, receivables, dashboard, setup, companies, items, customers, suppliers, taxCodes, units, paymentTerms, priceLists])])
+const stock = createRoute({ getParentRoute: () => app, path: '/inventory/stock', component: StockPage })
+const movements = createRoute({ getParentRoute: () => app, path: '/inventory/movements', component: MovementsPage })
+const transfers = createRoute({ getParentRoute: () => app, path: '/inventory/transfers', component: TransfersPage })
+const counts = createRoute({ getParentRoute: () => app, path: '/inventory/counts', component: CountsPage })
+const valuationRoute = createRoute({ getParentRoute: () => app, path: '/inventory/valuation', component: ValuationPage })
+const tree = root.addChildren([connect, login, app.addChildren([stock, movements, transfers, counts, valuationRoute, orders, newOrder, orderDetail, goodsReceipts, bills, newBill, billDetail, payments, payables, approvals, invoices, newInvoice, invoiceDetail, receipts, receivables, dashboard, setup, companies, items, customers, suppliers, taxCodes, units, paymentTerms, priceLists])])
 
 // A hash history works the same on a custom app:// origin and in a browser, with no server-side route fallback to configure.
 import { createHashHistory } from '@tanstack/react-router'
