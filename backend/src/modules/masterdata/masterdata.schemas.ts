@@ -54,6 +54,10 @@ export const createItemSchema = z
     isManufactured: z.boolean().default(false),
     /** Per-item valuation method; default weighted average. Fixed once the item has stock movements. */
     costingMethod: z.enum(['weighted_average', 'fifo']).optional(),
+    categoryId: z.uuid().optional(),
+    brand: text(100).optional(),
+    /** Maximum retail price, tax included, as printed on the pack. */
+    mrp: decimal(4).optional(),
   })
   .superRefine((v, ctx) => {
     const service = v.itemType === 'service';
@@ -82,10 +86,13 @@ export const updateItemSchema = z
     isPurchasable: z.boolean().optional(),
     isSellable: z.boolean().optional(),
     costingMethod: z.enum(['weighted_average', 'fifo']).optional(),
+    categoryId: z.uuid().nullable().optional(),
+    brand: text(100).nullable().optional(),
+    mrp: decimal(4).nullable().optional(),
     status: z.enum(['active', 'inactive']).optional(),
   })
   .refine(atLeastOne, NOTHING);
-export const listItemsQuery = z.object({ ...page, itemType: z.enum(ITEM_TYPES).optional(), status: z.enum(['active', 'inactive']).optional(), q: z.string().trim().min(1).max(60).optional() });
+export const listItemsQuery = z.object({ ...page, itemType: z.enum(ITEM_TYPES).optional(), status: z.enum(['active', 'inactive']).optional(), q: z.string().trim().min(1).max(60).optional(), categoryId: z.uuid().optional() });
 export const createConversionSchema = z.strictObject({ uomId: z.uuid(), factor: decimal(8, 10) }).refine((v) => Number(v.factor) > 0, { path: ['factor'], message: 'Must be greater than zero' });
 
 // ---- parties -------------------------------------------------------------------------------------------------------
@@ -150,3 +157,14 @@ export type CreateAddressInput = z.infer<typeof createAddressSchema>;
 export type CreatePriceListInput = z.infer<typeof createPriceListSchema>;
 export type UpdatePriceListInput = z.infer<typeof updatePriceListSchema>;
 export type CreatePriceInput = z.infer<typeof createPriceSchema>;
+
+// ---- retail catalogue: categories and barcodes ----------------------------------------------------------------------
+export const createCategorySchema = z.strictObject({ code: z.string().trim().regex(/^[A-Za-z0-9][A-Za-z0-9_./-]{0,29}$/, 'Letters, digits and . _ / - (max 30)'), name: text(100), parentId: z.uuid().optional(), noDiscount: z.boolean().default(false) });
+export const updateCategorySchema = z.strictObject({ name: text(100).optional(), parentId: z.uuid().nullable().optional(), noDiscount: z.boolean().optional(), status: z.enum(['active', 'inactive']).optional() }).refine(atLeastOne, NOTHING);
+export const listCategoriesQuery = z.object({ ...page, status: z.enum(['active', 'inactive']).optional() });
+export const addBarcodeSchema = z.strictObject({ barcode: z.string().trim().regex(/^[A-Za-z0-9][A-Za-z0-9._/+-]{3,63}$/, '4 to 64 letters, digits and . _ / + -') });
+export const barcodeStatusSchema = z.strictObject({ status: z.enum(['active', 'inactive']) });
+/** What a scanner (or a typed code) is looked up by: an active barcode first, then the item's own code. */
+export const lookupQuery = z.object({ code: z.string().trim().min(1).max(64) });
+export type CreateCategoryInput = z.infer<typeof createCategorySchema>;
+export type UpdateCategoryInput = z.infer<typeof updateCategorySchema>;

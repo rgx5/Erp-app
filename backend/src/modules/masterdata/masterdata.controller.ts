@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Headers, HttpCode, Inject, Module, Param, Patch, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
-import { preconditionRequired } from '../../platform/http/errors.js';
+import { AppError, preconditionRequired } from '../../platform/http/errors.js';
 import { ApiZodBody } from '../../platform/http/validation.js';
 import { Idempotent } from '../../platform/services/idempotency.js';
 import { RequirePermissions, TenantId } from '../identity/principal.js';
@@ -82,6 +82,9 @@ export class ItemsController {
   async create(@TenantId() t: string, @Body({ schema: s.createItemSchema }) b: s.CreateItemInput) { return out(await this.items.create(t, b)); }
   @RequirePermissions('masterdata:read') @Get()
   async list(@TenantId() t: string, @Query({ schema: s.listItemsQuery }) q: s.ListItemsQuery) { return outPage(await this.items.list(t, q)); }
+  /** What a scanner reads: a barcode or an item code, answered with the item and whether its category forbids discounts. */
+  @RequirePermissions('masterdata:read') @Get('lookup')
+  async lookup(@TenantId() t: string, @Query({ schema: s.lookupQuery }) q: { code: string }) { const r = await this.items.lookup(t, q.code); if (!r) throw new AppError(404, 'not_found', 'No active item has that barcode or code'); return { item: out(r.item), matchedBy: r.matchedBy, noDiscount: r.noDiscount }; }
   @RequirePermissions('masterdata:read') @Get(':id')
   async get(@TenantId() t: string, @Param('id', { schema: id }) i: string) { return out(await this.items.get(t, i)); }
   @RequirePermissions('masterdata:write') @Patch(':id') @ApiZodBody(s.updateItemSchema)
@@ -90,6 +93,32 @@ export class ItemsController {
   async addConversion(@TenantId() t: string, @Param('id', { schema: id }) i: string, @Body({ schema: s.createConversionSchema }) b: { uomId: string; factor: string }) { return out(await this.items.addConversion(t, i, b)); }
   @RequirePermissions('masterdata:read') @Get(':id/uom-conversions')
   async conversions(@TenantId() t: string, @Param('id', { schema: id }) i: string) { return { items: (await this.items.listConversions(t, i)).map(out) }; }
+  @RequirePermissions('masterdata:write') @Idempotent() @Post(':id/barcodes') @ApiZodBody(s.addBarcodeSchema)
+  async addBarcode(@TenantId() t: string, @Param('id', { schema: id }) i: string, @Body({ schema: s.addBarcodeSchema }) b: { barcode: string }) { return out(await this.items.addBarcode(t, i, b.barcode)); }
+  @RequirePermissions('masterdata:read') @Get(':id/barcodes')
+  async barcodes(@TenantId() t: string, @Param('id', { schema: id }) i: string) { return { items: (await this.items.listBarcodes(t, i)).map(out) }; }
+}
+
+@ApiTags('items')
+@ApiBearerAuth()
+@Controller('v1/item-barcodes')
+export class BarcodesController {
+  constructor(@Inject(ItemsService) private readonly items: ItemsService) {}
+  @RequirePermissions('masterdata:write') @Post(':id/status') @HttpCode(200) @ApiZodBody(s.barcodeStatusSchema)
+  async status(@TenantId() t: string, @Param('id', { schema: id }) i: string, @Body({ schema: s.barcodeStatusSchema }) b: { status: 'active' | 'inactive' }) { return out(await this.items.setBarcodeStatus(t, i, b.status)); }
+}
+
+@ApiTags('items')
+@ApiBearerAuth()
+@Controller('v1/item-categories')
+export class CategoriesController {
+  constructor(@Inject(ItemsService) private readonly items: ItemsService) {}
+  @RequirePermissions('masterdata:write') @Idempotent() @Post() @ApiZodBody(s.createCategorySchema)
+  async create(@TenantId() t: string, @Body({ schema: s.createCategorySchema }) b: s.CreateCategoryInput) { return out(await this.items.createCategory(t, b)); }
+  @RequirePermissions('masterdata:read') @Get()
+  async list(@TenantId() t: string, @Query({ schema: s.listCategoriesQuery }) q: { limit: number; cursor?: string; status?: 'active' | 'inactive' }) { return outPage(await this.items.listCategories(t, q)); }
+  @RequirePermissions('masterdata:write') @Patch(':id') @ApiZodBody(s.updateCategorySchema)
+  async update(@TenantId() t: string, @Param('id', { schema: id }) i: string, @Headers('if-match') m: string | undefined, @Body({ schema: s.updateCategorySchema }) b: s.UpdateCategoryInput) { return out(await this.items.updateCategory(t, i, versionOf(m), b)); }
 }
 
 @ApiTags('parties')
@@ -144,7 +173,7 @@ export class PricingController {
 }
 
 @Module({
-  controllers: [CatalogController, ItemsController, PartiesController, PricingController],
+  controllers: [CatalogController, ItemsController, BarcodesController, CategoriesController, PartiesController, PricingController],
   providers: [Recorder, CatalogService, ItemsService, PartiesService, PricingService],
   exports: [CatalogService, ItemsService, PartiesService, PricingService],
 })

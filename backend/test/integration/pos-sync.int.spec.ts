@@ -178,9 +178,18 @@ describe('devices and reference data', () => {
     expect(cat.items.find((i: { code: string }) => i.code.startsWith('WIDGET'))).toMatchObject({ hsn: '8479', stocked: true, status: 'active' });
     expect(cat.taxRates.map((t: { code: string }) => t.code).sort()).toEqual(['GST18', 'GST5']);
     expect(cat.taxRates.find((t: { code: string }) => t.code === 'GST18')).toMatchObject({ igst: '18.0000', cgst: '9.0000', sgst: '9.0000' });
-    const none = (await call(server, 'GET', `/v1/pos/sync/catalogue?deviceId=${c.device}&updatedSince=${encodeURIComponent(cat.serverTime)}`, { tenant: c.tenant })).json;
+    // retail catalogue: barcodes, MRP and a category's no-discount rule reach the till, so it can sell offline the same way
+    const widget = cat.items.find((i: { code: string }) => i.code.startsWith('WIDGET'));
+    const cate = (await call(server, 'POST', '/v1/item-categories', { tenant: c.tenant, body: { code: 'NODISC', name: 'No discount', noDiscount: true } })).json;
+    const wfull = (await call(server, 'GET', `/v1/items/${widget.id}`, { tenant: c.tenant })).json;
+    expect((await call(server, 'PATCH', `/v1/items/${widget.id}`, { tenant: c.tenant, headers: { 'if-match': String(wfull.version) }, body: { categoryId: cate.id, mrp: '99' } })).status).toBe(200);
+    expect((await call(server, 'POST', `/v1/items/${widget.id}/barcodes`, { tenant: c.tenant, body: { barcode: 'SCAN-0001' } })).status).toBe(201);
+    const cat2 = (await call(server, 'GET', `/v1/pos/sync/catalogue?deviceId=${c.device}`, { tenant: c.tenant })).json;
+    expect(cat2.items.find((i: { id: string }) => i.id === widget.id)).toMatchObject({ mrp: '99.0000', noDiscount: true, categoryId: cate.id });
+    expect(cat2.barcodes).toEqual([{ itemId: widget.id, barcode: 'SCAN-0001' }]);
+    const none = (await call(server, 'GET', `/v1/pos/sync/catalogue?deviceId=${c.device}&updatedSince=${encodeURIComponent(cat2.serverTime)}`, { tenant: c.tenant })).json;
     expect(none.items).toEqual([]);
-    expect(none.serverTime >= cat.serverTime).toBe(true);
+    expect(none.serverTime >= cat2.serverTime).toBe(true);
   });
 });
 

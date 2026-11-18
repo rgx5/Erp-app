@@ -1,7 +1,8 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query'
 import { z } from 'zod'
 import { query } from '@/api/client'
-import { address, item, page, party, paymentTerm, price, priceList, taxCode, taxRate, unit, type Address, type Item, type Party, type PaymentTerm, type Price, type PriceList, type TaxCode, type TaxRate, type Unit } from '@/api/schemas'
+import { ApiError } from '@/api/errors'
+import { address, item, itemBarcode, itemCategory, itemLookup, page, party, paymentTerm, price, priceList, taxCode, taxRate, unit, type Address, type Item, type ItemBarcode, type ItemCategory, type ItemLookup, type Party, type PaymentTerm, type Price, type PriceList, type TaxCode, type TaxRate, type Unit } from '@/api/schemas'
 import { currentApi } from '@/auth/session'
 import type { paths } from '@/api/schema'
 
@@ -14,7 +15,7 @@ function useCursorList<T>(key: QueryKey, schema: z.ZodType<T>, fetchPage: (curso
   return { ...q, rows: q.data?.pages.flatMap((p) => p.items) ?? [] }
 }
 
-export interface ItemFilter { q?: string; itemType?: string; status?: string }
+export interface ItemFilter { q?: string; itemType?: string; status?: string; categoryId?: string }
 export const useItems = (f: ItemFilter) =>
   useCursorList<Item>(['items', f], item, (cursor) => { const api = currentApi(); return api.call(api.raw.GET('/v1/items', { params: { query: query({ limit: 100, cursor, ...f }) } }), page(item)) })
 
@@ -92,4 +93,17 @@ export const usePartiesById = (ids: string[]) => {
       return new Map(found.map((p) => [p.id, p]))
     },
   })
+}
+
+// ---- retail catalogue: categories, barcodes, the scanner's lookup --------------------------------------------------------------
+export const useCategories = () => useQuery({ queryKey: ['categories'], queryFn: async (): Promise<ItemCategory[]> => { const out: ItemCategory[] = []; let cursor: string | undefined; do { const api = currentApi(); const p = await api.call(api.raw.GET('/v1/item-categories', { params: { query: query({ limit: 200, cursor }) } }), page(itemCategory)); out.push(...p.items); cursor = p.nextCursor ?? undefined } while (cursor); return out } })
+export const useCreateCategory = () => useWrite(['categories'], (body: Body<'/v1/item-categories', 'post'>) => { const api = currentApi(); return api.call(api.raw.POST('/v1/item-categories', { body, headers: { 'idempotency-key': crypto.randomUUID() } }), itemCategory) })
+export const useUpdateCategory = () => useWrite(['categories'], ({ id, version, body }: { id: string; version: number; body: Body<'/v1/item-categories/{id}', 'patch'> }) => { const api = currentApi(); return api.call(api.raw.PATCH('/v1/item-categories/{id}', { params: { path: { id } }, headers: { 'if-match': String(version) }, body }), itemCategory) })
+export const useBarcodes = (itemId: string | undefined) => useQuery({ queryKey: ['barcodes', itemId], enabled: Boolean(itemId), queryFn: async (): Promise<ItemBarcode[]> => { const api = currentApi(); return (await api.call(api.raw.GET('/v1/items/{id}/barcodes', { params: { path: { id: itemId as string } } }), z.object({ items: z.array(itemBarcode) }))).items } })
+export const useAddBarcode = (itemId: string) => useWrite(['barcodes'], (barcode: string) => { const api = currentApi(); return api.call(api.raw.POST('/v1/items/{id}/barcodes', { params: { path: { id: itemId } }, body: { barcode }, headers: { 'idempotency-key': crypto.randomUUID() } }), itemBarcode) })
+export const useBarcodeStatus = () => useWrite(['barcodes'], ({ id, status }: { id: string; status: 'active' | 'inactive' }) => { const api = currentApi(); return api.call(api.raw.POST('/v1/item-barcodes/{id}/status', { params: { path: { id } }, body: { status } }), itemBarcode) })
+/** What a scanner reads. Resolves to null when nothing has that barcode or code. */
+export async function lookupItem(code: string): Promise<ItemLookup | null> {
+  const api = currentApi()
+  try { return await api.call(api.raw.GET('/v1/items/lookup', { params: { query: query({ code }) } }), itemLookup) } catch (e) { if (e instanceof ApiError && e.status === 404) return null; throw e }
 }

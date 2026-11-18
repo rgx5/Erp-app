@@ -158,9 +158,14 @@ export class PosSyncService {
       if (d.status !== 'active') throw new AppError(403, 'device_revoked', 'This device was revoked');
       const terminal = first(await tx.select().from(posTerminals).where(and(eq(posTerminals.tenantId, tenantId), eq(posTerminals.id, d.terminalId))), 'Terminal');
       const since = updatedSince ?? '1970-01-01T00:00:00Z';
-      const items = await tx.execute<{ id: string; code: string; name: string; hsn_sac_code: string | null; tax_code_id: string | null; item_type: string; is_stocked: boolean; tracking: string; status: string; updated_at: string }>(sql`
-        SELECT id, code, name, hsn_sac_code, tax_code_id, item_type, is_stocked, tracking, status, updated_at::text FROM erp.items
-         WHERE tenant_id = ${tenantId}::uuid AND is_sellable AND updated_at > ${since}::timestamptz ORDER BY code`);
+      const items = await tx.execute<{ id: string; code: string; name: string; hsn_sac_code: string | null; tax_code_id: string | null; item_type: string; is_stocked: boolean; tracking: string; status: string; updated_at: string; mrp: string | null; category_id: string | null; no_discount: boolean }>(sql`
+        SELECT i.id, i.code, i.name, i.hsn_sac_code, i.tax_code_id, i.item_type, i.is_stocked, i.tracking, i.status, i.updated_at::text, i.mrp::text, i.category_id,
+               COALESCE((SELECT bool_or(a.no_discount) FROM erp.item_categories a WHERE a.tenant_id = i.tenant_id AND a.id IN (
+                 WITH RECURSIVE up AS (SELECT c0.id, c0.parent_id FROM erp.item_categories c0 WHERE c0.tenant_id = i.tenant_id AND c0.id = i.category_id
+                   UNION ALL SELECT c.id, c.parent_id FROM erp.item_categories c JOIN up ON c.tenant_id = i.tenant_id AND c.id = up.parent_id) SELECT id FROM up)), false) AS no_discount
+          FROM erp.items i WHERE i.tenant_id = ${tenantId}::uuid AND i.is_sellable AND i.updated_at > ${since}::timestamptz ORDER BY i.code`);
+      // barcodes carry no timestamp of their own, so every active one is sent each time
+      const barcodes = await tx.execute<{ item_id: string; barcode: string }>(sql`SELECT b.item_id, b.barcode FROM erp.item_barcodes b JOIN erp.items i ON i.tenant_id = b.tenant_id AND i.id = b.item_id WHERE b.tenant_id = ${tenantId}::uuid AND b.status = 'active' AND i.is_sellable ORDER BY b.barcode`);
       const rates = await tx.execute<{ tax_code_id: string; code: string; igst_rate: string; cgst_rate: string; sgst_rate: string; cess_rate: string }>(sql`
         SELECT r.tax_code_id, c.code, r.igst_rate::text, r.cgst_rate::text, r.sgst_rate::text, r.cess_rate::text FROM erp.tax_code_rates r JOIN erp.tax_codes c ON c.tenant_id = r.tenant_id AND c.id = r.tax_code_id
          WHERE r.tenant_id = ${tenantId}::uuid AND r.effective_from <= CURRENT_DATE AND (r.effective_to IS NULL OR r.effective_to >= CURRENT_DATE) ORDER BY c.code`);
@@ -169,8 +174,9 @@ export class PosSyncService {
       return {
         serverTime: new Date().toISOString(), terminal: { id: terminal.id, code: terminal.code, warehouseId: terminal.warehouseId, gstRegistrationId: terminal.gstRegistrationId },
         walkInCustomerId: settings?.walkInCustomerId ?? null, paymentMethods: methods.map((m) => m.method).sort(),
+        barcodes: barcodes.rows.map((b) => ({ itemId: b.item_id, barcode: b.barcode })),
         taxRates: rates.rows.map((r) => ({ taxCodeId: r.tax_code_id, code: r.code, igst: r.igst_rate, cgst: r.cgst_rate, sgst: r.sgst_rate, cess: r.cess_rate })),
-        items: items.rows.map((i) => ({ id: i.id, code: i.code, name: i.name, hsn: i.hsn_sac_code, taxCodeId: i.tax_code_id, itemType: i.item_type, stocked: i.is_stocked, tracking: i.tracking, status: i.status, updatedAt: i.updated_at })),
+        items: items.rows.map((i) => ({ id: i.id, code: i.code, name: i.name, hsn: i.hsn_sac_code, taxCodeId: i.tax_code_id, itemType: i.item_type, stocked: i.is_stocked, tracking: i.tracking, status: i.status, updatedAt: i.updated_at, mrp: i.mrp, categoryId: i.category_id, noDiscount: i.no_discount })),
       };
     }, { readOnly: true });
   }

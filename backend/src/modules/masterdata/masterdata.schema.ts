@@ -82,8 +82,31 @@ export const items = erp.table('items', {
   isSellable: boolean('is_sellable').notNull().default(true),
   isManufactured: boolean('is_manufactured').notNull().default(false),
   costingMethod: text('costing_method'),
+  categoryId: uuid('category_id'),
+  brand: text('brand'),
+  mrp: numeric('mrp', { precision: 18, scale: 4 }),
   status: text('status').notNull().default('active'),
   ...meta,
+});
+
+export const itemCategories = erp.table('item_categories', {
+  tenantId: uuid('tenant_id').notNull(),
+  id: uuid('id').notNull(),
+  code: text('code').notNull(),
+  name: text('name').notNull(),
+  parentId: uuid('parent_id'),
+  noDiscount: boolean('no_discount').notNull().default(false),
+  status: text('status').notNull().default('active'),
+  ...meta,
+});
+
+export const itemBarcodes = erp.table('item_barcodes', {
+  tenantId: uuid('tenant_id').notNull(),
+  id: uuid('id').notNull(),
+  itemId: uuid('item_id').notNull(),
+  barcode: text('barcode').notNull(),
+  status: text('status').notNull().default('active'),
+  createdAt: ts('created_at').notNull().defaultNow(),
 });
 
 export const itemUomConversions = erp.table('item_uom_conversions', {

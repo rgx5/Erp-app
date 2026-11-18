@@ -80,9 +80,15 @@ export type TaxRate = z.infer<typeof taxRate>
 
 export const item = z.object({
   id: z.string(), code: z.string(), name: z.string(), description: z.string().nullable(), itemType: z.string(), baseUomId: z.string(), hsnSacCode: z.string().nullable(), taxCodeId: z.string().nullable(),
-  tracking: z.string(), isStocked: z.boolean(), isPurchasable: z.boolean(), isSellable: z.boolean(), isManufactured: z.boolean(), costingMethod: z.string().nullable().optional(), status: z.string(), ...stamps,
+  tracking: z.string(), isStocked: z.boolean(), isPurchasable: z.boolean(), isSellable: z.boolean(), isManufactured: z.boolean(), costingMethod: z.string().nullable().optional(), categoryId: z.string().nullable().optional(), brand: z.string().nullable().optional(), mrp: z.string().nullable().optional(), status: z.string(), ...stamps,
 })
 export type Item = z.infer<typeof item>
+export const itemCategory = z.object({ id: z.string(), code: z.string(), name: z.string(), parentId: z.string().nullable(), noDiscount: z.boolean(), status: z.string(), version: z.number() })
+export type ItemCategory = z.infer<typeof itemCategory>
+export const itemBarcode = z.object({ id: z.string(), itemId: z.string(), barcode: z.string(), status: z.string() })
+export type ItemBarcode = z.infer<typeof itemBarcode>
+export const itemLookup = z.object({ item: item, matchedBy: z.string(), noDiscount: z.boolean() })
+export type ItemLookup = z.infer<typeof itemLookup>
 
 export const party = z.object({
   id: z.string(), code: z.string(), legalName: z.string(), tradeName: z.string().nullable(), isCustomer: z.boolean(), isSupplier: z.boolean(), isSubcontractor: z.boolean(), gstTreatment: z.string(),
@@ -463,7 +469,8 @@ export const posDevice = z.object({ id: z.string(), terminalId: z.string(), name
 export type PosDevice = z.infer<typeof posDevice>
 export const posCatalogue = z.object({
   serverTime: z.string(), walkInCustomerId: z.string().nullable(), paymentMethods: z.array(z.string()),
-  items: z.array(z.object({ id: z.string(), code: z.string(), name: z.string(), hsn: z.string().nullable(), taxCodeId: z.string().nullable(), itemType: z.string(), stocked: z.boolean(), tracking: z.string(), status: z.string() })),
+  items: z.array(z.object({ id: z.string(), code: z.string(), name: z.string(), hsn: z.string().nullable(), taxCodeId: z.string().nullable(), itemType: z.string(), stocked: z.boolean(), tracking: z.string(), status: z.string(), mrp: z.string().nullable().optional(), categoryId: z.string().nullable().optional(), noDiscount: z.boolean().optional() })),
+  barcodes: z.array(z.object({ itemId: z.string(), barcode: z.string() })).optional(),
 })
 export type PosCatalogue = z.infer<typeof posCatalogue>
 export const syncResult = z.object({ deviceId: z.string(), received: z.number(), applied: z.number(), duplicates: z.number(), rejected: z.number(), results: z.array(z.object({ clientId: z.string(), status: z.string(), saleId: z.string().optional(), reason: z.string().optional(), code: z.string().optional(), message: z.string().optional() }).passthrough()) })

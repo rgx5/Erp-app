@@ -1,6 +1,6 @@
 import { fromUnits, toUnits } from '@/domain/money'
 
-export interface CartLine { key: string; itemId: string; code: string; name: string; quantity: string; unitPrice: string; discountPercent: string; taxInclusive: boolean; taxCodeId: string | null; tracking: 'none' | 'batch' | 'serial'; batchId: string; serials: string }
+export interface CartLine { key: string; itemId: string; code: string; name: string; quantity: string; unitPrice: string; discountPercent: string; taxInclusive: boolean; taxCodeId: string | null; tracking: 'none' | 'batch' | 'serial'; batchId: string; serials: string; noDiscount?: boolean; salespersonId?: string }
 
 export const serialList = (v: string): string[] => v.split(/[\n,;\s]+/).map((x) => x.trim()).filter(Boolean)
 /** A tracked item is sellable once its batch is chosen, or exactly one distinct serial number per unit is entered. */

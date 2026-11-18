@@ -5,7 +5,7 @@ import { z } from 'zod'
 import type { Item } from '@/api/schemas'
 import { Alert, Button, CheckField, SelectField, TextField } from '@/ui/primitives'
 import { showApiError } from '@/features/setup/forms'
-import { useCreateItem, useTaxCodes, useUnits, useUpdateItem } from './queries'
+import { useCategories, useCreateItem, useTaxCodes, useUnits, useUpdateItem } from './queries'
 
 export const ITEM_TYPES = [
   { value: 'finished_good', label: 'Finished good' }, { value: 'trading_good', label: 'Trading good' }, { value: 'raw_material', label: 'Raw material' },
@@ -23,6 +23,7 @@ const schema = z.object({
   code: z.string().trim().regex(/^[A-Za-z0-9][A-Za-z0-9_./-]{0,39}$/, 'Letters, digits and . _ / - (max 40)'),
   name: z.string().trim().min(1, 'Required').max(300), description: z.string().max(2000).optional(), itemType: z.string(), baseUomId: z.string().min(1, 'Choose a unit'),
   hsnSacCode: z.string().optional(), taxCodeId: z.string().optional(), tracking: z.string(), isStocked: z.boolean(), isPurchasable: z.boolean(), isSellable: z.boolean(), isManufactured: z.boolean(), costingMethod: z.string(), status: z.string(),
+  categoryId: z.string().optional(), brand: z.string().trim().max(100).optional(), mrp: z.string().trim().regex(/^(\d{1,14}(\.\d{1,4})?)?$/, 'An amount such as 120 or 120.50').optional(),
 }).superRefine((v, ctx) => {
   const problem = hsnProblem(v.itemType, (v.hsnSacCode ?? '').trim())
   if (problem) ctx.addIssue({ code: 'custom', path: ['hsnSacCode'], message: problem })
@@ -33,6 +34,7 @@ const schema = z.object({
 export function ItemForm({ item, canWrite, onDone }: { item?: Item | undefined; canWrite: boolean; onDone: () => void }) {
   const units = useUnits()
   const taxes = useTaxCodes()
+  const categories = useCategories()
   const create = useCreateItem()
   const update = useUpdateItem()
   const editing = Boolean(item)
@@ -42,12 +44,13 @@ export function ItemForm({ item, canWrite, onDone }: { item?: Item | undefined; 
       code: item?.code ?? '', name: item?.name ?? '', description: item?.description ?? '', itemType: item?.itemType ?? 'finished_good', baseUomId: item?.baseUomId ?? '',
       hsnSacCode: item?.hsnSacCode ?? '', taxCodeId: item?.taxCodeId ?? '', tracking: item?.tracking ?? 'none', isStocked: item?.isStocked ?? true, isPurchasable: item?.isPurchasable ?? true,
       isSellable: item?.isSellable ?? true, isManufactured: item?.isManufactured ?? false, costingMethod: item?.costingMethod ?? 'weighted_average', status: item?.status ?? 'active',
+      categoryId: item?.categoryId ?? '', brand: item?.brand ?? '', mrp: item?.mrp ? String(Number(item.mrp)) : '',
     },
   })
   const [message, setMessage] = useState<string | null>(null)
   const type = watch('itemType')
   const service = type === 'service'
-  const fields = ['code', 'name', 'description', 'itemType', 'baseUomId', 'hsnSacCode', 'taxCodeId', 'tracking', 'isStocked', 'isPurchasable', 'isSellable', 'isManufactured', 'costingMethod', 'status']
+  const fields = ['code', 'name', 'description', 'itemType', 'baseUomId', 'hsnSacCode', 'taxCodeId', 'tracking', 'isStocked', 'isPurchasable', 'isSellable', 'isManufactured', 'costingMethod', 'status', 'categoryId', 'brand', 'mrp']
   const readOnly = !canWrite
 
   return (
@@ -56,11 +59,11 @@ export function ItemForm({ item, canWrite, onDone }: { item?: Item | undefined; 
       const hsn = (v.hsnSacCode ?? '').trim()
       try {
         if (item) {
-          await update.mutateAsync({ id: item.id, version: item.version, body: { name: v.name.trim(), description: v.description?.trim() || null, hsnSacCode: hsn || null, taxCodeId: v.taxCodeId || null, isPurchasable: v.isPurchasable, isSellable: v.isSellable, ...(service ? {} : { costingMethod: v.costingMethod as 'fifo' }), status: v.status as 'active' } })
+          await update.mutateAsync({ id: item.id, version: item.version, body: { name: v.name.trim(), description: v.description?.trim() || null, hsnSacCode: hsn || null, taxCodeId: v.taxCodeId || null, categoryId: v.categoryId || null, brand: v.brand?.trim() || null, mrp: v.mrp?.trim() || null, isPurchasable: v.isPurchasable, isSellable: v.isSellable, ...(service ? {} : { costingMethod: v.costingMethod as 'fifo' }), status: v.status as 'active' } })
         } else {
           await create.mutateAsync({
             code: v.code.trim(), name: v.name.trim(), ...(v.description?.trim() ? { description: v.description.trim() } : {}), itemType: v.itemType as 'service', baseUomId: v.baseUomId,
-            ...(hsn ? { hsnSacCode: hsn } : {}), ...(v.taxCodeId ? { taxCodeId: v.taxCodeId } : {}), tracking: v.tracking as 'none', isStocked: service ? false : v.isStocked,
+            ...(hsn ? { hsnSacCode: hsn } : {}), ...(v.taxCodeId ? { taxCodeId: v.taxCodeId } : {}), ...(v.categoryId ? { categoryId: v.categoryId } : {}), ...(v.brand?.trim() ? { brand: v.brand.trim() } : {}), ...(v.mrp?.trim() ? { mrp: v.mrp.trim() } : {}), tracking: v.tracking as 'none', isStocked: service ? false : v.isStocked,
             isPurchasable: v.isPurchasable, isSellable: v.isSellable, isManufactured: v.isManufactured, ...(service ? {} : { costingMethod: v.costingMethod as 'fifo' }),
           })
         }
@@ -79,6 +82,11 @@ export function ItemForm({ item, canWrite, onDone }: { item?: Item | undefined; 
         <TextField label={service ? 'SAC' : 'HSN'} inputMode="numeric" error={errors.hsnSacCode?.message} disabled={readOnly} {...register('hsnSacCode')} hint={service ? '6 digits starting 99' : '4, 6 or 8 digits'} />
       </div>
       <SelectField label="GST tax code" disabled={readOnly} options={[{ value: '', label: 'None' }, ...(taxes.data ?? []).filter((t) => t.status === 'active').map((t) => ({ value: t.id, label: `${t.code} · ${t.name}` }))]} {...register('taxCodeId')} />
+      <div className="grid grid-cols-3 gap-4">
+        <SelectField label="Category" disabled={readOnly} options={[{ value: '', label: 'None' }, ...(categories.data ?? []).filter((c) => c.status === 'active').map((c) => ({ value: c.id, label: c.name }))]} {...register('categoryId')} />
+        <TextField label="Brand (optional)" disabled={readOnly} {...register('brand')} />
+        <TextField label="MRP (optional)" inputMode="decimal" error={errors.mrp?.message} disabled={readOnly} {...register('mrp')} hint="Printed retail price, tax included" />
+      </div>
       {!service ? (
         <div className="grid grid-cols-2 gap-4">
           <SelectField label="Tracking" error={errors.tracking?.message} disabled={editing || readOnly} options={[{ value: 'none', label: 'None' }, { value: 'batch', label: 'By batch' }, { value: 'serial', label: 'By serial number' }]} {...register('tracking')} />

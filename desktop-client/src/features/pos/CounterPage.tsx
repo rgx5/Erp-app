@@ -2,6 +2,7 @@ import { Trash2 } from 'lucide-react'
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
+import { lookupItem } from '@/features/masterdata/queries'
 import { query } from '@/api/client'
 import { ApiError, NetworkError } from '@/api/errors'
 import { item as itemSchema, page, type Item, type PosSaleResult, type PosShift, type PosTerminal } from '@/api/schemas'
@@ -82,12 +83,15 @@ export function CounterPage() {
   const priceOf = (itemId: string): string | null => priceFrom(prices.data ?? [], itemId)
   const taxInclusive = priceList?.taxInclusive ?? true
 
-  async function addItem(i: { id: string; code: string; name: string; taxCodeId: string | null; tracking?: string }, price?: string | null) {
+  async function addItem(i: { id: string; code: string; name: string; taxCodeId: string | null; tracking?: string; mrp?: string | null | undefined }, price?: string | null, noDiscount = false) {
     const tracking = (i.tracking === 'batch' || i.tracking === 'serial' ? i.tracking : 'none') as CartLine['tracking']
-    const p = price ?? priceOf(i.id)
+    const listed = price ?? priceOf(i.id)
+    // with no price-list price the printed MRP (tax included) is used, so a shelf item can be sold before any price list exists
+    const p = listed ?? (i.mrp ? String(Number(i.mrp)) : null)
+    const inclusive = listed === null && i.mrp ? true : taxInclusive
     setCart((c) => {
       const same = tracking === 'serial' ? undefined : c.find((l) => l.itemId === i.id && (l.unitPrice === (p ?? '') || l.unitPrice === ''))
-      return same ? c.map((l) => (l === same ? { ...l, quantity: String(Number(l.quantity) + 1) } : l)) : [...c, { key: `l${++n}`, itemId: i.id, code: i.code, name: i.name, quantity: '1', unitPrice: p ?? '', discountPercent: '0', taxInclusive, taxCodeId: i.taxCodeId, tracking, batchId: '', serials: '' }]
+      return same ? c.map((l) => (l === same ? { ...l, quantity: String(Number(l.quantity) + 1) } : l)) : [...c, { key: `l${++n}`, itemId: i.id, code: i.code, name: i.name, quantity: '1', unitPrice: p ?? '', discountPercent: '0', taxInclusive: inclusive, taxCodeId: i.taxCodeId, tracking, batchId: '', serials: '', noDiscount }]
     })
     setFound([])
   }
@@ -96,6 +100,8 @@ export function CounterPage() {
     if (!text) return
     setScan(''); setProblem(null) // cleared at once so a fast scanner can send the next code
     try {
+      const hit = await lookupItem(text) // a barcode, or an item code
+      if (hit && hit.item.isSellable) { await addItem(hit.item, undefined, hit.noDiscount); return }
       const rows = await lookup(text)
       const exact = rows.find((r) => r.code.toLowerCase() === text.toLowerCase())
       if (exact) await addItem(exact)
@@ -104,12 +110,15 @@ export function CounterPage() {
       else setFound(rows.slice(0, 8))
     } catch (e) {
       if (e instanceof NetworkError) {
-        const cached = loadCatalogue(tenant).filter((c) => c.code.toLowerCase() === text.toLowerCase() || c.name.toLowerCase().includes(text.toLowerCase()))
+        const all = loadCatalogue(tenant)
+        const byBarcode = all.find((c) => (c.barcodes ?? []).some((b) => b.toLowerCase() === text.toLowerCase()))
+        if (byBarcode) { if (byBarcode.tracking !== 'none') setProblem(`${byBarcode.code} is batch or serial tracked: it can only be sold while online.`); else await addItem({ ...byBarcode, taxCodeId: byBarcode.taxCodeId }, byBarcode.price, byBarcode.noDiscount === true); return }
+        const cached = all.filter((c) => c.code.toLowerCase() === text.toLowerCase() || c.name.toLowerCase().includes(text.toLowerCase()))
         const exact = cached.find((c) => c.code.toLowerCase() === text.toLowerCase())
         if (exact && exact.tracking !== 'none') setProblem(`${exact.code} is batch or serial tracked: it can only be sold while online.`)
-        else if (exact) await addItem({ ...exact, taxCodeId: exact.taxCodeId }, exact.price)
+        else if (exact) await addItem({ ...exact, taxCodeId: exact.taxCodeId }, exact.price, exact.noDiscount === true)
         else if (cached.length === 1 && cached[0] && cached[0].tracking !== 'none') setProblem(`${cached[0].code} is batch or serial tracked: it can only be sold while online.`)
-        else if (cached.length === 1 && cached[0]) await addItem(cached[0], cached[0].price)
+        else if (cached.length === 1 && cached[0]) await addItem(cached[0], cached[0].price, cached[0].noDiscount === true)
         else if (cached.length === 0) setProblem(`Offline, and "${text}" is not in the saved catalogue.`)
         else setFound(cached.slice(0, 8) as unknown as Item[])
       } else setProblem(msg(e, 'Could not search.'))
@@ -203,7 +212,7 @@ export function CounterPage() {
     try {
       const cat = await fetchCatalogue(deviceId)
       const list = priceListId ? prices.data ?? (await prices.refetch()).data ?? [] : []
-      const items: CachedItem[] = cat.items.filter((i) => i.status === 'active').map((i) => ({ id: i.id, code: i.code, name: i.name, taxCodeId: i.taxCodeId, price: priceFrom(list, i.id), taxInclusive, tracking: i.tracking }))
+      const items: CachedItem[] = cat.items.filter((i) => i.status === 'active').map((i) => ({ id: i.id, code: i.code, name: i.name, taxCodeId: i.taxCodeId, price: priceFrom(list, i.id), taxInclusive, tracking: i.tracking, mrp: i.mrp ?? null, noDiscount: i.noDiscount === true, barcodes: (cat.barcodes ?? []).filter((b) => b.itemId === i.id).map((b) => b.barcode) }))
       if (!saveCatalogue(tenant, items)) { setProblem('This computer has no room to save the catalogue.'); return }
       flash.show(`${items.length} items saved for selling offline.`)
     } catch (e) { setProblem(msg(e, 'Could not download the catalogue.')) }
@@ -255,6 +264,7 @@ export function CounterPage() {
           ) : null}
         </div>
         {problem ? <Alert>{problem}</Alert> : null}
+        {calc.isError && !offline ? <Alert>{calc.error instanceof ApiError ? calc.error.message : 'Could not work out the total.'}</Alert> : null}
         {last ? (
           <Alert tone="info"><span aria-label="Last sale">{(last.invoice ?? last.creditNote)?.invoiceNo} · {formatInr((last.invoice ?? last.creditNote)?.grandTotal ?? '0')}{last.changeDue && Number(last.changeDue) > 0 ? ` · change ${formatInr(last.changeDue)}` : ''}</span> <Button variant="ghost" onClick={() => void print(last)}>{window.onesync ? 'Save receipt as PDF' : 'Print receipt'}</Button></Alert>
         ) : null}
@@ -271,7 +281,7 @@ export function CounterPage() {
                     <td className="p-2">{l.code} · {l.name}</td>
                     <td className="p-1 text-right"><input aria-label={`Quantity of ${l.code}`} inputMode="decimal" className={`${cell} w-20`} value={l.quantity} onChange={(e) => set({ quantity: e.target.value })} /></td>
                     <td className="p-1 text-right"><input aria-label={`Price of ${l.code}`} inputMode="decimal" className={`${cell} w-28 ${l.unitPrice === '' ? 'border-bad' : ''}`} value={l.unitPrice} placeholder="price" onChange={(e) => set({ unitPrice: e.target.value })} /></td>
-                    <td className="p-1 text-right"><input aria-label={`Discount of ${l.code}`} inputMode="decimal" className={`${cell} w-20`} value={l.discountPercent} onChange={(e) => set({ discountPercent: e.target.value })} /></td>
+                    <td className="p-1 text-right"><input aria-label={`Discount of ${l.code}`} inputMode="decimal" disabled={l.noDiscount === true} title={l.noDiscount ? 'No discount is allowed on this item' : undefined} className={`${cell} w-20 disabled:opacity-50`} value={l.discountPercent} onChange={(e) => set({ discountPercent: e.target.value })} /></td>
                     <td className="num p-2 text-right">{row ? formatInr(row.lineTotal, { symbol: false }) : ''}</td>
                     <td className="p-1"><button type="button" aria-label={`Remove ${l.code}`} className="grid size-7 place-items-center rounded text-muted hover:text-bad" onClick={() => setCart(cart.filter((x) => x.key !== l.key))}><Trash2 className="size-4" /></button></td>
                   </tr>
