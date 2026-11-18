@@ -16,3 +16,8 @@ export const loadQueue = (tenant: string): QueuedSale[] => read<QueuedSale[]>(K(
 export const saveQueue = (tenant: string, q: QueuedSale[]): boolean => write(K(tenant, 'queue'), q)
 export const loadCatalogue = (tenant: string): CachedItem[] => read<CachedItem[]>(K(tenant, 'catalogue'), [])
 export const saveCatalogue = (tenant: string, items: CachedItem[]): boolean => write(K(tenant, 'catalogue'), items)
+
+/** A bill set aside while the cashier serves someone else. Kept on this computer only: it is not a sale until it is charged. */
+export interface ParkedBill { id: string; at: string; label: string; cart: import('./totals').CartLine[] }
+export const loadParked = (tenant: string): ParkedBill[] => read<ParkedBill[]>(K(tenant, 'parked'), [])
+export const saveParked = (tenant: string, bills: ParkedBill[]): boolean => write(K(tenant, 'parked'), bills)

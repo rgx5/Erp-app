@@ -19,6 +19,8 @@ import type { Seller } from '@/features/sales/invoiceHtml'
 import { useCalculation } from '@/features/sales/queries'
 import { useFlash } from '@/ui/flash'
 import { Alert, Button, Card, SelectField, Spinner, TextField } from '@/ui/primitives'
+import { loadParked, saveParked, type ParkedBill } from './counterStore'
+import { receiptText, whatsappUrl } from './share'
 import { counterState, loadCatalogue, loadQueue, saveCatalogue, saveCounterState, saveQueue, type CachedItem, type QueuedSale } from './counterStore'
 import { ReturnDrawer } from './ReturnDrawer'
 import { CloseShiftDrawer } from './ShiftDrawers'
@@ -61,6 +63,9 @@ export function CounterPage() {
   const [opening, setOpening] = useState('0')
   const [problem, setProblem] = useState<string | null>(null)
   const [wallet, setWallet] = useState<WalletChoice>(noWallet())
+  const [parked, setParked] = useState<ParkedBill[]>(() => loadParked(tenant))
+  const [showParked, setShowParked] = useState(false)
+  const [phone, setPhone] = useState('')
 
   const terminal: PosTerminal | undefined = terminals.data?.find((t) => t.id === terminalId) ?? terminals.data?.find((t) => t.status === 'active')
   const shift: PosShift | undefined = openShifts.rows.find((s) => s.terminalId === terminal?.id)
@@ -170,6 +175,25 @@ export function CounterPage() {
   }
   async function print(res: PosSaleResult) { const s = seller(res); const doc = res.invoice ?? res.creditNote; if (!s || !doc) return; try { await bridge.document.savePdf(receiptHtml(res, s), doc.invoiceNo.replaceAll('/', '-')) } catch (e) { setProblem(msg(e, 'Could not print the receipt.')) } }
 
+  function hold() {
+    if (cart.length === 0) return
+    const bill: ParkedBill = { id: crypto.randomUUID(), at: new Date().toISOString(), label: cart.map((l) => `${l.code} x${l.quantity}`).join(', '), cart }
+    const next = [...parked, bill]
+    if (!saveParked(tenant, next)) { setProblem('This computer cannot keep the bill aside. Charge it, or write it down.'); return }
+    setParked(next); setCart([]); setTenders([newTender()]); setWallet(noWallet()); flash.show('Bill held. Recall it from Held bills.'); scanRef.current?.focus()
+  }
+  function recall(b: ParkedBill) {
+    if (cart.length > 0) { setProblem('Charge or hold the current bill before recalling another.'); return }
+    const next = parked.filter((x) => x.id !== b.id)
+    saveParked(tenant, next); setParked(next); setCart(b.cart); setShowParked(false); setProblem(null)
+  }
+  function dropHeld(b: ParkedBill) { const next = parked.filter((x) => x.id !== b.id); saveParked(tenant, next); setParked(next) }
+  function whatsapp(res: PosSaleResult) {
+    const url = whatsappUrl(phone, receiptText(res, company?.tradeName || company?.legalName || 'Receipt'))
+    if (!url) { setProblem('Enter the customer\'s mobile number first.'); return }
+    window.open(url, '_blank', 'noopener')
+  }
+
   async function charge() {
     if (!ready || !shift || busy) return
     setBusy(true); setProblem(null)
@@ -266,6 +290,8 @@ export function CounterPage() {
           <div className="flex items-center gap-2">
             <span className={`rounded px-2 py-0.5 text-xs ${offline ? 'bg-bad/10 text-bad' : 'bg-good/10 text-good'}`}>{offline ? 'Offline' : 'Online'}</span>
             {queue.length ? <Button variant="secondary" busy={syncing} onClick={() => void sync()}>Upload {queue.length} offline sale{queue.length === 1 ? '' : 's'}</Button> : null}
+            <Button variant="secondary" disabled={cart.length === 0} onClick={hold}>Hold bill</Button>
+            <Button variant="secondary" onClick={() => setShowParked(!showParked)}>Held bills ({parked.length})</Button>
             <Button variant="secondary" onClick={() => setPanel('return')}>Return</Button>
             <Button variant="secondary" onClick={() => setClosing(shift)}>Close shift</Button>
           </div>
@@ -280,8 +306,11 @@ export function CounterPage() {
         </div>
         {problem ? <Alert>{problem}</Alert> : null}
         {calc.isError && !offline ? <Alert>{calc.error instanceof ApiError ? calc.error.message : 'Could not work out the total.'}</Alert> : null}
+        {showParked ? (
+          <Alert tone="info"><div className="flex flex-col gap-1" aria-label="Held bills">{parked.length === 0 ? 'No bills are held.' : parked.map((b) => <div key={b.id} className="flex items-center justify-between gap-3 text-sm"><span>{new Date(b.at).toLocaleTimeString()} · {b.label}</span><span><Button variant="ghost" onClick={() => recall(b)}>Recall</Button><Button variant="ghost" aria-label={`Discard held bill ${b.label}`} onClick={() => dropHeld(b)}>Discard</Button></span></div>)}</div></Alert>
+        ) : null}
         {last ? (
-          <Alert tone="info"><span aria-label="Last sale">{(last.invoice ?? last.creditNote)?.invoiceNo} · {formatInr((last.invoice ?? last.creditNote)?.grandTotal ?? '0')}{last.changeDue && Number(last.changeDue) > 0 ? ` · change ${formatInr(last.changeDue)}` : ''}</span> <Button variant="ghost" onClick={() => void print(last)}>{window.onesync ? 'Save receipt as PDF' : 'Print receipt'}</Button></Alert>
+          <Alert tone="info"><span aria-label="Last sale">{(last.invoice ?? last.creditNote)?.invoiceNo} · {formatInr((last.invoice ?? last.creditNote)?.grandTotal ?? '0')}{last.changeDue && Number(last.changeDue) > 0 ? ` · change ${formatInr(last.changeDue)}` : ''}</span> <Button variant="ghost" onClick={() => void print(last)}>{window.onesync ? 'Save receipt as PDF' : 'Print receipt'}</Button> <input aria-label="Customer mobile for WhatsApp" inputMode="tel" placeholder="Mobile number" className="h-8 w-36 rounded border border-line bg-surface px-2 text-sm" value={phone} onChange={(e) => setPhone(e.target.value)} /> <Button variant="ghost" onClick={() => whatsapp(last)}>Send on WhatsApp</Button></Alert>
         ) : null}
         <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-line bg-surface">
           <table className="w-full text-sm" aria-label="Cart">

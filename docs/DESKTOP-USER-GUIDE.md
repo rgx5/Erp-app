@@ -51,6 +51,8 @@ Only the menu items your role allows are shown. If something you expect is missi
 
 **Customer wallet.** In the *Customer wallet* box on the counter, choose the customer to use their **store credit**, redeem **loyalty points**, or type a **coupon code** and press *Apply* (a coupon needs no customer). Points and coupons take money off the lines that allow discounts; items in a no-discount category are left alone. Store credit pays part of the bill, and you take the rest as usual. When a customer returns goods, choose *Store credit* under *Refund by* to keep the money for their next visit instead of paying it out. Named customers earn points on what they pay. Set the earning rate, what a point is worth and your coupons under *Point of sale, Loyalty and coupons*. The wallet needs a connection: a sale that uses it cannot be saved offline.
 
+**Hold a bill.** Press *Hold bill* to set the current bill aside while you serve someone else; *Held bills* brings it back (it is kept on this computer and is not a sale until charged). After a sale, type the customer's mobile number and press *Send on WhatsApp* to open WhatsApp with the receipt ready to send.
+
 **No connection?** If the counter was registered for offline selling (*Shifts and setup, Setup, Use this computer for offline selling*), sales are kept on the computer and uploaded with *Upload offline sales* when the connection is back. A sale the server refuses stays on screen with the reason and is not in the books: ask a manager before handing over the goods again. Returns need the connection.
 
 ## Your account

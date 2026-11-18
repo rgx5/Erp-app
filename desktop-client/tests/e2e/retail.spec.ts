@@ -158,3 +158,40 @@ test('customer wallet: loyalty rates and a coupon, a coupon sale, a return kept 
   await page.getByRole('option', { name: /Asha Traders/ }).click()
   await expect(page.getByLabel('Wallet balance')).toContainText('Store credit₹ 0.00')
 })
+
+test('counter: hold a bill while serving someone else, recall it, and share the receipt on WhatsApp', async ({ page }) => {
+  const s = await seedBusiness(process.env['E2E_BACKEND_URL'] as string, process.env['E2E_PLATFORM_TOKEN'] as string, { prefix: 'hld' })
+  const c = s.company.id
+  const accts = (await s.call('GET', `/v1/accounts?companyId=${c}&limit=200`)).items as { id: string; code: string }[]
+  const a = (code: string) => (accts.find((x) => x.code === code) as { id: string }).id
+  await s.call('PUT', `/v1/pos/settings?companyId=${c}`, { walkInCustomerId: s.walkIn.id, cashVarianceAccountId: a('5900') })
+  for (const [m, code] of [['cash', '1110'], ['upi', '1120'], ['card', '1120'], ['bank_transfer', '1120'], ['cheque', '1120'], ['other', '1120']]) await s.call('PUT', `/v1/pos/payment-accounts?companyId=${c}`, { method: m, accountId: a(code as string) })
+  await s.call('POST', '/v1/pos/terminals', { companyId: c, code: 'T1', name: 'Counter 1', gstRegistrationId: s.registration.id, businessLocationId: s.location.id, warehouseId: s.warehouse.id })
+  const nos = ((await s.call('GET', '/v1/units?limit=200')).items as { id: string; code: string }[]).find((u) => u.code === 'NOS') as { id: string }
+  const list = await s.call('POST', '/v1/price-lists', { code: 'COUNTER', name: 'Counter prices', kind: 'sales', taxInclusive: true })
+  await s.call('POST', `/v1/price-lists/${list.id}/prices`, { itemId: s.widget.id, uomId: nos.id, price: '1180', effectiveFrom: `${s.year}-04-01` })
+  await s.call('POST', `/v1/price-lists/${list.id}/prices`, { itemId: s.cheap.id, uomId: nos.id, price: '105', effectiveFrom: `${s.year}-04-01` })
+  await signIn(page, s)
+  await page.getByRole('link', { name: 'Counter', exact: true }).click()
+  await page.getByLabel('Sell from price list').selectOption({ label: 'Counter prices (prices include tax)' })
+  await page.getByLabel('Cash in the drawer').fill('0')
+  await page.getByRole('button', { name: 'Open shift' }).click()
+
+  await scan(page, 'WIDGET')
+  await page.getByRole('button', { name: 'Hold bill' }).click()
+  await expect(page.getByRole('table', { name: 'Cart' })).toContainText('Scan an item to begin')
+  await expect(page.getByRole('button', { name: 'Held bills (1)' })).toBeVisible()
+  await scan(page, 'TOY')
+  await page.getByRole('button', { name: /^Charge/ }).click()
+  await expect(page.getByLabel('Last sale')).toContainText('INV/')
+  await page.getByLabel('Customer mobile for WhatsApp').fill('98765 43210')
+  await page.evaluate(() => { (window as unknown as { open: (u: string) => null }).open = (u: string) => { (window as unknown as { __opened: string }).__opened = u; return null } })
+  await page.getByRole('button', { name: 'Send on WhatsApp' }).click()
+  expect(await page.evaluate(() => (window as unknown as { __opened: string }).__opened)).toContain('wa.me/919876543210?text=')
+
+  await page.getByRole('button', { name: 'Held bills (1)' }).click()
+  await page.getByRole('button', { name: 'Recall' }).click()
+  await expect(page.getByRole('table', { name: 'Cart' })).toContainText('WIDGET')
+  await expect(page.getByLabel('Sale total')).toHaveText('₹ 1,180.00')
+  await expect(page.getByRole('button', { name: 'Held bills (0)' })).toBeVisible()
+})
