@@ -183,6 +183,7 @@ test('counter: hold a bill while serving someone else, recall it, and share the 
   await expect(page.getByRole('table', { name: 'Cart' })).toContainText('Scan an item to begin')
   await expect(page.getByRole('button', { name: 'Held bills (1)' })).toBeVisible()
   await scan(page, 'TOY')
+  await expect(page.getByLabel('Sale total')).toHaveText('₹ 105.00')
   await page.getByRole('button', { name: /^Charge/ }).click()
   await expect(page.getByLabel('Last sale')).toContainText('INV/')
   await page.getByLabel('Customer mobile for WhatsApp').fill('98765 43210')
