@@ -36,6 +36,9 @@ export const useShift = (id: string | undefined) => useQuery({ queryKey: ['pos',
 export const useOpenShift = () => useWrite(({ body, key }: { body: { terminalId: string; openingCash: string }; key: string }) => send('POST', `${P}/shifts`, body, posShift, key))
 export const useCloseShift = (id: string) => useWrite((b: { countedCash: string }) => send('POST', `${P}/shifts/${id}/close`, b, posShift, crypto.randomUUID()))
 
+export const useApprovers = (on: boolean) => useQuery({ queryKey: ['pos', 'approvers'], enabled: on, queryFn: async (): Promise<{ id: string; displayName: string }[]> => (await get(`${P}/approvers`, {}, z.object({ items: z.array(z.object({ id: z.string(), displayName: z.string() })) }))).items })
+export const verifyApproval = (body: { userId: string; pin: string }) => send('POST', `${P}/approvals/verify`, body, z.object({ approvedBy: z.string(), displayName: z.string() }))
+export const setMyPin = (pin: string) => send('PUT', `${P}/me/pin`, { pin }, z.unknown())
 export const postSale = (body: unknown, key: string): Promise<PosSaleResult> => send('POST', `${P}/sales`, body, posSaleResult, key)
 export const postReturn = (body: unknown, key: string): Promise<PosSaleResult> => send('POST', `${P}/returns`, body, posSaleResult, key)
 export const useSales = (companyId: string | undefined, shiftId?: string, kind?: string) => useQuery({ queryKey: ['pos', 'sales', companyId, shiftId, kind], enabled: Boolean(companyId), queryFn: async () => (await get(`${P}/sales`, { query: query({ companyId: companyId as string, limit: 100, ...(shiftId ? { shiftId } : {}), ...(kind ? { kind } : {}) }) }, page(posSaleHeader))).items })

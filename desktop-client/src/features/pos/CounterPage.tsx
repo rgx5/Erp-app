@@ -24,7 +24,8 @@ import { receiptText, whatsappUrl } from './share'
 import { counterState, loadCatalogue, loadQueue, saveCatalogue, saveCounterState, saveQueue, type CachedItem, type QueuedSale } from './counterStore'
 import { ReturnDrawer } from './ReturnDrawer'
 import { CloseShiftDrawer } from './ShiftDrawers'
-import { fetchCatalogue, postSale, uploadBatch, useOpenShift, usePosSettings, useShifts, useTerminals } from './queries'
+import { useUsers } from '@/features/admin/queries'
+import { fetchCatalogue, postSale, useApprovers, verifyApproval, uploadBatch, useOpenShift, usePosSettings, useShifts, useTerminals } from './queries'
 import { receiptHtml } from './receiptHtml'
 import { localTotal, serialList, trackingReady, type CartLine } from './totals'
 import { useCustomerWallet } from '@/features/retail/queries'
@@ -63,6 +64,12 @@ export function CounterPage() {
   const [opening, setOpening] = useState('0')
   const [problem, setProblem] = useState<string | null>(null)
   const [wallet, setWallet] = useState<WalletChoice>(noWallet())
+  const me = useSession((s) => s.me)
+  const staff = useUsers(can(perms, 'users:read')).rows.filter((u) => u.status === 'active')
+  const [need, setNeed] = useState<{ limit: string } | null>(null)
+  const [approver, setApprover] = useState('')
+  const [pin, setPin] = useState('')
+  const approvers = useApprovers(need !== null)
   const [parked, setParked] = useState<ParkedBill[]>(() => loadParked(tenant))
   const [showParked, setShowParked] = useState(false)
   const [phone, setPhone] = useState('')
@@ -101,7 +108,7 @@ export function CounterPage() {
     const inclusive = listed === null && i.mrp ? true : taxInclusive
     setCart((c) => {
       const same = tracking === 'serial' ? undefined : c.find((l) => l.itemId === i.id && (l.unitPrice === (p ?? '') || l.unitPrice === ''))
-      return same ? c.map((l) => (l === same ? { ...l, quantity: String(Number(l.quantity) + 1) } : l)) : [...c, { key: `l${++n}`, itemId: i.id, code: i.code, name: i.name, quantity: '1', unitPrice: p ?? '', discountPercent: '0', taxInclusive: inclusive, taxCodeId: i.taxCodeId, tracking, batchId: '', serials: '', noDiscount }]
+      return same ? c.map((l) => (l === same ? { ...l, quantity: String(Number(l.quantity) + 1) } : l)) : [...c, { key: `l${++n}`, itemId: i.id, code: i.code, name: i.name, quantity: '1', unitPrice: p ?? '', discountPercent: '0', taxInclusive: inclusive, taxCodeId: i.taxCodeId, tracking, batchId: '', serials: '', noDiscount, ...(me?.user?.id ? { salespersonId: me.user.id } : {}) }]
     })
     setFound([])
   }
@@ -194,15 +201,15 @@ export function CounterPage() {
     window.open(url, '_blank', 'noopener')
   }
 
-  async function charge() {
+  async function charge(approval?: { userId: string; pin: string }) {
     if (!ready || !shift || busy) return
     setBusy(true); setProblem(null)
     const payments = compare(due, '0') === 0 ? [] : tenders.map((t) => ({ method: t.method, amount: amountOf(t), ...(t.method === 'cash' && isValid(t.tendered) && t.tendered !== '' ? { tendered: t.tendered } : {}) }))
-    const lines = effLines.map((l) => ({ itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice, discountPercent: l.discountPercent, taxInclusive: l.taxInclusive, warehouseId: terminal?.warehouseId, ...(l.tracking === 'batch' ? { batchId: l.batchId } : {}), ...(l.tracking === 'serial' ? { serialNos: serialList(l.serials) } : {}) }))
+    const lines = effLines.map((l) => ({ itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice, discountPercent: l.discountPercent, taxInclusive: l.taxInclusive, warehouseId: terminal?.warehouseId, ...(l.tracking === 'batch' ? { batchId: l.batchId } : {}), ...(l.tracking === 'serial' ? { serialNos: serialList(l.serials) } : {}), ...(l.salespersonId ? { salespersonId: l.salespersonId } : {}) }))
     const clientId = crypto.randomUUID()
     try {
-      const res = await postSale({ shiftId: shift.id, lines, payments, ...(wallet.customerId ? { customerId: wallet.customerId } : {}), ...(wallet.coupon ? { couponCode: wallet.coupon.code } : {}), ...(ptsDisc > 0n ? { loyaltyPoints: wallet.points } : {}), ...(Number(credit) > 0 ? { storeCredit: credit } : {}) }, clientId)
-      setLast(res); setCart([]); setTenders([newTender()]); setWallet(noWallet()); scanRef.current?.focus()
+      const res = await postSale({ shiftId: shift.id, lines, payments, ...(wallet.customerId ? { customerId: wallet.customerId } : {}), ...(wallet.coupon ? { couponCode: wallet.coupon.code } : {}), ...(ptsDisc > 0n ? { loyaltyPoints: wallet.points } : {}), ...(Number(credit) > 0 ? { storeCredit: credit } : {}), ...(approval ? { approval } : {}) }, clientId)
+      setLast(res); setCart([]); setTenders([newTender()]); setWallet(noWallet()); setNeed(null); setPin(''); scanRef.current?.focus()
       void qc.invalidateQueries({ queryKey: ['pos'] }); void qc.invalidateQueries({ queryKey: ['retail'] })
     } catch (e) {
       const deviceId = counterState(tenant).deviceId
@@ -212,11 +219,18 @@ export function CounterPage() {
         const next = [...queue, item]
         if (saveQueue(tenant, next)) { setQueue(next); setLast(null); setCart([]); setTenders([newTender()]); flash.show('No connection: the sale is saved on this computer and will upload when you sync.') } else setProblem('No connection, and this computer cannot save the sale. Do not hand over the goods until it is recorded.')
       } else if (e instanceof NetworkError) setProblem('No connection. To sell offline, ask a manager to register this counter as a device in POS setup, then sync once while online.')
+      else if (e instanceof ApiError && e.code === 'approval_required') { setNeed({ limit: String(e.extra['limit'] ?? '') }); setProblem(null) }
+      else if (e instanceof ApiError && e.code === 'approval_refused') { setPin(''); setProblem('The PIN is wrong, or that person cannot approve.') }
       else if (e instanceof ApiError && e.code === 'payment_mismatch') setProblem(`The payments must add up to the sale total of ${formatInr(String(e.extra['total'] ?? total))}.`)
       else setProblem(msg(e, 'The sale was not recorded.'))
     } finally { setBusy(false) }
   }
   chargeRef.current = () => { void charge() }
+  async function approveAndCharge() {
+    setProblem(null)
+    try { await verifyApproval({ userId: approver, pin }); await charge({ userId: approver, pin }) }
+    catch (e) { setPin(''); setProblem(e instanceof ApiError ? e.message : 'Could not check the PIN.') }
+  }
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'F9') { e.preventDefault(); chargeRef.current() } else if (e.key === 'F2') { e.preventDefault(); scanRef.current?.focus() } }
     document.addEventListener('keydown', onKey)
@@ -304,6 +318,12 @@ export function CounterPage() {
             </ul>
           ) : null}
         </div>
+        {need ? (
+          <Alert tone="info"><div className="flex flex-col gap-2" aria-label="Manager approval">
+            <p>A discount above {need.limit}% needs a manager's approval.</p>
+            <div className="flex items-end gap-2"><div className="w-48"><SelectField label="Approved by" value={approver} onChange={(e) => setApprover(e.target.value)} options={[{ value: '', label: approvers.isPending ? 'Loading…' : 'Choose…' }, ...(approvers.data ?? []).map((a) => ({ value: a.id, label: a.displayName }))]} /></div>
+              <div className="w-32"><TextField label="Manager PIN" type="password" inputMode="numeric" autoComplete="off" value={pin} onChange={(e) => setPin(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && approver && /^\d{4,8}$/.test(pin)) { e.preventDefault(); void approveAndCharge() } }} /></div>
+              <Button busy={busy} disabled={!approver || !/^\d{4,8}$/.test(pin)} onClick={() => void approveAndCharge()}>Approve and charge</Button><Button variant="ghost" onClick={() => setNeed(null)}>Cancel</Button></div></div></Alert>) : null}
         {problem ? <Alert>{problem}</Alert> : null}
         {calc.isError && !offline ? <Alert>{calc.error instanceof ApiError ? calc.error.message : 'Could not work out the total.'}</Alert> : null}
         {showParked ? (
@@ -322,7 +342,7 @@ export function CounterPage() {
                 return (
                   <Fragment key={l.key}>
                   <tr className="border-t border-line/60">
-                    <td className="p-2">{l.code} · {l.name}</td>
+                    <td className="p-2">{l.code} · {l.name}{staff.length > 0 ? <select aria-label={`Sold by ${l.code}`} className="ml-2 h-6 rounded border border-line bg-surface px-1 text-xs text-muted" value={l.salespersonId ?? ''} onChange={(e) => set(e.target.value ? { salespersonId: e.target.value } : { salespersonId: undefined as never })}><option value="">No salesperson</option>{staff.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}</select> : null}</td>
                     <td className="p-1 text-right"><input aria-label={`Quantity of ${l.code}`} inputMode="decimal" className={`${cell} w-20`} value={l.quantity} onChange={(e) => set({ quantity: e.target.value })} /></td>
                     <td className="p-1 text-right"><input aria-label={`Price of ${l.code}`} inputMode="decimal" className={`${cell} w-28 ${l.unitPrice === '' ? 'border-bad' : ''}`} value={l.unitPrice} placeholder="price" onChange={(e) => set({ unitPrice: e.target.value })} /></td>
                     <td className="p-1 text-right"><input aria-label={`Discount of ${l.code}`} inputMode="decimal" disabled={l.noDiscount === true} title={l.noDiscount ? 'No discount is allowed on this item' : undefined} className={`${cell} w-20 disabled:opacity-50`} value={l.discountPercent} onChange={(e) => set({ discountPercent: e.target.value })} /></td>

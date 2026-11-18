@@ -6,6 +6,8 @@ import { useFlash } from '@/ui/flash'
 import { useLayout, type Layout } from '@/ui/layout'
 import { SimpleForm } from '@/ui/SimpleForm'
 import { Alert, Button, Card, TextField } from '@/ui/primitives'
+import { setMyPin } from '@/features/pos/queries'
+import { can } from '@/auth/permissions'
 import { changePassword, mfaActivate, mfaDisable, mfaEnroll } from './queries'
 
 const msg = (e: unknown, f: string): string => (e instanceof ApiError ? e.message : f)
@@ -14,6 +16,7 @@ export function AccountPage() {
   const me = useSession((s) => s.me)
   const refresh = useSession((s) => s.refreshMe)
   const flash = useFlash()
+  const [pin, setPin] = useState('')
   const layout = useLayout((l) => l.layout)
   const setLayout = useLayout((l) => l.set)
   const [enrol, setEnrol] = useState<{ secret: string; otpauthUri: string } | null>(null)
@@ -36,6 +39,11 @@ export function AccountPage() {
             </label>))}
         </fieldset>
       </Card>
+      {can(me?.permissions ?? [], 'pos:sell') ? (
+        <Card title="Counter PIN">
+          <div className="flex items-end gap-3"><div className="flex-1"><TextField label="PIN (4 to 8 digits)" type="password" inputMode="numeric" autoComplete="off" value={pin} onChange={(e) => setPin(e.target.value)} hint="Managers use it to approve a large discount at the counter." /></div>
+            <Button variant="secondary" disabled={!/^\d{4,8}$/.test(pin)} onClick={async () => { try { await setMyPin(pin); setPin(''); flash.show('Counter PIN saved.') } catch (e) { flash.show(msg(e, 'Could not save the PIN.'), 'error') } }}>Save PIN</Button></div>
+        </Card>) : null}
       <Card title="Change password">
         <SimpleForm schema={schema} defaults={{ currentPassword: '', newPassword: '', again: '' }} fields={['currentPassword', 'newPassword', 'again']} label="Change password"
           submit={async (v) => { try { await changePassword(v.currentPassword, v.newPassword); flash.show('Password changed.') } catch (e) { throw new Error(msg(e, 'Could not change the password.')) } }}>

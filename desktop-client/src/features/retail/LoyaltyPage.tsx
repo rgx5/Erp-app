@@ -22,16 +22,19 @@ function Rates({ companyId, canManage }: { companyId: string; canManage: boolean
   const flash = useFlash()
   const [per, setPer] = useState<string | null>(null)
   const [worth, setWorth] = useState<string | null>(null)
+  const [limit, setLimit] = useState<string | null>(null)
   const [problem, setProblem] = useState<string | null>(null)
   if (s.isPending) return <Spinner />
   const a = per ?? String(Number(s.data?.loyaltyPointsPerHundred ?? 0)); const b = worth ?? String(Number(s.data?.loyaltyRupeesPerPoint ?? 0))
+  const l = limit ?? (s.data?.maxDiscountWithoutApproval != null ? String(Number(s.data.maxDiscountWithoutApproval)) : '')
   return (
-    <Card title="Loyalty points">
+    <Card title="Loyalty points and discount limit">
       <div className="flex max-w-xl flex-col gap-3">
         <p className="text-sm text-muted">Named customers earn points on what they pay. Walk-in sales earn nothing. Leave both at 0 to switch loyalty off. How much a point costs you is a question for your accountant.</p>
         <div className="grid grid-cols-2 gap-4"><TextField label="Points earned per ₹100 spent" inputMode="decimal" value={a} disabled={!canManage} onChange={(e) => setPer(e.target.value)} /><TextField label="Value of one point (₹)" inputMode="decimal" value={b} disabled={!canManage} onChange={(e) => setWorth(e.target.value)} /></div>
+        <TextField label="Largest discount a cashier may give without a manager's PIN (%)" inputMode="decimal" value={l} disabled={!canManage} hint="Leave empty for no limit. Managers set their PIN under My account." onChange={(e) => setLimit(e.target.value)} error={l !== '' && !/^(100(\.0{1,4})?|\d{1,2}(\.\d{1,4})?)$/.test(l) ? 'A percentage from 0 to 100' : undefined} />
         {problem ? <Alert>{problem}</Alert> : null}
-        {canManage ? <Button className="self-start" disabled={!rate.safeParse(a).success || !rate.safeParse(b).success} onClick={async () => { setProblem(null); try { await save.mutateAsync({ loyaltyPointsPerHundred: a, loyaltyRupeesPerPoint: b }); flash.show('Loyalty rates saved.'); setPer(null); setWorth(null) } catch (e) { setProblem(msg(e, 'Could not save.')) } }}>Save rates</Button> : null}
+        {canManage ? <Button className="self-start" disabled={!rate.safeParse(a).success || !rate.safeParse(b).success || (l !== '' && !/^(100(\.0{1,4})?|\d{1,2}(\.\d{1,4})?)$/.test(l))} onClick={async () => { setProblem(null); try { await save.mutateAsync({ loyaltyPointsPerHundred: a, loyaltyRupeesPerPoint: b, maxDiscountWithoutApproval: l === '' ? null : l }); flash.show('Loyalty rates saved.'); setPer(null); setWorth(null); setLimit(null) } catch (e) { setProblem(msg(e, 'Could not save.')) } }}>Save rates</Button> : null}
       </div>
     </Card>
   )

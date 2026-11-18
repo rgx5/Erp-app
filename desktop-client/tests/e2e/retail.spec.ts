@@ -215,3 +215,37 @@ test('layout: the sidebar is the default, and the command centre can be chosen i
   await page.getByLabel(/^Sidebar/).check()
   await expect(page.getByRole('navigation', { name: 'Admin pages' })).toHaveCount(0)
 })
+
+test('counter staff: a discount above the limit needs a manager PIN, and a line is credited to a salesperson', async ({ page }) => {
+  const s = await seedBusiness(process.env['E2E_BACKEND_URL'] as string, process.env['E2E_PLATFORM_TOKEN'] as string, { prefix: 'stf' })
+  const c = s.company.id
+  const accts = (await s.call('GET', `/v1/accounts?companyId=${c}&limit=200`)).items as { id: string; code: string }[]
+  const a = (code: string) => (accts.find((x) => x.code === code) as { id: string }).id
+  await s.call('PUT', `/v1/pos/settings?companyId=${c}`, { walkInCustomerId: s.walkIn.id, cashVarianceAccountId: a('5900') })
+  for (const [m, code] of [['cash', '1110'], ['upi', '1120'], ['card', '1120'], ['bank_transfer', '1120'], ['cheque', '1120'], ['other', '1120']]) await s.call('PUT', `/v1/pos/payment-accounts?companyId=${c}`, { method: m, accountId: a(code as string) })
+  await s.call('POST', '/v1/pos/terminals', { companyId: c, code: 'T1', name: 'Counter 1', gstRegistrationId: s.registration.id, businessLocationId: s.location.id, warehouseId: s.warehouse.id })
+  const nos = ((await s.call('GET', '/v1/units?limit=200')).items as { id: string; code: string }[]).find((u) => u.code === 'NOS') as { id: string }
+  const list = await s.call('POST', '/v1/price-lists', { code: 'COUNTER', name: 'Counter prices', kind: 'sales', taxInclusive: true })
+  await s.call('POST', `/v1/price-lists/${list.id}/prices`, { itemId: s.widget.id, uomId: nos.id, price: '1000', effectiveFrom: `${s.year}-04-01` })
+  await s.call('PUT', '/v1/pos/me/pin', { pin: '4321' })
+  await s.call('PUT', `/v1/retail/settings?companyId=${c}`, { maxDiscountWithoutApproval: '10' })
+  await signIn(page, s)
+  await goTo(page, 'Counter')
+  await page.getByLabel('Sell from price list').selectOption({ label: 'Counter prices (prices include tax)' })
+  await page.getByLabel('Cash in the drawer').fill('0')
+  await page.getByRole('button', { name: 'Open shift' }).click()
+  await scan(page, 'WIDGET')
+  await expect(page.getByLabel('Sold by WIDGET')).toHaveValue(/.+/) // the cashier by default
+  await page.getByLabel('Discount of WIDGET').fill('20')
+  await expect(page.getByLabel('Sale total')).toHaveText('₹ 800.00')
+  await page.getByRole('button', { name: /^Charge/ }).click()
+  const box = page.getByLabel('Manager approval')
+  await expect(box).toContainText('above 10%')
+  await box.getByLabel('Approved by').selectOption({ label: 'Seed Owner' })
+  await box.getByLabel('Manager PIN').fill('0000')
+  await box.getByRole('button', { name: 'Approve and charge' }).click()
+  await expect(page.getByRole('alert')).toContainText('PIN')
+  await box.getByLabel('Manager PIN').fill('4321')
+  await box.getByRole('button', { name: 'Approve and charge' }).click()
+  await expect(page.getByLabel('Last sale')).toContainText('INV/')
+})

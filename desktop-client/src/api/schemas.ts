@@ -526,7 +526,7 @@ export type ExpenseCategory = z.infer<typeof expenseCategory>
 export const expenseVoucher = z.object({ id: z.string(), voucherNo: z.string(), voucherDate: z.string(), categoryId: z.string(), amount: z.string(), paidFromAccountId: z.string(), payee: z.string().nullable(), note: z.string().nullable(), status: z.string(), cancelReason: z.string().nullable() })
 export type ExpenseVoucher = z.infer<typeof expenseVoucher>
 
-export const retailSettings = z.object({ companyId: z.string(), loyaltyPointsPerHundred: z.string(), loyaltyRupeesPerPoint: z.string(), version: z.number() })
+export const retailSettings = z.object({ companyId: z.string(), loyaltyPointsPerHundred: z.string(), loyaltyRupeesPerPoint: z.string(), maxDiscountWithoutApproval: z.string().nullable().optional(), version: z.number() })
 export type RetailSettings = z.infer<typeof retailSettings>
 export const coupon = z.object({ id: z.string(), code: z.string(), description: z.string().nullable(), kind: z.string(), value: z.string(), minBill: z.string(), maxDiscount: z.string().nullable(), validFrom: z.string().nullable(), validTo: z.string().nullable(), maxUses: z.number().nullable(), usedCount: z.number(), status: z.string(), version: z.number() })
 export type Coupon = z.infer<typeof coupon>
