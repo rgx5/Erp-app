@@ -3,23 +3,27 @@
 /* One light theme. The app does not follow the operating system's dark setting: it is meant to be read in a bright office. */
 @theme {
   --font-sans: "Inter Variable", Inter, "Segoe UI", system-ui, -apple-system, "Helvetica Neue", sans-serif;
-  --color-canvas: #f4f5f9;
+  /* The palette of the earlier desktop app: warm paper, deep ink, a vivid blue, one orange accent, and a navy for anchoring chrome. */
+  --color-canvas: #f4f3ef;
   --color-surface: #ffffff;
-  --color-line: #e4e7ef;
-  --color-line-strong: #cdd2e0;
-  --color-good-soft: #e6f6ee;
-  --color-bad-soft: #fdeff0;
-  --color-warn-soft: #fff4e0;
-  --color-ink: #151c2c;
-  --color-muted: #5a6577;
-  --color-brand: #3358d4;
+  --color-line: #e9e6de;
+  --color-line-strong: #d5d1c5;
+  --color-ink: #0e1220;
+  --color-muted: #5b6377;
+  --color-brand: #2b59ff;
   --color-brand-ink: #ffffff;
-  --color-brand-soft: #eaf0ff;
-  --color-good: #0f7b55;
-  --color-bad: #c23b2e;
-  --color-warn: #b7791f;
-  --shadow-card: 0 1px 2px rgb(16 24 40 / 0.04), 0 1px 3px rgb(16 24 40 / 0.06);
-  --shadow-pop: 0 12px 32px rgb(16 24 40 / 0.16), 0 2px 6px rgb(16 24 40 / 0.08);
+  --color-brand-soft: #e9eeff;
+  --color-hero: #0c1747;
+  --color-accent: #ff8a1f;
+  --color-accent-soft: #fff0df;
+  --color-good: #0a8a5e;
+  --color-good-soft: #e1f5ec;
+  --color-bad: #d6343b;
+  --color-bad-soft: #fce8e9;
+  --color-warn: #b86e00;
+  --color-warn-soft: #fff2d6;
+  --shadow-card: 0 1px 2px rgb(14 18 32 / 0.04), 0 1px 3px rgb(14 18 32 / 0.06);
+  --shadow-pop: 0 12px 32px rgb(14 18 32 / 0.16), 0 2px 6px rgb(14 18 32 / 0.08);
 }
 
 :root { color-scheme: light; }
@@ -33,12 +37,13 @@ h1 { letter-spacing: -0.01em; }
 ::selection { background: color-mix(in srgb, var(--color-brand) 22%, white); }
 
 /* quiet, desktop-style scrollbars */
-* { scrollbar-width: thin; scrollbar-color: #c9d1de transparent; }
+* { scrollbar-width: thin; scrollbar-color: #d5d1c5 transparent; }
 *::-webkit-scrollbar { width: 10px; height: 10px; }
-*::-webkit-scrollbar-thumb { background: #c9d1de; border-radius: 8px; border: 2px solid transparent; background-clip: content-box; }
-*::-webkit-scrollbar-thumb:hover { background: #aab4c5; background-clip: content-box; border: 2px solid transparent; }
+*::-webkit-scrollbar-thumb { background: #d5d1c5; border-radius: 8px; border: 2px solid transparent; background-clip: content-box; }
+*::-webkit-scrollbar-thumb:hover { background: #b8b3a4; background-clip: content-box; border: 2px solid transparent; }
 
 /* text inputs read as one family everywhere, including the ad-hoc ones inside tables */
 input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select, textarea { transition: border-color .12s, box-shadow .12s; }
 input[type="checkbox"], input[type="radio"] { accent-color: var(--color-brand); }
-input:disabled, select:disabled, textarea:disabled { background: #f6f8fb; }
+input:disabled, select:disabled, textarea:disabled { background: #f4f3ef; }
+.hero-gradient { background: linear-gradient(135deg, var(--color-hero), var(--color-brand)); }

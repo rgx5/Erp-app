@@ -19,7 +19,7 @@ function Sidebar({ items }: { items: NavItem[] }) {
   const toggle = (name: string): void => { const next = closed.includes(name) ? closed.filter((x) => x !== name) : [...closed, name]; setClosed(next); try { localStorage.setItem(OPEN_KEY, JSON.stringify(next)) } catch { /* not remembered */ } }
   const here = (n: NavItem): boolean => (n.to === '/' ? path === '/' : path === n.to || path.startsWith(`${n.to}/`))
   const link = (n: NavItem, nested: boolean) => (
-    <Link key={n.to} to={n.to} activeOptions={{ exact: n.to === '/' }} className={cn('group flex h-8 shrink-0 items-center gap-2.5 rounded-md text-[13px] text-muted transition-colors hover:bg-canvas hover:text-ink', nested ? 'pl-3 pr-2' : 'px-2.5')} activeProps={{ className: 'bg-brand-soft font-medium text-brand hover:bg-brand-soft hover:text-brand' }}>
+    <Link key={n.to} to={n.to} activeOptions={{ exact: n.to === '/' }} className={cn('group flex h-8 shrink-0 items-center gap-2.5 rounded-md text-[13px] text-muted transition-colors hover:bg-canvas hover:text-ink', nested ? 'pl-3 pr-2' : 'px-2.5')} activeProps={{ className: 'bg-brand-soft font-medium text-brand shadow-[inset_3px_0_0_var(--color-accent)] hover:bg-brand-soft hover:text-brand' }}>
       <n.icon className="size-4 shrink-0 opacity-80" aria-hidden /> <span className="truncate">{n.label}</span>
     </Link>
   )
@@ -59,7 +59,7 @@ export function ClassicShell() {
     <div className="grid h-full grid-cols-[232px_1fr]">
       <aside className="flex min-h-0 flex-col border-r border-line bg-surface">
         <div className="flex items-center gap-2.5 px-4 py-4">
-          <span className="grid size-8 place-items-center rounded-lg bg-brand text-sm font-bold text-brand-ink shadow-card" aria-hidden>O</span>
+          <span className="grid size-8 place-items-center rounded-lg hero-gradient text-sm font-bold text-brand-ink shadow-card" aria-hidden>O</span>
           <span className="text-[15px] font-semibold tracking-tight">OneSyncERP</span>
         </div>
         <Sidebar items={NAV.filter((n) => can(granted, ...(n.needs ?? [])))} />

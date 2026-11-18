@@ -39,13 +39,13 @@ export function CommandShell() {
   return (
     <div className="grid h-full grid-cols-[68px_minmax(0,1fr)] overflow-hidden grid-rows-[48px_40px_1fr_26px]">
       <aside className="row-span-3 flex min-h-0 flex-col items-center gap-1 border-r border-line bg-surface py-3" aria-label="Areas">
-        <span className="mb-2 grid size-9 place-items-center rounded-xl bg-ink text-sm font-bold text-brand-ink" aria-hidden>O</span>
+        <span className="mb-2 grid size-9 place-items-center rounded-xl hero-gradient text-sm font-bold text-brand-ink" aria-hidden>O</span>
         <nav className="flex flex-1 flex-col items-center gap-1" aria-label="Main">
           {modules.map((m) => {
             const target = first(m)
             const on = m === area
             return target ? (
-              <Link key={m.id} to={target.to as never} aria-label={m.label} title={m.label} className={cn('grid h-12 w-12 place-items-center rounded-xl text-[10px] font-medium leading-tight transition-colors', on ? 'bg-ink text-brand-ink' : 'text-muted hover:bg-canvas hover:text-ink')}>
+              <Link key={m.id} to={target.to as never} aria-label={m.label} title={m.label} className={cn('grid h-12 w-12 place-items-center rounded-xl text-[10px] font-medium leading-tight transition-colors', on ? 'bg-hero text-brand-ink shadow-[inset_3px_0_0_var(--color-accent)]' : 'text-muted hover:bg-canvas hover:text-ink')}>
                 <span className="flex flex-col items-center gap-0.5"><m.icon className="size-[18px]" aria-hidden />{m.label}</span>
               </Link>) : null
           })}
@@ -79,7 +79,7 @@ export function CommandShell() {
         <aside ref={setPane} className="min-h-0 shrink-0 border-l border-line bg-surface empty:hidden" aria-label="Record" />
       </div>
 
-      <footer className="col-span-2 col-start-1 flex items-center gap-5 bg-ink px-4 text-[11.5px] text-[#cbd2e6]">
+      <footer className="col-span-2 col-start-1 flex items-center gap-5 bg-hero px-4 text-[11.5px] text-[#c9d3f5]">
         <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-[#34d399]" aria-hidden />Connected</span>
         <span className="flex-1" />
         <span className="truncate" title={server?.url}>{server?.url}</span>

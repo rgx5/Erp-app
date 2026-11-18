@@ -33,7 +33,7 @@ export function LoginPage() {
 
   return (
     <main className="flex h-full flex-col items-center justify-center p-6">
-      <div className="mb-5 flex flex-col items-center gap-2"><span className="grid size-12 place-items-center rounded-2xl bg-brand text-xl font-bold text-brand-ink shadow-pop" aria-hidden>O</span><p className="text-lg font-semibold tracking-tight">OneSyncERP</p></div>
+      <div className="mb-5 flex flex-col items-center gap-2"><span className="grid size-12 place-items-center rounded-2xl hero-gradient text-xl font-bold text-brand-ink shadow-pop" aria-hidden>O</span><p className="text-lg font-semibold tracking-tight">OneSyncERP</p></div>
       <Card className="w-full max-w-md" title="Sign in">
         <form onSubmit={submit} className="flex flex-col gap-4">
           <p className="text-xs text-muted">Server: {server?.url} · <button type="button" className="underline" onClick={() => void navigate({ to: '/connect' })}>change</button></p>
