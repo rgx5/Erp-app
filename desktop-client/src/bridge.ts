@@ -26,6 +26,11 @@ const web: Omit<DesktopBridge, 'desktop'> = {
       return null
     },
   },
+  printer: {
+    /** A browser cannot list printers or print without its dialog. */
+    async list() { return [] },
+    async printReceipt(html) { await web.document.savePdf(html, 'receipt') },
+  },
   secure: {
     async get(key) { return sessionStorage.getItem(`onesync.secure.${key}`) },
     async set(key, value) { sessionStorage.setItem(`onesync.secure.${key}`, value); return false }, // false: not remembered after the window closes

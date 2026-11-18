@@ -18,6 +18,8 @@ test('the desktop shell serves the app from a fixed origin, bridges settings, an
   expect(await page.evaluate(() => typeof (window as unknown as { require?: unknown }).require)).toBe('undefined')
   const info = await page.evaluate(() => window.onesync?.info())
   expect(info).toMatchObject({ platform: process.platform })
+  expect(Array.isArray(await page.evaluate(() => window.onesync?.printer.list()))).toBe(true) // printers are listed (possibly none on a build machine)
+  await expect(page.evaluate(() => window.onesync?.printer.printReceipt('<p>x</p>', 'No such printer'))).rejects.toThrow() // an unknown printer is refused
   await page.evaluate(() => window.onesync?.settings.set({ serverUrl: 'https://erp.example.com', tenant: 'acme' }))
   await app.close()
 

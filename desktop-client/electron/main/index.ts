@@ -41,7 +41,29 @@ async function renderPdf(html: string): Promise<Buffer> {
   }
 }
 
+/** Prints an 80 mm receipt (our own template, scripts off) straight to a named printer, with no dialog. */
+async function printSilently(html: string, deviceName: string): Promise<void> {
+  const printer = new BrowserWindow({ show: false, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, javascript: false } })
+  try {
+    printer.webContents.on('will-navigate', (e) => e.preventDefault())
+    printer.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+    await printer.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
+    await new Promise<void>((resolve, reject) => {
+      printer.webContents.print({ silent: true, deviceName, printBackground: true, margins: { marginType: 'none' }, pageSize: { width: 80_000, height: 297_000 } }, (ok, why) => (ok ? resolve() : reject(new Error(why || 'The printer did not accept the receipt'))))
+    })
+  } finally {
+    printer.destroy()
+  }
+}
+
 function registerIpc(): void {
+  ipcMain.handle('printer:list', guard(async () => (await (win ?? BrowserWindow.getAllWindows()[0] as BrowserWindow).webContents.getPrintersAsync()).map((p) => ({ name: p.name, isDefault: (p as { isDefault?: boolean }).isDefault === true }))))
+  ipcMain.handle('printer:printReceipt', guard(async (html: string, printerName: string) => {
+    if (typeof html !== 'string' || html.length > 1_000_000 || typeof printerName !== 'string' || !printerName) throw new Error('Nothing to print')
+    const known = await (win ?? BrowserWindow.getAllWindows()[0] as BrowserWindow).webContents.getPrintersAsync()
+    if (!known.some((p) => p.name === printerName)) throw new Error('That printer is not available on this computer')
+    await printSilently(html, printerName)
+  }))
   ipcMain.handle('app:info', guard(() => ({ version: app.getVersion(), platform: process.platform, secureStorage: safeStorage.isEncryptionAvailable() })))
   ipcMain.handle('settings:get', guard(() => settings().read()))
   ipcMain.handle('settings:set', guard((patch: Record<string, unknown>) => {

@@ -180,7 +180,14 @@ export function CounterPage() {
     const loc = ws.locations.find((l) => l.gstRegistrationId === doc.gstRegistrationId && l.isPrincipalPlace) ?? ws.locations.find((l) => l.gstRegistrationId === doc.gstRegistrationId)
     return { name: reg?.legalName ?? company.legalName, tradeName: reg?.tradeName ?? company.tradeName, gstin: reg?.gstin ?? '', stateCode: reg?.stateCode ?? '', address: loc ? [loc.address.line1, loc.address.line2 ?? '', loc.address.city, stateName(loc.address.stateCode), loc.address.pincode].filter(Boolean) : [] }
   }
-  async function print(res: PosSaleResult) { const s = seller(res); const doc = res.invoice ?? res.creditNote; if (!s || !doc) return; try { await bridge.document.savePdf(receiptHtml(res, s), doc.invoiceNo.replaceAll('/', '-')) } catch (e) { setProblem(msg(e, 'Could not print the receipt.')) } }
+  async function print(res: PosSaleResult) {
+    const s = seller(res); const doc = res.invoice ?? res.creditNote; if (!s || !doc) return
+    try {
+      const printerName = (await bridge.settings.get()).receiptPrinter
+      if (printerName) await bridge.printer.printReceipt(receiptHtml(res, s), printerName)
+      else await bridge.document.savePdf(receiptHtml(res, s), doc.invoiceNo.replaceAll('/', '-'))
+    } catch (e) { setProblem(msg(e, 'Could not print the receipt.')) }
+  }
 
   function hold() {
     if (cart.length === 0) return
@@ -209,6 +216,7 @@ export function CounterPage() {
     const clientId = crypto.randomUUID()
     try {
       const res = await postSale({ shiftId: shift.id, lines, payments, ...(wallet.customerId ? { customerId: wallet.customerId } : {}), ...(wallet.coupon ? { couponCode: wallet.coupon.code } : {}), ...(ptsDisc > 0n ? { loyaltyPoints: wallet.points } : {}), ...(Number(credit) > 0 ? { storeCredit: credit } : {}), ...(approval ? { approval } : {}) }, clientId)
+      void bridge.settings.get().then((st) => { if (st.autoPrintReceipts && st.receiptPrinter) void print(res) })
       setLast(res); setCart([]); setTenders([newTender()]); setWallet(noWallet()); setNeed(null); setPin(''); scanRef.current?.focus()
       void qc.invalidateQueries({ queryKey: ['pos'] }); void qc.invalidateQueries({ queryKey: ['retail'] })
     } catch (e) {

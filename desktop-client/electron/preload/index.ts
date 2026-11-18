@@ -9,6 +9,10 @@ const bridge: DesktopBridge = {
     set: (patch) => ipcRenderer.invoke('settings:set', patch),
   },
   document: { savePdf: (html, filename) => ipcRenderer.invoke('document:savePdf', html, filename) },
+  printer: {
+    list: () => ipcRenderer.invoke('printer:list'),
+    printReceipt: (html, printerName) => ipcRenderer.invoke('printer:printReceipt', html, printerName),
+  },
   secure: {
     get: (key) => ipcRenderer.invoke('secure:get', key),
     set: (key, value) => ipcRenderer.invoke('secure:set', key, value),

@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { z } from 'zod'
 import type { ColumnDef } from '@tanstack/react-table'
 import type { LedgerAccount, Party, PosShift } from '@/api/schemas'
 import { POS_METHODS } from '@/api/schemas'
 import { can } from '@/auth/permissions'
 import { useSession } from '@/auth/session'
+import { bridge, isDesktop } from '@/bridge'
 import { formatDate, formatInr } from '@/domain/format'
 import { AccountPicker } from '@/features/accounting/AccountPicker'
 import { useAccounts } from '@/features/accounting/queries'
@@ -15,7 +16,7 @@ import { DataTable } from '@/ui/DataTable'
 import { Drawer } from '@/ui/Drawer'
 import { useFlash } from '@/ui/flash'
 import { SimpleForm } from '@/ui/SimpleForm'
-import { Alert, Button, Card, SelectField, Spinner, TextField } from '@/ui/primitives'
+import { Alert, Button, CheckField, Card, SelectField, Spinner, TextField } from '@/ui/primitives'
 import { counterState, saveCounterState } from './counterStore'
 import { useCreateTerminal, useDevices, useMapPayment, usePosSettings, useRegisterDevice, useRevokeDevice, useSavePosSettings, useShifts, useTerminals } from './queries'
 import { ShiftSummary } from './ShiftDrawers'
@@ -53,6 +54,26 @@ function Settings({ companyId }: { companyId: string }) {
             {canManage ? <Button variant="secondary" disabled={!picked[m]} aria-label={`Save ${METHOD[m]}`} onClick={() => void run(() => map.mutateAsync({ method: m, accountId: (picked[m] as LedgerAccount).id }), `${METHOD[m]} account saved.`)}>Save</Button> : null}</div>))}
         {problem ? <Alert>{problem}</Alert> : null}
         <p className="text-xs text-muted">Which account takes cash, UPI or card money is for your accountant to confirm.</p>
+      </div>
+    </Card>
+  )
+}
+
+/** Desktop only: which printer receipts go to without a dialog. A cash drawer wired to that printer opens when its driver is set to open it on each print. */
+function ReceiptPrinter() {
+  const [printers, setPrinters] = useState<{ name: string; isDefault: boolean }[]>([])
+  const [chosen, setChosen] = useState('')
+  const [auto, setAuto] = useState(false)
+  const flash = useFlash()
+  useEffect(() => { void bridge.printer.list().then(setPrinters); void bridge.settings.get().then((s) => { setChosen(s.receiptPrinter ?? ''); setAuto(s.autoPrintReceipts === true) }) }, [])
+  if (!isDesktop()) return <Card title="Receipt printer"><p className="text-sm text-muted">Printing without a dialog is available in the desktop app. In a browser, receipts open the print dialog.</p></Card>
+  return (
+    <Card title="Receipt printer (this computer)">
+      <div className="flex max-w-xl flex-col gap-3">
+        <SelectField label="Print receipts to" value={chosen} onChange={(e) => setChosen(e.target.value)} options={[{ value: '', label: 'Ask each time (save as PDF)' }, ...printers.map((p) => ({ value: p.name, label: `${p.name}${p.isDefault ? ' (default)' : ''}` }))]} />
+        <CheckField label="Print the receipt by itself after each sale" checked={auto} disabled={!chosen} onChange={(e) => setAuto(e.target.checked)} />
+        <p className="text-xs text-muted">Receipts are laid out for an 80 mm roll. To open a cash drawer wired to the printer, switch on its &ldquo;open drawer&rdquo; option in the printer's driver settings.</p>
+        <Button className="self-start" variant="secondary" onClick={async () => { await bridge.settings.set({ receiptPrinter: chosen || null, autoPrintReceipts: chosen ? auto : null }); flash.show('Receipt printer saved.') }}>Save printer</Button>
       </div>
     </Card>
   )
@@ -111,7 +132,7 @@ export function PosAdminPage() {
     <div className="flex flex-col gap-4">
       <h1 className="text-lg font-semibold">Point of sale</h1>
       <div role="tablist" className="flex gap-1 border-b border-line">{([['shifts', 'Shifts'], ['setup', 'Setup']] as [Tab, string][]).map(([id, label]) => <button key={id} role="tab" aria-selected={tab === id} className={`-mb-px border-b-2 px-3 py-2 text-sm ${tab === id ? 'border-brand font-medium text-brand' : 'border-transparent text-muted hover:text-ink'}`} onClick={() => setTab(id)}>{label}</button>)}</div>
-      {tab === 'setup' ? <div className="flex flex-col gap-4"><Settings companyId={ws.company.id} /><Terminals companyId={ws.company.id} /></div> : (
+      {tab === 'setup' ? <div className="flex flex-col gap-4"><Settings companyId={ws.company.id} /><ReceiptPrinter /><Terminals companyId={ws.company.id} /></div> : (
         <>{shifts.error ? <Alert>{shifts.error.message}</Alert> : null}{shifts.isPending ? <Spinner /> : <DataTable columns={columns} rows={shifts.rows} rowKey={(s) => s.id} onOpen={(s) => setOpen(s.id)} empty="No shifts yet." height={480} />}</>)}
       {open ? <ShiftDetail id={open} onClose={() => setOpen(null)} /> : null}
     </div>

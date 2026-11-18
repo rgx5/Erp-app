@@ -4,6 +4,9 @@ export interface DesktopSettings {
   tenant?: string
   email?: string
   theme?: 'system' | 'light' | 'dark'
+  /** The receipt printer this computer prints to without a dialog, and whether a receipt prints by itself after each sale. */
+  receiptPrinter?: string
+  autoPrintReceipts?: boolean
 }
 
 export interface DesktopBridge {
@@ -17,6 +20,11 @@ export interface DesktopBridge {
   }
   /** Turns generated invoice HTML into a PDF and asks where to save it. Resolves to the saved path, or null when the person cancelled. */
   document: { savePdf(html: string, filename: string): Promise<string | null> }
+  /** Printers known to this computer, and silent printing of a receipt (no dialog) to one of them. */
+  printer: {
+    list(): Promise<{ name: string; isDefault: boolean }[]>
+    printReceipt(html: string, printerName: string): Promise<void>
+  }
   /** OS-keychain backed storage for the refresh token. `set` resolves false when the OS offers no secure storage. */
   secure: {
     get(key: string): Promise<string | null>
