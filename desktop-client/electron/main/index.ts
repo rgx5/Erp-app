@@ -1,6 +1,6 @@
 import { join } from 'node:path'
 import { writeFile } from 'node:fs/promises'
-import { app, BrowserWindow, dialog, ipcMain, Menu, protocol, safeStorage, shell, type IpcMainInvokeEvent } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, protocol, safeStorage, shell, type IpcMainInvokeEvent } from 'electron'
 import type { DesktopSettings } from '../bridge-types'
 import { JsonFile } from './store'
 import { APP_HOST, APP_ORIGIN, APP_SCHEME, readAppFile, resolveAppFile } from './serve'
@@ -79,8 +79,9 @@ function registerIpc(): void {
 }
 
 function createWindow(): void {
+  nativeTheme.themeSource = 'light' // always light, whatever the operating system is set to
   win = new BrowserWindow({
-    width: 1360, height: 860, minWidth: 1000, minHeight: 640, show: false, backgroundColor: '#f6f7f9',
+    width: 1360, height: 860, minWidth: 1000, minHeight: 640, show: false, backgroundColor: '#f3f5f9', autoHideMenuBar: true,
     webPreferences: { preload: join(__dirname, '../preload/index.js'), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false },
   })
   win.once('ready-to-show', () => win?.show())

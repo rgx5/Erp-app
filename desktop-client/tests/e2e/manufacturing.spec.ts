@@ -56,7 +56,7 @@ test('manufacturing: set up, make a work order from a bill of materials, see its
   await page.keyboard.press('Escape')
 
   // ---- a work order: release, issue, report time and output, complete ----
-  await page.getByRole('link', { name: 'Work orders' }).click()
+  await page.getByRole('link', { name: 'Work orders', exact: true }).click()
   await page.getByRole('button', { name: 'New work order' }).click()
   const wo = page.getByRole('dialog', { name: 'New work order' })
   await wo.getByLabel('Item to make', { exact: true }).fill('wid'); await wo.getByRole('option', { name: /WIDGET/ }).click()

@@ -70,7 +70,7 @@ test('accounting: a manual journal, its reversal, reports, periods and a bank st
   await expect(page.getByRole('status').filter({ hasText: 'reopened' })).toBeVisible()
 
   // ---- bank: import a statement, book the charge, reconcile ----
-  await page.getByRole('link', { name: 'Bank reconciliation' }).click()
+  await page.getByRole('link', { name: 'Bank reconciliation', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Bank reconciliation' })).toBeVisible()
   const today = new Date().toISOString().slice(0, 10)
   await page.getByRole('button', { name: 'Import statement' }).click()

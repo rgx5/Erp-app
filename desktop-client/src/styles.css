@@ -1,32 +1,40 @@
 @import "tailwindcss";
 
+/* One light theme. The app does not follow the operating system's dark setting: it is meant to be read in a bright office. */
 @theme {
-  --font-sans: Inter, "Segoe UI", system-ui, -apple-system, "Helvetica Neue", sans-serif;
-  --color-canvas: #f6f7f9;
+  --font-sans: "Inter Variable", Inter, "Segoe UI", system-ui, -apple-system, "Helvetica Neue", sans-serif;
+  --color-canvas: #f3f5f9;
   --color-surface: #ffffff;
-  --color-line: #e3e6ec;
-  --color-ink: #1a2130;
-  --color-muted: #5f6b7d;
-  --color-brand: #2455d6;
+  --color-line: #e2e7ef;
+  --color-ink: #151c2c;
+  --color-muted: #5a6577;
+  --color-brand: #3358d4;
   --color-brand-ink: #ffffff;
-  --color-good: #12805c;
-  --color-bad: #c0392b;
+  --color-brand-soft: #eaf0ff;
+  --color-good: #0f7b55;
+  --color-bad: #c23b2e;
   --color-warn: #b7791f;
+  --shadow-card: 0 1px 2px rgb(16 24 40 / 0.04), 0 1px 3px rgb(16 24 40 / 0.06);
+  --shadow-pop: 0 12px 32px rgb(16 24 40 / 0.16), 0 2px 6px rgb(16 24 40 / 0.08);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root { color-scheme: dark; }
-  @theme {
-    --color-canvas: #0f131a;
-    --color-surface: #161b25;
-    --color-line: #262d3b;
-    --color-ink: #e8ecf3;
-    --color-muted: #9aa6b8;
-    --color-brand: #6d8ff5;
-    --color-brand-ink: #0b1020;
-  }
-}
-
+:root { color-scheme: light; }
 html, body, #root { height: 100%; }
-body { margin: 0; background: var(--color-canvas); color: var(--color-ink); font-family: var(--font-sans); font-size: 14px; }
+body {
+  margin: 0; background: var(--color-canvas); color: var(--color-ink); font-family: var(--font-sans); font-size: 14px; line-height: 1.45;
+  -webkit-font-smoothing: antialiased; font-feature-settings: "cv11", "ss01";
+}
 .num { font-variant-numeric: tabular-nums; }
+h1 { letter-spacing: -0.01em; }
+::selection { background: color-mix(in srgb, var(--color-brand) 22%, white); }
+
+/* quiet, desktop-style scrollbars */
+* { scrollbar-width: thin; scrollbar-color: #c9d1de transparent; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb { background: #c9d1de; border-radius: 8px; border: 2px solid transparent; background-clip: content-box; }
+*::-webkit-scrollbar-thumb:hover { background: #aab4c5; background-clip: content-box; border: 2px solid transparent; }
+
+/* text inputs read as one family everywhere, including the ad-hoc ones inside tables */
+input:not([type="checkbox"]):not([type="radio"]):not([type="file"]), select, textarea { transition: border-color .12s, box-shadow .12s; }
+input[type="checkbox"], input[type="radio"] { accent-color: var(--color-brand); }
+input:disabled, select:disabled, textarea:disabled { background: #f6f8fb; }

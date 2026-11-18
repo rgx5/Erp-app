@@ -24,9 +24,9 @@ function Kpi({ label, value, tone, note, to }: { label: string; value: string; t
 function TrendChart({ rows }: { rows: { month: string; profit: string }[] }) {
   const vals = rows.map((r) => Number(r.profit))
   const max = Math.max(1, ...vals.map(Math.abs))
-  const w = 28; const gap = 10; const h = 120; const mid = h / 2
+  const w = 34; const gap = 14; const h = 130; const mid = h / 2
   return (
-    <svg role="img" aria-label="Profit by month" viewBox={`0 0 ${rows.length * (w + gap)} ${h + 18}`} className="h-40 w-full max-w-2xl">
+    <svg role="img" aria-label="Profit by month" viewBox={`0 0 ${rows.length * (w + gap)} ${h + 18}`} className="h-44 w-full">
       <line x1="0" x2={rows.length * (w + gap)} y1={mid} y2={mid} stroke="currentColor" className="text-line" />
       {rows.map((r, i) => { const v = vals[i] as number; const bar = (Math.abs(v) / max) * (mid - 4); return (
         <g key={r.month}><rect x={i * (w + gap) + gap / 2} y={v >= 0 ? mid - bar : mid} width={w} height={Math.max(bar, v === 0 ? 0 : 1)} rx="2" className={v >= 0 ? 'fill-good' : 'fill-bad'}><title>{`${r.month}: ${formatInr(r.profit)}`}</title></rect>
@@ -76,7 +76,7 @@ export function DashboardPage() {
 
       {d ? (
         <>
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-5 gap-3">
             <Kpi label="Cash and bank" value={formatInr(d.cash.total)} to={go('bank:read', '/accounting/bank')} />
             <Kpi label="Profit this month" value={formatInr(d.month.profit)} tone={d.month.profit.startsWith('-') ? 'bad' : 'good'} note={`Revenue ${formatInr(d.month.revenue)}`} />
             <Kpi label="Profit this year" value={formatInr(d.yearToDate.profit)} tone={d.yearToDate.profit.startsWith('-') ? 'bad' : 'good'} note={d.yearToDate.netMarginPercent ? `${d.yearToDate.netMarginPercent}% net margin` : undefined} />

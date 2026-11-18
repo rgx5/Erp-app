@@ -12,8 +12,8 @@ export function Drawer({ title, onClose, children, width = 520 }: { title: strin
     return () => { document.removeEventListener('keydown', onKey); previous?.focus() }
   }, [onClose])
   return (
-    <div className="fixed inset-0 z-40 flex justify-end bg-black/30" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
-      <div ref={panel} role="dialog" aria-modal="true" aria-label={title} className="flex h-full flex-col border-l border-line bg-surface shadow-xl" style={{ width }}>
+    <div className="fixed inset-0 z-40 flex justify-end bg-[#151c2c]/35 backdrop-blur-[1px]" onMouseDown={(e) => { if (e.target === e.currentTarget) onClose() }}>
+      <div ref={panel} role="dialog" aria-modal="true" aria-label={title} className="flex h-full flex-col border-l border-line bg-surface shadow-pop" style={{ width }}>
         <header className="flex items-center justify-between border-b border-line px-4 py-3">
           <h2 className="text-base font-semibold">{title}</h2>
           <button type="button" aria-label="Close" onClick={onClose} className="rounded p-1 text-muted hover:bg-canvas hover:text-ink"><X className="size-4" /></button>

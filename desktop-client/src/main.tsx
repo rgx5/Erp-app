@@ -5,6 +5,7 @@ import { createRoot } from 'react-dom/client'
 import { ApiError } from '@/api/errors'
 import { useSession } from '@/auth/session'
 import { router } from './router'
+import '@fontsource-variable/inter'
 import './styles.css'
 
 const queryClient = new QueryClient({
