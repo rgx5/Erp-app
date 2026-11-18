@@ -1017,6 +1017,25 @@
         ]
       }
     },
+    "/v1/roles/permissions": {
+      "get": {
+        "operationId": "RolesController_permissions",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "roles"
+        ]
+      }
+    },
     "/v1/roles/{id}": {
       "get": {
         "operationId": "RolesController_get",

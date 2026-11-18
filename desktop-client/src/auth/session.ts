@@ -22,6 +22,8 @@ interface SessionState {
   login(input: { tenant: string; email: string; password: string; mfaCode?: string; remember: boolean }): Promise<void>
   logout(): Promise<void>
   forgetServer(): Promise<void>
+  /** Reads who I am again (after changing something about my own account). */
+  refreshMe(): Promise<void>
 }
 
 let tokens: Tokens | null = null
@@ -96,6 +98,11 @@ export const useSession = create<SessionState>()((set, get) => {
       tokens = null
       await bridge.secure.delete(REFRESH_KEY)
       set({ status: 'anonymous', me: null, remembered: false })
+    },
+
+    async refreshMe() {
+      const { api } = get()
+      if (api) set({ me: await api.call(api.raw.GET('/v1/auth/me'), meSchema) })
     },
 
     async forgetServer() {

@@ -5,6 +5,7 @@ import { ENV, type Env } from '../../config/env.js';
 import { notFound, preconditionRequired } from '../../platform/http/errors.js';
 import { ApiZodBody, pageQuerySchema, type PageQuery } from '../../platform/http/validation.js';
 import { presentPage } from '../organization/organization.presenters.js';
+import { PERMISSIONS } from './permissions.js';
 import { AccessService } from './access.service.js';
 import { AuthService } from './auth.service.js';
 import {
@@ -209,6 +210,13 @@ export class RolesController {
   @ApiZodBody(createRoleSchema)
   async create(@CurrentPrincipal() actor: Principal, @Body({ schema: createRoleSchema }) body: CreateRoleInput) {
     return presentRole(await this.access.createRole(actor, body));
+  }
+
+  /** Every permission that exists, for building a role or an API key. Declared before `:id` so it is not read as an id. */
+  @RequirePermissions('roles:read')
+  @Get('permissions')
+  permissions() {
+    return { items: [...PERMISSIONS] };
   }
 
   @RequirePermissions('roles:read')

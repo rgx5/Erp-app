@@ -466,3 +466,13 @@ export const posCatalogue = z.object({
 export type PosCatalogue = z.infer<typeof posCatalogue>
 export const syncResult = z.object({ deviceId: z.string(), received: z.number(), applied: z.number(), duplicates: z.number(), rejected: z.number(), results: z.array(z.object({ clientId: z.string(), status: z.string(), saleId: z.string().optional(), reason: z.string().optional(), code: z.string().optional(), message: z.string().optional() }).passthrough()) })
 export type SyncResult = z.infer<typeof syncResult>
+
+// ---- administration ---------------------------------------------------------------------------------------------------------
+export const adminUser = z.object({ id: z.string(), email: z.string(), displayName: z.string(), status: z.string(), mfaEnabled: z.boolean(), lastLoginAt: z.string().nullable(), roleIds: z.array(z.string()).optional(), version: z.number() })
+export type AdminUser = z.infer<typeof adminUser>
+export const role = z.object({ id: z.string(), name: z.string(), description: z.string().nullable(), isSystem: z.boolean(), permissions: z.array(z.string()), version: z.number() })
+export type Role = z.infer<typeof role>
+export const apiKey = z.object({ id: z.string(), name: z.string(), keyPrefix: z.string(), permissions: z.array(z.string()), expiresAt: z.string().nullable(), revokedAt: z.string().nullable(), lastUsedAt: z.string().nullable(), createdAt: z.string() })
+export type ApiKey = z.infer<typeof apiKey>
+export const auditEvent = z.object({ id: z.string(), occurredAt: z.string(), actorType: z.string(), actorId: z.string().nullable(), action: z.string(), entityType: z.string().nullable(), entityId: z.string().nullable(), outcome: z.string(), requestId: z.string().nullable(), ipAddress: z.string().nullable(), details: z.unknown() })
+export type AuditEvent = z.infer<typeof auditEvent>

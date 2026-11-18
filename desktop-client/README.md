@@ -21,7 +21,7 @@ The server must list this app's origin in `CORS_ALLOWED_ORIGINS` (the shell uses
 | `src/api` | generated types (`schema.d.ts`, from `../backend/docs/openapi.json`), the client (token refresh, idempotency keys, problem+json), zod response schemas |
 | `src/domain` | exact money (decimal strings, never floats) and Indian number/date formats |
 | `src/auth` | session store (connect, sign in, silent refresh, restore), permission checks |
-| `src/features/*` | one folder per backend domain (today: auth, dashboard, organization, setup, masterdata, sales, purchasing, approvals, inventory, accounting, gst, manufacturing, payroll, pos) |
+| `src/features/*` | one folder per backend domain (today: auth, dashboard, organization, setup, masterdata, sales, purchasing, approvals, inventory, accounting, gst, manufacturing, payroll, pos, admin) |
 | `src/ui` | design-system pieces: shell, primitives, virtualised `DataTable` |
 
 ## Rules
@@ -38,5 +38,5 @@ The server must list this app's origin in `CORS_ALLOWED_ORIGINS` (the shell uses
 |---|---|
 | `npm test` | unit tests (money, formats, API client, permissions, app:// file serving) |
 | `npm run test:live` | the client against a real backend and PostgreSQL (needs `../backend/scripts/pg-local.sh` or `TEST_PG_ADMIN_URL`) |
-| `npm run test:e2e` | Playwright in Chromium: connect, sign in, dashboard, companies, sign out; the full first-run setup of a new business; master data (items with CSV import/export, customers with addresses, tax rates, price lists); sales (invoice with live totals, credit note, receipt, receivables, cancel); purchasing (order, receive, bill with preview and price exception, payment, payables); approvals across two users; inventory (adjust, transfer, count, valuation); accounting (manual journal and reversal, reports, periods, bank statement import and reconciliation); GST returns (GSTR-1, GSTR-3B, ITC register, CMP-08); manufacturing (BOM, work order, variance, job work); payroll (setup, people, run, payslip, pay, dues); point of sale (shift, sell, return, offline queue, cash-up) |
+| `npm run test:e2e` | Playwright in Chromium: connect, sign in, dashboard, companies, sign out; the full first-run setup of a new business; master data (items with CSV import/export, customers with addresses, tax rates, price lists); sales (invoice with live totals, credit note, receipt, receivables, cancel); purchasing (order, receive, bill with preview and price exception, payment, payables); approvals across two users; inventory (adjust, transfer, count, valuation); accounting (manual journal and reversal, reports, periods, bank statement import and reconciliation); GST returns (GSTR-1, GSTR-3B, ITC register, CMP-08); manufacturing (BOM, work order, variance, job work); payroll (setup, people, run, payslip, pay, dues); point of sale (shift, sell, return, offline queue, cash-up); administration (users, roles, API keys, audit log, my account) |
 | `npm run test:e2e:desktop` | the built Electron app (use `xvfb-run -a` on a headless Linux box): fixed origin, settings that survive a restart, sign-in to the real backend from `app://onesync`, an invoice saved as an A4 PDF |

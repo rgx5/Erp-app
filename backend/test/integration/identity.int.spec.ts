@@ -213,6 +213,15 @@ describe('authorization', () => {
     const key = await call(server, 'POST', '/v1/api-keys', { ...as(s.accessToken), body: { name: 'k', permissions: ['users:write'] } });
     expect(key.status).toBe(403); // api_keys:manage is not held either
   });
+  it('lists every permission for the role editor, and is not mistaken for a role id', async () => {
+    const res = await call(server, 'GET', '/v1/roles/permissions', as(t.accessToken));
+    expect(res.status).toBe(200);
+    expect(res.json.items).toEqual(expect.arrayContaining(['users:write', 'payroll:process', 'pos:sell']));
+    expect(res.json.items).not.toContain('*');
+    const nobody = await newUser(t.accessToken, `noroles-${uniqueSlug()}@example.com`);
+    const plain = await signIn((await call(server, 'GET', `/v1/users/${nobody.id}`, as(t.accessToken))).json.email);
+    expect((await call(server, 'GET', '/v1/roles/permissions', as(plain.accessToken))).status).toBe(403);
+  });
   it('protects the built-in Owner role and the last owner', async () => {
     const roles = (await call(server, 'GET', '/v1/roles', as(t.accessToken))).json.items;
     const owner = roles.find((r: { isSystem: boolean }) => r.isSystem);
