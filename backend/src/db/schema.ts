@@ -12,3 +12,4 @@ export * from '../modules/gst/gst.schema.js';
 export * from '../modules/payroll/payroll.schema.js';
 export * from '../modules/approvals/approvals.schema.js';
 export * from '../modules/banking/banking.schema.js';
+export * from '../modules/retail/retail.schema.js';

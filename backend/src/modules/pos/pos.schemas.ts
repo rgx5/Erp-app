@@ -46,8 +46,14 @@ export const posSaleSchema = z.strictObject({
     )
     .min(1)
     .max(200),
-  /** Must add up to the invoice total exactly. Cash may be tendered above the amount; the difference is change. */
-  payments: z.array(z.strictObject({ method: z.enum(METHODS), amount: positive, tendered: money.optional(), reference: text(100).optional() })).min(1).max(10),
+  /** Must add up to the invoice total exactly, less any store credit used. Cash may be tendered above the amount; the difference is change. */
+  payments: z.array(z.strictObject({ method: z.enum(METHODS), amount: positive, tendered: money.optional(), reference: text(100).optional() })).max(10),
+  /** A coupon the customer presented; the till applies its discount, the server checks the right to it and records the use. */
+  couponCode: text(30).optional(),
+  /** Loyalty points redeemed; the till applies their value as a discount. Needs a named customer. */
+  loyaltyPoints: z.string().regex(/^[0-9]{1,10}(\.[0-9]{1,2})?$/, 'Points, up to 2 decimals').refine((v) => Number(v) > 0, 'Must be greater than zero').optional(),
+  /** Store credit (the customer's unused credit) settling part of the bill. Needs a named customer. */
+  storeCredit: positive.optional(),
 });
 export const posReturnSchema = z.strictObject({
   shiftId: z.uuid(),
@@ -56,7 +62,8 @@ export const posReturnSchema = z.strictObject({
   reason: text(300),
   lines: z.array(z.strictObject({ originalLineId: z.uuid(), quantity, unitPrice: money.optional(), serialNos: serials.optional(), warehouseId: z.uuid().optional() })).min(1).max(200),
   /** How the money goes back; must add up to the credit note total. */
-  refunds: z.array(z.strictObject({ method: z.enum(METHODS), amount: positive, reference: text(100).optional() })).min(1).max(10),
+  /** `store_credit` keeps the refund as the customer's credit instead of paying money out. */
+  refunds: z.array(z.strictObject({ method: z.enum([...METHODS, 'store_credit']), amount: positive, reference: text(100).optional() })).min(1).max(10),
 });
 export const listShiftsQuery = z.object({ ...page, companyId: z.uuid(), terminalId: z.uuid().optional(), status: z.enum(['open', 'closed']).optional() });
 export const listSalesQuery = z.object({ ...page, companyId: z.uuid(), shiftId: z.uuid().optional(), kind: z.enum(['sale', 'return']).optional() });

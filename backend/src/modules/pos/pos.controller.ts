@@ -5,6 +5,7 @@ import { ApiZodBody } from '../../platform/http/validation.js';
 import { Idempotent } from '../../platform/services/idempotency.js';
 import { CurrentPrincipal, type Principal, RequirePermissions, TenantId } from '../identity/principal.js';
 import { AccountingModule } from '../accounting/accounting.controller.js';
+import { RetailModule } from '../retail/retail.controller.js';
 import { Recorder } from '../masterdata/helpers.js';
 import { SalesModule, presentInvoice } from '../sales/sales.controller.js';
 import * as s from './pos.schemas.js';
@@ -49,12 +50,12 @@ export class PosController {
   @RequirePermissions('pos:sell') @Idempotent() @Post('sales') @ApiZodBody(s.posSaleSchema)
   async sale(@CurrentPrincipal() a: Principal, @Body({ schema: s.posSaleSchema }) b: s.PosSaleInput) {
     const r = await this.pos.sale(a.tenantId, a.userId, b);
-    return { ...strip(r.sale), invoice: presentInvoice({ invoice: r.invoice, lines: r.lines, warnings: r.warnings }), payments: r.payments.map(strip), changeDue: r.changeDue };
+    return { ...strip(r.sale), invoice: presentInvoice({ invoice: r.invoice, lines: r.lines, warnings: r.warnings }), payments: r.payments.map(strip), changeDue: r.changeDue, wallet: r.wallet.map(strip) };
   }
   @RequirePermissions('pos:return') @Idempotent() @Post('returns') @ApiZodBody(s.posReturnSchema)
   async ret(@CurrentPrincipal() a: Principal, @Body({ schema: s.posReturnSchema }) b: s.PosReturnInput) {
     const r = await this.pos.return(a.tenantId, a.userId, b);
-    return { ...strip(r.sale), creditNote: presentInvoice({ invoice: r.creditNote, lines: r.lines }), payments: r.payments.map(strip) };
+    return { ...strip(r.sale), creditNote: presentInvoice({ invoice: r.creditNote, lines: r.lines }), payments: r.payments.map(strip), wallet: r.wallet.map(strip) };
   }
   @RequirePermissions('pos:read') @Get('sales')
   async listSales(@TenantId() t: string, @Query({ schema: s.listSalesQuery }) q: z.infer<typeof s.listSalesQuery>) { const p = await this.pos.listSales(t, q); return { items: p.items.map(strip), nextCursor: p.nextCursor }; }
@@ -85,5 +86,5 @@ export class PosSyncController {
   catalogue(@TenantId() t: string, @Query({ schema: s.catalogueQuery }) q: { deviceId: string; updatedSince?: string | undefined }) { return this.sync.catalogue(t, q.deviceId, q.updatedSince); }
 }
 
-@Module({ imports: [SalesModule, AccountingModule], controllers: [PosController, PosSyncController], providers: [Recorder, PosService, PosSyncService], exports: [PosService, PosSyncService] })
+@Module({ imports: [SalesModule, AccountingModule, RetailModule], controllers: [PosController, PosSyncController], providers: [Recorder, PosService, PosSyncService], exports: [PosService, PosSyncService] })
 export class PosModule {}

@@ -4132,6 +4132,102 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/retail/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["RetailController_settings"];
+        put: operations["RetailController_putSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/retail/customers/{id}/wallet": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["RetailController_customerWallet"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/retail/loyalty/adjust": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["RetailController_adjust"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/retail/coupons": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["RetailController_coupons"];
+        put?: never;
+        post: operations["RetailController_createCoupon"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/retail/coupons/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch: operations["RetailController_updateCoupon"];
+        trace?: never;
+    };
+    "/v1/retail/coupons/validate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["RetailController_validate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -4699,7 +4795,7 @@ export interface operations {
                 "application/json": {
                     name: string;
                     description?: string;
-                    permissions: ("organization:read" | "organization:write" | "users:read" | "users:write" | "roles:read" | "roles:write" | "api_keys:manage" | "audit:read" | "numbering:read" | "numbering:write" | "masterdata:read" | "masterdata:write" | "tax:manage" | "pricing:manage" | "accounting:read" | "accounting:post" | "accounting:reverse" | "accounting:manage" | "accounting:reopen" | "accounting:close_year" | "stock:read" | "stock:post" | "stock:manage" | "sales:read" | "sales:post" | "sales:cancel" | "sales:manage" | "receivables:read" | "receivables:post" | "receivables:writeoff" | "pos:read" | "pos:sell" | "pos:return" | "pos:manage" | "pos:sync" | "purchasing:read" | "purchasing:post" | "purchasing:cancel" | "purchasing:approve" | "purchasing:manage" | "payables:read" | "payables:post" | "payables:cancel" | "payroll:read" | "payroll:manage" | "payroll:process" | "payroll:cancel" | "gst:read" | "gst:manage" | "manufacturing:read" | "manufacturing:manage" | "manufacturing:produce" | "manufacturing:cancel" | "approvals:read" | "approvals:decide" | "approvals:manage" | "bank:read" | "bank:manage" | "bank:reconcile" | "dashboard:read" | "expenses:read" | "expenses:post" | "expenses:cancel" | "expenses:manage")[];
+                    permissions: ("organization:read" | "organization:write" | "users:read" | "users:write" | "roles:read" | "roles:write" | "api_keys:manage" | "audit:read" | "numbering:read" | "numbering:write" | "masterdata:read" | "masterdata:write" | "tax:manage" | "pricing:manage" | "accounting:read" | "accounting:post" | "accounting:reverse" | "accounting:manage" | "accounting:reopen" | "accounting:close_year" | "stock:read" | "stock:post" | "stock:manage" | "sales:read" | "sales:post" | "sales:cancel" | "sales:manage" | "receivables:read" | "receivables:post" | "receivables:writeoff" | "pos:read" | "pos:sell" | "pos:return" | "pos:manage" | "pos:sync" | "purchasing:read" | "purchasing:post" | "purchasing:cancel" | "purchasing:approve" | "purchasing:manage" | "payables:read" | "payables:post" | "payables:cancel" | "payroll:read" | "payroll:manage" | "payroll:process" | "payroll:cancel" | "gst:read" | "gst:manage" | "manufacturing:read" | "manufacturing:manage" | "manufacturing:produce" | "manufacturing:cancel" | "approvals:read" | "approvals:decide" | "approvals:manage" | "bank:read" | "bank:manage" | "bank:reconcile" | "dashboard:read" | "expenses:read" | "expenses:post" | "expenses:cancel" | "expenses:manage" | "retail:read" | "retail:manage")[];
                 };
             };
         };
@@ -4762,7 +4858,7 @@ export interface operations {
                 "application/json": {
                     name?: string;
                     description?: string | null;
-                    permissions?: ("organization:read" | "organization:write" | "users:read" | "users:write" | "roles:read" | "roles:write" | "api_keys:manage" | "audit:read" | "numbering:read" | "numbering:write" | "masterdata:read" | "masterdata:write" | "tax:manage" | "pricing:manage" | "accounting:read" | "accounting:post" | "accounting:reverse" | "accounting:manage" | "accounting:reopen" | "accounting:close_year" | "stock:read" | "stock:post" | "stock:manage" | "sales:read" | "sales:post" | "sales:cancel" | "sales:manage" | "receivables:read" | "receivables:post" | "receivables:writeoff" | "pos:read" | "pos:sell" | "pos:return" | "pos:manage" | "pos:sync" | "purchasing:read" | "purchasing:post" | "purchasing:cancel" | "purchasing:approve" | "purchasing:manage" | "payables:read" | "payables:post" | "payables:cancel" | "payroll:read" | "payroll:manage" | "payroll:process" | "payroll:cancel" | "gst:read" | "gst:manage" | "manufacturing:read" | "manufacturing:manage" | "manufacturing:produce" | "manufacturing:cancel" | "approvals:read" | "approvals:decide" | "approvals:manage" | "bank:read" | "bank:manage" | "bank:reconcile" | "dashboard:read" | "expenses:read" | "expenses:post" | "expenses:cancel" | "expenses:manage")[];
+                    permissions?: ("organization:read" | "organization:write" | "users:read" | "users:write" | "roles:read" | "roles:write" | "api_keys:manage" | "audit:read" | "numbering:read" | "numbering:write" | "masterdata:read" | "masterdata:write" | "tax:manage" | "pricing:manage" | "accounting:read" | "accounting:post" | "accounting:reverse" | "accounting:manage" | "accounting:reopen" | "accounting:close_year" | "stock:read" | "stock:post" | "stock:manage" | "sales:read" | "sales:post" | "sales:cancel" | "sales:manage" | "receivables:read" | "receivables:post" | "receivables:writeoff" | "pos:read" | "pos:sell" | "pos:return" | "pos:manage" | "pos:sync" | "purchasing:read" | "purchasing:post" | "purchasing:cancel" | "purchasing:approve" | "purchasing:manage" | "payables:read" | "payables:post" | "payables:cancel" | "payroll:read" | "payroll:manage" | "payroll:process" | "payroll:cancel" | "gst:read" | "gst:manage" | "manufacturing:read" | "manufacturing:manage" | "manufacturing:produce" | "manufacturing:cancel" | "approvals:read" | "approvals:decide" | "approvals:manage" | "bank:read" | "bank:manage" | "bank:reconcile" | "dashboard:read" | "expenses:read" | "expenses:post" | "expenses:cancel" | "expenses:manage" | "retail:read" | "retail:manage")[];
                 };
             };
         };
@@ -4803,7 +4899,7 @@ export interface operations {
             content: {
                 "application/json": {
                     name: string;
-                    permissions: ("organization:read" | "organization:write" | "users:read" | "users:write" | "roles:read" | "roles:write" | "api_keys:manage" | "audit:read" | "numbering:read" | "numbering:write" | "masterdata:read" | "masterdata:write" | "tax:manage" | "pricing:manage" | "accounting:read" | "accounting:post" | "accounting:reverse" | "accounting:manage" | "accounting:reopen" | "accounting:close_year" | "stock:read" | "stock:post" | "stock:manage" | "sales:read" | "sales:post" | "sales:cancel" | "sales:manage" | "receivables:read" | "receivables:post" | "receivables:writeoff" | "pos:read" | "pos:sell" | "pos:return" | "pos:manage" | "pos:sync" | "purchasing:read" | "purchasing:post" | "purchasing:cancel" | "purchasing:approve" | "purchasing:manage" | "payables:read" | "payables:post" | "payables:cancel" | "payroll:read" | "payroll:manage" | "payroll:process" | "payroll:cancel" | "gst:read" | "gst:manage" | "manufacturing:read" | "manufacturing:manage" | "manufacturing:produce" | "manufacturing:cancel" | "approvals:read" | "approvals:decide" | "approvals:manage" | "bank:read" | "bank:manage" | "bank:reconcile" | "dashboard:read" | "expenses:read" | "expenses:post" | "expenses:cancel" | "expenses:manage")[];
+                    permissions: ("organization:read" | "organization:write" | "users:read" | "users:write" | "roles:read" | "roles:write" | "api_keys:manage" | "audit:read" | "numbering:read" | "numbering:write" | "masterdata:read" | "masterdata:write" | "tax:manage" | "pricing:manage" | "accounting:read" | "accounting:post" | "accounting:reverse" | "accounting:manage" | "accounting:reopen" | "accounting:close_year" | "stock:read" | "stock:post" | "stock:manage" | "sales:read" | "sales:post" | "sales:cancel" | "sales:manage" | "receivables:read" | "receivables:post" | "receivables:writeoff" | "pos:read" | "pos:sell" | "pos:return" | "pos:manage" | "pos:sync" | "purchasing:read" | "purchasing:post" | "purchasing:cancel" | "purchasing:approve" | "purchasing:manage" | "payables:read" | "payables:post" | "payables:cancel" | "payroll:read" | "payroll:manage" | "payroll:process" | "payroll:cancel" | "gst:read" | "gst:manage" | "manufacturing:read" | "manufacturing:manage" | "manufacturing:produce" | "manufacturing:cancel" | "approvals:read" | "approvals:decide" | "approvals:manage" | "bank:read" | "bank:manage" | "bank:reconcile" | "dashboard:read" | "expenses:read" | "expenses:post" | "expenses:cancel" | "expenses:manage" | "retail:read" | "retail:manage")[];
                     /** Format: date-time */
                     expiresAt?: string;
                 };
@@ -8885,6 +8981,9 @@ export interface operations {
                         tendered?: string;
                         reference?: string;
                     }[];
+                    couponCode?: string;
+                    loyaltyPoints?: string;
+                    storeCredit?: string;
                 };
             };
         };
@@ -8925,7 +9024,7 @@ export interface operations {
                     }[];
                     refunds: {
                         /** @enum {string} */
-                        method: "cash" | "bank_transfer" | "upi" | "card" | "cheque" | "other";
+                        method: "cash" | "bank_transfer" | "upi" | "card" | "cheque" | "other" | "store_credit";
                         amount: string;
                         reference?: string;
                     }[];
@@ -12597,6 +12696,206 @@ export interface operations {
                     /** Format: date */
                     date: string;
                     reason: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RetailController_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RetailController_putSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    loyaltyPointsPerHundred?: string;
+                    loyaltyRupeesPerPoint?: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RetailController_customerWallet: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RetailController_adjust: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    companyId: string;
+                    /** Format: uuid */
+                    customerId: string;
+                    points: string;
+                    note: string;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RetailController_coupons: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RetailController_createCoupon: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    companyId: string;
+                    code: string;
+                    description?: string;
+                    /** @enum {string} */
+                    kind: "percent" | "fixed";
+                    value: string;
+                    /** @default 0 */
+                    minBill?: string;
+                    maxDiscount?: string;
+                    /** Format: date */
+                    validFrom?: string;
+                    /** Format: date */
+                    validTo?: string;
+                    maxUses?: number;
+                };
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RetailController_updateCoupon: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    description?: string | null;
+                    /** @enum {string} */
+                    status?: "active" | "inactive";
+                    /** Format: date */
+                    validTo?: string | null;
+                    maxUses?: number | null;
+                };
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    RetailController_validate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": {
+                    /** Format: uuid */
+                    companyId: string;
+                    code: string;
+                    billTotal: string;
+                    /** Format: date */
+                    date?: string;
                 };
             };
         };

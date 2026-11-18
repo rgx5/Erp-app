@@ -15,6 +15,7 @@ import { ReceivablesService } from '../sales/receivables.service.js';
 import { salesInvoiceLines, salesInvoices } from '../sales/sales.schema.js';
 import { SalesInvoiceService } from '../sales/sales-invoice.service.js';
 import { businessLocations, gstRegistrations, warehouses } from '../organization/organization.schema.js';
+import { WalletService } from '../retail/wallet.service.js';
 import { posPaymentAccounts, posPayments, posSales, posSettings, posShifts, posTerminals } from './pos.schema.js';
 import type { PosReturnInput, PosSaleInput } from './pos.schemas.js';
 
@@ -37,6 +38,7 @@ export class PosService {
     @Inject(ReceivablesService) private readonly receivables: ReceivablesService,
     @Inject(PostingService) private readonly posting: PostingService,
     @Inject(Recorder) private readonly recorder: Recorder,
+    @Inject(WalletService) private readonly wallet: WalletService,
   ) {}
 
   // ---- configuration --------------------------------------------------------------------------------------------------
@@ -142,14 +144,18 @@ export class PosService {
       if (!customerId) throw new AppError(409, 'pos_not_configured', 'Set a walk-in customer in the POS settings, or name a customer on the sale');
       const date = input.date ?? today();
       const accountsByMethod = await this.paymentAccounts(tx, tenantId, shift.companyId);
+      const named = customerId !== settings?.walkInCustomerId;
+      if ((input.storeCredit !== undefined || input.loyaltyPoints !== undefined) && !named) throw validationFailed([{ path: input.storeCredit !== undefined ? 'storeCredit' : 'loyaltyPoints', message: 'Store credit and points belong to a named customer, not the walk-in customer' }]);
+      if (input.payments.length === 0 && input.storeCredit === undefined) throw validationFailed([{ path: 'payments', message: 'Take at least one payment' }]);
 
       const posted = await this.invoices.postInvoice(tx, tenantId, actorId, {
         companyId: shift.companyId, gstRegistrationId: terminal.gstRegistrationId, businessLocationId: terminal.businessLocationId, documentType: 'tax_invoice', invoiceDate: date, customerId, reverseCharge: false,
         lines: input.lines.map((l) => ({ itemId: l.itemId, description: l.description, quantity: l.quantity, unitPrice: l.unitPrice, discountPercent: l.discountPercent, taxInclusive: l.taxInclusive, taxCodeId: l.taxCodeId, warehouseId: l.warehouseId ?? terminal.warehouseId, batchId: l.batchId, serialNos: l.serialNos })),
       });
       const grand = toUnits(posted.invoice.grandTotal);
-      const paid = input.payments.reduce((s, p) => s + toUnits(p.amount), 0n);
-      if (paid !== grand) throw new AppError(422, 'payment_mismatch', `The payments (${fromUnits(paid)}) must equal the sale total (${fromUnits(grand)})`, { total: fromUnits(grand), paid: fromUnits(paid) });
+      const credit = input.storeCredit !== undefined ? toUnits(input.storeCredit) : 0n;
+      const paid = input.payments.reduce((s, p) => s + toUnits(p.amount), 0n) + credit;
+      if (paid !== grand) throw new AppError(422, 'payment_mismatch', `The payments${credit > 0n ? ' and store credit' : ''} (${fromUnits(paid)}) must equal the sale total (${fromUnits(grand)})`, { total: fromUnits(grand), paid: fromUnits(paid) });
 
       const sale = first(await tx.insert(posSales).values({ tenantId, id: uuidv7(), companyId: shift.companyId, shiftId: shift.id, terminalId: terminal.id, kind: 'sale', documentId: posted.invoice.id, createdBy: actorId }).returning(), 'POS sale');
       const payments = [];
@@ -165,8 +171,16 @@ export class PosService {
         change += changeGiven;
         payments.push(first(await tx.insert(posPayments).values({ tenantId, id: uuidv7(), posSaleId: sale.id, method: p.method, amount: p.amount, tendered: fromUnits(tendered), changeGiven: fromUnits(changeGiven), reference: p.reference ?? null, receiptId: r.receipt.id }).returning(), 'POS payment'));
       }
+      // the customer's wallet: store credit settles part of the invoice, points and a coupon are checked and recorded, points are earned
+      if (input.storeCredit !== undefined) await this.wallet.useStoreCredit(tx, tenantId, actorId, { companyId: shift.companyId, customerId, invoiceId: posted.invoice.id, amount: input.storeCredit, date, saleId: sale.id });
+      if (input.loyaltyPoints !== undefined) await this.wallet.redeemPoints(tx, tenantId, actorId, { companyId: shift.companyId, customerId, points: input.loyaltyPoints, saleId: sale.id, grandTotal: posted.invoice.grandTotal });
+      if (input.couponCode) {
+        const gross = input.lines.reduce((s, l) => s + (toUnits(l.unitPrice) * toUnits(l.quantity)) / 10_000n, 0n); // before discounts: price x quantity (both scaled to 4 dp)
+        await this.wallet.redeemCoupon(tx, tenantId, { companyId: shift.companyId, code: input.couponCode, saleId: sale.id, customerId: named ? customerId : null, billTotal: fromUnits(gross), date });
+      }
+      if (named) await this.wallet.earnPoints(tx, tenantId, actorId, { companyId: shift.companyId, customerId, saleId: sale.id, grandTotal: posted.invoice.grandTotal });
       await this.recorder.record(tx, tenantId, 'pos_sale', 'posted', sale, { invoiceNo: posted.invoice.invoiceNo, total: posted.invoice.grandTotal, shiftNo: shift.shiftNo });
-      return { sale, invoice: posted.invoice, lines: posted.lines, warnings: posted.warnings, payments, changeDue: fromUnits(change) };
+      return { sale, invoice: posted.invoice, lines: posted.lines, warnings: posted.warnings, payments, changeDue: fromUnits(change), wallet: await this.wallet.usesOf(tx, tenantId, sale.id) };
     });
   }
 
@@ -178,6 +192,7 @@ export class PosService {
       if (original.kind !== 'sale' || original.companyId !== shift.companyId) throw new AppError(422, 'not_a_sale', 'Returns are made against a counter sale of the same company');
       const date = input.date ?? today();
       const accountsByMethod = await this.paymentAccounts(tx, tenantId, shift.companyId);
+      const [settings] = await tx.select().from(posSettings).where(and(eq(posSettings.tenantId, tenantId), eq(posSettings.companyId, shift.companyId)));
       const note = await this.invoices.createCreditNote(tenantId, actorId, {
         originalInvoiceId: original.documentId, noteDate: date, reason: input.reason,
         lines: input.lines.map((l) => ({ originalLineId: l.originalLineId, quantity: l.quantity, unitPrice: l.unitPrice, serialNos: l.serialNos, warehouseId: l.warehouseId })),
@@ -187,14 +202,22 @@ export class PosService {
       if (refunded !== due) throw new AppError(422, 'refund_mismatch', `The refunds (${fromUnits(refunded)}) must equal the credit note total (${fromUnits(due)})`, { total: fromUnits(due), refunded: fromUnits(refunded) });
       const ret = first(await tx.insert(posSales).values({ tenantId, id: uuidv7(), companyId: shift.companyId, shiftId: shift.id, terminalId: shift.terminalId, kind: 'return', documentId: note.invoice.id, createdBy: actorId }).returning(), 'POS return');
       const payments = [];
+      const walletUses = [];
       for (const r of input.refunds) {
-        const account = accountsByMethod.get(r.method);
+        if (r.method === 'store_credit') {
+          // the money is not paid out: the credit note stays unapplied, which is the customer's store credit
+          if (note.invoice.customerId === settings?.walkInCustomerId) throw validationFailed([{ path: 'refunds', message: 'Store credit belongs to a named customer: the walk-in customer cannot hold it' }]);
+          await this.wallet.recordCreditIssued(tx, tenantId, { saleId: ret.id, amount: r.amount, creditNoteNo: note.invoice.invoiceNo });
+          walletUses.push(r.amount);
+          continue;
+        }
+        const account = accountsByMethod.get(r.method as Method);
         if (!account) throw new AppError(409, 'pos_not_configured', `Map the ${r.method} payment method to an account in the POS settings first`);
-        const refund = await this.receivables.refund(tenantId, actorId, { companyId: shift.companyId, source: { type: 'credit_note', id: note.invoice.id }, refundDate: date, amount: r.amount, method: r.method, paidFromAccountId: account, reference: r.reference });
-        payments.push(first(await tx.insert(posPayments).values({ tenantId, id: uuidv7(), posSaleId: ret.id, method: r.method, amount: r.amount, tendered: r.amount, changeGiven: '0', reference: r.reference ?? null, refundId: refund.id }).returning(), 'POS refund'));
+        const refund = await this.receivables.refund(tenantId, actorId, { companyId: shift.companyId, source: { type: 'credit_note', id: note.invoice.id }, refundDate: date, amount: r.amount, method: r.method as Method, paidFromAccountId: account, reference: r.reference });
+        payments.push(first(await tx.insert(posPayments).values({ tenantId, id: uuidv7(), posSaleId: ret.id, method: r.method as Method, amount: r.amount, tendered: r.amount, changeGiven: '0', reference: r.reference ?? null, refundId: refund.id }).returning(), 'POS refund'));
       }
       await this.recorder.record(tx, tenantId, 'pos_sale', 'returned', ret, { creditNoteNo: note.invoice.invoiceNo, total: note.invoice.grandTotal, shiftNo: shift.shiftNo });
-      return { sale: ret, creditNote: note.invoice, lines: note.lines, payments };
+      return { sale: ret, creditNote: note.invoice, lines: note.lines, payments, wallet: await this.wallet.usesOf(tx, tenantId, ret.id) };
     });
   }
 
