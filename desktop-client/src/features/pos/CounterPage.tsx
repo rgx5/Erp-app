@@ -25,6 +25,10 @@ import { CloseShiftDrawer } from './ShiftDrawers'
 import { fetchCatalogue, postSale, uploadBatch, useOpenShift, usePosSettings, useShifts, useTerminals } from './queries'
 import { receiptHtml } from './receiptHtml'
 import { localTotal, serialList, trackingReady, type CartLine } from './totals'
+import { useCustomerWallet } from '@/features/retail/queries'
+import { WalletPanel } from './WalletPanel'
+import { grossOf, noWallet, pointsValue, walletInUse, withWalletDiscount, type WalletChoice } from './wallet'
+import { toUnits } from '@/domain/money'
 import { useBatches } from '@/features/inventory/trackingQueries'
 
 interface Tender { key: string; method: string; amount: string; tendered: string }
@@ -56,6 +60,7 @@ export function CounterPage() {
   const [priceListId, setPriceListId] = useState(saved.priceListId ?? '')
   const [opening, setOpening] = useState('0')
   const [problem, setProblem] = useState<string | null>(null)
+  const [wallet, setWallet] = useState<WalletChoice>(noWallet())
 
   const terminal: PosTerminal | undefined = terminals.data?.find((t) => t.id === terminalId) ?? terminals.data?.find((t) => t.status === 'active')
   const shift: PosShift | undefined = openShifts.rows.find((s) => s.terminalId === terminal?.id)
@@ -128,24 +133,33 @@ export function CounterPage() {
   // ---- totals: the server's own calculation while online, the till's fallback otherwise ----
   const priced = cart.length > 0 && cart.every((l) => isValid(l.unitPrice) && l.unitPrice !== '' && Number(l.quantity) > 0)
   const tracked = cart.every(trackingReady)
+  const walletQ = useCustomerWallet(company?.id, wallet.customerId || undefined)
+  const ptsOk = /^\d{1,8}(\.\d{1,2})?$/.test(wallet.points) && walletQ.data !== undefined && Number(wallet.points) <= Number(walletQ.data.loyalty.points)
+  const ptsDisc = ptsOk && walletQ.data ? pointsValue(wallet.points, walletQ.data.loyalty.rupeesPerPoint) : 0n
+  const couponDisc = wallet.coupon ? toUnits(wallet.coupon.discount) : 0n
+  const gross = useMemo(() => (priced ? grossOf(cart) : '0'), [priced, cart])
+  const effLines = useMemo(() => withWalletDiscount(cart, couponDisc + ptsDisc), [cart, couponDisc, ptsDisc])
+  useEffect(() => { setWallet((w) => (w.coupon ? { ...w, coupon: null } : w)) }, [gross]) // the cart changed: the coupon has to be checked again
   const body = useMemo(() => (company && terminal && priced && ws.company ? {
     companyId: company.id, gstRegistrationId: terminal.gstRegistrationId, customerId: '', invoiceDate: today,
-    lines: cart.map((l) => ({ itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice, discountPercent: l.discountPercent, taxInclusive: l.taxInclusive, warehouseId: terminal.warehouseId })),
-  } : null), [company, terminal, priced, cart, today, ws.company])
+    lines: effLines.map((l) => ({ itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice, discountPercent: l.discountPercent, taxInclusive: l.taxInclusive, warehouseId: terminal.warehouseId })),
+  } : null), [company, terminal, priced, effLines, today, ws.company])
   const walkIn = usePosSettings(company?.id).data?.settings?.walkInCustomerId ?? null
-  const calc = useCalculation(body && walkIn ? ({ ...body, customerId: walkIn } as never) : null)
+  const calc = useCalculation(body && (wallet.customerId || walkIn) ? ({ ...body, customerId: wallet.customerId || walkIn } as never) : null)
   const offline = calc.isError && calc.error instanceof NetworkError
   const local = priced ? localTotal(cart) : null
   const total = calc.data && !offline ? calc.data.totals.grandTotal : local?.grandTotal ?? '0'
   const totalKnown = priced && (Boolean(calc.data) || offline || (!walkIn && Boolean(local)))
 
   // ---- tenders ----
-  const amountOf = (t: Tender): string => (t.amount !== '' ? t.amount : tenders.length === 1 ? total : '0')
+  const credit = wallet.useCredit && walletQ.data && !offline ? (compare(walletQ.data.storeCredit, total) < 0 ? walletQ.data.storeCredit : total) : '0'
+  const due = sub(total, credit)
+  const amountOf = (t: Tender): string => (t.amount !== '' ? t.amount : tenders.length === 1 ? due : '0')
   const paid = sum(tenders.map((t) => { const a = amountOf(t); return isValid(a) ? a : '0' }))
-  const remaining = sub(total, paid)
+  const remaining = compare(due, '0') === 0 ? '0' : sub(due, paid)
   const cashRow = tenders.find((t) => t.method === 'cash')
   const change = cashRow && isValid(cashRow.tendered) && cashRow.tendered !== '' ? (compare(cashRow.tendered, amountOf(cashRow)) > 0 ? sub(cashRow.tendered, amountOf(cashRow)) : '0') : '0'
-  const ready = tracked && totalKnown && Number(total) > 0 && compare(remaining, '0') === 0 && tenders.every((t) => isValid(amountOf(t)) && Number(amountOf(t)) > 0)
+  const ready = tracked && totalKnown && Number(total) > 0 && compare(remaining, '0') === 0 && (compare(due, '0') === 0 ? Number(credit) > 0 : tenders.every((t) => isValid(amountOf(t)) && Number(amountOf(t)) > 0))
 
   function seller(res: PosSaleResult): Seller | null {
     const doc = res.invoice ?? res.creditNote
@@ -159,16 +173,17 @@ export function CounterPage() {
   async function charge() {
     if (!ready || !shift || busy) return
     setBusy(true); setProblem(null)
-    const payments = tenders.map((t) => ({ method: t.method, amount: amountOf(t), ...(t.method === 'cash' && isValid(t.tendered) && t.tendered !== '' ? { tendered: t.tendered } : {}) }))
-    const lines = cart.map((l) => ({ itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice, discountPercent: l.discountPercent, taxInclusive: l.taxInclusive, warehouseId: terminal?.warehouseId, ...(l.tracking === 'batch' ? { batchId: l.batchId } : {}), ...(l.tracking === 'serial' ? { serialNos: serialList(l.serials) } : {}) }))
+    const payments = compare(due, '0') === 0 ? [] : tenders.map((t) => ({ method: t.method, amount: amountOf(t), ...(t.method === 'cash' && isValid(t.tendered) && t.tendered !== '' ? { tendered: t.tendered } : {}) }))
+    const lines = effLines.map((l) => ({ itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice, discountPercent: l.discountPercent, taxInclusive: l.taxInclusive, warehouseId: terminal?.warehouseId, ...(l.tracking === 'batch' ? { batchId: l.batchId } : {}), ...(l.tracking === 'serial' ? { serialNos: serialList(l.serials) } : {}) }))
     const clientId = crypto.randomUUID()
     try {
-      const res = await postSale({ shiftId: shift.id, lines, payments }, clientId)
-      setLast(res); setCart([]); setTenders([newTender()]); scanRef.current?.focus()
-      void qc.invalidateQueries({ queryKey: ['pos'] })
+      const res = await postSale({ shiftId: shift.id, lines, payments, ...(wallet.customerId ? { customerId: wallet.customerId } : {}), ...(wallet.coupon ? { couponCode: wallet.coupon.code } : {}), ...(ptsDisc > 0n ? { loyaltyPoints: wallet.points } : {}), ...(Number(credit) > 0 ? { storeCredit: credit } : {}) }, clientId)
+      setLast(res); setCart([]); setTenders([newTender()]); setWallet(noWallet()); scanRef.current?.focus()
+      void qc.invalidateQueries({ queryKey: ['pos'] }); void qc.invalidateQueries({ queryKey: ['retail'] })
     } catch (e) {
       const deviceId = counterState(tenant).deviceId
-      if (e instanceof NetworkError && deviceId) {
+      if (e instanceof NetworkError && walletInUse(wallet)) setProblem('No connection. A sale that uses store credit, points or a coupon has to be recorded online: take the wallet off to sell offline.')
+      else if (e instanceof NetworkError && deviceId) {
         const item: QueuedSale = { clientId, shiftId: shift.id, occurredAt: new Date().toISOString(), payload: { lines: lines.map(({ warehouseId: _w, ...r }) => r), payments }, label: cart.map((l) => `${l.code} x${l.quantity}`).join(', '), total }
         const next = [...queue, item]
         if (saveQueue(tenant, next)) { setQueue(next); setLast(null); setCart([]); setTenders([newTender()]); flash.show('No connection: the sale is saved on this computer and will upload when you sync.') } else setProblem('No connection, and this computer cannot save the sale. Do not hand over the goods until it is recorded.')
@@ -301,17 +316,18 @@ export function CounterPage() {
             {offline ? <div className="text-xs text-bad">Offline: total worked out on this computer</div> : null}
             {cart.length > 0 && !priced ? <div className="text-xs text-bad">Enter a price for every line</div> : null}</div>
         </Card>
+        {company ? <WalletPanel companyId={company.id} gross={gross} choice={wallet} onChange={setWallet} offline={offline} pointsDiscount={ptsDisc} /> : null}
         <Card title="Payment">
           <div className="flex flex-col gap-2">
             {tenders.map((t) => (
               <div key={t.key} className="grid items-end gap-2" style={{ gridTemplateColumns: '1fr 1fr 24px' }}>
                 <SelectField label="Method" value={t.method} onChange={(e) => setTenders(tenders.map((x) => (x.key === t.key ? { ...x, method: e.target.value } : x)))} options={POS_METHODS.map((m) => ({ value: m, label: METHOD[m] ?? m }))} />
-                <TextField label="Amount" inputMode="decimal" value={t.amount !== '' ? t.amount : tenders.length === 1 ? (total === '0' ? '' : total) : ''} onChange={(e) => setTenders(tenders.map((x) => (x.key === t.key ? { ...x, amount: e.target.value } : x)))} />
+                <TextField label="Amount" inputMode="decimal" value={t.amount !== '' ? t.amount : tenders.length === 1 ? (due === '0' ? '' : due) : ''} onChange={(e) => setTenders(tenders.map((x) => (x.key === t.key ? { ...x, amount: e.target.value } : x)))} />
                 {tenders.length > 1 ? <button type="button" aria-label="Remove payment" className="mb-2 text-muted hover:text-bad" onClick={() => setTenders(tenders.filter((x) => x.key !== t.key))}>×</button> : <span />}
                 {t.method === 'cash' ? <div className="col-span-2"><TextField label="Cash given" inputMode="decimal" value={t.tendered} onChange={(e) => setTenders(tenders.map((x) => (x.key === t.key ? { ...x, tendered: e.target.value } : x)))} /></div> : null}
               </div>))}
             <Button variant="ghost" className="self-start" onClick={() => setTenders([...tenders, newTender('upi')])}>+ Split payment</Button>
-            <dl className="text-sm"><div className="flex justify-between"><dt className="text-muted">Still to pay</dt><dd className="num">{formatInr(remaining)}</dd></div>{Number(change) > 0 ? <div className="flex justify-between font-semibold"><dt>Change</dt><dd className="num" aria-label="Change due">{formatInr(change)}</dd></div> : null}</dl>
+            <dl className="text-sm">{Number(credit) > 0 ? <div className="flex justify-between"><dt className="text-muted">Store credit used</dt><dd className="num" aria-label="Store credit used">{formatInr(credit)}</dd></div> : null}<div className="flex justify-between"><dt className="text-muted">Still to pay</dt><dd className="num">{formatInr(remaining)}</dd></div>{Number(change) > 0 ? <div className="flex justify-between font-semibold"><dt>Change</dt><dd className="num" aria-label="Change due">{formatInr(change)}</dd></div> : null}</dl>
           </div>
         </Card>
         <Button className="h-12 text-base" disabled={!ready} busy={busy} onClick={() => void charge()}>Charge {formatInr(total)} (F9)</Button>

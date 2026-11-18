@@ -49,6 +49,8 @@ Only the menu items your role allows are shown. If something you expect is missi
 5. **Returns** finds the original receipt, takes back the goods and refunds the customer.
 6. **Close shift** at the end: count the drawer; any difference is posted to *cash over and short*.
 
+**Customer wallet.** In the *Customer wallet* box on the counter, choose the customer to use their **store credit**, redeem **loyalty points**, or type a **coupon code** and press *Apply* (a coupon needs no customer). Points and coupons take money off the lines that allow discounts; items in a no-discount category are left alone. Store credit pays part of the bill, and you take the rest as usual. When a customer returns goods, choose *Store credit* under *Refund by* to keep the money for their next visit instead of paying it out. Named customers earn points on what they pay. Set the earning rate, what a point is worth and your coupons under *Point of sale, Loyalty and coupons*. The wallet needs a connection: a sale that uses it cannot be saved offline.
+
 **No connection?** If the counter was registered for offline selling (*Shifts and setup, Setup, Use this computer for offline selling*), sales are kept on the computer and uploaded with *Upload offline sales* when the connection is back. A sale the server refuses stays on screen with the reason and is not in the books: ask a manager before handing over the goods again. Returns need the connection.
 
 ## Your account

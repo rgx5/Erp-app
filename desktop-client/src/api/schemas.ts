@@ -459,7 +459,7 @@ const shiftSummary = z.object({ salesCount: z.number(), salesTotal: z.string(), 
 export const posShift = z.object({ id: z.string(), terminalId: z.string(), shiftNo: z.string(), openedAt: z.string(), openingCash: z.string(), status: z.string(), closedAt: z.string().nullable(), countedCash: z.string().nullable(), expectedCash: z.string().nullable(), variance: z.string().nullable(), summary: shiftSummary.optional() })
 export type PosShift = z.infer<typeof posShift>
 const posPayment = z.object({ method: z.string(), amount: z.string(), tendered: z.string().nullable().optional(), reference: z.string().nullable().optional() })
-export const posSaleResult = z.object({ id: z.string(), kind: z.string(), shiftId: z.string(), invoice: invoice.optional(), creditNote: invoice.optional(), payments: z.array(posPayment), changeDue: z.string().optional() })
+export const posSaleResult = z.object({ id: z.string(), kind: z.string(), shiftId: z.string(), invoice: invoice.optional(), creditNote: invoice.optional(), payments: z.array(posPayment), changeDue: z.string().optional(), wallet: z.array(z.object({ kind: z.string(), amount: z.string(), points: z.string().nullable().optional(), reference: z.string().nullable().optional() })).optional() })
 export type PosSaleResult = z.infer<typeof posSaleResult>
 export const posSaleHeader = z.object({ id: z.string(), kind: z.string(), documentNo: z.string(), total: z.string(), createdAt: z.string(), shiftId: z.string() })
 export type PosSaleHeader = z.infer<typeof posSaleHeader>
@@ -525,3 +525,16 @@ export const expenseCategory = z.object({ id: z.string(), code: z.string(), name
 export type ExpenseCategory = z.infer<typeof expenseCategory>
 export const expenseVoucher = z.object({ id: z.string(), voucherNo: z.string(), voucherDate: z.string(), categoryId: z.string(), amount: z.string(), paidFromAccountId: z.string(), payee: z.string().nullable(), note: z.string().nullable(), status: z.string(), cancelReason: z.string().nullable() })
 export type ExpenseVoucher = z.infer<typeof expenseVoucher>
+
+export const retailSettings = z.object({ companyId: z.string(), loyaltyPointsPerHundred: z.string(), loyaltyRupeesPerPoint: z.string(), version: z.number() })
+export type RetailSettings = z.infer<typeof retailSettings>
+export const coupon = z.object({ id: z.string(), code: z.string(), description: z.string().nullable(), kind: z.string(), value: z.string(), minBill: z.string(), maxDiscount: z.string().nullable(), validFrom: z.string().nullable(), validTo: z.string().nullable(), maxUses: z.number().nullable(), usedCount: z.number(), status: z.string(), version: z.number() })
+export type Coupon = z.infer<typeof coupon>
+export const couponCheck = z.object({ valid: z.boolean(), code: z.string(), discount: z.string(), description: z.string().nullable().optional() })
+export type CouponCheck = z.infer<typeof couponCheck>
+export const customerWallet = z.object({
+  customer: z.object({ id: z.string(), code: z.string(), name: z.string() }), storeCredit: z.string(),
+  loyalty: z.object({ points: z.string(), rupeesPerPoint: z.string(), value: z.string() }),
+  history: z.array(z.object({ id: z.string(), points: z.string(), kind: z.string(), note: z.string().nullable(), createdAt: z.string() })),
+})
+export type CustomerWallet = z.infer<typeof customerWallet>

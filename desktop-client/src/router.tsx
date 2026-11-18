@@ -49,6 +49,7 @@ import { OrdersPage, QuotesPage } from '@/features/sales/QuotesOrdersPages'
 import { LandedCostPage } from '@/features/purchasing/LandedCostPage'
 import { TrackingPage } from '@/features/inventory/TrackingPage'
 import { CategoriesPage } from '@/features/retail/CategoriesPage'
+import { LoyaltyPage } from '@/features/retail/LoyaltyPage'
 import { ExpensesPage } from '@/features/expenses/ExpensesPage'
 import { CountsPage } from '@/features/inventory/CountsPage'
 import { MovementsPage } from '@/features/inventory/MovementsPage'
@@ -145,8 +146,9 @@ const newSalesOrderRoute = createRoute({ getParentRoute: () => app, path: '/sale
 const landedRoute = createRoute({ getParentRoute: () => app, path: '/purchasing/landed-costs', component: LandedCostPage })
 const trackingRoute = createRoute({ getParentRoute: () => app, path: '/inventory/tracking', component: TrackingPage })
 const categoriesRoute = createRoute({ getParentRoute: () => app, path: '/masterdata/categories', component: CategoriesPage })
+const loyaltyRoute = createRoute({ getParentRoute: () => app, path: '/retail/loyalty', component: LoyaltyPage })
 const expensesRoute = createRoute({ getParentRoute: () => app, path: '/accounting/expenses', component: ExpensesPage })
-const tree = root.addChildren([connect, login, app.addChildren([expensesRoute, categoriesRoute, trackingRoute, landedRoute, quotesRoute, newQuoteRoute, salesOrdersRoute, newSalesOrderRoute, usersRoute, rolesRoute, apiKeysRoute, auditRoute, accountRoute, counterRoute, posAdminRoute, payrollSetupRoute, peopleRoute, payrollRunsRoute, duesRoute, workCentresRoute, bomsRoute, woRoute, woDetailRoute, jobWorkRoute, costingRoute, reportCentreRoute, gstRoute, chartRoute, journalsRoute, newJournalRoute, periodsRoute, reportsRoute, bankRoute, stock, movements, transfers, counts, valuationRoute, orders, newOrder, orderDetail, goodsReceipts, bills, newBill, billDetail, payments, payables, approvals, invoices, newInvoice, invoiceDetail, receipts, receivables, dashboard, setup, companies, items, customers, suppliers, taxCodes, units, paymentTerms, priceLists])])
+const tree = root.addChildren([connect, login, app.addChildren([loyaltyRoute, expensesRoute, categoriesRoute, trackingRoute, landedRoute, quotesRoute, newQuoteRoute, salesOrdersRoute, newSalesOrderRoute, usersRoute, rolesRoute, apiKeysRoute, auditRoute, accountRoute, counterRoute, posAdminRoute, payrollSetupRoute, peopleRoute, payrollRunsRoute, duesRoute, workCentresRoute, bomsRoute, woRoute, woDetailRoute, jobWorkRoute, costingRoute, reportCentreRoute, gstRoute, chartRoute, journalsRoute, newJournalRoute, periodsRoute, reportsRoute, bankRoute, stock, movements, transfers, counts, valuationRoute, orders, newOrder, orderDetail, goodsReceipts, bills, newBill, billDetail, payments, payables, approvals, invoices, newInvoice, invoiceDetail, receipts, receivables, dashboard, setup, companies, items, customers, suppliers, taxCodes, units, paymentTerms, priceLists])])
 
 // A hash history works the same on a custom app:// origin and in a browser, with no server-side route fallback to configure.
 import { createHashHistory } from '@tanstack/react-router'

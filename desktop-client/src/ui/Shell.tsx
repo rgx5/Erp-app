@@ -36,6 +36,7 @@ export const NAV: NavItem[] = [
   { to: '/payroll/dues', label: 'Statutory dues', icon: Scale, needs: ['payroll:read'], section: 'Payroll' },
   { to: '/payroll/setup', label: 'Payroll setup', icon: Settings2, needs: ['payroll:read'], section: 'Payroll' },
   { to: '/pos/counter', label: 'Counter', icon: ScanBarcode, needs: ['pos:sell'], section: 'Point of sale' },
+  { to: '/retail/loyalty', label: 'Loyalty and coupons', icon: Percent, needs: ['retail:read'], section: 'Point of sale' },
   { to: '/pos/admin', label: 'Shifts and setup', icon: Store, needs: ['pos:read'], section: 'Point of sale' },
   { to: '/admin/users', label: 'Users', icon: Users2, needs: ['users:read'], section: 'Administration' },
   { to: '/admin/roles', label: 'Roles', icon: ShieldCheck, needs: ['roles:read'], section: 'Administration' },

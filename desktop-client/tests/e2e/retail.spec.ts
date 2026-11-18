@@ -93,3 +93,68 @@ test('expenses: a category, a voucher paid from cash, and cancelling it', async 
   await expect(page.getByRole('status').filter({ hasText: 'cancelled' })).toBeVisible()
   await expect(page.getByLabel('Total spent')).toContainText('0.00')
 })
+
+test('customer wallet: loyalty rates and a coupon, a coupon sale, a return kept as store credit, then paying with that credit', async ({ page }) => {
+  const s = await seedBusiness(process.env['E2E_BACKEND_URL'] as string, process.env['E2E_PLATFORM_TOKEN'] as string, { prefix: 'wal' })
+  const c = s.company.id
+  const accts = (await s.call('GET', `/v1/accounts?companyId=${c}&limit=200`)).items as { id: string; code: string }[]
+  const a = (code: string) => (accts.find((x) => x.code === code) as { id: string }).id
+  await s.call('PUT', `/v1/pos/settings?companyId=${c}`, { walkInCustomerId: s.walkIn.id, cashVarianceAccountId: a('5900') })
+  for (const [m, code] of [['cash', '1110'], ['upi', '1120'], ['card', '1120'], ['bank_transfer', '1120'], ['cheque', '1120'], ['other', '1120']]) await s.call('PUT', `/v1/pos/payment-accounts?companyId=${c}`, { method: m, accountId: a(code as string) })
+  await s.call('POST', '/v1/pos/terminals', { companyId: c, code: 'T1', name: 'Counter 1', gstRegistrationId: s.registration.id, businessLocationId: s.location.id, warehouseId: s.warehouse.id })
+  const nos = ((await s.call('GET', '/v1/units?limit=200')).items as { id: string; code: string }[]).find((u) => u.code === 'NOS') as { id: string }
+  const list = await s.call('POST', '/v1/price-lists', { code: 'COUNTER', name: 'Counter prices', kind: 'sales', taxInclusive: true })
+  await s.call('POST', `/v1/price-lists/${list.id}/prices`, { itemId: s.widget.id, uomId: nos.id, price: '1180', effectiveFrom: `${s.year}-04-01` })
+  await signIn(page, s)
+
+  // ---- loyalty rates and a coupon ----
+  await page.getByRole('link', { name: 'Loyalty and coupons' }).click()
+  await page.getByLabel('Points earned per ₹100 spent').fill('1')
+  await page.getByLabel('Value of one point (₹)').fill('0.5')
+  await page.getByRole('button', { name: 'Save rates' }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'Loyalty rates saved' })).toBeVisible()
+  await page.getByRole('button', { name: 'New coupon' }).click()
+  const cp = page.getByRole('dialog', { name: 'New coupon' })
+  await cp.getByLabel('Code the cashier types').fill('SAVE10'); await cp.getByLabel('Value (% or ₹)').fill('10'); await cp.getByLabel('Minimum bill (optional)').fill('500')
+  await cp.getByRole('button', { name: 'Create coupon' }).click()
+  await expect(page.getByRole('table', { name: 'Coupons' })).toContainText('10% off over')
+
+  // ---- a sale with the coupon, to a named customer ----
+  await page.getByRole('link', { name: 'Counter', exact: true }).click()
+  await page.getByLabel('Sell from price list').selectOption({ label: 'Counter prices (prices include tax)' })
+  await page.getByLabel('Cash in the drawer').fill('0')
+  await page.getByRole('button', { name: 'Open shift' }).click()
+  await scan(page, 'WIDGET')
+  await expect(page.getByLabel('Sale total')).toHaveText('₹ 1,180.00')
+  await page.getByLabel('Customer (for credit, points and coupons)').fill('Asha')
+  await page.getByRole('option', { name: /Asha Traders/ }).click()
+  await page.getByLabel('Coupon code').fill('SAVE10')
+  await page.getByRole('button', { name: 'Apply' }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'Coupon SAVE10 takes' })).toBeVisible()
+  await expect(page.getByLabel('Sale total')).toHaveText('₹ 1,062.00')
+  await page.getByRole('button', { name: /^Charge/ }).click()
+  await expect(page.getByLabel('Last sale')).toContainText('INV/')
+
+  // ---- the return is kept as store credit ----
+  await page.getByRole('button', { name: 'Return', exact: true }).click()
+  const ret = page.getByRole('dialog', { name: 'Return goods' })
+  await ret.getByRole('button', { name: /INV\// }).click()
+  await ret.getByLabel('Return Steel widget').fill('1')
+  await ret.getByLabel('Reason').fill('Changed mind')
+  await ret.getByLabel('Refund by').selectOption('store_credit')
+  await ret.getByRole('button', { name: 'Record return and refund' }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'kept as store credit' })).toBeVisible()
+
+  // ---- the next sale uses that credit ----
+  await scan(page, 'WIDGET')
+  await page.getByLabel('Customer (for credit, points and coupons)').fill('Asha')
+  await page.getByRole('option', { name: /Asha Traders/ }).click()
+  await expect(page.getByLabel('Wallet balance')).toContainText('₹ 1,062.00')
+  await page.getByLabel('Use store credit').check()
+  await expect(page.getByLabel('Store credit used')).toHaveText('₹ 1,062.00')
+  await page.getByRole('button', { name: /^Charge/ }).click()
+  await expect(page.getByLabel('Last sale')).toContainText('INV/2627/00002')
+  await page.getByLabel('Customer (for credit, points and coupons)').fill('Asha')
+  await page.getByRole('option', { name: /Asha Traders/ }).click()
+  await expect(page.getByLabel('Wallet balance')).toContainText('Store credit₹ 0.00')
+})
