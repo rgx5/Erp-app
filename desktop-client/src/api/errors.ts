@@ -36,6 +36,8 @@ export function problemToError(status: number, body: unknown, requestId?: string
   const p = (body && typeof body === 'object' ? body : {}) as Record<string, unknown>
   const errors = Array.isArray(p['errors']) ? (p['errors'] as unknown[]).flatMap((e) => (e && typeof e === 'object' && typeof (e as FieldError).path === 'string' && typeof (e as FieldError).message === 'string' ? [{ path: (e as FieldError).path, message: (e as FieldError).message }] : [])) : []
   const extra = Object.fromEntries(Object.entries(p).filter(([k]) => !KNOWN.has(k)))
-  const detail = typeof p['detail'] === 'string' ? p['detail'] : typeof p['title'] === 'string' ? p['title'] : `Request failed (${status})`
+  const base = typeof p['detail'] === 'string' ? p['detail'] : typeof p['title'] === 'string' ? p['title'] : `Request failed (${status})`
+  // say which field and why, so a screen that only shows the message is still useful
+  const detail = errors.length > 0 && status === 422 ? `${base}: ${errors.slice(0, 3).map((e) => e.message).join('; ')}${errors.length > 3 ? '…' : ''}` : base
   return new ApiError(status, typeof p['code'] === 'string' ? p['code'] : 'error', detail, (typeof p['requestId'] === 'string' ? p['requestId'] : requestId) ?? undefined, errors, extra)
 }

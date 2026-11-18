@@ -58,7 +58,7 @@ export const useCounts = (companyId: string | undefined) => {
 }
 export const useCount = (id: string | undefined) => useQuery({ queryKey: ['count', id], enabled: Boolean(id), queryFn: (): Promise<StockCount> => { const api = currentApi(); return api.call(api.raw.GET('/v1/stock/counts/{id}', { params: { path: { id: id as string } } }), stockCount) } })
 
-const KEYS = ['stock-balances', 'stock-card', 'movements', 'movement', 'valuation', 'inventory-reconciliation', 'transfers', 'transfer', 'counts', 'count', 'dashboard']
+const KEYS = ['stock-balances', 'stock-card', 'movements', 'movement', 'valuation', 'inventory-reconciliation', 'transfers', 'transfer', 'counts', 'count', 'dashboard', 'tracking']
 function useWrite<I, O>(fn: (input: I) => Promise<O>) {
   const qc = useQueryClient()
   return useMutation({ mutationFn: fn, onSuccess: () => Promise.all(KEYS.map((k) => qc.invalidateQueries({ queryKey: [k] }))) })

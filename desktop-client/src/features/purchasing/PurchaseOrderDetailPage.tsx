@@ -1,5 +1,5 @@
 import { Link, useParams } from '@tanstack/react-router'
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useState } from 'react'
 import { ApiError } from '@/api/errors'
 import type { PurchaseOrder } from '@/api/schemas'
 import { can } from '@/auth/permissions'
@@ -24,15 +24,25 @@ function ReceiveDrawer({ order, onClose }: { order: PurchaseOrder; onClose: () =
   const [date, setDate] = useState(todayIso())
   const [note, setNote] = useState('')
   const [qty, setQty] = useState<Record<string, string>>(() => Object.fromEntries(order.lines.filter((l) => isPositiveQty(remaining(l))).map((l) => [l.id, showQty(remaining(l))])))
+  const [track, setTrack] = useState<Record<string, { batchNo: string; expiry: string; serials: string }>>({})
+  const tr = (id: string) => track[id] ?? { batchNo: '', expiry: '', serials: '' }
   const [problem, setProblem] = useState<string | null>(null)
-  const key = useMemo(() => crypto.randomUUID(), [date, note, qty])  // eslint-disable-line react-hooks/exhaustive-deps
+  const key = useMemo(() => crypto.randomUUID(), [date, note, qty, JSON.stringify(track)])  // eslint-disable-line react-hooks/exhaustive-deps
 
   async function submit() {
     setProblem(null)
-    const lines = order.lines.flatMap((l) => { const q = (qty[l.id] ?? '').trim(); return q && Number(q) > 0 ? [{ orderLineId: l.id, quantity: q }] : [] })
+    const lines: Record<string, unknown>[] = []
+    for (const l of order.lines) {
+      const q = (qty[l.id] ?? '').trim()
+      if (!q || Number(q) <= 0) continue
+      const it = items.data?.get(l.itemId); const t = tr(l.id)
+      if (it?.tracking === 'batch') { if (!t.batchNo.trim()) { setProblem(`${it.code}: enter the batch number received.`); return } lines.push({ orderLineId: l.id, quantity: q, batch: { batchNo: t.batchNo.trim(), ...(t.expiry ? { expiryDate: t.expiry } : {}) } }) }
+      else if (it?.tracking === 'serial') { const list = t.serials.split(/[\n,;]+/).map((x) => x.trim()).filter(Boolean); if (list.length !== Number(q) || new Set(list).size !== list.length) { setProblem(`${it.code}: enter exactly ${q} different serial numbers.`); return } lines.push({ orderLineId: l.id, quantity: q, serialNos: list }) }
+      else lines.push({ orderLineId: l.id, quantity: q })
+    }
     if (lines.length === 0) { setProblem('Enter the quantity received on at least one line.'); return }
     try {
-      const r = await post.mutateAsync({ key, body: { companyId: order.companyId, purchaseOrderId: order.id, receiptDate: date, ...(note.trim() ? { supplierDeliveryNote: note.trim() } : {}), lines } })
+      const r = await post.mutateAsync({ key, body: { companyId: order.companyId, purchaseOrderId: order.id, receiptDate: date, ...(note.trim() ? { supplierDeliveryNote: note.trim() } : {}), lines } as never })
       flash.show(`${r.grnNo} recorded. The stock is in.`)
       onClose()
     } catch (e) { setProblem(e instanceof ApiError ? `${e.message}${e.requestId ? ` (reference ${e.requestId})` : ''}` : 'Could not record the receipt.') }
@@ -44,10 +54,18 @@ function ReceiveDrawer({ order, onClose }: { order: PurchaseOrder; onClose: () =
           <thead><tr className="text-left text-xs text-muted"><th className="py-1">Item</th><th className="num py-1 text-right">Ordered</th><th className="num py-1 text-right">Received</th><th className="py-1 pl-3">Receiving now</th></tr></thead>
           <tbody>
             {order.lines.map((l) => (
-              <tr key={l.id} className="border-t border-line/60">
+              <Fragment key={l.id}>
+              <tr className="border-t border-line/60">
                 <td className="py-1.5">{items.data?.get(l.itemId)?.code ?? ''} {l.description}</td><td className="num py-1.5 text-right">{Number(l.quantity)}</td><td className="num py-1.5 text-right">{Number(l.quantityReceived)}</td>
                 <td className="py-1.5 pl-3"><input aria-label={`Receiving ${l.description}`} inputMode="decimal" className="h-8 w-24 rounded border border-line bg-surface px-2 text-right text-sm" value={qty[l.id] ?? ''} onChange={(e) => setQty({ ...qty, [l.id]: e.target.value })} disabled={!isPositiveQty(remaining(l))} /></td>
               </tr>
+              {items.data?.get(l.itemId)?.tracking !== 'none' && items.data?.get(l.itemId) && Number(qty[l.id] ?? 0) > 0 ? (
+                <tr><td colSpan={4} className="pb-2">
+                  {items.data?.get(l.itemId)?.tracking === 'batch' ? (
+                    <div className="grid grid-cols-2 gap-2"><input aria-label={`Batch number for ${items.data?.get(l.itemId)?.code}`} placeholder="Batch number received" className="h-8 rounded border border-line bg-surface px-2 text-sm" value={tr(l.id).batchNo} onChange={(e) => setTrack({ ...track, [l.id]: { ...tr(l.id), batchNo: e.target.value } })} /><input type="date" aria-label={`Expiry for ${items.data?.get(l.itemId)?.code}`} className="h-8 rounded border border-line bg-surface px-2 text-sm" value={tr(l.id).expiry} onChange={(e) => setTrack({ ...track, [l.id]: { ...tr(l.id), expiry: e.target.value } })} /></div>
+                  ) : <textarea aria-label={`Serial numbers for ${items.data?.get(l.itemId)?.code}`} rows={2} placeholder="Serial numbers received (one per line)" className="w-full rounded border border-line bg-surface px-2 py-1 text-sm" value={tr(l.id).serials} onChange={(e) => setTrack({ ...track, [l.id]: { ...tr(l.id), serials: e.target.value } })} />}
+                </td></tr>) : null}
+              </Fragment>
             ))}
           </tbody>
         </table>

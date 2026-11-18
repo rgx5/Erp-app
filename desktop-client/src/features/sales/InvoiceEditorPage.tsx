@@ -10,7 +10,7 @@ import { useWorkspace } from '@/features/organization/workspace'
 import { useFlash } from '@/ui/flash'
 import { useDebounced } from '@/ui/hooks'
 import { Alert, Button, Card, CheckField, SelectField, Spinner, TextField } from '@/ui/primitives'
-import { emptyLine, isBlank, LineGrid, type Line } from './LineGrid'
+import { emptyLine, isBlank, LineGrid, serialsOf, trackingIssue, type Line } from './LineGrid'
 import { useCreateOrder, useCreateQuote } from './orderQueries'
 import { useCalculation, usePostInvoice, type InvoiceInput } from './queries'
 
@@ -22,12 +22,12 @@ const pctOk = (v: string): boolean => /^(100(\.0{1,4})?|\d{1,2}(\.\d{1,4})?)$/.t
 export function buildInvoiceBody(h: { companyId: string; registrationId: string; locationId: string; date: string; documentType: string; customer: Party | null; reverseCharge: boolean; taxPayment: string; placeOfSupply: string }, lines: Line[]): InvoiceInput | null {
   const filled = lines.filter((l) => !isBlank(l))
   if (!h.customer || !h.registrationId || filled.length === 0) return null
-  for (const l of filled) if (!l.item || !qtyOk(l.quantity) || !isValid(l.unitPrice) || !pctOk(l.discountPercent)) return null
+  for (const l of filled) if (!l.item || !qtyOk(l.quantity) || !isValid(l.unitPrice) || !pctOk(l.discountPercent) || trackingIssue(l)) return null
   const special = REGISTERED_SPECIAL.has(h.customer.gstTreatment)
   return {
     companyId: h.companyId, gstRegistrationId: h.registrationId, ...(h.locationId ? { businessLocationId: h.locationId } : {}), documentType: h.documentType as 'tax_invoice', invoiceDate: h.date, customerId: h.customer.id,
     reverseCharge: h.reverseCharge, ...(special && h.taxPayment ? { taxPayment: h.taxPayment as 'with_payment' } : {}), ...(h.placeOfSupply ? { placeOfSupplyState: h.placeOfSupply } : {}),
-    lines: filled.map((l) => ({ itemId: (l.item as { id: string }).id, description: l.description || undefined, quantity: l.quantity, unitPrice: l.unitPrice, discountPercent: l.discountPercent, taxInclusive: l.taxInclusive, ...(l.item?.isStocked && l.warehouseId ? { warehouseId: l.warehouseId } : {}) })) as InvoiceInput['lines'],
+    lines: filled.map((l) => ({ itemId: (l.item as { id: string }).id, description: l.description || undefined, quantity: l.quantity, unitPrice: l.unitPrice, discountPercent: l.discountPercent, taxInclusive: l.taxInclusive, ...(l.item?.isStocked && l.warehouseId ? { warehouseId: l.warehouseId } : {}), ...(l.item?.isStocked && l.item.tracking === 'batch' ? { batchId: l.batchId } : {}), ...(l.item?.isStocked && l.item.tracking === 'serial' ? { serialNos: serialsOf(l.serials) } : {}) })) as InvoiceInput['lines'],
   }
 }
 

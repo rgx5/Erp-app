@@ -1,5 +1,5 @@
 import { Link, Outlet } from '@tanstack/react-router'
-import { ArrowLeftRight, BadgeCheck, Calculator, ListChecks, Warehouse as WarehouseIcon, Boxes, ClipboardList, PackageCheck, ShoppingCart, Wallet, FileText, Landmark, Receipt as ReceiptIcon, Building2, ClipboardCheck, Clock, LayoutDashboard, LogOut, Percent, Ruler, Tags, Truck, Users, BookOpen, Users2, ShieldCheck, KeyRound, ScrollText, UserCog, ScanBarcode, Store, UserRound, Banknote, Settings2, Scale, Factory, Cog, Gauge, Handshake, FileSpreadsheet, FolderOpen, CalendarCheck, LineChart, ListTree, type LucideIcon } from 'lucide-react'
+import { ArrowLeftRight, BadgeCheck, Calculator, ListChecks, Warehouse as WarehouseIcon, Boxes, ClipboardList, PackageCheck, ShoppingCart, Wallet, FileText, Landmark, Receipt as ReceiptIcon, Building2, ClipboardCheck, Clock, LayoutDashboard, LogOut, Percent, Ruler, Tags, Truck, Users, BookOpen, Layers, Users2, ShieldCheck, KeyRound, ScrollText, UserCog, ScanBarcode, Store, UserRound, Banknote, Settings2, Scale, Factory, Cog, Gauge, Handshake, FileSpreadsheet, FolderOpen, CalendarCheck, LineChart, ListTree, type LucideIcon } from 'lucide-react'
 import { can } from '@/auth/permissions'
 import { useSession } from '@/auth/session'
 import { cn } from './cn'
@@ -44,6 +44,7 @@ export const NAV: NavItem[] = [
   { to: '/inventory/movements', label: 'Movements', icon: ListChecks, needs: ['stock:read'], section: 'Inventory' },
   { to: '/inventory/transfers', label: 'Transfers', icon: ArrowLeftRight, needs: ['stock:read'], section: 'Inventory' },
   { to: '/inventory/counts', label: 'Stock counts', icon: ClipboardCheck, needs: ['stock:read'], section: 'Inventory' },
+  { to: '/inventory/tracking', label: 'Batches and serials', icon: Layers, needs: ['stock:read'], section: 'Inventory' },
   { to: '/inventory/valuation', label: 'Valuation', icon: Calculator, needs: ['stock:read'], section: 'Inventory' },
   { to: '/purchasing/orders', label: 'Purchase orders', icon: ShoppingCart, needs: ['purchasing:read'], section: 'Purchasing' },
   { to: '/purchasing/receipts', label: 'Goods receipts', icon: PackageCheck, needs: ['purchasing:read'], section: 'Purchasing' },

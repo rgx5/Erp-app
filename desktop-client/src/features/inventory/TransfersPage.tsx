@@ -13,7 +13,7 @@ import { DataTable } from '@/ui/DataTable'
 import { Drawer } from '@/ui/Drawer'
 import { useFlash } from '@/ui/flash'
 import { Alert, Button, SelectField, Spinner, TextField, Toolbar } from '@/ui/primitives'
-import { isBlankStock, newStockLine, StockLines, type StockLine } from './StockLines'
+import { isBlankStock, newStockLine, StockLines, trackingPayload, trackingProblem, type StockLine } from './StockLines'
 import { useCancelTransfer, usePostTransfer, useReceiveTransfer, useTransfer, useTransfers } from './queries'
 
 const STATUS: Record<string, string> = { completed: 'Completed', in_transit: 'In transit', partially_received: 'Partly received', cancelled: 'Cancelled' }
@@ -33,13 +33,13 @@ function NewTransfer({ onClose }: { onClose: () => void }) {
   const fromId = from || ws.warehouses[0]?.id || ''
   const toId = to || ws.warehouses.find((w) => w.id !== fromId)?.id || ''
   const filled = lines.filter((l) => !isBlankStock(l))
-  const ready = ws.company && fromId && toId && fromId !== toId && note.trim() && filled.length > 0 && filled.every((l) => l.item && qtyOk(l.quantity))
-  const key = useMemo(() => crypto.randomUUID(), [fromId, toId, transit, date, note, JSON.stringify(lines.map((l) => [l.item?.id, l.quantity]))]) // eslint-disable-line react-hooks/exhaustive-deps
+  const ready = ws.company && fromId && toId && fromId !== toId && note.trim() && filled.length > 0 && filled.every((l) => l.item && qtyOk(l.quantity) && !trackingProblem(l, false))
+  const key = useMemo(() => crypto.randomUUID(), [fromId, toId, transit, date, note, JSON.stringify(lines.map((l) => [l.item?.id, l.quantity, l.batchId, l.serials]))]) // eslint-disable-line react-hooks/exhaustive-deps
   async function submit() {
     if (!ready || !ws.company) return
     setProblem(null)
     try {
-      const t = await post.mutateAsync({ key, body: { companyId: ws.company.id, fromWarehouseId: fromId, toWarehouseId: toId, ...(transit ? { transitWarehouseId: transit } : {}), postingDate: date, description: note.trim(), lines: filled.map((l) => ({ itemId: (l.item as { id: string }).id, quantity: l.quantity })) } })
+      const t = await post.mutateAsync({ key, body: { companyId: ws.company.id, fromWarehouseId: fromId, toWarehouseId: toId, ...(transit ? { transitWarehouseId: transit } : {}), postingDate: date, description: note.trim(), lines: filled.map((l) => ({ itemId: (l.item as { id: string }).id, quantity: l.quantity, ...trackingPayload(l, false) })) as never } })
       flash.show(`${t.transferNo} ${t.status === 'in_transit' ? 'sent; receive it at the other end' : 'completed'}.`)
       onClose()
     } catch (e) { setProblem(e instanceof ApiError ? `${e.message}${e.requestId ? ` (reference ${e.requestId})` : ''}` : 'Could not post the transfer.') }

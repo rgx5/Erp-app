@@ -16,7 +16,7 @@ import { DataTable } from '@/ui/DataTable'
 import { Drawer } from '@/ui/Drawer'
 import { useFlash } from '@/ui/flash'
 import { Alert, Button, SelectField, Spinner, TextField, Toolbar } from '@/ui/primitives'
-import { isBlankStock, newStockLine, StockLines, type StockLine } from './StockLines'
+import { isBlankStock, newStockLine, StockLines, trackingPayload, trackingProblem, type StockLine } from './StockLines'
 import { usePostMovement, useStockBalances, useStockCard } from './queries'
 
 const qtyOk = (v: string): boolean => /^\d{1,12}(\.\d{1,6})?$/.test(v) && Number(v) > 0
@@ -51,14 +51,14 @@ function AdjustDrawer({ onClose }: { onClose: () => void }) {
   const [problem, setProblem] = useState<string | null>(null)
   const wh = warehouseId || ws.warehouses[0]?.id || ''
   const filled = lines.filter((l) => !isBlankStock(l))
-  const ready = ws.company && wh && reason.trim() && filled.length > 0 && filled.every((l) => l.item && qtyOk(l.quantity) && (l.direction === 'out' || isValid(l.unitCost)))
-  const key = useMemo(() => crypto.randomUUID(), [wh, date, reason, JSON.stringify(lines.map((l) => [l.item?.id, l.quantity, l.direction, l.unitCost]))]) // eslint-disable-line react-hooks/exhaustive-deps
+  const ready = ws.company && wh && reason.trim() && filled.length > 0 && filled.every((l) => l.item && qtyOk(l.quantity) && (l.direction === 'out' || isValid(l.unitCost)) && !trackingProblem(l, l.direction === 'in'))
+  const key = useMemo(() => crypto.randomUUID(), [wh, date, reason, JSON.stringify(lines.map((l) => [l.item?.id, l.quantity, l.direction, l.unitCost, l.batchId, l.newBatchNo, l.newExpiry, l.serials]))]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function submit() {
     if (!ready || !ws.company) return
     setProblem(null)
     try {
-      const m = await post.mutateAsync({ key, body: { companyId: ws.company.id, movementType: 'adjustment', postingDate: date, description: reason.trim(), lines: filled.map((l) => ({ warehouseId: wh, itemId: (l.item as { id: string }).id, quantity: l.quantity, direction: l.direction, ...(l.direction === 'in' ? { unitCost: l.unitCost } : {}) })) } })
+      const m = await post.mutateAsync({ key, body: { companyId: ws.company.id, movementType: 'adjustment', postingDate: date, description: reason.trim(), lines: filled.map((l) => ({ warehouseId: wh, itemId: (l.item as { id: string }).id, quantity: l.quantity, direction: l.direction, ...(l.direction === 'in' ? { unitCost: l.unitCost } : {}), ...trackingPayload(l, l.direction === 'in') })) as never } })
       flash.show(`${m.movementNo} posted. Stock and the books are updated.`)
       onClose()
     } catch (e) { setProblem(e instanceof ApiError ? `${e.message}${e.requestId ? ` (reference ${e.requestId})` : ''}` : 'Could not post the adjustment.') }

@@ -5,6 +5,7 @@ import { formatInr } from '@/domain/format'
 import { useDebounced } from '@/ui/hooks'
 import { cn } from '@/ui/cn'
 import { useItems } from '@/features/masterdata/queries'
+import { useBatches } from '@/features/inventory/trackingQueries'
 
 export interface Line {
   key: string
@@ -15,10 +16,27 @@ export interface Line {
   discountPercent: string
   taxInclusive: boolean
   warehouseId: string
+  batchId: string
+  serials: string
 }
 let counter = 0
-export const emptyLine = (warehouseId = ''): Line => ({ key: `l${++counter}`, item: null, description: '', quantity: '1', unitPrice: '', discountPercent: '0', taxInclusive: false, warehouseId })
+export const emptyLine = (warehouseId = ''): Line => ({ key: `l${++counter}`, item: null, description: '', quantity: '1', unitPrice: '', discountPercent: '0', taxInclusive: false, warehouseId, batchId: '', serials: '' })
 export const isBlank = (l: Line): boolean => l.item === null && l.unitPrice === ''
+
+/** For a batch- or serial-tracked item sold from stock: which batch, or which serial numbers. */
+export const serialsOf = (v: string): string[] => v.split(/[\n,;]+/).map((x) => x.trim()).filter(Boolean)
+export function trackingIssue(l: Line): string | null {
+  if (!l.item || !l.item.isStocked) return null
+  if (l.item.tracking === 'batch') return l.batchId ? null : `${l.item.code}: choose the batch`
+  if (l.item.tracking === 'serial') { const list = serialsOf(l.serials); return list.length === Number(l.quantity) && new Set(list).size === list.length ? null : `${l.item.code}: enter ${l.quantity} different serial numbers` }
+  return null
+}
+function TrackingCell({ line, patch }: { line: Line; patch: (p: Partial<Line>) => void }) {
+  const item = line.item as Item
+  const batches = useBatches(item.tracking === 'batch' ? item.id : undefined)
+  if (item.tracking === 'serial') return <textarea aria-label={`Serial numbers for ${item.code}`} rows={2} placeholder={`Serial numbers for ${item.code} (one per line)`} className="w-full rounded border border-line bg-surface px-2 py-1 text-sm" value={line.serials} onChange={(e) => patch({ serials: e.target.value })} />
+  return <select aria-label={`Batch for ${item.code}`} className="h-8 w-full rounded border border-line bg-surface px-2 text-sm" value={line.batchId} onChange={(e) => patch({ batchId: e.target.value })}><option value="">Choose the batch of {item.code}…</option>{(batches.data ?? []).filter((b) => b.status === 'active').map((b) => <option key={b.id} value={b.id}>{b.batchNo}{b.expiryDate ? ` (expires ${b.expiryDate})` : ''}</option>)}</select>
+}
 
 const cell = 'h-8 w-full rounded border border-transparent bg-transparent px-2 text-sm outline-none hover:border-line focus:border-brand focus:bg-surface focus:ring-1 focus:ring-brand/40'
 
@@ -104,7 +122,8 @@ export function LineGrid({ lines, onChange, warehouses, computed, readOnly, buyi
       {lines.map((l, i) => {
         const c = computed?.[i]
         return (
-          <div key={l.key} role="row" className="grid grid-cols-[2.2fr_0.7fr_0.9fr_0.7fr_0.5fr_1fr_1fr_32px] items-center gap-1 border-b border-line/60 px-2 py-1 last:border-0">
+          <div key={l.key} className="border-b border-line/60 last:border-0">
+          <div role="row" className="grid grid-cols-[2.2fr_0.7fr_0.9fr_0.7fr_0.5fr_1fr_1fr_32px] items-center gap-1 px-2 py-1">
             <ItemCell buying={buying} serviceOnly={serviceOnly} line={l} autoFocus={focusKey === l.key} onPick={(item) => patch(l.key, { item, description: item.name, taxInclusive: l.taxInclusive })} onClear={() => patch(l.key, { item: null })} />
             <input data-nav aria-label="Quantity" inputMode="decimal" className={cn(cell, 'num text-right')} value={l.quantity} onChange={(e) => patch(l.key, { quantity: e.target.value })} onKeyDown={(e) => enter(e, i)} disabled={readOnly} />
             <input data-nav aria-label="Price" inputMode="decimal" className={cn(cell, 'num text-right')} value={l.unitPrice} onChange={(e) => patch(l.key, { unitPrice: e.target.value })} onKeyDown={(e) => enter(e, i)} disabled={readOnly} />
@@ -113,6 +132,8 @@ export function LineGrid({ lines, onChange, warehouses, computed, readOnly, buyi
             <span className="num text-right text-sm text-muted">{c ? formatInr(c.taxableValue, { symbol: false }) : ''}</span>
             <span className="num text-right text-sm">{c ? formatInr(c.lineTotal, { symbol: false }) : ''}</span>
             <button type="button" aria-label="Remove line" className="grid size-7 place-items-center rounded text-muted hover:bg-canvas hover:text-bad" onClick={() => onChange(lines.length > 1 ? lines.filter((x) => x.key !== l.key) : [emptyLine(warehouses[0]?.id ?? '')])} disabled={readOnly}><Trash2 className="size-4" /></button>
+          </div>
+          {!buying && l.item && l.item.isStocked && l.item.tracking !== 'none' ? <div className="px-2 pb-1"><TrackingCell line={l} patch={(p) => patch(l.key, p)} /></div> : null}
           </div>
         )
       })}

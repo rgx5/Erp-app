@@ -42,7 +42,7 @@ describe('api client', () => {
     const { api } = setup(() => json(422, { code: 'validation_failed', detail: 'The request is not valid', requestId: 'r-1', errors: [{ path: 'email', message: 'Required' }], amount: '5.0000' }))
     const err = await api.call(api.raw.POST('/v1/companies', { body: {} as never }), z.unknown()).catch((e: unknown) => e)
     expect(err).toBeInstanceOf(ApiError)
-    expect(err).toMatchObject({ status: 422, code: 'validation_failed', requestId: 'r-1', message: 'The request is not valid', extra: { amount: '5.0000' } })
+    expect(err).toMatchObject({ status: 422, code: 'validation_failed', requestId: 'r-1', message: 'The request is not valid: Required', extra: { amount: '5.0000' } })
     expect((err as ApiError).fieldMap()).toEqual({ email: 'Required' })
   })
 

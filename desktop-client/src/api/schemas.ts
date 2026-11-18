@@ -498,3 +498,15 @@ export const landedCost = landedCostHeader.extend({
   lines: z.array(z.object({ id: z.string(), grnLineId: z.string(), itemId: z.string(), quantity: z.string(), basisValue: z.string(), allocated: z.string(), capitalised: z.string(), expensed: z.string() })),
 })
 export type LandedCost = z.infer<typeof landedCost>
+
+// ---- batches, serial numbers, reservations ---------------------------------------------------------------------------------
+export const batch = z.object({ id: z.string(), itemId: z.string(), batchNo: z.string(), manufactureDate: z.string().nullable(), expiryDate: z.string().nullable(), status: z.string() })
+export type Batch = z.infer<typeof batch>
+export const serial = z.object({ id: z.string(), itemId: z.string(), serialNo: z.string(), warehouseId: z.string().nullable(), status: z.string() })
+export type Serial = z.infer<typeof serial>
+export const reservation = z.object({ id: z.string(), warehouseId: z.string(), itemId: z.string(), batchId: z.string().nullable(), quantity: z.string(), consumedQuantity: z.string(), status: z.string(), referenceType: z.string(), referenceId: z.string(), expiresAt: z.string().nullable(), createdAt: z.string() })
+export type Reservation = z.infer<typeof reservation>
+export const availability = z.object({ itemId: z.string(), warehouses: z.array(z.object({ warehouseId: z.string(), onHand: z.string(), reserved: z.string(), available: z.string() })) })
+export type Availability = z.infer<typeof availability>
+export const stockSettings = z.object({ companyId: z.string(), adjustmentAccountId: z.string().nullable(), openingBalanceAccountId: z.string().nullable() })
+export type StockSettings = z.infer<typeof stockSettings>
