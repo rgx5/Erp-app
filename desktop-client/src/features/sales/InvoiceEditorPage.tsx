@@ -11,6 +11,7 @@ import { useFlash } from '@/ui/flash'
 import { useDebounced } from '@/ui/hooks'
 import { Alert, Button, Card, CheckField, SelectField, Spinner, TextField } from '@/ui/primitives'
 import { emptyLine, isBlank, LineGrid, type Line } from './LineGrid'
+import { useCreateOrder, useCreateQuote } from './orderQueries'
 import { useCalculation, usePostInvoice, type InvoiceInput } from './queries'
 
 const REGISTERED_SPECIAL = new Set(['sez', 'overseas', 'deemed_export'])
@@ -30,7 +31,15 @@ export function buildInvoiceBody(h: { companyId: string; registrationId: string;
   }
 }
 
-export function InvoiceEditorPage() {
+export type DocKind = 'invoice' | 'quote' | 'order'
+const addDays = (iso: string, n: number): string => { const d = new Date(`${iso}T00:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10) }
+const WORDS: Record<DocKind, { title: string; date: string; action: string }> = { invoice: { title: 'New invoice', date: 'Invoice date', action: 'Post invoice' }, quote: { title: 'New quote', date: 'Quote date', action: 'Save quote' }, order: { title: 'New sales order', date: 'Order date', action: 'Save order' } }
+
+export const InvoiceEditorPage = () => <SalesDocEditor kind="invoice" />
+export const QuoteEditorPage = () => <SalesDocEditor kind="quote" />
+export const OrderEditorPage = () => <SalesDocEditor kind="order" />
+
+function SalesDocEditor({ kind }: { kind: DocKind }) {
   const ws = useWorkspace()
   const navigate = useNavigate()
   const flash = useFlash()
@@ -46,6 +55,12 @@ export function InvoiceEditorPage() {
   const [lines, setLines] = useState<Line[]>([emptyLine()])
   const [problem, setProblem] = useState<string | null>(null)
   const post = usePostInvoice()
+  const createQuote = useCreateQuote(); const createOrder = useCreateOrder()
+  const [validUntil, setValidUntil] = useState(addDays(todayIso(), 30))
+  const [notes, setNotes] = useState('')
+  const [reference, setReference] = useState('')
+  const [reserve, setReserve] = useState(false)
+  const words = WORDS[kind]
 
   const regId = registrationId || ws.registrations[0]?.id || ''
   const whId = warehouseId || ws.warehouses[0]?.id || ''
@@ -68,9 +83,22 @@ export function InvoiceEditorPage() {
     if (!body) return
     setProblem(null)
     try {
-      const inv = await post.mutateAsync({ body, key })
-      flash.show(`${inv.invoiceNo} posted for ${formatInr(inv.grandTotal)}.${inv.warnings?.length ? ` ${inv.warnings.map((w) => w.message).join(' ')}` : ''}`)
-      await navigate({ to: '/sales/invoices/$invoiceId', params: { invoiceId: inv.id } })
+      if (kind === 'invoice') {
+        const inv = await post.mutateAsync({ body, key })
+        flash.show(`${inv.invoiceNo} posted for ${formatInr(inv.grandTotal)}.${inv.warnings?.length ? ` ${inv.warnings.map((w) => w.message).join(' ')}` : ''}`)
+        await navigate({ to: '/sales/invoices/$invoiceId', params: { invoiceId: inv.id } })
+        return
+      }
+      const { invoiceDate, ...rest } = body as InvoiceInput & { invoiceDate: string }
+      if (kind === 'quote') {
+        const q = await createQuote.mutateAsync({ key, body: { ...rest, quoteDate: invoiceDate, validUntil, ...(notes.trim() ? { notes: notes.trim() } : {}), lines: (rest.lines as { batchId?: string }[]).map(({ batchId: _b, ...l }) => l) } })
+        flash.show(`${q.quoteNo} saved for ${formatInr(q.estimatedTotal)}.`)
+        await navigate({ to: '/sales/quotes' })
+      } else {
+        const o = await createOrder.mutateAsync({ key, body: { ...rest, orderDate: invoiceDate, reserveStock: reserve, ...(reference.trim() ? { customerReference: reference.trim() } : {}) } })
+        flash.show(`${o.orderNo} saved.`)
+        await navigate({ to: '/sales/orders' })
+      }
     } catch (e) { setProblem(e instanceof ApiError ? `${e.message}${e.requestId ? ` (reference ${e.requestId})` : ''}` : e instanceof Error ? e.message : 'Could not post the invoice.') }
   }
   submitRef.current = () => { void submit() }
@@ -87,12 +115,16 @@ export function InvoiceEditorPage() {
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-4">
-      <div className="flex items-center justify-between"><h1 className="text-lg font-semibold">New invoice</h1><span className="text-xs text-muted">Ctrl+S posts · Enter moves to the next field</span></div>
+      <div className="flex items-center justify-between"><h1 className="text-lg font-semibold">{words.title}</h1><span className="text-xs text-muted">Ctrl+S saves · Enter moves to the next field</span></div>
       <Card>
         <div className="grid grid-cols-4 gap-4">
           <div className="col-span-2"><PartyPicker role="customer" value={customer} onPick={(p) => { setCustomer(p); setTaxPayment('') }} autoFocus /></div>
-          <TextField label="Invoice date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
-          <SelectField label="Document" value={documentType} onChange={(e) => setDocumentType(e.target.value)} options={[{ value: 'tax_invoice', label: 'Tax invoice' }, { value: 'bill_of_supply', label: 'Bill of supply' }]} />
+          <TextField label={words.date} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+          {kind === 'invoice' ? <SelectField label="Document" value={documentType} onChange={(e) => setDocumentType(e.target.value)} options={[{ value: 'tax_invoice', label: 'Tax invoice' }, { value: 'bill_of_supply', label: 'Bill of supply' }]} /> : null}
+          {kind === 'quote' ? <TextField label="Valid until" type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} /> : null}
+          {kind === 'order' ? <TextField label="Customer reference (optional)" value={reference} onChange={(e) => setReference(e.target.value)} /> : null}
+          {kind === 'order' ? <div className="flex items-end"><CheckField label="Hold the stock" hint="Reserve it for this order" checked={reserve} onChange={(e) => setReserve(e.target.checked)} /></div> : null}
+          {kind === 'quote' ? <div className="col-span-2"><TextField label="Notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} /></div> : null}
           {ws.registrations.length > 1 ? <SelectField label="GST registration" value={regId} onChange={(e) => setRegistrationId(e.target.value)} options={ws.registrations.map((r) => ({ value: r.id, label: `${r.gstin} · ${stateName(r.stateCode)}` }))} /> : null}
           {ws.locations.length > 1 ? <SelectField label="Place of business" value={locationId} onChange={(e) => setLocationId(e.target.value)} options={[{ value: '', label: 'Default' }, ...ws.locations.map((l) => ({ value: l.id, label: l.name }))]} /> : null}
           {ws.warehouses.length > 1 ? <SelectField label="Ship from" value={whId} onChange={(e) => setWarehouseId(e.target.value)} options={ws.warehouses.map((w) => ({ value: w.id, label: w.name }))} /> : null}
@@ -122,7 +154,7 @@ export function InvoiceEditorPage() {
               </>
             ) : <p className="text-muted">No totals yet.</p>}
           </dl>
-          <Button className="mt-4 w-full" busy={post.isPending} disabled={!body || stale || calc.isError || !calc.data} onClick={() => void submit()}>Post invoice</Button>
+          <Button className="mt-4 w-full" busy={post.isPending || createQuote.isPending || createOrder.isPending} disabled={!body || stale || calc.isError || !calc.data} onClick={() => void submit()}>{words.action}</Button>
         </Card>
       </div>
     </div>

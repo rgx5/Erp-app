@@ -12,6 +12,8 @@ interface NavItem { to: string; label: string; icon: LucideIcon; needs?: string[
 export const NAV: NavItem[] = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, needs: ['dashboard:read'] },
   { to: '/setup', label: 'Setup', icon: ClipboardCheck, needs: ['organization:write'] },
+  { to: '/sales/quotes', label: 'Quotes', icon: FileText, needs: ['sales:read'], section: 'Sales' },
+  { to: '/sales/orders', label: 'Sales orders', icon: ClipboardList, needs: ['sales:read'], section: 'Sales' },
   { to: '/sales/invoices', label: 'Invoices', icon: FileText, needs: ['sales:read'], section: 'Sales' },
   { to: '/sales/receipts', label: 'Receipts', icon: ReceiptIcon, needs: ['receivables:read'], section: 'Sales' },
   { to: '/sales/receivables', label: 'Receivables', icon: Landmark, needs: ['receivables:read'], section: 'Sales' },
@@ -48,6 +50,7 @@ export const NAV: NavItem[] = [
   { to: '/purchasing/bills', label: 'Supplier bills', icon: ClipboardList, needs: ['purchasing:read'], section: 'Purchasing' },
   { to: '/purchasing/payments', label: 'Payments', icon: Wallet, needs: ['payables:read'], section: 'Purchasing' },
   { to: '/purchasing/payables', label: 'Payables', icon: Landmark, needs: ['payables:read'], section: 'Purchasing' },
+  { to: '/purchasing/landed-costs', label: 'Landed costs', icon: ReceiptIcon, needs: ['purchasing:read'], section: 'Purchasing' },
   { to: '/approvals', label: 'Approvals', icon: BadgeCheck, needs: [], section: 'Control' },
   { to: '/organization/companies', label: 'Companies', icon: Building2, needs: ['organization:read'], section: 'Organization' },
   { to: '/masterdata/items', label: 'Items', icon: Boxes, needs: ['masterdata:read'], section: 'Master data' },

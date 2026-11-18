@@ -44,7 +44,9 @@ test('connects to a server, signs in, sees the dashboard and companies, and sign
 
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
   await expect(page.getByText('Sunrise')).toBeVisible()
-  await expect(page.getByText('Cash and bank')).toBeVisible()
+  await expect(page.getByText('Cash and bank', { exact: true }).first()).toBeVisible()
+  await expect(page.getByRole('img', { name: 'Profit by month' })).toBeVisible()
+  await expect(page.getByRole('link', { name: /Receivables/ }).first()).toBeVisible()
   await expect(page.getByText('₹ 0.00').first()).toBeVisible()
   await expect(page.getByText('Asha Owner')).toBeVisible()
 

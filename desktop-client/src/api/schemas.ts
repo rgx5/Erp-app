@@ -476,3 +476,25 @@ export const apiKey = z.object({ id: z.string(), name: z.string(), keyPrefix: z.
 export type ApiKey = z.infer<typeof apiKey>
 export const auditEvent = z.object({ id: z.string(), occurredAt: z.string(), actorType: z.string(), actorId: z.string().nullable(), action: z.string(), entityType: z.string().nullable(), entityId: z.string().nullable(), outcome: z.string(), requestId: z.string().nullable(), ipAddress: z.string().nullable(), details: z.unknown() })
 export type AuditEvent = z.infer<typeof auditEvent>
+
+// ---- quotes and sales orders -------------------------------------------------------------------------------------------------
+export const quoteHeader = z.object({ id: z.string(), quoteNo: z.string(), customerId: z.string(), quoteDate: z.string(), validUntil: z.string(), notes: z.string().nullable(), estimatedTaxable: z.string(), estimatedTax: z.string(), estimatedTotal: z.string(), status: z.string(), orderId: z.string().nullable(), gstRegistrationId: z.string() })
+export type QuoteHeader = z.infer<typeof quoteHeader>
+export const quote = quoteHeader.extend({ lines: z.array(z.object({ id: z.string(), lineNo: z.number(), itemId: z.string(), description: z.string().nullable(), quantity: z.string(), unitPrice: z.string(), discountPercent: z.string(), estimatedTaxable: z.string(), estimatedTotal: z.string() })) })
+export type Quote = z.infer<typeof quote>
+export const orderHeader = z.object({ id: z.string(), orderNo: z.string(), customerId: z.string(), orderDate: z.string(), customerReference: z.string().nullable(), reserveStock: z.boolean(), quoteId: z.string().nullable(), status: z.string(), gstRegistrationId: z.string() })
+export type OrderHeader = z.infer<typeof orderHeader>
+export const salesOrder = orderHeader.extend({
+  lines: z.array(z.object({ id: z.string(), lineNo: z.number(), itemId: z.string(), description: z.string().nullable(), quantity: z.string(), quantityInvoiced: z.string(), unitPrice: z.string(), discountPercent: z.string(), taxInclusive: z.boolean() })),
+  invoices: z.array(z.object({ id: z.string(), invoiceNo: z.string(), status: z.string(), grandTotal: z.string() })).optional(),
+})
+export type SalesOrder = z.infer<typeof salesOrder>
+
+// ---- landed cost ---------------------------------------------------------------------------------------------------------
+export const landedCostHeader = z.object({ id: z.string(), voucherNo: z.string(), voucherDate: z.string(), description: z.string(), basis: z.string(), totalAmount: z.string(), status: z.string(), cancelReason: z.string().nullable() })
+export type LandedCostHeader = z.infer<typeof landedCostHeader>
+export const landedCost = landedCostHeader.extend({
+  charges: z.array(z.object({ id: z.string(), kind: z.string(), description: z.string().nullable(), amount: z.string(), accountId: z.string() })),
+  lines: z.array(z.object({ id: z.string(), grnLineId: z.string(), itemId: z.string(), quantity: z.string(), basisValue: z.string(), allocated: z.string(), capitalised: z.string(), expensed: z.string() })),
+})
+export type LandedCost = z.infer<typeof landedCost>

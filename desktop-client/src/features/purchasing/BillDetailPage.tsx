@@ -11,7 +11,10 @@ import { SimpleForm } from '@/ui/SimpleForm'
 import { Alert, Button, Card, Spinner, TextField } from '@/ui/primitives'
 import { BillTotals, MatchBadge, type MatchIssue } from './BillEditorPage'
 import { BILL_TYPE } from './BillsPage'
+import { usePostDebitNote } from './landedQueries'
 import { useBill, useCancelBill } from './queries'
+import { showQty } from '@/domain/quantity'
+import { ApiError } from '@/api/errors'
 
 const cancelSchema = z.object({ cancelDate: z.string().min(1, 'Required'), reason: z.string().trim().min(1, 'A reason is required').max(300) })
 
@@ -26,6 +29,12 @@ function BillDetail({ billId }: { billId: string }) {
   const cancel = useCancelBill(billId)
   const flash = useFlash()
   const [cancelling, setCancelling] = useState(false)
+  const [noting, setNoting] = useState(false)
+  const debit = usePostDebitNote()
+  const [dnDate, setDnDate] = useState(todayIso())
+  const [dnReason, setDnReason] = useState('')
+  const [dnQty, setDnQty] = useState<Record<string, string>>({})
+  const [dnProblem, setDnProblem] = useState<string | null>(null)
   if (q.isPending) return <Spinner />
   if (q.error || !q.data) return <Alert>{q.error?.message ?? 'Not found.'}</Alert>
   const b = q.data
@@ -42,6 +51,7 @@ function BillDetail({ billId }: { billId: string }) {
         </div>
         <div className="flex gap-2">
           {posted && can(perms, 'payables:post') ? <Link to="/purchasing/payments" search={{ supplierId: b.supplierId } as never} className="inline-flex h-9 items-center rounded-md border border-line bg-surface px-3.5 text-sm font-medium hover:bg-canvas">Record payment</Link> : null}
+          {posted && b.documentType === 'bill' && can(perms, 'purchasing:post') ? <Button variant="secondary" onClick={() => { setDnProblem(null); setNoting(true) }}>Debit note</Button> : null}
           {posted && b.documentType === 'bill' && can(perms, 'purchasing:cancel') ? <Button variant="secondary" onClick={() => setCancelling(true)}>Cancel</Button> : null}
         </div>
       </div>
@@ -61,6 +71,22 @@ function BillDetail({ billId }: { billId: string }) {
         </table>
         <div className="ml-auto mt-4 w-72"><BillTotals bill={b} /></div>
       </Card>
+      {noting ? (
+        <Drawer title={`Debit note against ${b.billNo}`} onClose={() => setNoting(false)} width={640}>
+          <div className="flex flex-col gap-4">
+            <Alert tone="info">Use a debit note when the supplier is to credit you: goods sent back, a price correction or a short supply. Choose the quantity on each line. It reduces what you owe and reverses the matching tax credit.</Alert>
+            <table className="w-full text-sm" aria-label="Billed lines"><thead><tr className="text-left text-xs text-muted"><th className="py-1">Line</th><th className="py-1 text-right">Billed</th><th className="py-1 text-right">Price</th><th className="w-28 py-1 text-right">Debit quantity</th></tr></thead>
+              <tbody>{b.lines.map((l) => <tr key={l.id} className="border-t border-line/60"><td className="py-1.5">{l.lineNo} · {l.description}</td><td className="num py-1.5 text-right">{showQty(l.quantity)}</td><td className="num py-1.5 text-right">{formatInr(l.unitPrice, { symbol: false })}</td><td className="py-1"><input aria-label={`Debit quantity for line ${l.lineNo}`} inputMode="decimal" className="h-8 w-full rounded border border-line bg-surface px-2 text-right text-sm" value={dnQty[l.id] ?? ''} onChange={(e) => setDnQty({ ...dnQty, [l.id]: e.target.value })} /></td></tr>)}</tbody></table>
+            <div className="grid grid-cols-2 gap-4"><TextField label="Date" type="date" value={dnDate} onChange={(e) => setDnDate(e.target.value)} /><TextField label="Reason" value={dnReason} onChange={(e) => setDnReason(e.target.value)} /></div>
+            {dnProblem ? <Alert>{dnProblem}</Alert> : null}
+            <Button busy={debit.isPending} disabled={!dnReason.trim() || !b.lines.some((l) => Number(dnQty[l.id] ?? 0) > 0)} onClick={async () => {
+              setDnProblem(null)
+              const lines = b.lines.filter((l) => Number(dnQty[l.id] ?? 0) > 0).map((l) => ({ originalLineId: l.id, quantity: dnQty[l.id] as string }))
+              try { const n = await debit.mutateAsync({ key: crypto.randomUUID(), body: { originalBillId: b.id, noteDate: dnDate, reason: dnReason.trim(), lines } }); flash.show(`${n.billNo} posted for ${formatInr(n.grandTotal)}.`); setNoting(false) } catch (e) { setDnProblem(e instanceof ApiError ? `${e.message}${e.requestId ? ` (reference ${e.requestId})` : ''}` : 'Could not post the debit note.') }
+            }}>Post debit note</Button>
+          </div>
+        </Drawer>
+      ) : null}
       {cancelling ? (
         <Drawer title={`Cancel ${b.billNo}`} onClose={() => setCancelling(false)}>
           <div className="flex flex-col gap-4">

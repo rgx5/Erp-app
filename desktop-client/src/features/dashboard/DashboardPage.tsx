@@ -2,17 +2,36 @@ import { Link } from '@tanstack/react-router'
 import { ApiError } from '@/api/errors'
 import { formatDate, formatInr, todayIso } from '@/domain/format'
 import { useChosenCompany, useCompanies } from '@/features/organization/queries'
+import { can } from '@/auth/permissions'
+import { useSession } from '@/auth/session'
 import { Alert, Card, Spinner } from '@/ui/primitives'
 import { useSetupStatus } from '@/features/setup/queries'
 import { useDashboard } from './queries'
 
-function Kpi({ label, value, tone, note }: { label: string; value: string; tone?: 'good' | 'bad'; note?: string | undefined }) {
-  return (
-    <div className="rounded-lg border border-line bg-surface p-4">
+function Kpi({ label, value, tone, note, to }: { label: string; value: string; tone?: 'good' | 'bad' | undefined; note?: string | undefined; to?: string | undefined }) {
+  const body = (
+    <>
       <p className="text-xs font-medium text-muted">{label}</p>
       <p className={`num mt-1 text-xl font-semibold ${tone === 'bad' ? 'text-bad' : tone === 'good' ? 'text-good' : ''}`}>{value}</p>
       {note ? <p className="mt-1 text-xs text-muted">{note}</p> : null}
-    </div>
+    </>
+  )
+  const box = 'block rounded-lg border border-line bg-surface p-4'
+  return to ? <Link to={to as never} className={`${box} hover:border-brand`}>{body}</Link> : <div className={box}>{body}</div>
+}
+
+/** Profit by month as bars: above the line green, below it red. Plain SVG, no library. */
+function TrendChart({ rows }: { rows: { month: string; profit: string }[] }) {
+  const vals = rows.map((r) => Number(r.profit))
+  const max = Math.max(1, ...vals.map(Math.abs))
+  const w = 28; const gap = 10; const h = 120; const mid = h / 2
+  return (
+    <svg role="img" aria-label="Profit by month" viewBox={`0 0 ${rows.length * (w + gap)} ${h + 18}`} className="h-40 w-full max-w-2xl">
+      <line x1="0" x2={rows.length * (w + gap)} y1={mid} y2={mid} stroke="currentColor" className="text-line" />
+      {rows.map((r, i) => { const v = vals[i] as number; const bar = (Math.abs(v) / max) * (mid - 4); return (
+        <g key={r.month}><rect x={i * (w + gap) + gap / 2} y={v >= 0 ? mid - bar : mid} width={w} height={Math.max(bar, v === 0 ? 0 : 1)} rx="2" className={v >= 0 ? 'fill-good' : 'fill-bad'}><title>{`${r.month}: ${formatInr(r.profit)}`}</title></rect>
+          <text x={i * (w + gap) + gap / 2 + w / 2} y={h + 12} textAnchor="middle" className="fill-muted text-[9px]">{r.month.slice(5)}</text></g>) })}
+    </svg>
   )
 }
 
@@ -24,6 +43,8 @@ export function DashboardPage() {
   const asOf = todayIso()
   const dash = useDashboard(active?.id ?? null, asOf)
   const setup = useSetupStatus(active?.id)
+  const perms = useSession((x) => x.me?.permissions ?? [])
+  const go = (perm: string, to: string): string | undefined => (can(perms, perm) ? to : undefined)
 
   if (companies.isPending || companies.error || !active) {
     return (
@@ -56,14 +77,22 @@ export function DashboardPage() {
       {d ? (
         <>
           <div className="grid grid-cols-4 gap-3">
-            <Kpi label="Cash and bank" value={formatInr(d.cash.total)} />
+            <Kpi label="Cash and bank" value={formatInr(d.cash.total)} to={go('bank:read', '/accounting/bank')} />
             <Kpi label="Profit this month" value={formatInr(d.month.profit)} tone={d.month.profit.startsWith('-') ? 'bad' : 'good'} note={`Revenue ${formatInr(d.month.revenue)}`} />
             <Kpi label="Profit this year" value={formatInr(d.yearToDate.profit)} tone={d.yearToDate.profit.startsWith('-') ? 'bad' : 'good'} note={d.yearToDate.netMarginPercent ? `${d.yearToDate.netMarginPercent}% net margin` : undefined} />
-            <Kpi label="Stock value" value={formatInr(d.inventoryValue)} />
-            <Kpi label="Receivables" value={formatInr(d.receivables.total)} note={`Overdue ${formatInr(d.receivables.overdue)}`} />
-            <Kpi label="Payables" value={formatInr(d.payables.total)} note={`Overdue ${formatInr(d.payables.overdue)}`} />
-            <Kpi label="Waiting for approval" value={String(d.attention.pendingApprovals)} />
-            <Kpi label="Bank lines to match" value={String(d.attention.unmatchedBankLines)} />
+            <Kpi label="Stock value" value={formatInr(d.inventoryValue)} to={go('stock:read', '/inventory/valuation')} />
+            <Kpi label="Receivables" value={formatInr(d.receivables.total)} note={`Overdue ${formatInr(d.receivables.overdue)}`} tone={Number(d.receivables.overdue) > 0 ? 'bad' : undefined} to={go('receivables:read', '/sales/receivables')} />
+            <Kpi label="Payables" value={formatInr(d.payables.total)} note={`Overdue ${formatInr(d.payables.overdue)}`} tone={Number(d.payables.overdue) > 0 ? 'bad' : undefined} to={go('payables:read', '/purchasing/payables')} />
+            <Kpi label="Waiting for approval" value={String(d.attention.pendingApprovals)} to={go('approvals:read', '/approvals')} />
+            <Kpi label="Bank lines to match" value={String(d.attention.unmatchedBankLines)} to={go('bank:read', '/accounting/bank')} />
+            <Kpi label="Open purchase orders" value={String(d.attention.openPurchaseOrders)} to={go('purchasing:read', '/purchasing/orders')} />
+            <Kpi label="Open work orders" value={String(d.attention.openWorkOrders)} to={go('manufacturing:read', '/manufacturing/orders')} />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Card title="Profit by month"><TrendChart rows={d.trend} /></Card>
+            <Card title="Cash and bank accounts">
+              <table className="w-full text-sm" aria-label="Cash and bank accounts"><tbody>{d.cash.accounts.map((a) => <tr key={a.accountId} className="border-t border-line/60 first:border-0"><td className="py-1.5">{a.code} · {a.name}</td><td className="num py-1.5 text-right">{formatInr(a.balance)}</td></tr>)}{d.cash.accounts.length === 0 ? <tr><td className="py-2 text-muted">No cash or bank account has a balance yet.</td></tr> : null}</tbody></table>
+            </Card>
           </div>
           <Card title="Month by month">
             <table className="w-full text-sm">

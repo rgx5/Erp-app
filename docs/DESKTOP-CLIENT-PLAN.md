@@ -111,3 +111,12 @@ Each slice ends with working, tested software, is committed and pushed, and gets
 ## 8. What I propose to do first
 
 D0 together with backend G1: scaffold `desktop-client/`, generate the client, build the shell, the design system and the auth/navigation skeleton, add the live Playwright harness and CI, then D1.
+
+## 5c. Follow-ups completed after D11
+
+| Item | State |
+|---|---|
+| D3b Quotes and sales orders | done: quote editor (same grid as invoices, valid-until and notes), quote list and detail, make-it-an-order with optional stock hold, customer declined, sales order editor (customer reference, hold stock), order list and detail, invoice all or part of an order, close, cancel. No backend change. |
+| D4 leftovers | done: supplier debit notes from the bill (per-line quantity, reason), landed-cost vouchers (charges booked to expense accounts, shared by value or quantity over receipt lines, allocation and capitalised/expensed split, cancel). Not yet: goods-receipt returns screen. |
+| Dashboard polish | done: tiles link to their screens (permission-aware), overdue shown in red, open purchase and work orders, profit-by-month chart, cash and bank accounts list. |
+| Still open | Inventory batches, serial numbers and reservations screens; goods-receipt returns; G8 (OpenAPI query and response types); the G4-G6 POS backend gaps; signing, notarisation, auto-update hosting and a first hosted run of the installer workflow. |
