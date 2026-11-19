@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+    "module": "nodenext", "moduleResolution": "nodenext", "target": "ES2023", "lib": ["ES2023"], "types": ["node"],
+    "strict": true, "noUncheckedIndexedAccess": true, "noImplicitOverride": true, "noImplicitReturns": true, "exactOptionalPropertyTypes": true,
+    "forceConsistentCasingInFileNames": true, "esModuleInterop": true, "isolatedModules": true, "skipLibCheck": true, "noEmit": true
+  },
+  "include": ["src", "test", "*.ts"]
+}

@@ -1,0 +1,33 @@
+name: control-plane
+on:
+  push:
+    paths: ['control-plane/**', 'backend/src/modules/identity/entitlements*.ts', '.github/workflows/control-plane.yml']
+  pull_request:
+    paths: ['control-plane/**', 'backend/src/modules/identity/entitlements*.ts', '.github/workflows/control-plane.yml']
+defaults:
+  run:
+    working-directory: control-plane
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ['5434:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 3s --health-retries 20
+    env:
+      TEST_PG_ADMIN_URL: postgres://postgres:postgres@localhost:5434/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: control-plane/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm test

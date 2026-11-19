@@ -1,0 +1,23 @@
+{
+  "note": "TEST ONLY key pair. The control plane and the product server must agree on how a licence is signed: both test suites check this vector.",
+  "publicKey": "-----BEGIN PUBLIC KEY-----\nMCowBQYDK2VwAyEAGYXeiV/eiTksML+hMg3BTnkfajAa0skMxoy+keO62W4=\n-----END PUBLIC KEY-----\n",
+  "privateKey": "-----BEGIN PRIVATE KEY-----\nMC4CAQAwBQYDK2VwBCIEICMh4VDvNcpHQ2aXvyRGpq81HdPPZf4E9g71lMLp0TTq\n-----END PRIVATE KEY-----\n",
+  "licence": {
+    "licenceId": "LIC-VECTOR-001",
+    "tenantId": "01a1ef97-0534-7459-b710-dd1bfcf733a3",
+    "plan": "Hybrid",
+    "modules": [
+      "inventory",
+      "sales"
+    ],
+    "limits": {
+      "users": 10,
+      "sites": 2
+    },
+    "readOnly": false,
+    "expiresAt": "2027-04-01T00:00:00.000Z",
+    "graceDays": 14,
+    "issuedAt": "2026-11-19T00:00:00.000Z"
+  },
+  "signature": "Tq2SUSUaHVO2ffl63etVxxL7RURYklVKskxBf8L69io4Pg7Y3uwQggGR5BlT6x9RU5+Of+K08wWNiAe5bYuBDw=="
+}
