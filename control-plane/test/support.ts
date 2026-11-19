@@ -8,13 +8,13 @@ import { createPool, migrate } from '../src/db.js';
 const ADMIN_URL = process.env['TEST_PG_ADMIN_URL'] ?? 'postgres://postgres@localhost:5434/postgres';
 const pem = (): string => generateKeyPairSync('ed25519').privateKey.export({ type: 'pkcs8', format: 'pem' }).toString();
 
-export async function testApp() {
+export async function testApp(env: Record<string, string> = {}) {
   const name = `cp_test_${Date.now().toString(36)}_${Math.floor(Math.random() * 1e6)}`;
   const admin = new pg.Client({ connectionString: ADMIN_URL });
   await admin.connect();
   await admin.query(`CREATE DATABASE ${name}`);
   const url = ADMIN_URL.replace(/\/[^/]*$/, `/${name}`);
-  const config = loadConfig({ DATABASE_URL: url, LICENCE_PRIVATE_KEY: pem(), RELEASE_PRIVATE_KEY: pem(), NODE_ENV: 'test', SILENT_AFTER_MINUTES: '10' } as NodeJS.ProcessEnv);
+  const config = loadConfig({ DATABASE_URL: url, LICENCE_PRIVATE_KEY: pem(), RELEASE_PRIVATE_KEY: pem(), NODE_ENV: 'test', SILENT_AFTER_MINUTES: '10', ...env } as NodeJS.ProcessEnv);
   const pool = createPool(url);
   await migrate(pool);
   const app = buildApp({ pool, config });

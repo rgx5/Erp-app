@@ -19,6 +19,8 @@ describe('fleet health', () => {
     expect(j({ ...good, backup: { ...good.backup, lastBaseBackupAt: ago(60 * 48) } }).reasons[0]).toMatch(/48 hours ago/);
     expect(j({ ...good, backup: { ...good.backup, walQueueBytes: 3 * 1024 ** 3 } }).reasons[0]).toMatch(/queue/);
     expect(j({ ...good, tunnel: { up: false } }).reasons).toContain('Remote-access tunnel is down');
+    expect(j({ ...good, lastUpgrade: { outcome: 'rolled_back', toVersion: '2.0.0' } }).reasons[0]).toMatch(/Upgrade to 2.0.0 did not finish \(rolled back\)/);
+    expect(j({ ...good, lastUpgrade: { outcome: 'success', toVersion: '2.0.0' } }).state).toBe('healthy');
   });
   it('applies tier rules: a local site needs no tunnel, only Plus has a standby', () => {
     expect(j({ ...good, tunnel: { up: false } }, 'local').state).toBe('healthy');

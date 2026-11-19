@@ -153,6 +153,50 @@ describe('releases', () => {
   });
 });
 
+describe('approved remote support', () => {
+  const KEY = 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoFKLnBJyw5Ky+1HbM5H4Aa7yzP support@example.com';
+  it('goes through request, code, open and close, and only the site can say the code is right', async () => {
+    const a = await makeSite('SUP-01');
+    const req = await t.call('POST', `/sites/${a.site.id}/support-sessions`, support.token, { reason: 'Printer will not print receipts', minutes: 30, publicKey: KEY });
+    expect(req.status).toBe(201);
+    expect((await t.call('POST', `/sites/${a.site.id}/support-sessions`, support.token, { reason: 'Second request here', minutes: 30, publicKey: KEY })).json.code).toBe('session_active');
+    const seen = (await t.call('GET', '/agent/support', a.token)).json;
+    expect(seen.session).toMatchObject({ id: req.json.id, status: 'requested', minutes: 30, publicKey: KEY, enteredCode: null });
+    expect((await t.call('POST', `/support-sessions/${req.json.id}/code`, support.token, { code: '123456' })).json.code).toBe('not_awaiting_code'); // too early
+    expect((await t.call('POST', `/agent/support/${req.json.id}/state`, a.token, { state: 'open' })).json.code).toBe('bad_state'); // cannot skip the code
+    await t.call('POST', `/agent/support/${req.json.id}/state`, a.token, { state: 'awaiting_code' });
+    expect((await t.call('POST', `/support-sessions/${req.json.id}/code`, support.token, { code: '12ab56' })).status).toBe(422);
+    expect((await t.call('POST', `/support-sessions/${req.json.id}/code`, support.token, { code: '123456' })).status).toBe(200);
+    expect((await t.call('GET', '/agent/support', a.token)).json.session).toMatchObject({ status: 'awaiting_code', enteredCode: '123456' });
+    const expires = new Date(Date.now() + 30 * 60_000).toISOString();
+    expect((await t.call('POST', `/agent/support/${req.json.id}/state`, a.token, { state: 'open', expiresAt: expires })).status).toBe(200);
+    const open = (await t.call('GET', '/agent/support', a.token)).json.session;
+    expect(open).toMatchObject({ status: 'open', enteredCode: null, expiresAt: expires });
+    expect((await t.call('POST', `/support-sessions/${req.json.id}/close`, viewer.token)).status).toBe(403);
+    expect((await t.call('POST', `/support-sessions/${req.json.id}/close`, support.token)).status).toBe(200);
+    const after = (await t.call('GET', '/agent/support', a.token)).json;
+    expect(after.session).toBeNull(); expect(after.endedSessionIds).toContain(req.json.id);
+    expect((await t.call('GET', `/sites/${a.site.id}/support-sessions`, viewer.token)).json.items[0]).toMatchObject({ status: 'closed', reason: 'Printer will not print receipts' });
+  });
+  it('lets the site refuse, validates the request, and keeps every step in the audit', async () => {
+    const a = await makeSite('SUP-02');
+    expect((await t.call('POST', `/sites/${a.site.id}/support-sessions`, support.token, { reason: 'Hi', minutes: 30, publicKey: KEY })).status).toBe(422);
+    expect((await t.call('POST', `/sites/${a.site.id}/support-sessions`, support.token, { reason: 'Looking at slow reports', minutes: 500, publicKey: KEY })).status).toBe(422);
+    expect((await t.call('POST', `/sites/${a.site.id}/support-sessions`, support.token, { reason: 'Looking at slow reports', minutes: 30, publicKey: 'not a key' })).status).toBe(422);
+    const r = await t.call('POST', `/sites/${a.site.id}/support-sessions`, support.token, { reason: 'Looking at slow reports', minutes: 30, publicKey: KEY });
+    await t.call('POST', `/agent/support/${r.json.id}/state`, a.token, { state: 'awaiting_code' });
+    await t.call('POST', `/agent/support/${r.json.id}/state`, a.token, { state: 'refused' });
+    expect((await t.call('GET', '/agent/support', a.token)).json.session).toBeNull();
+    const log = (await t.call('GET', '/audit', admin.token)).json.items as { action: string }[];
+    for (const x of ['support.requested', 'support.awaiting_code', 'support.refused']) expect(log.map((e) => e.action)).toContain(x);
+    // another site's agent cannot touch this session
+    const other = await makeSite('SUP-03');
+    const r2 = await t.call('POST', `/sites/${other.site.id}/support-sessions`, support.token, { reason: 'Looking at slow reports', minutes: 30, publicKey: KEY });
+    await t.call('POST', `/agent/support/${r2.json.id}/state`, a.token, { state: 'refused' });
+    expect((await t.call('GET', '/agent/support', other.token)).json.session).toMatchObject({ status: 'requested' });
+  });
+});
+
 describe('fleet screen', () => {
   it('serves the page and the health check without sign-in', async () => {
     const page = await t.app.inject({ method: 'GET', url: '/ui' });

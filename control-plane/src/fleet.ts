@@ -6,6 +6,8 @@ export interface Heartbeat {
   disk?: { freePercent?: number };
   tunnel?: { up?: boolean };
   lastUserActivityAt?: string | null;
+  /** The outcome of the most recent upgrade attempt, kept until the next one. */
+  lastUpgrade?: { outcome?: string; fromVersion?: string; toVersion?: string; at?: string };
 }
 export type FleetState = 'healthy' | 'degraded' | 'silent' | 'never';
 export interface Judgement { state: FleetState; reasons: string[] }
@@ -32,6 +34,8 @@ export function judge(input: { lastSeenAt: Date | null; heartbeat: Heartbeat | n
   if ((h.backup?.walQueueBytes ?? 0) > LIMITS.walQueueBytes) reasons.push('Backup queue is growing on the site disk');
   if (input.tier !== 'local' && input.tier !== 'cloud' && h.tunnel?.up === false) reasons.push('Remote-access tunnel is down');
   if (input.tier === 'hybrid_plus' && (h.db?.replicationLagSeconds ?? 0) > LIMITS.replicationLagSeconds) reasons.push('Live standby is behind');
+  const up = h.lastUpgrade;
+  if (up?.outcome && up.outcome !== 'success') reasons.push(`Upgrade to ${up.toVersion ?? 'a new version'} did not finish (${up.outcome.replaceAll('_', ' ')})`);
   return { state: reasons.length ? 'degraded' : 'healthy', reasons };
 }
 

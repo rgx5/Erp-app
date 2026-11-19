@@ -7,12 +7,15 @@ import { publicKeyOf, randomToken, sha256, signDocument } from './crypto.js';
 import type { Db } from './db.js';
 import { compareVersions, judge, type Heartbeat } from './fleet.js';
 import { LIMIT_KEYS, MODULES, moduleProblem } from './modules.js';
+import { SecretBox } from './secret-box.js';
+import { generateTotpSecret, verifyTotp } from './totp.js';
+import { mfaRequired } from './config.js';
 
 class HttpError extends Error { constructor(readonly status: number, readonly code: string, message: string, readonly extra: Record<string, unknown> = {}) { super(message); } }
 type Role = 'admin' | 'support' | 'viewer';
 const RANK: Record<Role, number> = { viewer: 1, support: 2, admin: 3 };
 interface Staff { id: string; email: string; displayName: string; role: Role }
-declare module 'fastify' { interface FastifyRequest { staff?: Staff; agentSite?: { id: string; tenantId: string | null; ring: number; updatesPaused: boolean; maintenanceWindow: unknown; tier: string } } }
+declare module 'fastify' { interface FastifyRequest { staff?: Staff & { mfaEnabled: boolean }; agentSite?: { id: string; tenantId: string | null; ring: number; updatesPaused: boolean; maintenanceWindow: unknown; tier: string } } }
 
 const MAX_FAILS = 5;
 const LOCK_MINUTES = 15;
@@ -21,13 +24,17 @@ const uuid = z.uuid();
 const parse = <T>(schema: z.ZodType<T>, data: unknown): T => schema.parse(data);
 
 const schemas = {
-  login: z.strictObject({ email: z.string().email(), password: z.string().min(1) }),
+  login: z.strictObject({ email: z.string().email(), password: z.string().min(1), code: z.string().min(6).max(20).optional() }),
+  code: z.strictObject({ code: z.string().min(6).max(20) }),
   staff: z.strictObject({ email: z.string().email(), displayName: z.string().trim().min(1).max(100), password: z.string().min(12).max(200), role: z.enum(['admin', 'support', 'viewer']) }),
   client: z.strictObject({ name: z.string().trim().min(1).max(150), tier: z.enum(['local', 'hybrid', 'hybrid_plus', 'cloud']), contact: z.record(z.string(), z.string()).default({}), notes: z.string().max(2000).optional() }),
   site: z.strictObject({ clientId: uuid, code: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_-]{0,29}$/), name: z.string().trim().min(1).max(150), kind: z.enum(['onprem', 'dedicated', 'pooled']).default('onprem'), tenantId: uuid.optional(), ring: z.number().int().min(0).max(2).default(2) }),
   siteUpdate: z.strictObject({ name: z.string().trim().min(1).max(150).optional(), status: z.enum(['planned', 'installed', 'active', 'suspended', 'retired']).optional(), tenantId: uuid.nullable().optional(), ring: z.number().int().min(0).max(2).optional(), updatesPaused: z.boolean().optional(),
     maintenanceWindow: z.strictObject({ days: z.array(z.number().int().min(0).max(6)).min(1).max(7), startHour: z.number().int().min(0).max(23), durationHours: z.number().int().min(1).max(12), timezone: z.string().min(1).max(60) }).optional() }).refine((v) => Object.keys(v).length > 0, 'Send at least one field'),
   licence: z.strictObject({ plan: z.string().trim().min(1).max(60), modules: z.array(z.enum(MODULES)).max(20), limits: z.partialRecord(z.enum(LIMIT_KEYS), z.number().int().min(0).max(1_000_000)).default({}), readOnly: z.boolean().default(false), expiresAt: iso.nullable().optional(), graceDays: z.number().int().min(0).max(365).default(14) }),
+  support: z.strictObject({ reason: z.string().trim().min(5).max(300), minutes: z.number().int().min(5).max(120), publicKey: z.string().regex(/^(ssh-ed25519|ecdsa-sha2-nistp256) [A-Za-z0-9+/=]{20,600}( [^\s]{1,80})?$/, 'An ssh-ed25519 or ecdsa-sha2-nistp256 public key') }),
+  supportCode: z.strictObject({ code: z.string().regex(/^\d{6}$/, 'The six digits the customer reads out') }),
+  supportState: z.strictObject({ state: z.enum(['awaiting_code', 'open', 'closed', 'refused']), expiresAt: iso.optional(), codeRejected: z.boolean().optional() }),
   revoke: z.strictObject({ reason: z.string().trim().min(3).max(300) }),
   release: z.strictObject({ version: z.string().regex(/^\d+\.\d+\.\d+$/), images: z.array(z.strictObject({ name: z.string().min(1).max(100), digest: z.string().regex(/^sha256:[0-9a-f]{64}$/) })).min(1).max(20), migrationDigest: z.string().regex(/^sha256:[0-9a-f]{64}$/), minClientVersion: z.string().regex(/^\d+\.\d+\.\d+$/).optional(), maxClientVersion: z.string().regex(/^\d+\.\d+\.\d+$/).optional(), notes: z.string().max(4000).default('') }),
   heartbeat: z.looseObject({ version: z.string().max(40).optional(), agentVersion: z.string().max(40).optional(),
@@ -39,6 +46,8 @@ const schemas = {
 export interface AppDeps { pool: Db; config: Config }
 export function buildApp({ pool, config }: AppDeps): FastifyInstance {
   const app = Fastify({ logger: config.NODE_ENV === 'test' ? false : { level: 'info' }, bodyLimit: 256 * 1024 });
+  const box = new SecretBox(config.DATA_ENCRYPTION_KEY ? Buffer.from(config.DATA_ENCRYPTION_KEY, 'base64') : Buffer.alloc(32, 7)); // a fixed key only outside production, where the config requires a real one
+  const mustHaveMfa = mfaRequired(config);
   const licencePublic = publicKeyOf(config.LICENCE_PRIVATE_KEY);
   const releasePublic = publicKeyOf(config.RELEASE_PRIVATE_KEY);
 
@@ -56,16 +65,17 @@ export function buildApp({ pool, config }: AppDeps): FastifyInstance {
   };
 
   /** Staff routes: a bearer session token, and at least the given role. */
-  const asStaff = (min: Role) => async (req: FastifyRequest) => {
+  const asStaff = (min: Role, o: { allowSetup?: boolean } = {}) => async (req: FastifyRequest) => {
     const h = req.headers.authorization;
     if (!h?.startsWith('Bearer ') || h.length < 20) throw new HttpError(401, 'unauthorized', 'Sign in first');
-    const r = await pool.query<{ id: string; email: string; display_name: string; role: Role }>(
-      `SELECT u.id, u.email, u.display_name, u.role FROM staff_sessions s JOIN staff_users u ON u.id = s.staff_id
+    const r = await pool.query<{ id: string; email: string; display_name: string; role: Role; mfa_enabled: boolean }>(
+      `SELECT u.id, u.email, u.display_name, u.role, u.mfa_enabled FROM staff_sessions s JOIN staff_users u ON u.id = s.staff_id
         WHERE s.token_hash = $1 AND s.revoked_at IS NULL AND s.expires_at > now() AND u.status = 'active'`, [sha256(h.slice(7).trim())]);
     const row = r.rows[0];
     if (!row) throw new HttpError(401, 'unauthorized', 'The session has ended: sign in again');
     if (RANK[row.role] < RANK[min]) throw new HttpError(403, 'forbidden', 'Your role does not allow this');
-    req.staff = { id: row.id, email: row.email, displayName: row.display_name, role: row.role };
+    if (mustHaveMfa && !row.mfa_enabled && !o.allowSetup) throw new HttpError(403, 'mfa_setup_required', 'Set up two-step sign-in before doing anything else');
+    req.staff = { id: row.id, email: row.email, displayName: row.display_name, role: row.role, mfaEnabled: row.mfa_enabled };
   };
 
   /** Agent routes: the site's own token, `cpa_<siteId>_<secret>`. */
@@ -93,26 +103,73 @@ export function buildApp({ pool, config }: AppDeps): FastifyInstance {
   // ---- staff sign-in --------------------------------------------------------------------------------------------
   app.post('/auth/login', async (req, reply) => {
     const body = parse(schemas.login, req.body);
-    const r = await pool.query<{ id: string; password_hash: string; status: string; failed_logins: number; locked_until: Date | null; role: Role; display_name: string; email: string }>('SELECT * FROM staff_users WHERE lower(email) = lower($1)', [body.email]);
+    const r = await pool.query<{ id: string; password_hash: string; status: string; failed_logins: number; locked_until: Date | null; role: Role; display_name: string; email: string; mfa_enabled: boolean; mfa_secret_enc: string | null; mfa_last_step: string | null }>('SELECT * FROM staff_users WHERE lower(email) = lower($1)', [body.email]);
     const u = r.rows[0];
-    if (u?.locked_until && u.locked_until > new Date()) throw new HttpError(429, 'locked', `Too many wrong passwords: try again in ${LOCK_MINUTES} minutes`);
+    if (u?.locked_until && u.locked_until > new Date()) throw new HttpError(429, 'locked', `Too many wrong passwords or codes: try again in ${LOCK_MINUTES} minutes`);
     const good = u ? await verify(u.password_hash, body.password).catch(() => false) : (await verify('$argon2id$v=19$m=19456,t=2,p=1$c29tZXNhbHRzb21lc2FsdA$Yrn+mCUKFJFd3YbJdcUQ9dbaSdEDT4nVBXOoThgTJnY', body.password).catch(() => false), false);
-    if (!u || !good || u.status !== 'active') {
+    const fail = async () => {
       if (u) await pool.query('UPDATE staff_users SET failed_logins = CASE WHEN failed_logins + 1 >= $2 THEN 0 ELSE failed_logins + 1 END, locked_until = CASE WHEN failed_logins + 1 >= $2 THEN now() + make_interval(mins => $3) ELSE NULL END WHERE id = $1', [u.id, MAX_FAILS, LOCK_MINUTES]);
-      throw new HttpError(401, 'invalid_credentials', 'The email or password is wrong');
+    };
+    if (!u || !good || u.status !== 'active') { await fail(); throw new HttpError(401, 'invalid_credentials', 'The email or password is wrong'); }
+    if (u.mfa_enabled) {
+      if (!body.code) throw new HttpError(401, 'mfa_required', 'Enter the code from your authenticator app');
+      if (!(await acceptSecondFactor(u.id, u.mfa_secret_enc as string, u.mfa_last_step, body.code))) { await fail(); throw new HttpError(401, 'invalid_code', 'That code is not valid'); }
     }
     await pool.query('UPDATE staff_users SET failed_logins = 0, locked_until = NULL WHERE id = $1', [u.id]);
     const token = randomToken();
     await pool.query('INSERT INTO staff_sessions (token_hash, staff_id, expires_at) VALUES ($1, $2, now() + make_interval(hours => $3))', [sha256(token), u.id, config.SESSION_HOURS]);
-    req.staff = { id: u.id, email: u.email, displayName: u.display_name, role: u.role };
+    req.staff = { id: u.id, email: u.email, displayName: u.display_name, role: u.role, mfaEnabled: u.mfa_enabled };
     await audit(req, 'staff.login', 'staff', u.id);
-    return reply.send({ token, expiresInHours: config.SESSION_HOURS, staff: { id: u.id, email: u.email, displayName: u.display_name, role: u.role } });
+    return reply.send({ token, expiresInHours: config.SESSION_HOURS, mfaSetupRequired: mustHaveMfa && !u.mfa_enabled, staff: { id: u.id, email: u.email, displayName: u.display_name, role: u.role } });
   });
-  app.post('/auth/logout', { preHandler: asStaff('viewer') }, async (req, reply) => {
+
+  /** A TOTP code (each step usable once) or a recovery code (each usable once). */
+  const acceptSecondFactor = async (staffId: string, sealed: string, lastStep: string | null, code: string): Promise<boolean> => {
+    const secret = box.open(sealed, `staff:${staffId}`);
+    const step = verifyTotp(secret, code);
+    if (step !== undefined) {
+      if (lastStep !== null && step <= Number(lastStep)) return false; // already used: a replayed code
+      await pool.query('UPDATE staff_users SET mfa_last_step = $2 WHERE id = $1', [staffId, step]);
+      return true;
+    }
+    const used = await pool.query('UPDATE staff_recovery_codes SET used_at = now() WHERE staff_id = $1 AND code_hash = $2 AND used_at IS NULL RETURNING id', [staffId, sha256(code.replaceAll('-', '').toLowerCase())]);
+    return used.rowCount === 1;
+  };
+  app.post('/auth/mfa/enrol', { preHandler: asStaff('viewer', { allowSetup: true }) }, async (req) => {
+    const staff = req.staff as NonNullable<FastifyRequest['staff']>;
+    if (staff.mfaEnabled) throw new HttpError(409, 'mfa_enabled', 'Two-step sign-in is already on');
+    const secret = generateTotpSecret();
+    await pool.query('UPDATE staff_users SET mfa_secret_enc = $2 WHERE id = $1', [staff.id, box.seal(secret, `staff:${staff.id}`)]);
+    return { secret, otpauthUri: `otpauth://totp/OneSyncERP%20Control%20Plane:${encodeURIComponent(staff.email)}?secret=${secret}&issuer=OneSyncERP%20Control%20Plane` };
+  });
+  app.post('/auth/mfa/activate', { preHandler: asStaff('viewer', { allowSetup: true }) }, async (req) => {
+    const staff = req.staff as NonNullable<FastifyRequest['staff']>;
+    const { code } = parse(schemas.code, req.body);
+    const row = (await pool.query<{ mfa_secret_enc: string | null }>('SELECT mfa_secret_enc FROM staff_users WHERE id = $1', [staff.id])).rows[0];
+    if (!row?.mfa_secret_enc) throw new HttpError(409, 'no_enrolment', 'Start the set-up first');
+    const step = verifyTotp(box.open(row.mfa_secret_enc, `staff:${staff.id}`), code);
+    if (step === undefined) throw new HttpError(422, 'invalid_code', 'That code is not valid');
+    const codes = Array.from({ length: 8 }, () => randomToken(6).replace(/[^a-z0-9]/gi, 'x').slice(0, 8).toLowerCase());
+    await pool.query('UPDATE staff_users SET mfa_enabled = true, mfa_last_step = $2 WHERE id = $1', [staff.id, step]);
+    await pool.query('DELETE FROM staff_recovery_codes WHERE staff_id = $1', [staff.id]);
+    for (const c of codes) await pool.query('INSERT INTO staff_recovery_codes (staff_id, code_hash) VALUES ($1, $2)', [staff.id, sha256(c)]);
+    await audit(req, 'staff.mfa_enabled', 'staff', staff.id);
+    return { enabled: true, recoveryCodes: codes };
+  });
+  /** An admin can turn off another person's two-step sign-in (for a lost phone), which they must then set up again. */
+  app.post<{ Params: { id: string } }>('/staff/:id/mfa/reset', { preHandler: asStaff('admin') }, async (req) => {
+    const id = parse(uuid, req.params.id);
+    const r = await pool.query('UPDATE staff_users SET mfa_enabled = false, mfa_secret_enc = NULL, mfa_last_step = NULL WHERE id = $1 RETURNING id', [id]);
+    if (!r.rows[0]) throw new HttpError(404, 'not_found', 'No such staff member');
+    await pool.query('UPDATE staff_sessions SET revoked_at = now() WHERE staff_id = $1 AND revoked_at IS NULL', [id]);
+    await audit(req, 'staff.mfa_reset', 'staff', id);
+    return { reset: true };
+  });
+  app.post('/auth/logout', { preHandler: asStaff('viewer', { allowSetup: true }) }, async (req, reply) => {
     await pool.query('UPDATE staff_sessions SET revoked_at = now() WHERE token_hash = $1', [sha256((req.headers.authorization as string).slice(7).trim())]);
     return reply.status(204).send();
   });
-  app.get('/me', { preHandler: asStaff('viewer') }, async (req) => req.staff);
+  app.get('/me', { preHandler: asStaff('viewer', { allowSetup: true }) }, async (req) => req.staff);
   app.post('/staff', { preHandler: asStaff('admin') }, async (req, reply) => {
     const b = parse(schemas.staff, req.body);
     const id = randomUUID();
@@ -268,6 +325,53 @@ export function buildApp({ pool, config }: AppDeps): FastifyInstance {
     const rows = (await pool.query<{ manifest: { version: string }; signature: string }>("SELECT manifest, signature FROM releases WHERE status = 'rolling' AND open_ring >= $1", [site.ring])).rows;
     const best = rows.filter((r) => !current || compareVersions(r.manifest.version, current) > 0).sort((a, b) => compareVersions(b.manifest.version, a.manifest.version))[0];
     return best ? { release: { manifest: best.manifest, signature: best.signature }, maintenanceWindow: site.maintenanceWindow } : { release: null, reason: 'up_to_date', maintenanceWindow: site.maintenanceWindow };
+  });
+
+  // ---- approved remote support ----------------------------------------------------------------------------------
+  app.post<{ Params: { id: string } }>('/sites/:id/support-sessions', { preHandler: asStaff('support') }, async (req, reply) => {
+    const id = parse(uuid, req.params.id); const b = parse(schemas.support, req.body);
+    const sid = randomUUID();
+    try { await pool.query('INSERT INTO support_sessions (id, site_id, requested_by, reason, minutes, public_key) VALUES ($1, $2, $3, $4, $5, $6)', [sid, id, req.staff?.id, b.reason, b.minutes, b.publicKey]); }
+    catch (e) { const c = (e as { code?: string }).code; if (c === '23505') throw new HttpError(409, 'session_active', 'This site already has a support session in progress'); if (c === '23503') throw new HttpError(404, 'not_found', 'No such site'); throw e; }
+    await audit(req, 'support.requested', 'site', id, { sessionId: sid, reason: b.reason, minutes: b.minutes });
+    return reply.status(201).send({ id: sid, status: 'requested' });
+  });
+  app.get<{ Params: { id: string } }>('/sites/:id/support-sessions', { preHandler: asStaff('viewer') }, async (req) => ({ items: (await pool.query('SELECT s.id, s.status, s.reason, s.minutes, s.opened_at, s.expires_at, s.closed_at, s.created_at, u.email AS requested_by FROM support_sessions s JOIN staff_users u ON u.id = s.requested_by WHERE s.site_id = $1 ORDER BY s.created_at DESC LIMIT 50', [parse(uuid, req.params.id)])).rows }));
+  /** Staff enter the six digits the customer read out. Only the site's agent can say whether they are right. */
+  app.post<{ Params: { id: string } }>('/support-sessions/:id/code', { preHandler: asStaff('support') }, async (req) => {
+    const id = parse(uuid, req.params.id); const b = parse(schemas.supportCode, req.body);
+    const r = await pool.query("UPDATE support_sessions SET entered_code = $2 WHERE id = $1 AND status = 'awaiting_code' RETURNING id", [id, b.code]);
+    if (!r.rows[0]) throw new HttpError(409, 'not_awaiting_code', 'This session is not waiting for a code');
+    return { sent: true };
+  });
+  app.post<{ Params: { id: string } }>('/support-sessions/:id/close', { preHandler: asStaff('support') }, async (req) => {
+    const id = parse(uuid, req.params.id);
+    const r = await pool.query<{ site_id: string }>("UPDATE support_sessions SET status = CASE WHEN status = 'open' THEN 'closed' ELSE 'cancelled' END, closed_at = now(), entered_code = NULL WHERE id = $1 AND status IN ('requested', 'awaiting_code', 'open') RETURNING site_id", [id]);
+    if (!r.rows[0]) throw new HttpError(404, 'not_found', 'No active session with that id');
+    await audit(req, 'support.closed', 'site', r.rows[0].site_id, { sessionId: id });
+    return { closed: true };
+  });
+  /** The site's current support session, if any. The agent acts on it; the code the customer reads out never leaves the site. */
+  app.get('/agent/support', { preHandler: asAgent }, async (req) => {
+    const site = req.agentSite as NonNullable<FastifyRequest['agentSite']>;
+    const r = (await pool.query("SELECT id, status, reason, minutes, public_key, entered_code, expires_at FROM support_sessions WHERE site_id = $1 AND status IN ('requested', 'awaiting_code', 'open') ORDER BY created_at DESC LIMIT 1", [site.id])).rows[0];
+    // sessions that ended since the agent last looked, so it can close access it opened
+    const ended = (await pool.query("SELECT id FROM support_sessions WHERE site_id = $1 AND status IN ('closed', 'cancelled', 'refused') AND closed_at > now() - interval '1 day' ORDER BY closed_at DESC LIMIT 5", [site.id])).rows.map((x) => x.id as string);
+    return { session: r ? { id: r.id, status: r.status, reason: r.reason, minutes: r.minutes, publicKey: r.public_key, enteredCode: r.entered_code, expiresAt: r.expires_at?.toISOString() ?? null } : null, endedSessionIds: ended };
+  });
+  app.post<{ Params: { id: string } }>('/agent/support/:id/state', { preHandler: asAgent }, async (req) => {
+    const site = req.agentSite as NonNullable<FastifyRequest['agentSite']>;
+    const id = parse(uuid, req.params.id); const b = parse(schemas.supportState, req.body);
+    if (b.state === 'awaiting_code') {
+      await pool.query("UPDATE support_sessions SET status = 'awaiting_code', entered_code = NULL WHERE id = $1 AND site_id = $2 AND status IN ('requested', 'awaiting_code')", [id, site.id]);
+    } else if (b.state === 'open') {
+      const r = await pool.query("UPDATE support_sessions SET status = 'open', opened_at = now(), expires_at = $3, entered_code = NULL WHERE id = $1 AND site_id = $2 AND status = 'awaiting_code' RETURNING id", [id, site.id, b.expiresAt ?? null]);
+      if (!r.rows[0]) throw new HttpError(409, 'bad_state', 'This session is not waiting for approval');
+    } else {
+      await pool.query("UPDATE support_sessions SET status = $3, closed_at = now(), entered_code = NULL WHERE id = $1 AND site_id = $2 AND status IN ('requested', 'awaiting_code', 'open')", [id, site.id, b.state]);
+    }
+    await pool.query("INSERT INTO staff_audit (staff_id, action, entity, entity_id, details) VALUES (NULL, $1, 'site', $2, $3)", [`support.${b.state}`, site.id, { sessionId: id }]);
+    return { ok: true };
   });
 
   // ---- audit and the fleet screen -------------------------------------------------------------------------------
