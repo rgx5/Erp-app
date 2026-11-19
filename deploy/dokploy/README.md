@@ -58,7 +58,8 @@ Nothing in these files publishes a host port. Dokploy's Traefik terminates TLS a
      -d '{"name":"Acme","slug":"acme","owner":{"email":"owner@acme.in","displayName":"Owner","password":"…"}}'
    ```
    Then register the cell in the dashboard (kind **pooled**) and set `SITE_ID` to its id.
-6. Clients' desktop apps: server address `https://app.yourdomain.in`; owners can open `https://app.yourdomain.in/owner` in a browser.
+6. **Demo data** (demo servers only): in Dokploy → the cell service → **Terminal** → container `api`, run `node scripts/seed-demo.mjs`. It creates a business (code `demo`, owner `owner@demo.example.com`, password `demo-passphrase-2026`) with items, customers, suppliers, about 45 invoices and receipts; run it again and it does nothing. Change the login with `DEMO_SLUG`, `DEMO_OWNER_EMAIL`, `DEMO_PASSWORD`.
+7. Clients' desktop apps: server address `https://app.yourdomain.in`; owners can open `https://app.yourdomain.in/owner` in a browser.
 
 ## 4. Backups (do this before the first client)
 

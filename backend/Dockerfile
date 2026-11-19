@@ -34,6 +34,8 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY --from=build /app/dist ./dist
 COPY db ./db
 COPY package.json ./
+# Fills a demo server with sample data: run `node scripts/seed-demo.mjs` in this container (never part of normal operation).
+COPY scripts/seed-demo.mjs ./scripts/seed-demo.mjs
 USER node
 EXPOSE 8080
 HEALTHCHECK --interval=15s --timeout=3s --start-period=20s --retries=3 \
