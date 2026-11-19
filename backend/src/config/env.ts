@@ -37,6 +37,8 @@ const schema = z
     PLATFORM_ADMIN_TOKEN: z.string().min(32).optional(),
     /** Ed25519 public key (PEM) that signed licences must verify against. Absent: signed licences cannot be imported. */
     LICENCE_PUBLIC_KEY: z.string().min(20).optional(),
+    /** The site this server runs at (an id from /v1/sites). Absent: records belong to the primary site. Needed per server once a client has several sites. */
+    SITE_ID: z.uuid().optional(),
     /** The oldest desktop client this server serves. Absent: any. Clients older than this are told to update. */
     MIN_CLIENT_VERSION: z.string().regex(/^\d+\.\d+\.\d+$/).optional(),
     SWAGGER_ENABLED: bool.optional(),

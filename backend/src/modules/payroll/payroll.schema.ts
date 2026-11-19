@@ -123,6 +123,7 @@ export const payrollSlabs = erp.table('payroll_slabs', {
 });
 
 export const payrollRuns = erp.table('payroll_runs', {
+  siteId: uuid('site_id'),
   tenantId: uuid('tenant_id').notNull(),
   id: uuid('id').notNull(),
   companyId: uuid('company_id').notNull(),

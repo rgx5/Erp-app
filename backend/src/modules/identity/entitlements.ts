@@ -11,7 +11,7 @@ export const DEPENDS: Readonly<Record<string, readonly ModuleName[]>> = {
   pos: ['sales', 'inventory'], gst: ['sales', 'accounting'], banking: ['accounting'], manufacturing: ['inventory'], payroll: ['accounting'],
 };
 /** The numeric limits a licence may set (a missing limit means no limit). */
-export const LIMIT_KEYS = ['users', 'companies', 'locations', 'terminals'] as const;
+export const LIMIT_KEYS = ['users', 'companies', 'locations', 'terminals', 'sites'] as const;
 export type LimitKey = (typeof LIMIT_KEYS)[number];
 
 export interface Entitlements {
@@ -70,6 +70,8 @@ const COUNTS: Record<LimitKey, ReturnType<typeof sql>> = {
   companies: sql`SELECT count(*)::int AS n FROM erp.companies`,
   locations: sql`SELECT count(*)::int AS n FROM erp.business_locations`,
   terminals: sql`SELECT count(*)::int AS n FROM erp.pos_terminals`,
+  // the primary site always exists, even before it has a row
+  sites: sql`SELECT (count(*) + CASE WHEN bool_or(is_primary) THEN 0 ELSE 1 END)::int AS n FROM erp.sites WHERE status = 'active'`,
 };
 /** Call inside the transaction that creates the thing: refuses when the tenant's licence caps how many it may have. */
 export async function assertWithinLimit(tx: Tx, tenantId: string, key: LimitKey): Promise<void> {

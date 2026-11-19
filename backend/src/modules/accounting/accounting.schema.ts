@@ -59,6 +59,7 @@ export const journalCounters = erp.table('journal_counters', {
 });
 
 export const journalEntries = erp.table('journal_entries', {
+  siteId: uuid('site_id'),
   tenantId: uuid('tenant_id').notNull(),
   id: uuid('id').notNull(),
   companyId: uuid('company_id').notNull(),

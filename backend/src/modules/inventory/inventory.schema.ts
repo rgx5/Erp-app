@@ -43,6 +43,7 @@ export const stockCounters = erp.table('stock_counters', {
   nextValue: bigint('next_value', { mode: 'number' }).notNull().default(1),
 });
 export const stockMovements = erp.table('stock_movements', {
+  siteId: uuid('site_id'),
   tenantId: uuid('tenant_id').notNull(),
   id: uuid('id').notNull(),
   companyId: uuid('company_id').notNull(),

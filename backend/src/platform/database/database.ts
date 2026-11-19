@@ -15,6 +15,8 @@ export interface PoolSettings {
   statementTimeoutMs: number;
   idleInTransactionTimeoutMs: number;
   applicationName?: string;
+  /** The site this server runs at: set on every connection as app.site_id, which new rows take as their site. */
+  siteId?: string | undefined;
 }
 
 export function createAppPool(settings: PoolSettings): pg.Pool {
@@ -25,6 +27,7 @@ export function createAppPool(settings: PoolSettings): pg.Pool {
     idle_in_transaction_session_timeout: settings.idleInTransactionTimeoutMs,
     application_name: settings.applicationName ?? 'erp-backend',
     connectionTimeoutMillis: 5_000,
+    ...(settings.siteId ? { options: `-c app.site_id=${settings.siteId}` } : {}),
   });
   // A connection the server drops while idle must not crash the process; the pool replaces it.
   pool.on('error', () => undefined);

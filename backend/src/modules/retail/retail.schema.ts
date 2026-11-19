@@ -18,6 +18,7 @@ export const expenseCategories = erp.table('expense_categories', {
 });
 
 export const expenseVouchers = erp.table('expense_vouchers', {
+  siteId: uuid('site_id'),
   tenantId: uuid('tenant_id').notNull(),
   id: uuid('id').notNull(),
   companyId: uuid('company_id').notNull(),

@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { and, asc, eq, gt } from 'drizzle-orm';
+import { and, asc, eq, gt, isNull, sql } from 'drizzle-orm';
 import { v7 as uuidv7 } from 'uuid';
 import type { Tx } from '../../platform/database/database.js';
 import { UnitOfWork } from '../../platform/database/unit-of-work.js';
@@ -20,6 +20,8 @@ export interface CreateSeriesInput {
   includeFinancialYear: boolean;
   padding: number;
   startAt: number;
+  /** The site this series is for (default: the site this server runs at; none means the primary site). */
+  siteId?: string | undefined;
 }
 
 /** GST invoice numbers are at most 16 characters of letters, digits, "/" and "-" (CGST Rules, rule 46). */
@@ -81,12 +83,14 @@ export class NumberingService {
     tenantId: string,
     scope: { gstRegistrationId: string; documentType: string; financialYear: string; documentRef?: string },
   ): Promise<AllocationRow> {
+    const site = (await tx.execute<{ s: string | null }>(sql`SELECT erp.current_site_id() AS s`)).rows[0]?.s ?? null; // the series of the site this server runs at
     const [series] = await tx
       .select()
       .from(numberSeries)
       .where(
         and(
           eq(numberSeries.tenantId, tenantId),
+          site === null ? isNull(numberSeries.siteId) : eq(numberSeries.siteId, site),
           eq(numberSeries.gstRegistrationId, scope.gstRegistrationId),
           eq(numberSeries.documentType, scope.documentType),
           eq(numberSeries.financialYear, scope.financialYear),

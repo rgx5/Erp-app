@@ -11,6 +11,7 @@ const meta = {
 };
 
 export const auditLog = erp.table('audit_log', {
+  siteId: uuid('site_id'),
   tenantId: uuid('tenant_id').notNull(),
   id: uuid('id').notNull(),
   occurredAt: ts('occurred_at').notNull().defaultNow(),
@@ -37,6 +38,7 @@ export const idempotencyKeys = erp.table('idempotency_keys', {
 });
 
 export const outboxEvents = erp.table('outbox_events', {
+  siteId: uuid('site_id'),
   tenantId: uuid('tenant_id').notNull(),
   id: uuid('id').notNull(),
   eventType: text('event_type').notNull(),
@@ -66,6 +68,7 @@ export const outboxDispatch = erp.table('outbox_dispatch', {
 });
 
 export const numberSeries = erp.table('number_series', {
+  siteId: uuid('site_id'),
   tenantId: uuid('tenant_id').notNull(),
   id: uuid('id').notNull(),
   gstRegistrationId: uuid('gst_registration_id').notNull(),

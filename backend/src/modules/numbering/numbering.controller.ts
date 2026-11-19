@@ -16,11 +16,14 @@ const createSeriesSchema = z.strictObject({
   includeFinancialYear: z.boolean().default(true),
   padding: z.number().int().min(1).max(12).default(5),
   startAt: z.number().int().min(1).max(Number.MAX_SAFE_INTEGER).default(1),
+  /** The site this series is for. Leave out for the site this server runs at (the primary site when the server has none). */
+  siteId: z.uuid().optional(),
 });
 
 const presentSeries = (s: SeriesRow) => ({
   id: s.id,
   gstRegistrationId: s.gstRegistrationId,
+  siteId: s.siteId,
   documentType: s.documentType,
   financialYear: s.financialYear,
   prefix: s.prefix,

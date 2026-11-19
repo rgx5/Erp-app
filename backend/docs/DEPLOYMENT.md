@@ -8,6 +8,12 @@
 ## Required in production
 `DATABASE_URL`, `AUTH_JWT_PRIVATE_KEY` (Ed25519 PKCS#8 PEM; rotate by adding the old public key to `AUTH_JWT_PREVIOUS_PUBLIC_KEYS`), `DATA_ENCRYPTION_KEY` (32 random bytes, base64). Optional: `PLATFORM_ADMIN_TOKEN` (>= 32 chars) to enable tenant provisioning, `SELF_SIGNUP_ENABLED`, `SWAGGER_ENABLED`.
 
+## Sites
+`SITE_ID` (optional, a uuid from `GET /v1/sites`) names the site this server runs at. Set it on each server once a client has several sites; leave it unset for single-site clients and the shared cloud. Records then remember their site and document numbers carry that site's series code. A statutory (GST) invoice series must exist for each site before it can invoice: create it with `POST /v1/number-series` and `siteId`.
+
+## Licences
+`LICENCE_PUBLIC_KEY` (Ed25519, PEM) lets the server accept licences signed by the control plane (`POST /v1/platform/tenants/:id/licence`); `npm run licence keys` makes a pair and `npm run licence sign file.json` signs a licence. `MIN_CLIENT_VERSION` (for example `1.4.0`) makes older desktop apps ask the user to update.
+
 ## Tuning
 | Variable | Default | Notes |
 |---|---|---|

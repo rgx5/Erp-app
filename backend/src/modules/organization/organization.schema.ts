@@ -75,3 +75,17 @@ export const warehouses = erp.table('warehouses', {
   status: text('status').notNull().default('active'),
   ...audit,
 });
+
+/** Mirrors db/migrations/0034_sites.sql. A site is one place a client's server runs; NULL site_id on a record means the primary site. */
+export const sites = erp.table('sites', {
+  tenantId: uuid('tenant_id').notNull(),
+  id: uuid('id').notNull(),
+  code: text('code').notNull(),
+  name: text('name').notNull(),
+  seriesCode: text('series_code').notNull().default(''),
+  isPrimary: boolean('is_primary').notNull().default(false),
+  status: text('status').notNull().default('active'),
+  version: integer('version').notNull().default(1),
+  createdAt: timestamp('created_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true, mode: 'date' }).notNull().defaultNow(),
+});

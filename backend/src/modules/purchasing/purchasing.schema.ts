@@ -34,6 +34,7 @@ export const purchasingSettings = erp.table('purchasing_settings', {
 });
 
 export const purchaseOrders = erp.table('purchase_orders', {
+  siteId: uuid('site_id'),
   tenantId: uuid('tenant_id').notNull(),
   id: uuid('id').notNull(),
   companyId: uuid('company_id').notNull(),
@@ -69,6 +70,7 @@ export const purchaseOrderLines = erp.table('purchase_order_lines', {
 });
 
 export const goodsReceipts = erp.table('goods_receipts', {
+  siteId: uuid('site_id'),
   tenantId: uuid('tenant_id').notNull(),
   id: uuid('id').notNull(),
   companyId: uuid('company_id').notNull(),
@@ -105,6 +107,7 @@ export const goodsReceiptLines = erp.table('goods_receipt_lines', {
 });
 
 export const supplierBills = erp.table('supplier_bills', {
+  siteId: uuid('site_id'),
   tenantId: uuid('tenant_id').notNull(),
   id: uuid('id').notNull(),
   companyId: uuid('company_id').notNull(),
@@ -212,6 +215,7 @@ export const receiptReturnLines = erp.table('receipt_return_lines', {
 
 
 export const supplierPayments = erp.table('supplier_payments', {
+  siteId: uuid('site_id'),
   tenantId: uuid('tenant_id').notNull(),
   id: uuid('id').notNull(),
   companyId: uuid('company_id').notNull(),

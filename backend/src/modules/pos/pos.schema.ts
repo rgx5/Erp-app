@@ -34,6 +34,7 @@ export const posTerminals = erp.table('pos_terminals', {
   ...meta,
 });
 export const posShifts = erp.table('pos_shifts', {
+  siteId: uuid('site_id'),
   tenantId: uuid('tenant_id').notNull(),
   id: uuid('id').notNull(),
   companyId: uuid('company_id').notNull(),
@@ -51,6 +52,7 @@ export const posShifts = erp.table('pos_shifts', {
   varianceEntryId: uuid('variance_entry_id'),
 });
 export const posSales = erp.table('pos_sales', {
+  siteId: uuid('site_id'),
   tenantId: uuid('tenant_id').notNull(),
   id: uuid('id').notNull(),
   companyId: uuid('company_id').notNull(),

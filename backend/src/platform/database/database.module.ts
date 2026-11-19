@@ -17,6 +17,7 @@ import { UnitOfWork } from './unit-of-work.js';
           max: env.DATABASE_POOL_MAX,
           statementTimeoutMs: env.DATABASE_STATEMENT_TIMEOUT_MS,
           idleInTransactionTimeoutMs: env.DATABASE_IDLE_IN_TRANSACTION_TIMEOUT_MS,
+          siteId: env.SITE_ID,
         }),
     },
     { provide: DB, inject: [POOL], useFactory: (pool: pg.Pool) => createDb(pool) },

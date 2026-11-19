@@ -26,6 +26,7 @@ export const salesSettings = erp.table('sales_settings', {
 });
 
 export const salesInvoices = erp.table('sales_invoices', {
+  siteId: uuid('site_id'),
   tenantId: uuid('tenant_id').notNull(),
   id: uuid('id').notNull(),
   companyId: uuid('company_id').notNull(),
@@ -102,6 +103,7 @@ export const salesInvoiceLines = erp.table('sales_invoice_lines', {
 });
 
 export const salesQuotes = erp.table('sales_quotes', {
+  siteId: uuid('site_id'),
   tenantId: uuid('tenant_id').notNull(),
   id: uuid('id').notNull(),
   companyId: uuid('company_id').notNull(),
@@ -143,6 +145,7 @@ export const salesQuoteLines = erp.table('sales_quote_lines', {
   estimatedTotal: money('estimated_total').notNull(),
 });
 export const salesOrders = erp.table('sales_orders', {
+  siteId: uuid('site_id'),
   tenantId: uuid('tenant_id').notNull(),
   id: uuid('id').notNull(),
   companyId: uuid('company_id').notNull(),
@@ -185,6 +188,7 @@ export const salesOrderLines = erp.table('sales_order_lines', {
 });
 
 export const customerReceipts = erp.table('customer_receipts', {
+  siteId: uuid('site_id'),
   tenantId: uuid('tenant_id').notNull(),
   id: uuid('id').notNull(),
   companyId: uuid('company_id').notNull(),

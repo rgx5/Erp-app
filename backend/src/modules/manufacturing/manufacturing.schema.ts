@@ -74,6 +74,7 @@ export const manufacturingSettings = erp.table('manufacturing_settings', {
 });
 
 export const workOrders = erp.table('work_orders', {
+  siteId: uuid('site_id'),
   tenantId: uuid('tenant_id').notNull(),
   id: uuid('id').notNull(),
   companyId: uuid('company_id').notNull(),
