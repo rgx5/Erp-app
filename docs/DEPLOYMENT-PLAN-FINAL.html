@@ -1,0 +1,620 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>OneSyncERP deployment and live-client plan v1.2</title>
+<style>
+@page{size:A4;margin:18mm 16mm 18mm 16mm}
+*{box-sizing:border-box}
+body{font:10.4pt/1.5 "Inter","Segoe UI",Helvetica,Arial,sans-serif;color:#0e1220;margin:0}
+h1{font-size:25pt;letter-spacing:-.02em;margin:0 0 4pt}
+h2{font-size:15pt;margin:22pt 0 6pt;padding-bottom:4pt;border-bottom:2px solid #2b59ff;letter-spacing:-.01em;page-break-after:avoid}
+h3{font-size:11.5pt;margin:14pt 0 4pt;color:#0c1747;page-break-after:avoid}
+p{margin:4pt 0 6pt}ul,ol{margin:3pt 0 7pt;padding-left:17pt}li{margin:1.5pt 0}
+table{border-collapse:collapse;width:100%;margin:6pt 0 10pt;font-size:9.2pt;page-break-inside:auto}
+th{background:#0c1747;color:#fff;text-align:left;padding:4pt 6pt;font-weight:600}
+td{border-bottom:1px solid #e3e0d6;padding:4pt 6pt;vertical-align:top}tr{page-break-inside:avoid}
+tr:nth-child(even) td{background:#faf9f6}
+.cover{height:240mm;display:flex;flex-direction:column;justify-content:center;page-break-after:always}
+.cover .tag{color:#2b59ff;font-weight:700;letter-spacing:.12em;font-size:9.5pt;text-transform:uppercase}
+.cover .sub{font-size:13pt;color:#4a5266;margin:6pt 0 28pt;max-width:140mm}
+.box{border:1px solid #d5d1c5;border-left:4px solid #2b59ff;background:#f6f8ff;padding:7pt 10pt;margin:8pt 0;border-radius:4pt}
+.warn{border-left-color:#ff8a1f;background:#fff7ec}
+.good{border-left-color:#0a8a5e;background:#effaf4}
+.small{font-size:8.8pt;color:#4a5266}
+.pill{display:inline-block;padding:0 6pt;border-radius:8pt;background:#e9eeff;color:#2b59ff;font-size:8.5pt;font-weight:600}
+.pb{page-break-before:always}
+code{font:9pt ui-monospace,Menlo,monospace;background:#f1efe9;padding:0 3pt;border-radius:3pt}
+.toc li{margin:2pt 0}
+figure{margin:8pt 0;text-align:center;page-break-inside:avoid}figcaption{font-size:8.8pt;color:#4a5266}
+</style></head><body>
+<div class="cover">
+  <div class="tag">OneSyncERP · Production readiness · Final plan, version 1.2</div>
+  <h1>Taking OneSyncERP live: on-premise first, with a hybrid cloud</h1>
+  <div class="sub">How we deploy, protect, update, support and sell to 20 to 30 mostly on-premise clients now, growing to 50 to 100, with cloud backup, remote access and a live standby, on a Hostinger VPS in Mumbai.</div>
+  <table style="max-width:155mm"><tr><th>Decisions made</th><td>Both pooled and dedicated deployments are designed for, but <b>on-premise is the main product</b> · Hostinger VPS (Mumbai) for the cloud side · the ledger is always on · start with 20 to 30 on-premise clients · hybrid levels <b>A (backup), B (live standby) and C (remote access)</b> now; two-way sync later · one site per client now, multi-site later · remote use is the most requested hybrid feature</td></tr>
+  <tr><th>Replaces</th><td>Versions 1.0 and 1.1. This is the plan development starts from; Section 22 lists the first development sprints.</td></tr>
+  <tr><th>Status</th><td>Final for the start of development. Open items use the working defaults in Section 21 until you change them. <b>Decision</b> = needs your answer. <b>Assumption</b> = my planning number, to be validated by tests and quotes.</td></tr></table>
+</div>
+
+<h2 style="margin-top:0">Contents</h2>
+<ol class="toc">
+<li>Executive summary</li><li>Decision log</li><li>What changed since version 1.0</li><li>Where we are today</li><li>Client segments and service tiers</li>
+<li>Reference architecture: sites, cloud services and the control plane</li><li>Hybrid data protection and remote access (levels A, B and C)</li>
+<li>Fleet management: running 20 to 30 servers at client sites</li><li>The Hostinger cloud design</li><li>Feature packaging</li>
+<li>Tenant lifecycle: onboarding, migration, go-live, offboarding</li><li>Environments and release management</li><li>Backup, disaster recovery, commitments and retention</li>
+<li>Security and compliance</li><li>Operations: monitoring, support and incidents</li><li>Licensing, billing and commercial terms</li>
+<li>Desktop, mobile and counter distribution</li><li>Later: multi-site and two-way sync (design preview)</li><li>Phased roadmap with exit criteria</li>
+<li>Team and responsibilities</li><li>Risks and mitigations</li><li>Open decisions and working defaults</li><li>Development: how we start</li><li>Appendices: A engineering backlog · B go-live checklist · C release and incident checklists</li></ol>
+<h2 class="pb">1. Executive summary</h2>
+<p>Most of your clients want the system on their own premises, and they ask for remote use. That makes the on-premise server the <b>system of record</b> and the cloud a <b>supporting layer</b> that protects the data, provides remote access, and gives you control over a fleet of 20 to 30 (later more) servers. The plan rests on five ideas.</p>
+<div class="box"><b>1. The site is the source of truth.</b> Each client's server holds their database and runs the full application on their local network. If the internet or your cloud is down, the office keeps working. The cloud never sits in the daily path.</div>
+<div class="box"><b>2. Hybrid in three levels, built in this order of value.</b> <b>A. Continuous protected backup:</b> every change is shipped, encrypted, to your cloud, so a lost server is recoverable to within minutes. <b>C. Remote access:</b> owners and staff use the product from anywhere through a secure outbound tunnel and a cloud gateway; nothing is copied, so there are no sync conflicts. <b>B. Live standby:</b> a ready cloud copy for read-only reports and for fast failover if the site server fails. Two-way editing of the same data on both sides is deliberately deferred.</div>
+<div class="box"><b>3. A fleet agent on every site.</b> A small, signed agent reports health, applies signed updates in a maintenance window with an automatic backup first and automatic rollback, and opens support access only when the client approves. Without this, 30 sites become 30 different problems.</div>
+<div class="box"><b>4. One codebase, one build, entitlements per client.</b> The same images run on a client's server, in a dedicated cloud stack, or in a small shared cloud cell. What differs is placement and what is switched on, never the code.</div>
+<div class="box"><b>5. Honest commitments.</b> A single VPS provider supports about 99.5% for the cloud services. We sell data-loss and recovery targets that we can prove in drills, expressed separately for what we control (cloud, software, backups) and what the client controls (server hardware, power, local network).</div>
+<p class="small">Uptime, data-loss and recovery figures in this document are internal targets (see the decision log, item 12).</p>
+<h3>Shape in one table</h3>
+<table><tr><th>Offer</th><th>Where the data lives</th><th>Cloud role</th></tr>
+<tr><td><b>Local</b></td><td>Client server only</td><td>Encrypted backup (level A, mandatory), licence, updates</td></tr>
+<tr><td><b>Hybrid</b> (the main offer)</td><td>Client server is primary</td><td>A + C: backup and remote access through the gateway</td></tr>
+<tr><td><b>Hybrid Plus</b></td><td>Client server is primary</td><td>A + C + B: live standby, remote read-only dashboards, fast failover</td></tr>
+<tr><td><b>Cloud</b></td><td>Your shared cell on the VPS (optional, for small clients)</td><td>Everything</td></tr></table>
+<h3>Timeline at a glance (Assumption)</h3>
+<table><tr><th>Phase</th><th>Outcome</th><th>Duration</th></tr>
+<tr><td>0 Cloud foundations</td><td>Hostinger servers built by code, gateway, backup repository, monitoring, control-plane core</td><td>4 to 6 weeks</td></tr>
+<tr><td>1 Site appliance and fleet agent</td><td>Standard server image, installer, agent, signed releases, heartbeat, remote support</td><td>6 to 8 weeks</td></tr>
+<tr><td>2 Level A: protected backup, with licences and entitlements</td><td>Backups shipped and restore proven, licence and modules enforced</td><td>5 to 7 weeks (overlaps 1)</td></tr>
+<tr><td>3 Level C: remote access</td><td>Tunnel, gateway, client addresses, owner web dashboard</td><td>5 to 7 weeks</td></tr>
+<tr><td>4 Pilot</td><td>3 sites live, security test, drills</td><td>6 weeks</td></tr>
+<tr><td>5 Level B: live standby and failover</td><td>Standby, read-only views, tested failover</td><td>5 to 6 weeks</td></tr>
+<tr><td>6 Rollout to 20 to 30 sites</td><td>Repeatable onboarding, support rota, billing</td><td>10 to 14 weeks</td></tr>
+<tr><td>7 Multi-site and two-way sync</td><td>Designed for in the data model now; built later</td><td>After rollout</td></tr></table>
+
+<h2 class="pb">Decision log</h2>
+<p>Everything decided so far, in the order it was decided. Items marked <b>Interpreted</b> were answered briefly and are recorded as I understood them; please correct anything that is wrong.</p>
+<table><tr><th>#</th><th>Topic</th><th>Decision</th><th>Status</th></tr>
+<tr><td>1</td><td>Deployment shapes</td><td>Design for both pooled (shared cloud cell) and dedicated or on-premise deployments, from one codebase and one signed build</td><td>Decided</td></tr>
+<tr><td>2</td><td>Scale</td><td>50 to 100 clients overall; 20 to 30 on-premise clients at the start; most clients are on-premise</td><td>Decided</td></tr>
+<tr><td>3</td><td>Who runs it</td><td>Your own IT team runs and supports the platform</td><td>Decided</td></tr>
+<tr><td>4</td><td>Residency and hosting</td><td>Hostinger VPS in Mumbai for the cloud side; backups also held at a second provider</td><td>Decided</td></tr>
+<tr><td>5</td><td>Ledger and modules</td><td>The ledger is always on (part of Core); Accounting licenses the screens and reports only</td><td>Decided</td></tr>
+<tr><td>6</td><td>Hybrid levels</td><td>Build A (protected backup), C (remote access) and B (live standby), in that value order; remote use is the most requested</td><td>Decided</td></tr>
+<tr><td>7</td><td>Two-way sync</td><td>Deferred to later; one writer per client at any time for now</td><td>Decided</td></tr>
+<tr><td>8</td><td>Sites per client</td><td>One site per client now; multi-site later, with site identity added to the data model in phase 2</td><td>Decided (site identity: working default)</td></tr>
+<tr><td>9</td><td>Network at clients</td><td>Mostly stable internet at client sites</td><td>Decided (an input, not a design choice)</td></tr>
+<tr><td>10</td><td>Site server supply</td><td><b>You supply a standard appliance server</b> to every on-premise client (a client-purchase option to an approved model list may be offered later)</td><td>Decided</td></tr>
+<tr><td>11</td><td>Backup recovery keys</td><td><b>You hold the recovery keys</b>, one key per client, in your vault with dual control (no single person can use them); clients do not hold a copy unless a contract says so</td><td>Decided (Interpreted)</td></tr>
+<tr><td>12</td><td>Commitments (uptime, data loss, recovery)</td><td><b>Left for now.</b> Targets in this plan are internal engineering targets only. Nothing is published or promised to clients until drills on pilot sites have measured them and you decide the wording</td><td>Deferred (Interpreted)</td></tr>
+<tr><td>13</td><td>Development</td><td>Start development now from this plan</td><td>Decided</td></tr></table>
+
+<h2 class="pb">2. What changed since version 1.0</h2>
+<table><tr><th>Topic</th><th>Version 1.0</th><th>Version 1.1</th></tr>
+<tr><td>Main product shape</td><td>Shared cloud cells first; on-premise an exception</td><td>On-premise is the main shape; cloud is protection, remote access and fleet control</td></tr>
+<tr><td>Hosting</td><td>Managed cloud in an India region</td><td>Hostinger VPS in Mumbai that we operate ourselves, with backups also held at a second provider</td></tr>
+<tr><td>Data sync</td><td>Tenant move and export tools</td><td>Levels A, B and C defined; two-way sync deferred with its prerequisites designed in now</td></tr>
+<tr><td>Biggest new work</td><td>Control plane and entitlements</td><td>Site appliance, fleet agent, backup shipping, tunnel and gateway, plus the control plane and entitlements</td></tr>
+<tr><td>Uptime promise</td><td>99.5 to 99.95% by tier</td><td>99.5% for cloud services; site availability is shared with the client and contracted separately</td></tr>
+<tr><td>Releases</td><td>Roll out cell by cell</td><td>Roll out in rings of sites, each with a pre-upgrade backup and automatic rollback</td></tr>
+<tr><td>Ledger and modules</td><td>Decision pending</td><td>Decided: the ledger is always on; Accounting licenses the screens and reports</td></tr></table>
+<h2 class="pb">3. Where we are today</h2>
+<p>An honest baseline matters: much of the hard multi-tenant safety work is done, but the "business of running it for many clients" is not built yet.</p>
+<h3>Already in place</h3>
+<table><tr><th>Area</th><th>What exists</th></tr>
+<tr><td>Tenant isolation</td><td>Every table is tenant-scoped with row-level security. The runtime database role cannot bypass it, owns no tables and cannot delete rows; the app refuses to start if that is not true. Two separate database roles: migrator (owns tables) and runtime.</td></tr>
+<tr><td>Tenant creation</td><td>A platform-admin API creates a tenant with its owner; self sign-up is off by default. Tenants have a status that is checked on every authenticated request.</td></tr>
+<tr><td>Packaging</td><td>A Docker image for the API and a separate migration image (same code, plus tooling to apply migrations as the owner role). A docker-compose file for local use. This is the seed of the on-premise bundle, which still needs an installer, an agent, and signing.</td></tr>
+<tr><td>Scaling shape</td><td>Stateless instances behind a load balancer; health endpoints (<code>/health</code>, <code>/live</code>, <code>/ready</code>); idempotency keys on writes; an outbox relay that any number of instances may run; optional rate limiting and principal cache.</td></tr>
+<tr><td>Operations scripts</td><td>A retention job (purges expired idempotency keys, delivered events, old sessions; never audit or ledgers); a performance script; documented required secrets and key rotation for signing keys.</td></tr>
+<tr><td>Client</td><td>Desktop app (Windows, macOS, Linux builds), server discovery (<code>/v1/meta</code>), CORS for the desktop origin, two layouts, POS with offline selling and sync, a permission system (roles) used to hide menu entries.</td></tr>
+<tr><td>Quality gates</td><td>CI for backend (typecheck, lint, unit and integration tests against Postgres), client (lint, unit, end-to-end) and a check that the generated API types match the server.</td></tr></table>
+<h3>Not built yet (the gap this plan closes)</h3>
+<table><tr><th>Gap</th><th>Why it matters for live clients</th><th>Section</th></tr>
+<tr><td>Entitlements / module licensing</td><td>Today every tenant can use everything their roles allow. Roles are not licences.</td><td>9</td></tr>
+<tr><td>Control plane (site registry, licences, support console) and site fleet agent</td><td>Without them, each added site is manual work and mistakes.</td><td>5, 7, 14</td></tr>
+<tr><td>Infrastructure as code, staging, production environments</td><td>Nothing yet defines how the cloud side or a site server is built or rebuilt.</td><td>8, 7</td></tr>
+<tr><td>Backup shipping with a tested restore (and, for shared cells, single-tenant restore)</td><td>Every site depends on it. The first live client needs a proven restore.</td><td>6, 12</td></tr>
+<tr><td>Usage metering and billing</td><td>Needed for plans, limits, invoices and suspension.</td><td>15</td></tr>
+<tr><td>Signed, auto-updating desktop installers</td><td>Installer workflow exists, but code signing, notarisation and update hosting are not set up.</td><td>16</td></tr>
+<tr><td>Minimum-client-version handshake, tenant data export, observability stack, status page, on-call runbooks</td><td>Safe upgrades, exit rights, and being able to see and fix problems quickly.</td><td>11, 13, 14</td></tr>
+<tr><td>Security assurance (pen test, formal DPDP review)</td><td>Expected by larger clients before signing.</td><td>13</td></tr>
+<tr><td>Installable on-premise bundle and licence keys</td><td>The main product shape, so this is critical-path work.</td><td>5, 7, 15</td></tr></table>
+
+<h2 class="pb">4. Client segments and service tiers</h2>
+<p>With most clients on premises, the offers are defined by <b>what the cloud does for the site</b>. The tier decides placement, protection, support, and default modules.</p>
+<table><tr><th></th><th>Local</th><th>Hybrid</th><th>Hybrid Plus</th><th>Cloud (optional)</th></tr>
+<tr><td><b>Typical client</b></td><td>Cost-sensitive, wants everything inside the office</td><td>The main offer: owner wants remote use and safe backups</td><td>Cannot afford long downtime; wants dashboards anywhere</td><td>Very small client with no server room</td></tr>
+<tr><td><b>Primary data</b></td><td>Client server</td><td>Client server</td><td>Client server</td><td>Your shared cell</td></tr>
+<tr><td><b>A. Protected backup</b></td><td>Yes (mandatory)</td><td>Yes</td><td>Yes</td><td>Yes (in the cell's own backups)</td></tr>
+<tr><td><b>C. Remote access</b></td><td>No</td><td>Yes, N remote users</td><td>Yes, more remote users</td><td>Native (always remote)</td></tr>
+<tr><td><b>B. Live standby</b></td><td>No</td><td>No (restore on demand)</td><td>Yes</td><td>Cell standby</td></tr>
+<tr><td><b>Max data loss while online (RPO)</b></td><td>about 5 min</td><td>about 5 min</td><td>about 1 to 2 min</td><td>15 min</td></tr>
+<tr><td><b>Time to recover if the server is lost (RTO)</b></td><td>Replacement hardware + 4 to 8 h</td><td>Replacement hardware + 4 to 8 h; remote use returns after restore</td><td>About 1 h on the standby, through the remote address</td><td>8 h</td></tr>
+<tr><td><b>Support</b></td><td>Business hours</td><td>Extended hours, remote assistance</td><td>24x7 for severity 1</td><td>Business hours</td></tr>
+<tr><td><b>Upgrades</b></td><td>Signed, in the client's window</td><td>Signed, in the client's window</td><td>Signed, in the client's window</td><td>Automatic</td></tr></table>
+<div class="box warn"><b>Assumption.</b> RPO figures assume the site has internet when the change happens. If the site is offline, the data is still safe on the server and on its local backup disk, but not yet in the cloud; the data-loss exposure is then the time since the last successful shipment. See Section 12.</div>
+
+<h2 class="pb">5. Reference architecture</h2>
+<figure>
+<svg viewBox="0 0 780 470" width="100%" font-family="Helvetica,Arial,sans-serif" font-size="11">
+<rect x="8" y="8" width="360" height="300" rx="10" fill="#fff7ec" stroke="#ff8a1f"/>
+<text x="22" y="30" font-weight="700" fill="#0c1747" font-size="13">CLIENT SITE (the source of truth)</text>
+<rect x="22" y="42" width="332" height="40" rx="6" fill="#fff" stroke="#e0c9a8"/><text x="34" y="60">Desktop apps and POS counters (LAN)</text><text x="34" y="75" fill="#4a5266">Keep working with no internet</text>
+<rect x="22" y="92" width="332" height="150" rx="6" fill="#fff" stroke="#e0c9a8"/>
+<text x="34" y="110" font-weight="700">Site server (standard image)</text>
+<text x="34" y="128">· OneSyncERP API + PostgreSQL 16 (primary)</text>
+<text x="34" y="144">· Fleet agent (health, signed updates, support access)</text>
+<text x="34" y="160">· Backup shipper (WAL + base backups, encrypted)</text>
+<text x="34" y="176">· Tunnel client (outbound only)</text>
+<text x="34" y="192">· Local backup disk (second copy)</text>
+<text x="34" y="214" fill="#4a5266">UPS · wired LAN · RAID or mirrored disks</text>
+<rect x="22" y="252" width="332" height="44" rx="6" fill="#fff" stroke="#e0c9a8"/><text x="34" y="270">Owner on a phone or laptop away from the office</text><text x="34" y="286" fill="#4a5266">Uses the client's remote address (level C)</text>
+<rect x="412" y="8" width="360" height="300" rx="10" fill="#e9eeff" stroke="#2b59ff"/>
+<text x="426" y="30" font-weight="700" fill="#0c1747" font-size="13">YOUR CLOUD (Hostinger VPS, Mumbai)</text>
+<rect x="426" y="42" width="332" height="44" rx="6" fill="#fff" stroke="#c9d3f5"/><text x="438" y="60" font-weight="700">Gateway (two servers)</text><text x="438" y="76" fill="#4a5266">TLS, WAF, routes remote users into each site's tunnel (C)</text>
+<rect x="426" y="94" width="332" height="44" rx="6" fill="#fff" stroke="#c9d3f5"/><text x="438" y="112" font-weight="700">Backup repository</text><text x="438" y="128" fill="#4a5266">Receives encrypted WAL and backups (A); copied off-provider</text>
+<rect x="426" y="146" width="332" height="44" rx="6" fill="#fff" stroke="#c9d3f5"/><text x="438" y="164" font-weight="700">Standby hosts (Hybrid Plus)</text><text x="438" y="180" fill="#4a5266">Live read-only copy; promotable for failover (B)</text>
+<rect x="426" y="198" width="332" height="50" rx="6" fill="#0c1747"/><text x="438" y="216" fill="#fff" font-weight="700">Control plane</text><text x="438" y="232" fill="#cfd6f5">Site registry · licences · releases · support console · alerts</text>
+<rect x="426" y="256" width="332" height="40" rx="6" fill="#fff" stroke="#c9d3f5"/><text x="438" y="272" font-weight="700">Optional shared cloud cell</text><text x="438" y="288" fill="#4a5266">For small cloud-only clients</text>
+<g stroke="#2b59ff" stroke-width="2" fill="none"><path d="M368 110 L412 70" marker-end="url(#a)"/><path d="M368 150 L412 116"/><path d="M368 170 L412 168"/><path d="M368 190 L412 220"/></g>
+<text x="372" y="62" font-size="9" fill="#2b59ff">tunnel</text><text x="372" y="138" font-size="9" fill="#2b59ff">WAL</text><text x="372" y="164" font-size="9" fill="#2b59ff">repl.</text><text x="372" y="214" font-size="9" fill="#2b59ff">agent</text>
+<rect x="8" y="322" width="764" height="140" rx="10" fill="#effaf4" stroke="#0a8a5e"/>
+<text x="22" y="344" font-weight="700" fill="#0c1747" font-size="13">SECOND PROVIDER (off-Hostinger)</text>
+<text x="22" y="364">Encrypted backup copy in an S3-compatible bucket with locked, append-only credentials, so a provider failure or an attacker cannot erase every copy.</text>
+<text x="22" y="384">Independent DNS and a password vault with recovery material, outside Hostinger.</text>
+<text x="22" y="404">All connections between site and cloud are initiated by the site, outbound only. The cloud never needs to open a door into a client's network.</text>
+<text x="22" y="430" fill="#4a5266">Dashed idea: a branch or second site later joins the same client through the same tunnel (Section 17).</text>
+</svg>
+<figcaption>Figure 1. The site is primary; the cloud protects it, reaches it, and manages it. All links are outbound from the site.</figcaption></figure>
+<h3>5.1 Principles</h3>
+<ul><li><b>The site works alone.</b> Everything needed to run the business is on the site server. Cloud failures degrade extras (remote access, dashboards), not daily work.</li>
+<li><b>Single writer.</b> At any moment exactly one database accepts writes for a client. This is what keeps the books correct, and it is why two-way sync is postponed.</li>
+<li><b>Outbound only.</b> The site opens connections to the cloud; no inbound ports on the client's router.</li>
+<li><b>Same artefacts everywhere.</b> The images installed at a site, in a dedicated cloud stack and in the shared cell are the same, signed builds.</li>
+<li><b>Everything is a fleet item.</b> Each site has a record in the control plane: version, licence, modules, health, backup age, tunnel state, maintenance window.</li></ul>
+<h3>5.2 Control plane (what it holds)</h3>
+<p>A small service on the cloud side with its own database and staff-only access. It stores no business data, only site and tenant metadata, signed licences, release channels, heartbeat history, support-session logs and usage counts. If it is unreachable, sites keep running on their cached, signed licence.</p>
+
+<h2 class="pb">6. Hybrid data protection and remote access</h2>
+<h3>6.1 Level A: continuous protected backup (every site)</h3>
+<table><tr><th>Item</th><th>Design</th></tr>
+<tr><td>What is captured</td><td>PostgreSQL write-ahead log segments shipped continuously (a new segment is forced at least every 60 to 300 seconds), plus a full base backup nightly and an incremental in between. This gives point-in-time recovery to any second after the last shipped segment.</td></tr>
+<tr><td>Tooling</td><td>A purpose-built PostgreSQL backup tool (pgBackRest or WAL-G) with compression, parallel transfer, integrity checks and retention. <b>Assumption:</b> pgBackRest, to be confirmed in a proof of concept.</td></tr>
+<tr><td>Encryption</td><td>Encrypted on the site before leaving it, with a key per client. The cloud holds ciphertext only. Recovery keys are held by you, in your vault, under dual control (decided), so a lost server never means lost backups. A client copy is only provided if a contract says so.</td></tr>
+<tr><td>Destinations</td><td>1) the backup repository on your Hostinger side; 2) a second copy in an off-provider bucket; 3) a local backup disk at the site (three copies, two media, one off-site).</td></tr>
+<tr><td>Protection from tampering</td><td>The site's upload credentials can add data but not delete it; deletion and retention run only from the cloud side. Ransomware on a client's network cannot erase the cloud copies.</td></tr>
+<tr><td>If the internet is down</td><td>WAL queues on the site disk. A cap on queued WAL and a disk-usage alert protect the server from filling its disk; if the cap is hit, the agent raises a severity alert and support contacts the client while backups fall back to the local disk.</td></tr>
+<tr><td>Verification</td><td>The cloud checks that every client's latest backup and WAL stream are fresh, runs automated test restores on a schedule (Section 12), and alerts when a site's last good backup is older than its target.</td></tr>
+<tr><td>Restore</td><td>To a replacement server at the site, to a temporary cloud server, or to a chosen point in time to recover from a mistake. Restores are runbooked and timed.</td></tr></table>
+<h3>6.2 Level C: remote access (the most requested)</h3>
+<table><tr><th>Item</th><th>Design</th></tr>
+<tr><td>Idea</td><td>A remote user reaches the <i>site's own server</i> through the cloud gateway. There is one database, so there is nothing to merge and no conflicts. The same desktop app, and a web dashboard, point at the client's remote address.</td></tr>
+<tr><td>Path</td><td>User to <code>clientname.yourdomain.in</code> (gateway: TLS, WAF, rate limits) to an encrypted tunnel that the site server opened outward, to the site's API. Authentication is the product's own (passwords, two-step sign-in), enforced on the site's server.</td></tr>
+<tr><td>Tunnel technology</td><td>An encrypted outbound tunnel such as WireGuard or an HTTPS reverse tunnel, one per site, with keys issued and revoked from the control plane. <b>Decision:</b> choose after a proof of concept (Section 21).</td></tr>
+<tr><td>When the site is offline</td><td>The gateway shows a clear status page ("your office server is offline; last seen ..."), and, for Hybrid Plus, offers read-only dashboards from the standby.</td></tr>
+<tr><td>Access control per client</td><td>A client may restrict remote use by user, role, time, or country, require two-step sign-in for remote sessions, and see an audit of remote sign-ins. Remote sessions can be forced to read-only for given roles.</td></tr>
+<tr><td>What remote users run</td><td>The desktop app over the internet works from day one. <b>Phones:</b> a responsive web "owner dashboard" (sales today, cash, receivables, stock alerts, approvals) is a separate, smaller build and the best answer to "remote use" requests; it is in the roadmap before the pilot.</td></tr>
+<tr><td>Performance</td><td>Mumbai gateway to Indian client sites typically adds a modest delay; the tunnel carries only the app's API traffic. Heavy reports and exports are limited remotely by default and can be scheduled.</td></tr>
+<tr><td>Abuse protection</td><td>Rate limits per client at the gateway, request size limits, and automatic blocking of repeated failed sign-ins; the gateway never stores business data.</td></tr></table>
+<div class="box warn"><b>Trade-off to be aware of.</b> In the simplest design the gateway terminates TLS so it can apply the WAF and rate limits, so it sees traffic in transit. Treat the gateway as a data processor in the data-processing agreements and harden it accordingly. An alternative, end-to-end TLS through the gateway, removes that visibility but gives up inspection and some protections.</div>
+<h3>6.3 Level B: live standby (Hybrid Plus)</h3>
+<table><tr><th>Item</th><th>Design</th></tr>
+<tr><td>What it is</td><td>A cloud PostgreSQL server that continuously replays the site's changes and can answer read-only queries. It lets owners view dashboards even when the office server is down, and it can be <b>promoted</b> to accept writes if the site server is lost.</td></tr>
+<tr><td>How</td><td>Streaming replication from the site, over the same tunnel or a dedicated secure channel, using the PostgreSQL built-in mechanism. Typical lag is seconds when the internet is up; an alert fires if it exceeds a few minutes.</td></tr>
+<tr><td>Failover (deliberate, not automatic)</td><td>Failover is a runbook action with two checks: confirm the site primary is really down or lost, then promote the standby, point the client's remote address to it, and tell users. Automatic failover is avoided because a brief internet cut at the site would otherwise cause a "two primaries" situation.</td></tr>
+<tr><td>Failback</td><td>When the site server is back or replaced, it is rebuilt from the promoted copy (a base backup), then roles are switched back in an agreed window. Until the switch, the site server must not accept writes.</td></tr>
+<tr><td>Resources</td><td>A running database per client is heavy. <b>Assumption:</b> a Hostinger server with 8 vCPU and 32 GB RAM hosts roughly 10 to 15 small standbys; so B is a paid upgrade, and capacity is planned in standby hosts.</td></tr>
+<tr><td>What it does not do</td><td>It is not a backup: if bad data is written at the site, it is replicated too. That is why level A (point-in-time recovery) is separate and mandatory.</td></tr></table>
+<h3>6.4 How A, B and C combine</h3>
+<table><tr><th>Event</th><th>What happens</th></tr>
+<tr><td>Internet down at the site</td><td>The office keeps working on the LAN. WAL queues locally. Remote access and cloud copies pause. On reconnect, queued WAL ships and standby catches up.</td></tr>
+<tr><td>Site server disk fails (data lost)</td><td>Restore from the cloud (A) onto a replacement, or promote the standby (B) for Hybrid Plus while the replacement is prepared.</td></tr>
+<tr><td>Staff deletes or damages data</td><td>Point-in-time recovery from level A into a temporary server; compare and recover with the client's approval.</td></tr>
+<tr><td>Ransomware on the client network</td><td>Cloud copies are unreachable for deletion; rebuild the server image, restore from A to a time before the attack.</td></tr>
+<tr><td>Owner away from the office</td><td>Level C through the gateway to the site's server; or read-only from the standby if the site is offline (Plus).</td></tr>
+<tr><td>Your cloud is down</td><td>Sites keep working. Backups and WAL queue locally and ship later; remote access is unavailable until the gateway returns.</td></tr></table>
+<h3>6.5 Why not two-way sync now</h3>
+<p>Allowing the site and the cloud to both edit the same data creates conflicts over document numbers, stock balances and ledger postings, which in an accounting system means corrupted books. The design avoids it by keeping <b>one writer per client</b>. The product already has the building blocks for safe sync later (immutable ledgers, idempotent writes, versioned records, an outbox of change events, offline POS batches). Section 17 describes the later design and the few cheap preparations to do now.</p>
+
+<h2 class="pb">7. Fleet management: running 20 to 30 servers at client sites</h2>
+<h3>7.1 Standard site server</h3>
+<table><tr><th>Item</th><th>Proposal (Assumption, to be validated)</th></tr>
+<tr><td>Hardware</td><td>A supported small server or mini-PC class machine: 4 to 8 cores, 16 to 32 GB RAM, two SSDs (mirrored) plus a separate disk for local backups, wired network, UPS. A published spec; a tested model list. <b>Decided:</b> you supply a standard appliance to every on-premise client, which gives control over the hardware, a smaller support matrix and faster recovery. A client-purchase option to an approved model list can be added later.</td></tr>
+<tr><td>Operating system</td><td>One supported Ubuntu LTS, minimal install, delivered as an install image or script that sets up disks, the container runtime, the application stack, agent, backup shipper and tunnel, with no manual steps.</td></tr>
+<tr><td>Local network</td><td>Fixed address and a stable local name; the installer trusts a locally issued certificate on each desktop so the app uses encrypted connections on the LAN.</td></tr>
+<tr><td>Disk encryption</td><td>Recommended where the server could be stolen; trade-off is a remote reboot needs the key. Options: TPM-based auto-unlock, or a documented manual unlock procedure. <b>Decision</b> per client risk.</td></tr>
+<tr><td>Time and health</td><td>Network time, disk health (SMART) and temperature monitoring, memory and disk alerts, automatic cleanup of old logs.</td></tr></table>
+<h3>7.2 The fleet agent</h3>
+<table><tr><th>Duty</th><th>How</th></tr>
+<tr><td>Heartbeat</td><td>Every minute reports: version, database health, replication lag, backup age and WAL queue, free disk, tunnel status, last user activity, disk and memory health. The control plane marks sites healthy, degraded, or silent, and alerts.</td></tr>
+<tr><td>Signed updates</td><td>Pulls a signed release manifest; verifies the signature with a key built into the agent; downloads images; applies them in the site's maintenance window (Section 11).</td></tr>
+<tr><td>Safe upgrade procedure</td><td>1) check free disk and health; 2) take and verify a fresh backup; 3) run the migration image; 4) start new containers; 5) run health and smoke checks; 6) on failure, roll the application back to the previous images (database changes are expand-only, so the old version still works) and, if needed, restore the pre-upgrade backup; 7) report the result.</td></tr>
+<tr><td>Configuration</td><td>Settings that differ per site (address, window, entitlements, tunnel keys, backup targets) come from the control plane as signed configuration, never by hand-editing the server.</td></tr>
+<tr><td>Support access</td><td>A support session needs the client's approval (a button in the app or a code given by phone), has a time limit, uses the tunnel, is recorded, and ends automatically. No permanent inbound access.</td></tr>
+<tr><td>OS and security patches</td><td>Delivered by the agent inside the maintenance window, tested first on staging and on your own site.</td></tr>
+<tr><td>Self-protection</td><td>Cannot disable its own audit; reports tamper signs (modified images, unexpected users); keeps a local ring buffer of logs for when the internet is down.</td></tr></table>
+<h3>7.3 Operating 30 sites</h3>
+<ul><li><b>Fleet screen</b> with filters: version, ring, last heartbeat, backup age, disk, tunnel, open alerts, licence expiry.</li>
+<li><b>Maintenance windows</b> per site, with a calendar; no update outside it unless the client agrees.</li>
+<li><b>Rings</b> for releases (Section 11): your own site first, then friendly sites, then the rest.</li>
+<li><b>Spare strategy:</b> a few pre-imaged spare machines you can ship, or a cloud standby, to shorten recovery when a server dies.</li>
+<li><b>Lifecycle:</b> hardware refresh cycle (about 4 to 5 years), database major-version upgrades planned and tested on a copy, operating-system end-of-life tracking.</li>
+<li><b>On-site visits</b> are expected for installation, hardware faults, and sometimes upgrades; plan travel, partner technicians, or remote hands.</li></ul>
+
+<h2 class="pb">8. The Hostinger cloud design</h2>
+<p>Hostinger provides virtual servers, not managed services, so we operate PostgreSQL, the gateway, backups and monitoring ourselves. That is workable at this scale if everything is code, monitored, and drilled.</p>
+<h3>8.1 Server roster (Assumption, validate plan limits, bandwidth and snapshots with Hostinger)</h3>
+<table><tr><th>Role</th><th>Count</th><th>Notes</th></tr>
+<tr><td>Gateway and tunnel endpoint</td><td>2 (active and active or active and standby)</td><td>Terminates TLS, WAF, rate limits; one tunnel per site; the second server covers failures and maintenance. Two servers in the same datacentre protect against host faults, not a datacentre outage; a third small gateway at a second provider can be added later.</td></tr>
+<tr><td>Control plane and support console</td><td>2</td><td>Application plus its database with replication; backed up to the second provider.</td></tr>
+<tr><td>Backup repository</td><td>1 to 2</td><td>Receives encrypted WAL and base backups. Large, cheap storage; retention managed here; an off-provider copy runs continuously.</td></tr>
+<tr><td>Standby hosts (Hybrid Plus)</td><td>1 per 10 to 15 standbys</td><td>Added as Plus clients are onboarded; sized by tests.</td></tr>
+<tr><td>Shared cloud cell (optional)</td><td>1 app and 1 database (+ replica later)</td><td>Only for small cloud-only clients; same code as everywhere.</td></tr>
+<tr><td>Staging</td><td>1</td><td>Production-like; used for release rehearsal, restore drills and load tests.</td></tr>
+<tr><td>Monitoring and logs</td><td>1</td><td>Metrics, logs, uptime checks, alert routing; an external uptime probe from outside Hostinger.</td></tr></table>
+<h3>8.2 How we make a VPS estate trustworthy</h3>
+<ul><li><b>Configuration as code:</b> servers are built and changed by scripts (for example Ansible) stored in version control; no hand-edited servers; a server can be rebuilt in hours.</li>
+<li><b>Network:</b> default-deny firewall, only the gateway's web ports and tunnel ports open, management only through a private staff VPN, key-based access with no passwords, MFA for staff.</li>
+<li><b>PostgreSQL we run:</b> replication, automatic restarts, backups of its own, version pinning, extension minimalism, and routine vacuum and index maintenance monitored.</li>
+<li><b>Patching:</b> OS and package updates on a schedule, staging first.</li>
+<li><b>Capacity:</b> alerts at 70% for CPU, memory, disk and bandwidth; a monthly capacity review.</li>
+<li><b>Independence from a single provider:</b> DNS and domain at a separate provider; password vault, runbooks and infrastructure code in places Hostinger cannot take down; the off-provider backup copy; a tested plan to rebuild the gateway and control plane at another provider.</li></ul>
+<h3>8.3 What a Hostinger outage means</h3>
+<table><tr><th>Failure</th><th>Impact</th><th>Response</th></tr>
+<tr><td>One gateway server</td><td>None to brief (second takes over)</td><td>Replace from code</td></tr>
+<tr><td>All Hostinger servers (rare, regional)</td><td>Remote access, cloud standbys, updates and the support console are down; <b>sites keep working</b>; WAL queues locally</td><td>Rebuild the gateway and control plane at the second provider from code and backups; DNS pointed over</td></tr>
+<tr><td>Backup repository lost</td><td>New backups queue on sites; history is at the second provider</td><td>Rebuild the repository, resume shipping</td></tr></table>
+<div class="box warn"><b>Assumption.</b> Planning numbers only: a gateway tier of two 2 to 4 vCPU servers handles 30 to 100 tunnels comfortably; the backup repository storage is driven by each client's change volume (a small business is typically a few gigabytes of base data and a modest amount of log per day). Measure on the pilot sites, then size.</div>
+<h2 class="pb">9. Feature packaging: each client gets what it buys</h2>
+<h3>9.1 The model</h3>
+<p><b>Plans</b> are bundles of <b>modules</b>. A client's <b>entitlement</b> is: which modules are on, which numeric limits apply, when it expires, and which add-ons it has. It is stored in the control plane, signed, and cached in the cell.</p>
+<table><tr><th>Layer</th><th>Meaning</th><th>Example</th></tr>
+<tr><td>Plan</td><td>A named default bundle for a tier</td><td>Business = Core + Sales + Inventory + POS + Purchasing + Accounting + GST</td></tr>
+<tr><td>Module</td><td>A sellable area of the product</td><td>Manufacturing</td></tr>
+<tr><td>Limit</td><td>A numeric cap</td><td>10 users, 2 companies, 5 locations, 3 POS counters, 5,000 documents a month</td></tr>
+<tr><td>Add-on</td><td>An extra on top of a plan</td><td>Extra counters, API access, SSO, sandbox tenant</td></tr>
+<tr><td>Override</td><td>Per-client exception set by support, with an expiry and a reason</td><td>Trial of Payroll for 30 days</td></tr></table>
+<h3>9.2 Proposed modules and dependencies</h3>
+<table><tr><th>Module</th><th>Contains</th><th>Needs</th></tr>
+<tr><td><b>Core</b> (always on)</td><td>Sign-in, users and roles, organisation, master data (items, parties, tax codes, units), the ledger engine, audit</td><td>none</td></tr>
+<tr><td>Sales</td><td>Quotes, orders, invoices, receipts, receivables</td><td>Core</td></tr>
+<tr><td>Purchasing</td><td>Purchase orders, goods receipts, supplier bills, payments, payables, landed costs</td><td>Core</td></tr>
+<tr><td>Inventory</td><td>Stock, movements, transfers, counts, batches and serials, valuation</td><td>Core</td></tr>
+<tr><td>POS and Retail</td><td>Counter, shifts, returns, offline selling, barcodes, loyalty, coupons, store credit, staff PIN approvals, expenses</td><td>Sales, Inventory</td></tr>
+<tr><td>Accounting</td><td>Journals, chart of accounts, financial reports, periods and year-end, report centre</td><td>Core</td></tr>
+<tr><td>GST</td><td>GSTR returns and reconciliation</td><td>Sales, Accounting</td></tr>
+<tr><td>Banking</td><td>Bank reconciliation and statement import</td><td>Accounting</td></tr>
+<tr><td>Approvals</td><td>Approval workflows</td><td>Core</td></tr>
+<tr><td>Manufacturing</td><td>Bills of material, work orders, work centres, job work, costing</td><td>Inventory</td></tr>
+<tr><td>Payroll</td><td>People, runs, statutory dues, payslips</td><td>Accounting</td></tr>
+<tr><td>Hybrid services</td><td>Protected backup retention length, remote access (number of remote users), live standby, owner web dashboard</td><td>Core</td></tr>
+<tr><td>Platform extras</td><td>API keys and integrations, SSO, extended audit retention, sandbox tenant</td><td>Core</td></tr></table>
+<div class="box good"><b>Decided.</b> Sales and POS post to the ledger. A small client who buys Sales but not Accounting still needs correct books underneath. <b>Recommendation:</b> the ledger engine is part of Core and always active; "Accounting" licenses the <i>screens and reports</i> (journals, chart editing, statements, periods), while Sales and POS continue to post using the default chart. That keeps data correct and makes upgrading a client a pure switch, with no data conversion.</div>
+<h3>9.3 How it is enforced</h3>
+<p>On a site server the licence is a <b>signed file</b> the agent refreshes from the control plane (and caches), so enforcement works with no internet. The rules are the same everywhere:</p>
+<ol><li><b>Server is the authority.</b> Each API route is tagged with its module. A request whose tenant lacks that module is refused with a clear <code>module_not_licensed</code> error. Entitlements <i>narrow</i> permissions: a user can do something only if their role allows it <b>and</b> the module is licensed.</li>
+<li><b>Limits are checked at the point of creation</b> (add user, add company, open a counter), with a friendly message and a path to upgrade, and recorded in usage metering.</li>
+<li><b>The app adapts.</b> The sign-in response lists the licensed modules; the menu, command palette and screens hide anything not bought, and show a short "not in your plan" message for deep links.</li>
+<li><b>One schema for all.</b> Every client's database has every table; unused modules are simply empty. Enabling a module is instant and never needs a data migration. Schema migrations run for everyone, always.</li>
+<li><b>Graceful removal.</b> If a module lapses, its screens become read-only for a grace period (so a client can still export and reconcile), never deleted.</li>
+<li><b>Background work respects it too.</b> Scheduled jobs, imports, API keys and webhooks for an unlicensed module stop.</li></ol>
+<h3>9.4 Related per-client configuration (not licensing)</h3>
+<p>Industry templates (category trees), tax setup, numbering series, print layouts, discount limits and loyalty rates are <b>configuration inside the tenant</b>, set during onboarding. They stay separate from entitlements so support can adjust them without touching licences.</p>
+<h3>9.5 Feature flags for rollout</h3>
+<p>A separate, lightweight flag system lets you ship a new feature "dark", turn it on for your own tenant, then pilot clients, then everyone. Flags are for rollout safety and are removed after rollout; entitlements are for commercial scope and are long-lived.</p>
+
+<h2 class="pb">10. Tenant lifecycle</h2>
+<h3>10.1 States</h3>
+<table><tr><th>State</th><th>What happens</th></tr>
+<tr><td>Trial</td><td>Full or limited modules for a fixed period, in a pooled cell, clearly labelled; data is kept if they convert.</td></tr>
+<tr><td>Active</td><td>Normal operation under their plan.</td></tr>
+<tr><td>Past due</td><td>Warnings in the app; no restriction for a grace period.</td></tr>
+<tr><td>Suspended</td><td>Read-only: users can sign in, view and export, but cannot post. Never data deletion for non-payment. On a site this is enforced by the signed licence; the server and data stay with the client.</td></tr>
+<tr><td>Cancelled</td><td>Full data export provided; data retained for the agreed period; then anonymised or deleted subject to legal retention (Section 12).</td></tr></table>
+<h3>10.2 Onboarding steps (standard path)</h3>
+<table><tr><th>#</th><th>Step</th><th>Owner</th><th>Tooling</th></tr>
+<tr><td>1</td><td>Order captured: tier, modules, limits, users, locations, go-live date, any special needs (on-premise, SSO, data residency)</td><td>Sales</td><td>Order form linked to the control plane</td></tr>
+<tr><td>2</td><td>Provision: create the site record and tenant, owner account, licence and entitlements, tunnel keys and remote address; prepare the server image for the site</td><td>Implementation</td><td>Control plane (one action, no manual database work)</td></tr>
+<tr><td>2b</td><td>Install on site: server installed and cabled, UPS tested, image applied, agent registered, tunnel up, first backup shipped and a test restore started; LAN names and certificates trusted on every desktop</td><td>Implementation or partner technician</td><td>Installer, fleet screen</td></tr>
+<tr><td>3</td><td>Configure: company, GST registration, locations, tax setup, chart template, numbering, industry category template, users and roles, discount limits, printers</td><td>Implementation with client</td><td>Setup wizard in the app, templates</td></tr>
+<tr><td>4</td><td>Migrate data: items, customers, suppliers (CSV import exists); opening balances and opening stock; open invoices and bills; optionally history</td><td>Implementation</td><td>Import tools plus a guided opening-balance wizard (backlog); Tally and Excel mappers later</td></tr>
+<tr><td>5</td><td>Verify: reconcile the old system's trial balance, stock and receivables to the new opening figures; client signs off</td><td>Implementation and client accountant</td><td>Reconciliation checklist and reports</td></tr>
+<tr><td>6</td><td>Train: role-based sessions, quick guides, counter practice for POS</td><td>Implementation</td><td>User guide, sandbox tenant for practice</td></tr>
+<tr><td>7</td><td>UAT in sandbox or staging tenant (Business and above), then freeze</td><td>Client and implementation</td><td>Sandbox tenant</td></tr>
+<tr><td>8</td><td>Go-live: cut-over plan, final balances, devices registered, installers deployed</td><td>Implementation, IT</td><td>Go-live checklist (Appendix B)</td></tr>
+<tr><td>9</td><td>Hypercare: daily check-in for the first 2 weeks, fast-lane support, first month-end closely watched</td><td>Support</td><td>Support console, usage dashboards</td></tr></table>
+<h3>10.3 Indicative effort by size (Assumption)</h3>
+<table><tr><th>Size</th><th>Typical timeline</th><th>Notes</th></tr>
+<tr><td>Cloud (small)</td><td>1 to 3 days</td><td>Mostly self-service with a template and a short call.</td></tr>
+<tr><td>Business</td><td>2 to 4 weeks</td><td>Data migration and training dominate.</td></tr>
+<tr><td>Large or multi-company</td><td>6 to 12 weeks</td><td>Multi-company set-up, integrations, SSO, UAT, and later multi-site.</td></tr>
+<tr><td>Typical site (Hybrid)</td><td>Business timeline plus 2 to 4 days for the site install</td><td>Hardware readiness, network, UPS, tunnel and backup verification.</td></tr></table>
+<h3>10.4 Offboarding and data rights</h3>
+<ul><li>A self-service and support-assisted <b>full export</b> (documents, ledgers, masters, attachments) in open formats, available at any time and always before deletion.</li>
+<li>Retention after cancellation follows the contract and law (Section 12). Deletion is a logged, two-person action; deleted tenants are purged from backups by expiry, and the client is told the schedule.</li></ul>
+
+<h2 class="pb">11. Environments and release management</h2>
+<h3>11.1 Environments</h3>
+<table><tr><th>Environment</th><th>Purpose</th></tr>
+<tr><td>Developer and CI</td><td>Every change builds and runs the full tests against a throwaway database (exists today).</td></tr>
+<tr><td>Staging</td><td>A production-like cloud server plus a <b>staging site server</b> built from the same image and agent; release rehearsal, upgrade and rollback tests, restore drills, load tests.</td></tr>
+<tr><td>Ring 0: your own site</td><td>Your own company runs on a real site server: the first real update lands here.</td></tr>
+<tr><td>Ring 1: friendly sites</td><td>2 to 3 clients who accepted early updates.</td></tr>
+<tr><td>Ring 2: everyone else</td><td>Sites in batches, each in its own maintenance window; Hybrid Plus sites after the standby upgrade is verified.</td></tr>
+<tr><td>Client sandbox tenants</td><td>Practice and UAT on the shared cell, never connected to live data.</td></tr></table>
+<h3>11.2 The release train</h3>
+<ol><li><b>Cadence:</b> regular releases (for example every two weeks), hotfixes on demand, and a <b>stability freeze before month-end and financial year-end</b> so no risky change lands in a client's busiest days.</li>
+<li><b>Gates:</b> typecheck, lint, unit, integration and end-to-end tests, API contract check, dependency and image scans, a migration dry run on a copy of realistic data, and an upgrade-and-rollback test on the staging site.</li>
+<li><b>Signed release manifest:</b> list of images, the migration, the minimum compatible client, release notes; signed so agents verify it.</li>
+<li><b>Rollout:</b> ring 0, hold 48 to 72 hours, ring 1, hold, then ring 2 in batches; automatic halt if upgrade failures or error rates exceed thresholds.</li>
+<li><b>Per-site procedure:</b> the safe upgrade steps in Section 7.2, within the maintenance window.</li></ol>
+<h3>11.3 Database change rules</h3>
+<ul><li><b>Expand, then contract:</b> a migration only adds things the previous version can ignore. Removal happens a release later. This makes automatic application rollback safe at every site.</li>
+<li><b>Migrations are rehearsed</b> on realistic data and timed; large changes run in batches with visibility.</li>
+<li><b>Replication-friendly:</b> because standbys replay changes, upgrades are applied to the primary and flow to the standby; major PostgreSQL version upgrades are separate, planned projects per site.</li></ul>
+<h3>11.4 Client and server compatibility</h3>
+<ul><li>API versioning (<code>/v1</code>) with additive-only changes within a version.</li>
+<li><b>Version handshake</b>: the server states the oldest supported client version; the app says "update required" cleanly.</li>
+<li>At most <b>two server versions</b> in the field; sites are expected to update within an agreed period (for example 60 days), after which support is limited.</li>
+<li>Desktop apps update automatically but may be held to match a site that has not yet updated (the minimum and maximum compatible versions are in the manifest).</li></ul>
+<h3>11.5 Flags and emergency switches</h3>
+<p>Risky features ship behind flags that support can turn off per site from the console in minutes. A per-site read-only switch exists for emergencies.</p>
+
+<h2 class="pb">12. Backup, disaster recovery, commitments and retention</h2>
+<h3>12.1 Targets, in two parts (internal for now)</h3>
+<div class="box warn"><b>Deferred decision.</b> The figures below are <b>internal engineering targets</b>. They are not to be published or promised to clients until restore and failover drills on pilot sites have measured them and you have chosen the wording.</div>
+<table><tr><th>Part</th><th>What we commit to</th><th>Depends on</th></tr>
+<tr><td><b>Cloud services</b> (gateway, backup receipt, support console, licences, updates)</td><td>99.5% availability target per month, excluding announced maintenance</td><td>Hostinger and our operations</td></tr>
+<tr><td><b>Data protection</b> (while the site has internet)</td><td>Data-loss exposure of about 5 minutes (Hybrid) or about 1 to 2 minutes (Plus) of recent changes if the site server is lost</td><td>Healthy backup shipping, which we monitor</td></tr>
+<tr><td><b>Recovery</b></td><td>Hybrid: server restored on replacement hardware within 4 to 8 hours of hardware being ready. Plus: service restored through the standby within about 1 hour of the decision to fail over</td><td>Drills proving the times</td></tr>
+<tr><td><b>Site availability</b></td><td>Not promised by default. Offered as a managed-service option with agreed hardware, spares, and response times</td><td>Client's hardware, power, local network</td></tr></table>
+<div class="box warn">If drills show different numbers, the measured ones replace these targets before any wording is chosen.</div>
+<h3>12.2 Recovery scenarios and runbooks</h3>
+<table><tr><th>Scenario</th><th>Runbook outcome</th><th>Proof</th></tr>
+<tr><td>Site server dead, data lost</td><td>Install image on replacement; restore from the cloud to the latest shipped point; verify ledgers balance; reconnect tunnel</td><td>Timed drill per quarter</td></tr>
+<tr><td>Site server dead, Plus client</td><td>Promote standby; switch remote address; users work remotely; rebuild site server later; fail back in a window</td><td>Timed drill every six months</td></tr>
+<tr><td>User or bug damages data</td><td>Restore the point in time into a temporary server; compare; recover or replace with written client approval</td><td>Drill per quarter</td></tr>
+<tr><td>Hostinger region down</td><td>Rebuild gateway and control plane at the second provider; update DNS</td><td>Annual drill</td></tr>
+<tr><td>Corrupted backup chain</td><td>Fall back to the off-provider copy and the local disk; automatic verification catches it early</td><td>Monthly automated restore test</td></tr></table>
+<h3>12.3 Automated verification</h3>
+<ul><li>Nightly: confirm every site's latest base backup and WAL position are fresh; alert when older than the target.</li>
+<li>Monthly: automatically restore a rotating sample of sites into a scratch server, check that the database opens, ledgers balance, and counts match; report pass or fail.</li>
+<li>Always: monitor replication lag, queue depth, and bytes shipped per site.</li></ul>
+<h3>12.4 Retention</h3>
+<table><tr><th>Data</th><th>Proposed retention</th></tr>
+<tr><td>Backups and WAL</td><td>35 days of point-in-time recovery, plus weekly and monthly copies for longer (Hybrid Plus longer). Backups expire naturally.</td></tr>
+<tr><td>Financial records and audit trail</td><td>Held in the client's database for the legally required period; <b>confirm exact periods with a Chartered Accountant and counsel</b> (commonly eight years for books of account in India).</td></tr>
+<tr><td>Logs</td><td>90 days searchable, one year archived, with no secrets or full personal data</td></tr>
+<tr><td>After cancellation</td><td>Full export delivered; cloud copies retained for the agreed period, then deleted with a record; the client's own server is theirs</td></tr></table>
+<h2 class="pb">13. Security and compliance</h2>
+<h3>13.1 Controls</h3>
+<table><tr><th>Area</th><th>Control</th></tr>
+<tr><td>Tenant isolation</td><td>Row-level security in the database (exists), the runtime role cannot bypass it (checked at start-up), isolation tests in CI that try cross-tenant reads and writes; per-cell separation as the second wall.</td></tr>
+<tr><td>Identity</td><td>Strong password rules and optional two-step sign-in (exists); make it <b>mandatory for owners and administrators</b>; SSO via OIDC for Enterprise; session revocation; sign-in throttling.</td></tr>
+<tr><td>Data protection</td><td>TLS everywhere; encryption at rest for databases, backups and storage; field-level encryption for secrets using the data-encryption key (exists), with per-cell keys held in a key management service and a rotation runbook.</td></tr>
+<tr><td>Secrets</td><td>Secret manager only; no secrets in code, images or chat; separate credentials per cell and per role.</td></tr>
+<tr><td>Staff access</td><td>No shared accounts; SSO with MFA; least privilege; <b>break-glass access to a client's data only with a ticket, the client's approval where the contract requires it, a time limit and full recording</b>; quarterly access review.</td></tr>
+<tr><td>Application security</td><td>Dependency and container scanning in CI; signed images; a pen test by an independent firm <b>before the first live client</b> and yearly after; a vulnerability disclosure address; patch SLA by severity.</td></tr>
+<tr><td>Site and tunnel</td><td>Outbound-only tunnels with per-site keys that the control plane can revoke instantly; the gateway never opens connections into a client LAN; site servers expose only the application port on the LAN; no default passwords; admin and database access only through the agent's approved support session; signed images and signed update manifests.</td></tr>
+<tr><td>Backup security</td><td>Client-side encryption with per-client keys; append-only upload credentials so malware cannot delete cloud copies; key escrow procedure with dual control; restore requires two people.</td></tr>
+<tr><td>Network</td><td>Private database, WAF, no open admin ports, CORS limited to known origins (exists), self sign-up and API docs off in production (exists as settings).</td></tr>
+<tr><td>Audit</td><td>Append-only audit log of business actions (exists) plus a control-plane audit of every admin and support action, exportable to clients on request.</td></tr>
+<tr><td>Abuse and resilience</td><td>Per-tenant limits, request size limits, bulk-import limits, and automated suspension of an attacked tenant.</td></tr></table>
+<h3>13.2 Legal and compliance (needs counsel)</h3>
+<ul><li><b>India's Digital Personal Data Protection Act, 2023.</b> For each client, decide the roles: normally the client is the data fiduciary and you are a data processor. Sign a <b>data processing agreement</b> that covers purpose, sub-processors (your cloud and email providers), security measures, breach notification, deletion and return of data, and cross-border rules.</li>
+<li><b>Breach response:</b> a written plan with roles, triage, client notification timelines, and regulator notification where required.</li>
+<li><b>Contracts:</b> master service agreement, service levels, acceptable use, privacy notice, and a clear statement of what is and is not guaranteed (for example, tax computations are client responsibility and need their accountant's review).</li>
+<li><b>Accounting and tax software expectations:</b> audit trail and immutability are already designed in; confirm the current Companies Act and GST audit-trail requirements with a Chartered Accountant before claiming compliance.</li>
+<li><b>Certification path (optional, later):</b> a security framework such as ISO 27001 or SOC 2 is often requested by large clients; start by documenting policies, then decide.</li></ul>
+<div class="box warn">This section is an engineering plan, not legal advice. Treat the compliance points as a checklist for your lawyer and accountant to confirm.</div>
+
+<h2 class="pb">14. Operations: monitoring, support and incidents</h2>
+<h3>14.1 Observability</h3>
+<table><tr><th>Signal</th><th>What</th><th>Alert examples</th></tr>
+<tr><td>Logs</td><td>Structured logs with request id and tenant id (never secrets or full personal data), centrally searchable</td><td>Spike in errors for one tenant</td></tr>
+<tr><td>Metrics</td><td>Request rate, errors, latency; database load, connections, replication lag, disk; queue and outbox depth; backup age; per-tenant usage</td><td>5xx rate, slow requests, ready-check failures, outbox dead letters (already named in the deployment guide), backup late, disk filling</td></tr>
+<tr><td>Traces</td><td>Request traces through API and database for slow screens</td><td></td></tr>
+<tr><td>Uptime</td><td>External probes from outside your cloud against the real sign-in path</td><td>Down for more than 2 minutes pages on-call</td></tr>
+<tr><td>Client-side</td><td>Desktop crash and error reports (with consent), sync queue health for POS counters</td><td>Counters with old queues, repeated failed syncs</td></tr>
+<tr><td>Site health</td><td>From each agent: heartbeat, version, disk, backup age, WAL queue, replication lag, tunnel status, time since last user activity</td><td>Silent site for 10 minutes, backup older than target, WAL queue growing, disk above 80%, tunnel down</td></tr>
+<tr><td>Business health</td><td>Per-tenant dashboard: last activity, document volume, errors, version, backup status</td><td>Tenant with no activity on a working day</td></tr></table>
+<h3>14.2 Support model</h3>
+<table><tr><th>Level</th><th>Who</th><th>Handles</th></tr>
+<tr><td>L1</td><td>Support desk</td><td>How-to, access, printing, small configuration, known issues; uses the support console (read-only by default)</td></tr>
+<tr><td>L2</td><td>Implementation and application specialists</td><td>Data and accounting questions, import problems, complex configuration, reconciliation help</td></tr>
+<tr><td>L3</td><td>Engineering and the platform on-call</td><td>Bugs, performance, incidents, data fixes (always via reviewed scripts, never ad hoc edits to ledgers)</td></tr></table>
+<h3>14.3 Severity and response targets (proposed)</h3>
+<table><tr><th>Severity</th><th>Meaning</th><th>Local</th><th>Hybrid</th><th>Hybrid Plus</th></tr>
+<tr><td>1 Critical</td><td>System down or data at risk</td><td>Next business hour</td><td>1 hour in extended hours</td><td>30 minutes, 24x7</td></tr>
+<tr><td>2 Major</td><td>Key function broken, no workaround</td><td>Same business day</td><td>4 hours</td><td>2 hours</td></tr>
+<tr><td>3 Normal</td><td>Problem with workaround or how-to</td><td>2 business days</td><td>1 business day</td><td>1 business day</td></tr></table>
+<h3>14.4 Incident response</h3>
+<ol><li><b>Detect and declare</b> (alert or report); an incident lead is named; a channel and a timeline start.</li>
+<li><b>Contain and restore</b> first, investigate second. Use the runbooks (cell read-only switch, app rollback, flag off, failover).</li>
+<li><b>Communicate</b> on a fixed rhythm through the status page and direct messages to affected clients.</li>
+<li><b>Post-incident review</b> within a week, blameless, with owners and dates for fixes; share a summary with affected clients.</li></ol>
+<h3>14.5 Support console (control plane)</h3>
+<p>Site and tenant search; fleet view; plan, entitlements and limits; maintenance window; approved remote support session; backup and restore status; tunnel and standby state;  usage; version and last backup; recent errors; sign-in and lock status; resend invitations; reset two-step sign-in with verification; toggle flags; suspend or reinstate; start an audited "view as" session; trigger export. Every action is recorded with who, what, why.</p>
+<h3>14.6 Operating rhythm</h3>
+<ul><li>On-call rota with a primary and a secondary, handover notes, and paid on-call for after-hours cover.</li>
+<li>Weekly operations review (incidents, capacity, upcoming releases), monthly cost and capacity review, quarterly restore drill and access review.</li>
+<li>A public or client-only <b>status page</b> and a maintenance calendar.</li></ul>
+
+<h2 class="pb">15. Licensing, billing and commercial terms</h2>
+<h3>15.1 Pricing drivers (for you to decide)</h3>
+<table><tr><th>Driver</th><th>Used for</th><th>Pros and cons</th></tr>
+<tr><td>Per company or per location</td><td>Base price per site or company</td><td>Simple to explain; fits retail chains.</td></tr>
+<tr><td>Per named user</td><td>Seats beyond an included number</td><td>Predictable; discourages shared logins.</td></tr>
+<tr><td>Modules</td><td>Plan differences</td><td>Clear upsell path.</td></tr>
+<tr><td>Counters / terminals</td><td>POS-heavy clients</td><td>Matches the value they get.</td></tr>
+<tr><td>Transaction volume (fair use)</td><td>Guard rails, not the main price</td><td>Protects shared cells from abuse; needs metering.</td></tr>
+<tr><td>Hybrid services</td><td>Backup retention, remote users, live standby, owner dashboard</td><td>Priced as add-ons; cloud cost per site is tracked so the price covers it.</td></tr>
+<tr><td>Service fees</td><td>Onboarding, migration, training, managed on-premise, dedicated stack hosting</td><td>Covers real effort.</td></tr></table>
+<h3>15.2 Billing operations</h3>
+<ul><li>Annual or monthly plans in advance, GST invoices issued from your own OneSyncERP (a useful dogfood), payment by UPI, bank transfer or a payment gateway, with automated reminders.</li>
+<li><b>Dunning ladder:</b> reminder, past-due warning in the app, grace period, then read-only suspension (Section 10.1), then reinstatement on payment. No surprise data loss.</li>
+<li><b>Plan changes</b> take effect immediately in entitlements; downgrades honour a notice period.</li>
+<li><b>Metering</b> records active users, companies, locations, counters and monthly documents per tenant, feeding both billing and capacity planning.</li></ul>
+<h3>15.3 Licence keys for sites</h3>
+<p>A signed file naming the tenant, modules, limits and expiry, verified offline by the public key built into the product. On expiry the system warns for a grace period and then becomes read-only; export always works. Renewal is a new file (or an automatic refresh when the server can reach the control plane).</p>
+<h3>15.4 Documents to prepare</h3>
+<p>Master service agreement, service level agreement per tier, data processing agreement, privacy notice, acceptable use, on-premise managed-service addendum, support policy, and a one-page security overview for sales. Have counsel review all of them.</p>
+
+<h2 class="pb">16. Desktop, mobile and counter distribution</h2>
+<table><tr><th>Topic</th><th>Plan</th></tr>
+<tr><td>Installers</td><td>Windows (primary), plus macOS and Linux builds from the existing workflow. A Windows code-signing certificate (extended validation recommended) and an Apple developer account for signing and notarisation: purchase and verification take weeks, so start now.</td></tr>
+<tr><td>Which server an app talks to</td><td>Two addresses per client: the <b>local address</b> in the office and the <b>remote address</b> (<code>client.yourdomain.in</code>) outside it. The app tries the local server first and falls back to the remote one, so staff moving between office and home need no change. Pre-configured in the installer.</td></tr>
+<tr><td>Auto-update</td><td>Signed updates from your own storage and a CDN, with stable and beta channels, staged roll-out, and the minimum and maximum version rules from Section 11.4. Apps never update to a version that the client's server cannot yet serve.</td></tr>
+<tr><td>Owner web dashboard</td><td>A responsive web view (phone friendly) over the remote address: today's sales, cash, receivables, payables, stock alerts, pending approvals, and approve or reject actions. Read-mostly, with strict role limits and two-step sign-in. This is the answer to most remote-use requests and is built in phase 3.</td></tr>
+<tr><td>Counter resilience</td><td>Counters keep selling offline for cash and card (exists) and upload when the server is reachable. On the LAN the server is local, so counters rarely go offline unless the server itself is down. Monitor queue age and alert.</td></tr>
+<tr><td>Hardware guide</td><td>Tested receipt printers (80 mm), scanners, cash drawers, label printers, supported Windows versions, desktop minimums, UPS and cabling for the server and counters.</td></tr>
+<tr><td>Remote help</td><td>The agent's approved support session for the server; for desktops a consent-based remote support tool plus a one-click "export diagnostics" in the app.</td></tr></table>
+
+<h2 class="pb">17. Later: multi-site and two-way sync (design preview)</h2>
+<p>You will later have clients with several sites (branches, warehouses, factories) that must share data, and you may want both the site and the cloud to accept edits. That is a major capability and the main reason to be careful now. The approach below is a preview, not a commitment; it will be designed in detail before the work starts.</p>
+<h3>17.1 Principles for later</h3>
+<ul><li><b>One writer per record type per site (site of origin).</b> A document is created at one site and owned by it. Other sites receive it. This avoids most conflicts by construction.</li>
+<li><b>Append-only data replicates as events.</b> Ledger entries, stock movements, invoices, receipts and payments are immutable; they are shipped as ordered, idempotent events (the product already has idempotency keys and an outbox of change events).</li>
+<li><b>Derived values are recomputed, not copied.</b> Stock on hand and balances come from movements and postings, so they converge.</li>
+<li><b>Masters need conflict rules.</b> Items, customers and prices can be edited at several sites: use versions, a field-level merge for harmless fields, and a review queue for real conflicts. Money-affecting fields (tax, price lists) can have a single owning site.</li>
+<li><b>Numbering per site.</b> Each site gets its own document number series so two sites never issue the same number; GST registration and financial-year rules are kept.</li>
+<li><b>Topologies:</b> a hub (head office site) with branches syncing up and down is the common case; a mesh is avoided.</li></ul>
+<h3>17.2 Cheap preparations to do now</h3>
+<table><tr><th>Preparation</th><th>Why now</th><th>Size</th></tr>
+<tr><td>Introduce a <b>site identity</b> in the data model (a site id on documents and numbering, defaulting to the single site)</td><td>Adding it later means rewriting history; adding it now is cheap</td><td>M</td></tr>
+<tr><td>Keep identifiers globally unique (UUID version 7 is already used) and never reuse numbers</td><td>Required for any merge</td><td>Done</td></tr>
+<tr><td>Publish change events consistently for every write (outbox exists)</td><td>Foundation for event-based sync</td><td>M</td></tr>
+<tr><td>Record the origin site and a logical clock on events</td><td>Ordering and idempotency</td><td>S</td></tr>
+<tr><td>Make numbering series per registration, per site, per financial year</td><td>Avoid duplicate numbers</td><td>M</td></tr></table>
+<div class="box">Cloud-side work for level B and C does not depend on any of this, so none of it blocks the pilot. Treat it as a cheap insurance item to schedule in phase 2.</div>
+<h2 class="pb">18. Phased roadmap with exit criteria</h2>
+<p class="small">Durations are working estimates for a small dedicated team and assume procurement and legal work run in parallel. They size the effort; they are not commitments.</p>
+<table><tr><th>Phase</th><th>Build</th><th>Exit criteria (all must be true)</th></tr>
+<tr><td><b>0 Cloud foundations</b><br>4 to 6 weeks</td><td>Hostinger servers built from code; private staff access; gateway pair; control-plane core and database; backup repository; off-provider copy; monitoring, alerts, external uptime probe; domain and DNS at a separate provider; runbooks v1</td><td>The gateway and control plane can be rebuilt from code in hours; an alert reaches the on-call phone; staff access is key-based with MFA</td></tr>
+<tr><td><b>1 Site appliance and fleet agent</b><br>6 to 8 weeks</td><td>Standard server image and installer; agent with heartbeat, signed releases, safe upgrade and rollback, approved support session; fleet screen; first signed release; staging site; hardware spec</td><td>A clean machine becomes a working site with one script; an upgrade with an injected failure rolls back cleanly; the fleet screen shows live health</td></tr>
+<tr><td><b>2 Level A: protected backup, licences and entitlements</b><br>5 to 7 weeks</td><td>Backup shipping, encryption and key escrow; append-only credentials; verification and monthly restore tests; signed licences, module enforcement on routes, limits, tenant states; site identity and per-site numbering preparation; client version handshake</td><td>A site server is wiped and restored to within minutes of the loss on a replacement; two test sites with different licences behave differently on every module; backups verified automatically</td></tr>
+<tr><td><b>3 Level C: remote access</b><br>5 to 7 weeks</td><td>Per-site tunnels, gateway routing, client addresses, local-first fallback in the app, remote-session controls and audit, owner web dashboard, rate limits</td><td>An owner uses the product from outside the office on desktop and phone; a stolen tunnel key can be revoked instantly; a gateway server can be switched off without users noticing</td></tr>
+<tr><td><b>4 Pilot</b><br>6 weeks</td><td>3 sites (varied sizes), signed installers and updates, independent penetration test, load and soak tests, DPA and service terms, support rota in office hours</td><td>No unresolved severity-1 incidents; critical and high test findings fixed; each pilot completes a month-end; backup restore and a site upgrade with rollback performed on a pilot</td></tr>
+<tr><td><b>5 Level B: live standby and failover</b><br>5 to 6 weeks</td><td>Standby hosts, replication monitoring, read-only dashboards from the standby, promotion and failback runbooks, capacity plan</td><td>A timed failover drill meets the RTO; failback completes with no data loss; replication lag alerts verified</td></tr>
+<tr><td><b>6 Rollout to 20 to 30 sites</b><br>10 to 14 weeks</td><td>Repeatable onboarding (templates, opening-balance wizard), partner technician process, billing and dunning, status page, on-call rota extended, release rings in use</td><td>20 to 30 sites live; installing and onboarding a new site takes a team a defined number of days; response targets met for two consecutive months</td></tr>
+<tr><td><b>7 Multi-site and two-way sync</b><br>After rollout</td><td>Detailed design, site-of-origin ownership, event sync, conflict review, per-site numbering in practice</td><td>Designed and agreed before build</td></tr></table>
+<h3>Dependency notes</h3>
+<ul><li>Start procurement and paperwork in week 1: Hostinger plans and limits, second-provider bucket, domain, code-signing certificates, payment gateway, and legal drafting.</li>
+<li>Remote access (level C) comes before the live standby (B) because clients ask for it most.</li>
+<li>Do not onboard a paying client until a restore from the cloud has succeeded on a real or staging site.</li>
+<li>Phases 1 and 2 overlap, and phase 3 can start once the tunnel proof of concept passes.</li></ul>
+<h2 class="pb">19. Team and responsibilities</h2>
+<table><tr><th>Role</th><th>Responsibilities</th><th>Early headcount (Assumption)</th></tr>
+<tr><td>Platform / DevOps engineer</td><td>Infrastructure code for the VPS estate, CI/CD, gateway, backups and replication, networking, cost</td><td>2</td></tr>
+<tr><td>Fleet and site engineer</td><td>Server image, fleet agent, upgrades and rollback, tunnel, site hardware guide</td><td>1 to 2</td></tr>
+<tr><td>Backend engineer(s)</td><td>Control plane, entitlements, tenant tools, performance, security fixes</td><td>2</td></tr>
+<tr><td>Client engineer</td><td>Installers, auto-update, local-first and remote addresses, owner web dashboard, offline sync</td><td>1 to 2</td></tr>
+<tr><td>Site reliability / on-call</td><td>Monitoring, incidents, runbooks, capacity (shared by engineers at first)</td><td>Rota of 3 to 4</td></tr>
+<tr><td>Implementation consultants and site technicians</td><td>Onboarding, migration, training, reconciliation; installing and cabling site servers (own staff first, partners later)</td><td>3 to 4, growing with sales</td></tr>
+<tr><td>Support desk</td><td>L1 and L2</td><td>2, growing</td></tr>
+<tr><td>Security and compliance owner</td><td>Policies, vendor reviews, access reviews, pen test, DPDP contact</td><td>1 (part time at first)</td></tr>
+<tr><td>Product / release manager</td><td>Release train, entitlement design, client communication</td><td>1</td></tr></table>
+<h3>Who decides what (summary)</h3>
+<table><tr><th>Decision</th><th>Owner</th><th>Consulted</th></tr>
+<tr><td>Which tier a client gets, placement</td><td>Sales lead with platform lead</td><td>Implementation</td></tr>
+<tr><td>Release go/no-go</td><td>Release manager</td><td>Engineering, support</td></tr>
+<tr><td>Emergency data fix</td><td>Engineering lead, with second approver</td><td>Client contact, support</td></tr>
+<tr><td>Access to a client's data</td><td>Client contact, security owner</td><td>Support</td></tr>
+<tr><td>Price and contract terms</td><td>Business owner</td><td>Counsel</td></tr></table>
+
+<h2 class="pb">20. Risks and mitigations</h2>
+<table><tr><th>Risk</th><th>Impact</th><th>Mitigation</th></tr>
+<tr><td>Site server hardware failure</td><td>Client down until replaced</td><td>Spare or pre-imaged machines, mirrored disks, level A restore, Plus standby, managed-service option</td></tr>
+<tr><td>Site internet outages</td><td>Remote access and shipping pause</td><td>LAN keeps working; WAL queues; alerts; backup also on the local disk</td></tr>
+<tr><td>WAL queue fills the site disk</td><td>Database stops</td><td>Queue cap, disk alerts, automatic fallback to local backup, support call</td></tr>
+<tr><td>Failed upgrade at a site</td><td>Downtime at a client</td><td>Pre-upgrade backup, expand-only migrations, automatic rollback, rings, maintenance windows, staging site rehearsal</td></tr>
+<tr><td>Too many versions in the field</td><td>Support cost</td><td>Two-version rule, manifest-controlled compatibility, contractual update period</td></tr>
+<tr><td>Single hosting provider outage</td><td>Remote access, standbys, updates, console unavailable</td><td>Sites keep working; independent DNS; off-provider backups; rebuild plan at a second provider; drilled</td></tr>
+<tr><td>Cross-client exposure through the gateway</td><td>Severe</td><td>Per-site tunnel keys, application-level authentication on the site, gateway keeps no business data, penetration test, rate limits</td></tr>
+<tr><td>Backup keys lost</td><td>Backups unreadable</td><td>Escrow with dual control, documented recovery, periodic key-recovery drill</td></tr>
+<tr><td>Ransomware on client network</td><td>Site data encrypted</td><td>Append-only cloud copies, immutable off-provider copy, restore runbook, security guidance in the hardware guide</td></tr>
+<tr><td>Replication copies corruption</td><td>Bad data in both places</td><td>Point-in-time recovery from level A; integrity checks; ledgers append-only</td></tr>
+<tr><td>Two primaries after a failover</td><td>Split books</td><td>Manual, two-check failover; fencing: the old primary must not accept writes until rebuilt</td></tr>
+<tr><td>Self-run databases on VPS are operated badly</td><td>Data loss or downtime</td><td>Everything as code, monitoring, drills, backups from day one, a second person trained on every runbook</td></tr>
+<tr><td>Support load grows with every site</td><td>Cost and delays</td><td>Fleet screen, standard image, remote support, partner technicians, strict hardware spec</td></tr>
+<tr><td>Clients modify or tamper with servers</td><td>Unsupported state</td><td>Locked-down image, tamper reporting, contract clause, supported-configuration check in the heartbeat</td></tr>
+<tr><td>Wrong accounting or tax defaults</td><td>Client trust</td><td>Accountant sign-off on templates, reconciliation during onboarding, effective-dated tax rules (exist)</td></tr>
+<tr><td>Data migration errors</td><td>Trouble at go-live</td><td>Trial balance, stock and receivables reconciliation, rehearsal import, parallel run for larger clients</td></tr>
+<tr><td>Regulatory change</td><td>Contract and design impact</td><td>Named compliance owner, quarterly review with counsel and an accountant</td></tr></table>
+
+<h2 class="pb">21. Open decisions and working defaults</h2>
+<p>The settled decisions are in the decision log at the front. The items below are still open. Development proceeds on the <b>working default</b> (my recommendation) and nothing is irreversible; tell me when you want to change one, and I will adjust the plan and the code.</p>
+<table><tr><th>#</th><th>Open decision</th><th>Working default used for development</th><th>Needed by</th></tr>
+<tr><td>1</td><td>Tunnel technology (WireGuard or HTTPS reverse tunnel)</td><td>Build a one-week proof of both; pick the one that works through ordinary office networks with no router changes</td><td>Start of phase 3</td></tr>
+<tr><td>2</td><td>Gateway terminates TLS (so it can apply a firewall and limits) or end-to-end TLS</td><td>Terminate at the gateway; state it in the data processing agreement</td><td>Phase 3</td></tr>
+<tr><td>3</td><td>Second provider for off-site backups and DNS</td><td>An S3-compatible bucket in India or a neighbouring region (residency checked with counsel) and a separate DNS provider</td><td>Phase 0</td></tr>
+<tr><td>4</td><td>Owner web dashboard scope for the first release</td><td>Today's numbers, cash, receivables, stock alerts and approvals; no data entry</td><td>Phase 3</td></tr>
+<tr><td>5</td><td>Disk encryption on site servers</td><td>On by default with automatic TPM unlock on the appliance; documented exceptions</td><td>Phase 1</td></tr>
+<tr><td>6</td><td>Installation model (your technicians, partners, client IT)</td><td>Your team for the first 5 sites; trained partners after that</td><td>Phase 4</td></tr>
+<tr><td>7</td><td>Pricing structure for Local, Hybrid, Hybrid Plus, Cloud</td><td>Base per site plus users and modules; remote users, standby and retention as add-ons; cloud cost per site tracked</td><td>Phase 4</td></tr>
+<tr><td>8</td><td>Security and compliance owner; counsel and Chartered Accountant for review</td><td>Name them in week 1; needed before any client contract</td><td>Phase 0</td></tr>
+<tr><td>9</td><td>The three pilot sites and the terms offered</td><td>Friendly, varied in size and network quality, willing to take early updates</td><td>Phase 3</td></tr>
+<tr><td>10</td><td>Add site identity to the data model (Section 17.2)</td><td>Yes, in phase 2</td><td>Phase 2</td></tr>
+<tr><td>11</td><td>Hostinger plan details: server sizes, bandwidth, snapshots and backups, a second Mumbai location, support level</td><td>Confirm in week 1; size from pilot measurements</td><td>Phase 0</td></tr>
+<tr><td>12</td><td>Wording of the commitments (deferred; see decision log, item 12)</td><td>None promised; targets are internal</td><td>After pilot drills</td></tr></table>
+<h2 class="pb">22. Development: how we start</h2>
+<p>Development starts with work that is decided, does not depend on the open items, and unblocks everything else. Each sprint ends with tests passing in the repository's existing pipeline and a short demo.</p>
+<table><tr><th>Sprint</th><th>Scope</th><th>Result</th></tr>
+<tr><td><b>1. Licences and entitlements</b> (Appendix A items 8, 9, 11)</td><td>A tenant's licence (plan, modules, limits, expiry, read-only state); signed licence files verified with a public key; enforcement of modules on every route and limits on creation; read-only suspension; the sign-in response carries the entitlements; the app hides modules that are not licensed; version handshake</td><td>Two test tenants with different licences behave differently in automated tests; a suspended tenant can read and export but not write</td></tr>
+<tr><td><b>2. Site identity and numbering</b> (item 10)</td><td>A site id on documents and numbering series, defaulting to the single site; origin site on change events</td><td>No behaviour change for single-site clients; ready for multi-site later</td></tr>
+<tr><td><b>3. Control plane core</b> (item 2)</td><td>Service and database for sites, licences, release channels and heartbeats; signing of licences and release manifests; staff authentication</td><td>A site can be registered, licensed and seen on a fleet screen</td></tr>
+<tr><td><b>4. Fleet agent and site image</b> (items 3, 4, 5)</td><td>Appliance install script and image, agent with heartbeat, signed manifest verification, safe upgrade and rollback</td><td>A clean machine becomes a working site; an upgrade with an injected failure rolls back</td></tr>
+<tr><td><b>5. Backup shipping</b> (items 6, 7)</td><td>Encrypted continuous backup to the cloud repository and the off-provider copy, verification, restore runbook</td><td>A wiped site is restored to within minutes of the loss</td></tr>
+<tr><td><b>6. Tunnel, gateway and owner dashboard</b> (items 12, 13, 14)</td><td>Per-site tunnels, gateway routing, local-first fallback in the app, remote rules, responsive dashboard</td><td>An owner works from outside the office</td></tr></table>
+<p>Sprints 1 and 2 are code in the existing repository and begin immediately. Sprints 3 to 6 start new components (control plane, agent, image, gateway) and depend on the cloud account and the tunnel proof of concept from the open items above.</p>
+<h2 class="pb">Appendix A: engineering backlog (new work this plan requires)</h2>
+<table><tr><th>#</th><th>Item</th><th>Phase</th><th>Size</th></tr>
+<tr><td>1</td><td>Infrastructure as code for the Hostinger estate: private access, firewall, gateway pair, control plane, backup repository, monitoring, staging</td><td>0</td><td>L</td></tr>
+<tr><td>2</td><td>Control-plane service: site and tenant registry, signed licences, releases, heartbeats, audit, staff authentication</td><td>0 to 2</td><td>L</td></tr>
+<tr><td>3</td><td>Standard site image and installer (disks, runtime, application stack, agent, backup shipper, tunnel), hardware spec and model list</td><td>1</td><td>L</td></tr>
+<tr><td>4</td><td>Fleet agent: heartbeat, signed manifests, safe upgrade and rollback, config, approved support session, tamper reporting</td><td>1</td><td>L</td></tr>
+<tr><td>5</td><td>Release signing and manifest tooling; ring management; maintenance windows</td><td>1</td><td>M</td></tr>
+<tr><td>6</td><td>Backup shipping: pgBackRest (or WAL-G) setup, per-client encryption, append-only credentials, off-provider copy, retention</td><td>2</td><td>L</td></tr>
+<tr><td>7</td><td>Backup verification: freshness alerts, monthly automated restore tests, restore runbooks and timing</td><td>2</td><td>M</td></tr>
+<tr><td>8</td><td>Entitlement model: modules, limits, signed licence file, route module tags, errors; app hides unlicensed modules; tenant states with read-only suspension</td><td>2</td><td>L</td></tr>
+<tr><td>9</td><td>Ledger-always-on default posting when Accounting is not licensed</td><td>2</td><td>M</td></tr>
+<tr><td>10</td><td>Site identity and per-site numbering in the data model; origin site and clock on change events</td><td>2</td><td>M</td></tr>
+<tr><td>11</td><td>Client version handshake with minimum and maximum compatible versions</td><td>2</td><td>S</td></tr>
+<tr><td>12</td><td>Per-site tunnels, gateway routing, remote addresses, key issue and revoke</td><td>3</td><td>L</td></tr>
+<tr><td>13</td><td>Desktop app: local-first with remote fallback; remote-session controls and audit; per-client remote rules</td><td>3</td><td>M</td></tr>
+<tr><td>14</td><td>Owner web dashboard (responsive) with approvals</td><td>3</td><td>L</td></tr>
+<tr><td>15</td><td>Signed installers, notarisation, update hosting, channels, staged rollout, diagnostics export</td><td>4</td><td>M</td></tr>
+<tr><td>16</td><td>Support console: fleet view, audited view-as, remote session approval, export and restore tools</td><td>1 to 4</td><td>M</td></tr>
+<tr><td>17</td><td>Load, soak and upgrade-rollback test suites with realistic data; replication and tunnel tests</td><td>4</td><td>M</td></tr>
+<tr><td>18</td><td>Live standby: replication setup, monitoring, read-only views, promotion and failback tooling</td><td>5</td><td>L</td></tr>
+<tr><td>19</td><td>Usage metering, billing, dunning, status page</td><td>6</td><td>M</td></tr>
+<tr><td>20</td><td>Opening-balance wizard, reconciliation reports, import mappers</td><td>6</td><td>M</td></tr>
+<tr><td>21</td><td>Tenant extraction and import tool (export, move, restore of one tenant)</td><td>2 to 6</td><td>L</td></tr>
+<tr><td>22</td><td>Multi-site and two-way sync: detailed design</td><td>7</td><td>L</td></tr></table>
+<h2>Appendix B: go-live checklist (per site)</h2>
+<ul>
+<li>Order, tier, modules, limits and contacts recorded in the control plane; contract and data processing agreement signed.</li>
+<li>Site record, licence and tunnel keys created in the control plane; server installed, cabled and on a UPS; image applied; agent registered; owner has signed in and enabled two-step sign-in.</li>
+<li>Company, GST registration, locations, tax codes, numbering and chart reviewed with the client's accountant.</li>
+<li>Roles and users created; discount limits, approver PINs and printers configured.</li>
+<li>Opening balances, stock and open documents loaded; trial balance, stock valuation and receivables and payables agree to the old system, signed by the client.</li>
+<li>Installers deployed and signed; counters registered; test sale, return, print and offline sale tried.</li>
+<li>Staff trained by role; quick guides handed over; support contacts and hours confirmed.</li>
+<li>First base backup and continuous log shipping confirmed; local backup disk working; a test restore completed; backup freshness alert verified.</li>
+<li>Remote address works from outside the office; local-first fallback verified; remote rules agreed; maintenance window set; support contact and approval method agreed.</li>
+<li>Cut-over date and rollback plan agreed; hypercare schedule booked; first month-end close visit planned.</li></ul>
+
+<h2>Appendix C: checklists</h2>
+<h3>Release checklist</h3>
+<ul><li>All gates green (types, lint, unit, integration, end-to-end, API contract, scans).</li>
+<li>Migrations are expand-only; dry run done on staging data; duration noted.</li>
+<li>Release notes written; support briefed; risky features behind flags.</li>
+<li>Ring 0 and ring 1 updated and watched for the agreed period; failures and latency within bounds.</li>
+<li>Rings updated in order (own site, friendly sites, then batches) inside each site's window; automatic halt thresholds watched.</li>
+<li>Rollback plan confirmed (previous images, flags, pre-upgrade backup); previous installer retained.</li></ul>
+<h3>Incident checklist</h3>
+<ul><li>Declare, name the incident lead, open the channel and timeline.</li>
+<li>Assess blast radius (which cells, which tenants); post an initial status update.</li>
+<li>Contain: flag off, site read-only, roll back, or fail over to the standby per the runbook (two checks first).</li>
+<li>Restore service; verify with real sign-in and a sample transaction.</li>
+<li>Communicate resolution; keep evidence; schedule the blameless review within a week.</li>
+<li>If personal data may be involved, notify the security owner immediately to follow the breach plan.</li></ul>
+
+<p class="small" style="margin-top:20pt">Prepared for review. Sections 5 to 9 and 11 to 12 describe capabilities that are not all built yet; Appendix A lists the work. Figures marked Assumption are planning estimates to be replaced with measured values from the load test and cloud quotes.</p>
+</body></html>
