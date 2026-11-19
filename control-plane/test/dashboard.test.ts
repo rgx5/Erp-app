@@ -114,3 +114,47 @@ describe('licences and commands per tenant', () => {
     expect((await t.call('POST', `/agent/commands/${got[0]?.id}/result`, other.token, { ok: true })).status).toBe(404);
   });
 });
+
+describe('remote access rules', () => {
+  const rules = { mode: 'readonly', allowedNetworks: ['203.0.113.0/24'], hours: { days: [1, 2, 3, 4, 5], from: '09:00', to: '18:00', timezone: 'Asia/Kolkata' }, requestsPerSecond: 20 };
+  it('lets only an admin set them, validates them, shows them in the fleet and hands them to the gateway', async () => {
+    const g = await testApp({ GATEWAY_TOKEN: 'g'.repeat(40) });
+    try {
+      const a = await g.staff('admin'); const sup = await g.staff('support'); const v = await g.staff('viewer');
+      const client = (await g.call('POST', '/clients', a.token, { name: 'Rules Co', tier: 'hybrid' })).json;
+      const site = (await g.call('POST', '/sites', a.token, { clientId: client.id, code: 'RULES-1', name: 'r', kind: 'onprem' })).json;
+      const token = (await g.call('POST', `/sites/${site.id}/agent-token`, a.token)).json.token as string;
+      await g.call('PATCH', `/sites/${site.id}`, a.token, { hostname: 'rules.remote.example.in' });
+      const verify = async () => (await g.call('POST', '/gateway/verify', 'g'.repeat(40), { token })).json;
+      expect(await verify()).toMatchObject({ hostname: 'rules.remote.example.in', rules: {} }); // nothing set: no extra limits
+      expect((await g.call('PATCH', `/sites/${site.id}`, sup.token, { remoteRules: rules })).status).toBe(403);
+      for (const bad of [{ mode: 'root' }, { allowedNetworks: ['nope'] }, { allowedNetworks: ['10.0.0.0/40'] }, { hours: { days: [9], from: '09:00', to: '18:00', timezone: 'Asia/Kolkata' } }, { hours: { days: [1], from: '9', to: '18:00', timezone: 'Asia/Kolkata' } }, { hours: { days: [1], from: '09:00', to: '18:00', timezone: 'Mars/Base' } }, { extra: 1 }]) expect((await g.call('PATCH', `/sites/${site.id}`, a.token, { remoteRules: bad })).status, JSON.stringify(bad)).toBe(422);
+      expect((await g.call('PATCH', `/sites/${site.id}`, a.token, { remoteRules: rules })).status).toBe(200);
+      expect((await g.call('GET', `/sites/${site.id}`, v.token)).json.remote).toMatchObject({ hostname: 'rules.remote.example.in', enabled: true, rules: { mode: 'readonly', allowedNetworks: ['203.0.113.0/24'], requestsPerSecond: 20 } });
+      expect(await verify()).toMatchObject({ rules: { mode: 'readonly', allowedNetworks: ['203.0.113.0/24'], hours: { timezone: 'Asia/Kolkata' } } });
+      const log = (await g.call('GET', '/audit', a.token)).json.items as { action: string; details: { remoteRules?: unknown } }[];
+      expect(log.some((x) => x.action === 'site.updated' && x.details?.remoteRules)).toBe(true);
+      expect((await g.call('PATCH', `/sites/${site.id}`, a.token, { remoteRules: {} })).status).toBe(200); // back to no extra limits
+      expect((await g.call('GET', `/sites/${site.id}`, v.token)).json.remote.rules).toMatchObject({ mode: 'full', allowedNetworks: [], hours: null });
+    } finally { await g.close(); }
+  });
+});
+
+describe('remote access across cells', () => {
+  it('lists every cell and applies rules to several independent cells at once, all or nothing', async () => {
+    const a = await cell('RA-1', { kind: 'onprem', clientName: 'RA One' }); const b = await cell('RA-2', { kind: 'dedicated', clientName: 'RA Two' }); const c = await cell('RA-3', { kind: 'onprem', clientName: 'RA Three' });
+    await t.call('PATCH', `/sites/${a.id}`, admin.token, { hostname: 'ra1.remote.example.in' });
+    const list = (await t.call('GET', '/remote-access', viewer.token)).json;
+    const row = (id: string) => (list.items as { id: string; remote: { hostname: string | null; enabled: boolean }; eligible: boolean }[]).find((x) => x.id === id)!;
+    expect(row(a.id)).toMatchObject({ eligible: true, remote: { hostname: 'ra1.remote.example.in', enabled: true } }); expect(row(b.id).remote.hostname).toBeNull();
+    const rules = { mode: 'owner_only', allowedNetworks: ['198.51.100.0/24'] };
+    expect((await t.call('POST', '/remote-access/apply', support.token, { siteIds: [a.id], remoteRules: rules })).status).toBe(403);
+    expect((await t.call('POST', '/remote-access/apply', admin.token, { siteIds: [a.id, b.id, c.id], remoteRules: rules, remoteAccess: false })).json).toMatchObject({ ok: true, updated: 3 });
+    for (const x of [a, b, c]) expect((await t.call('GET', `/sites/${x.id}`, viewer.token)).json.remote).toMatchObject({ enabled: false, rules: { mode: 'owner_only', allowedNetworks: ['198.51.100.0/24'] } });
+    const before = (await t.call('GET', `/sites/${a.id}`, viewer.token)).json.remote;
+    expect((await t.call('POST', '/remote-access/apply', admin.token, { siteIds: [a.id, id(999)], remoteRules: { mode: 'full' } })).status).toBe(404); // one unknown cell: nothing changes
+    expect((await t.call('GET', `/sites/${a.id}`, viewer.token)).json.remote).toEqual(before);
+    expect((await t.call('POST', '/remote-access/apply', admin.token, { siteIds: [a.id] })).status).toBe(422);
+    expect((await t.call('POST', '/remote-access/apply', admin.token, { siteIds: [a.id], remoteRules: { mode: 'bad' } })).status).toBe(422);
+  });
+});

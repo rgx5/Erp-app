@@ -2,6 +2,7 @@ import { randomUUID } from 'node:crypto';
 import { Readable } from 'node:stream';
 import Fastify, { type FastifyInstance } from 'fastify';
 import { WebSocketServer, type WebSocket } from 'ws';
+import { check, readRules, type Rules } from './rules.js';
 
 type Frame =
   | { t: 'req'; id: string; method: string; path: string; headers: Record<string, string>; body?: string }
@@ -10,7 +11,7 @@ type Frame =
   | { t: 'end'; id: string }
   | { t: 'err'; id: string; message: string };
 
-export interface Verdict { siteId: string; hostname: string; tier: string }
+export interface Verdict { siteId: string; hostname: string; tier: string; /** The client's remote-access rules as stored by the control plane (see rules.ts). Missing means no extra limits. */ rules?: unknown }
 export interface GatewayOptions {
   /** Asks the control plane whether this site token may hold a tunnel. Resolves null when refused; rejects when the control plane cannot be reached. */
   verify(token: string): Promise<Verdict | null>;
@@ -18,7 +19,7 @@ export interface GatewayOptions {
   log?: (m: string) => void;
 }
 
-interface Session { ws: WebSocket; verdict: Verdict; token: string; connectedAt: Date; lastPong: number; pending: Map<string, Pending>; tokens: number; refilled: number }
+interface Session { ws: WebSocket; verdict: Verdict; rules: Rules | null; token: string; connectedAt: Date; lastPong: number; pending: Map<string, Pending>; tokens: number; refilled: number }
 interface Pending { onHead: (status: number, headers: Record<string, string>) => void; onChunk: (b: Buffer) => void; onEnd: () => void; onErr: (m: string) => void }
 
 const REQ_DROP = new Set(['connection', 'keep-alive', 'proxy-authorization', 'te', 'trailer', 'transfer-encoding', 'upgrade', 'host', 'content-length', 'x-forwarded-for', 'x-forwarded-host', 'x-forwarded-proto', 'x-real-ip']);
@@ -57,7 +58,7 @@ export function buildGateway(o: GatewayOptions): { app: FastifyInstance; session
   function attach(ws: WebSocket, token: string, verdict: Verdict): void {
     const host = verdict.hostname.toLowerCase();
     sessions.get(host)?.ws.close(4000, 'replaced by a newer tunnel'); // one tunnel per site: the newest wins
-    const s: Session = { ws, verdict, token, connectedAt: new Date(), lastPong: Date.now(), pending: new Map(), tokens: rps, refilled: Date.now() };
+    const s: Session = { ws, verdict, rules: readRules(verdict.rules), token, connectedAt: new Date(), lastPong: Date.now(), pending: new Map(), tokens: rps, refilled: Date.now() };
     sessions.set(host, s);
     log(`tunnel up: ${host}`);
     ws.on('pong', () => { s.lastPong = Date.now(); });
@@ -77,7 +78,7 @@ export function buildGateway(o: GatewayOptions): { app: FastifyInstance; session
   /** Closes the tunnel of any site the control plane no longer allows. An unreachable control plane never drops anyone. */
   async function recheck(): Promise<void> {
     for (const [host, s] of [...sessions]) {
-      try { const v = await o.verify(s.token); if (!v || v.hostname.toLowerCase() !== host) s.ws.close(4001, 'not allowed any more'); } catch { /* control plane unreachable: keep the tunnel */ }
+      try { const v = await o.verify(s.token); if (!v || v.hostname.toLowerCase() !== host) s.ws.close(4001, 'not allowed any more'); else { s.verdict = v; s.rules = readRules(v.rules); } } catch { /* control plane unreachable: keep the tunnel */ }
     }
   }
   const rechecker = setInterval(() => void recheck(), (o.recheckSeconds ?? 60) * 1000); rechecker.unref();
@@ -88,7 +89,11 @@ export function buildGateway(o: GatewayOptions): { app: FastifyInstance; session
     const s = sessions.get(host);
     if (!s) return reply.status(503).header('retry-after', '30').send({ code: 'site_offline', message: 'This business\'s server is not connected right now. Try again in a moment, or contact the office.' });
     if (!routable(req.url)) return reply.status(404).send({ code: 'not_found', message: 'Not found' });
-    const now = Date.now(); s.tokens = Math.min(rps, s.tokens + ((now - s.refilled) / 1000) * rps); s.refilled = now;
+    if (!s.rules) return reply.status(403).send({ code: 'remote_rules_invalid', message: 'Remote access for this business is paused while its settings are checked. Contact the office.' });
+    const refusal = check(s.rules, { method: req.method, path: req.url, ip: req.ip, at: new Date() });
+    if (refusal) return reply.status(refusal.status).send({ code: refusal.code, message: refusal.message });
+    const limit = Math.min(rps, s.rules.requestsPerSecond ?? rps);
+    const now = Date.now(); s.tokens = Math.min(limit, s.tokens + ((now - s.refilled) / 1000) * limit); s.refilled = now;
     if (s.tokens < 1) return reply.status(429).header('retry-after', '1').send({ code: 'rate_limited', message: 'Too many requests' });
     s.tokens -= 1;
     if (s.pending.size >= maxInflight) return reply.status(429).header('retry-after', '1').send({ code: 'busy', message: 'The office server is busy' });

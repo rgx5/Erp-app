@@ -3,6 +3,7 @@ import type { AddressInfo } from 'node:net';
 import { afterEach, describe, expect, it } from 'vitest';
 import { Tunnel } from '../../agent/src/tunnel.js';
 import { buildGateway, routable, type Verdict } from '../src/gateway.js';
+import { check, inHours, readRules } from '../src/rules.js';
 
 const cleanups: (() => Promise<void> | void)[] = [];
 afterEach(async () => { for (const c of cleanups.splice(0).reverse()) await c(); });
@@ -148,5 +149,56 @@ describe('the tunnel and the gateway', () => {
     const local2 = await localApi(); await connect(port, 'tok-j', local2.url);
     await call(port, 'j.remote.test', '/v1/y');
     expect(local2.seen.map((s) => s.url)).toContain('/v1/y');
+  });
+});
+
+describe('per-client remote rules', () => {
+  const at = (iso: string) => new Date(iso);
+  const R = (o: object) => readRules(o)!;
+  const ask = (rules: object, method: string, path: string, ip = '203.0.113.9', when = '2026-03-02T10:00:00Z') => check(R(rules), { method, path, ip, at: at(when) })?.code ?? null;
+
+  it('reads only well-formed rules; anything else is refused rather than left open', () => {
+    expect(readRules(undefined)).toMatchObject({ mode: 'full' }); expect(readRules({})).toMatchObject({ mode: 'full', networks: [] });
+    for (const bad of [{ mode: 'admin' }, { allowedNetworks: ['not-an-ip'] }, { allowedNetworks: ['10.0.0.0/40'] }, { hours: { days: [8], from: '09:00', to: '10:00', timezone: 'Asia/Kolkata' } }, { hours: { days: [1], from: '9am', to: '10:00', timezone: 'Asia/Kolkata' } }, { hours: { days: [1], from: '09:00', to: '10:00', timezone: 'Nowhere/Land' } }, { requestsPerSecond: 0 }, 'x', []]) expect(readRules(bad), JSON.stringify(bad)).toBeNull();
+  });
+  it('limits where remote users may come from, for IPv4, IPv6 and IPv4 seen through IPv6', () => {
+    const rules = { allowedNetworks: ['203.0.113.0/24', '198.51.100.7', '2001:db8::/32'] };
+    expect(ask(rules, 'GET', '/v1/items')).toBeNull(); expect(ask(rules, 'GET', '/v1/items', '198.51.100.7')).toBeNull(); expect(ask(rules, 'GET', '/v1/items', '::ffff:203.0.113.200')).toBeNull(); expect(ask(rules, 'GET', '/v1/items', '2001:db8:1::5')).toBeNull();
+    expect(ask(rules, 'GET', '/v1/items', '198.51.100.8')).toBe('remote_network_blocked'); expect(ask(rules, 'GET', '/v1/items', '2001:dead::1')).toBe('remote_network_blocked'); expect(ask(rules, 'GET', '/v1/items', 'garbage')).toBe('remote_network_blocked');
+    expect(ask(rules, 'GET', '/health/live', '198.51.100.8')).toBeNull(); // the liveness probe is never limited
+  });
+  it('limits the hours in the site\'s own time zone, including windows that run past midnight', () => {
+    const day = { days: [1, 2, 3, 4, 5, 6], from: '08:00', to: '21:00', timezone: 'Asia/Kolkata' };
+    expect(inHours(day, at('2026-03-02T04:00:00Z'))).toBe(true);  // Monday 09:30 IST
+    expect(inHours(day, at('2026-03-02T16:00:00Z'))).toBe(false); // Monday 21:30 IST
+    expect(inHours(day, at('2026-03-08T06:00:00Z'))).toBe(false); // Sunday 11:30 IST: not a listed day
+    const night = { days: [5], from: '22:00', to: '06:00', timezone: 'Asia/Kolkata' }; // Friday night
+    expect(inHours(night, at('2026-03-06T17:00:00Z'))).toBe(true);  // Friday 22:30 IST
+    expect(inHours(night, at('2026-03-06T23:00:00Z'))).toBe(true);  // Saturday 04:30 IST, still Friday's window
+    expect(inHours(night, at('2026-03-07T17:00:00Z'))).toBe(false); // Saturday 22:30 IST
+    expect(ask({ hours: day }, 'GET', '/v1/items', '1.1.1.1', '2026-03-02T16:00:00Z')).toBe('remote_hours_blocked');
+  });
+  it('view-only blocks every change but not signing in or out; owner-only shows just the dashboard', () => {
+    expect(ask({ mode: 'readonly' }, 'GET', '/v1/items')).toBeNull(); expect(ask({ mode: 'readonly' }, 'POST', '/v1/auth/login')).toBeNull(); expect(ask({ mode: 'readonly' }, 'POST', '/v1/auth/logout')).toBeNull();
+    for (const [m, p] of [['POST', '/v1/sales/invoices'], ['PUT', '/v1/items/1'], ['PATCH', '/v1/items/1'], ['DELETE', '/v1/items/1'], ['POST', '/v1/auth/password'], ['POST', '/V1/Sales/Invoices/']] as const) expect(ask({ mode: 'readonly' }, m, p), `${m} ${p}`).toBe('remote_readonly');
+    const o = { mode: 'owner_only' };
+    for (const p of ['/owner', '/v1/dashboard?companyId=x', '/v1/receivables/ageing?a=b', '/v1/companies', '/v1/auth/me']) expect(ask(o, 'GET', p), p).toBeNull();
+    expect(ask(o, 'POST', '/v1/auth/login')).toBeNull();
+    for (const [m, p] of [['GET', '/v1/items'], ['GET', '/v1/companies/abc'], ['POST', '/v1/dashboard'], ['GET', '/v1/auth/password']] as const) expect(ask(o, m, p), `${m} ${p}`).toBe('remote_owner_only');
+  });
+
+  it('applies the rules to live traffic, takes new rules within a recheck, and pauses a site whose rules cannot be read', async () => {
+    let rules: unknown = { mode: 'readonly' };
+    TOKENS['tok-r'] = { ...verdict('r.remote.test') };
+    const local = await localApi(); const { gw, port } = await start({ verify: async (t) => (t === 'tok-r' ? { ...verdict('r.remote.test'), rules } : null) });
+    await connect(port, 'tok-r', local.url);
+    expect((await call(port, 'r.remote.test', '/v1/items')).status).toBe(200);
+    const blocked = await call(port, 'r.remote.test', '/v1/sales/invoices', { method: 'POST', body: '{}' });
+    expect(blocked.status).toBe(403); expect(json(blocked.body)).toMatchObject({ code: 'remote_readonly' });
+    expect(local.seen.map((x) => x.method)).toEqual(['GET']); // the blocked change never reached the site
+    rules = { mode: 'full' }; await gw.recheck();
+    expect((await call(port, 'r.remote.test', '/v1/sales/invoices', { method: 'POST', body: '{}' })).status).toBe(200);
+    rules = { mode: 'nonsense' }; await gw.recheck();
+    expect(json((await call(port, 'r.remote.test', '/v1/items')).body)).toMatchObject({ code: 'remote_rules_invalid' });
   });
 });

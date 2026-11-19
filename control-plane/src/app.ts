@@ -10,6 +10,7 @@ import { LIMIT_KEYS, MODULES, moduleProblem } from './modules.js';
 import { SecretBox } from './secret-box.js';
 import { generateTotpSecret, verifyTotp } from './totp.js';
 import { mfaRequired } from './config.js';
+import { readRules, remoteRulesSchema } from './remote-rules.js';
 import { sealToEscrow } from './escrow.js';
 
 class HttpError extends Error { constructor(readonly status: number, readonly code: string, message: string, readonly extra: Record<string, unknown> = {}) { super(message); } }
@@ -32,7 +33,7 @@ const schemas = {
   client: z.strictObject({ name: z.string().trim().min(1).max(150), tier: z.enum(['local', 'hybrid', 'hybrid_plus', 'cloud']), contact: z.record(z.string(), z.string()).default({}), notes: z.string().max(2000).optional() }),
   site: z.strictObject({ clientId: uuid, code: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_-]{0,29}$/), name: z.string().trim().min(1).max(150), kind: z.enum(['onprem', 'dedicated', 'pooled']).default('onprem'), tenantId: uuid.optional(), ring: z.number().int().min(0).max(2).default(2) }),
   siteUpdate: z.strictObject({ name: z.string().trim().min(1).max(150).optional(), status: z.enum(['planned', 'installed', 'active', 'suspended', 'retired']).optional(), tenantId: uuid.nullable().optional(), ring: z.number().int().min(0).max(2).optional(), updatesPaused: z.boolean().optional(),
-    hostname: z.string().toLowerCase().regex(/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/, 'A host name such as pune.remote.example.in').nullable().optional(), remoteAccess: z.boolean().optional(),
+    hostname: z.string().toLowerCase().regex(/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/, 'A host name such as pune.remote.example.in').nullable().optional(), remoteAccess: z.boolean().optional(), remoteRules: remoteRulesSchema.optional(),
     maintenanceWindow: z.strictObject({ days: z.array(z.number().int().min(0).max(6)).min(1).max(7), startHour: z.number().int().min(0).max(23), durationHours: z.number().int().min(1).max(12), timezone: z.string().min(1).max(60) }).optional() }).refine((v) => Object.keys(v).length > 0, 'Send at least one field'),
   licence: z.strictObject({ plan: z.string().trim().min(1).max(60), modules: z.array(z.enum(MODULES)).max(20), limits: z.partialRecord(z.enum(LIMIT_KEYS), z.number().int().min(0).max(1_000_000)).default({}), readOnly: z.boolean().default(false), expiresAt: iso.nullable().optional(), graceDays: z.number().int().min(0).max(365).default(14) }),
   support: z.strictObject({ reason: z.string().trim().min(5).max(300), minutes: z.number().int().min(5).max(120), publicKey: z.string().regex(/^(ssh-ed25519|ecdsa-sha2-nistp256) [A-Za-z0-9+/=]{20,600}( [^\s]{1,80})?$/, 'An ssh-ed25519 or ecdsa-sha2-nistp256 public key') }),
@@ -212,9 +213,10 @@ export function buildApp({ pool, config }: AppDeps): FastifyInstance {
     if (b.name !== undefined) cols.push(['name', b.name]); if (b.status !== undefined) cols.push(['status', b.status]); if (b.tenantId !== undefined) cols.push(['tenant_id', b.tenantId]);
     if (b.ring !== undefined) cols.push(['ring', b.ring]); if (b.updatesPaused !== undefined) cols.push(['updates_paused', b.updatesPaused]); if (b.maintenanceWindow !== undefined) cols.push(['maintenance_window', b.maintenanceWindow]);
     if (b.hostname !== undefined) cols.push(['hostname', b.hostname]); if (b.remoteAccess !== undefined) cols.push(['remote_access', b.remoteAccess]);
-    const r = await pool.query(`UPDATE sites SET ${cols.map(([c], i) => `${c} = $${i + 2}`).join(', ')} WHERE id = $1 RETURNING id, code, name, status, tenant_id, ring, updates_paused, maintenance_window, hostname, remote_access`, [id, ...cols.map(([, v]) => v)]).catch((e: { code?: string }) => { if (e.code === '23505') throw new HttpError(409, 'hostname_taken', 'Another site already uses that address'); throw e; });
+    if (b.remoteRules !== undefined) { if (RANK[req.staff!.role] < RANK['admin']) throw new HttpError(403, 'forbidden', 'Only an admin can change remote access rules'); cols.push(['remote_rules', b.remoteRules]); }
+    const r = await pool.query(`UPDATE sites SET ${cols.map(([c], i) => `${c} = $${i + 2}`).join(', ')} WHERE id = $1 RETURNING id, code, name, status, tenant_id, ring, updates_paused, maintenance_window, hostname, remote_access, remote_rules`, [id, ...cols.map(([, v]) => v)]).catch((e: { code?: string }) => { if (e.code === '23505') throw new HttpError(409, 'hostname_taken', 'Another site already uses that address'); throw e; });
     if (!r.rows[0]) throw new HttpError(404, 'not_found', 'No such site');
-    await audit(req, 'site.updated', 'site', id, { fields: cols.map(([c]) => c) });
+    await audit(req, 'site.updated', 'site', id, { fields: cols.map(([c]) => c), ...(b.remoteRules !== undefined ? { remoteRules: b.remoteRules } : {}) });
     return r.rows[0];
   });
   /** Issues (or replaces) the site's agent token. Shown once; only its hash is kept. */
@@ -229,18 +231,44 @@ export function buildApp({ pool, config }: AppDeps): FastifyInstance {
 
   // ---- the fleet ------------------------------------------------------------------------------------------------
   const fleet = async () => {
-    const r = await pool.query<{ id: string; code: string; name: string; status: string; kind: string; ring: number; updates_paused: boolean; tenant_id: string | null; client_id: string; client_name: string; tier: string; last_seen_at: Date | null; version: string | null; payload: Heartbeat | null; licence: { plan?: string; modules?: string[]; expiresAt?: string | null; readOnly?: boolean } | null; licence_id: string | null }>(
-      `SELECT s.id, s.code, s.name, s.status, s.kind, s.ring, s.updates_paused, s.tenant_id, c.id AS client_id, c.name AS client_name, c.tier, st.last_seen_at, st.version, st.payload,
+    const r = await pool.query<{ id: string; code: string; name: string; status: string; kind: string; ring: number; updates_paused: boolean; tenant_id: string | null; hostname: string | null; remote_access: boolean; remote_rules: unknown; client_id: string; client_name: string; tier: string; last_seen_at: Date | null; version: string | null; payload: Heartbeat | null; licence: { plan?: string; modules?: string[]; expiresAt?: string | null; readOnly?: boolean } | null; licence_id: string | null }>(
+      `SELECT s.id, s.code, s.name, s.status, s.kind, s.ring, s.updates_paused, s.tenant_id, s.hostname, s.remote_access, s.remote_rules, c.id AS client_id, c.name AS client_name, c.tier, st.last_seen_at, st.version, st.payload,
               (SELECT l.licence FROM licences l WHERE l.site_id = s.id AND l.revoked_at IS NULL ORDER BY l.issued_at DESC LIMIT 1) AS licence,
               (SELECT l.licence_id FROM licences l WHERE l.site_id = s.id AND l.revoked_at IS NULL ORDER BY l.issued_at DESC LIMIT 1) AS licence_id
          FROM sites s JOIN clients c ON c.id = s.client_id LEFT JOIN site_status st ON st.site_id = s.id WHERE s.status <> 'retired' ORDER BY c.name, s.code`);
     return r.rows.map((s) => ({
-      id: s.id, code: s.code, name: s.name, status: s.status, kind: s.kind, ring: s.ring, updatesPaused: s.updates_paused, tenantId: s.tenant_id, client: { id: s.client_id, name: s.client_name, tier: s.tier },
+      id: s.id, code: s.code, name: s.name, status: s.status, kind: s.kind, ring: s.ring, updatesPaused: s.updates_paused, tenantId: s.tenant_id, remote: { hostname: s.hostname, enabled: s.remote_access, rules: readRules(s.remote_rules), tunnelUp: s.payload?.tunnel?.up ?? null }, client: { id: s.client_id, name: s.client_name, tier: s.tier },
       lastSeenAt: s.last_seen_at?.toISOString() ?? null, version: s.version,
       health: judge({ lastSeenAt: s.last_seen_at, heartbeat: s.payload, tier: s.tier, silentAfterMinutes: config.SILENT_AFTER_MINUTES }),
       licence: s.licence ? { licenceId: s.licence_id, plan: s.licence.plan ?? null, modules: s.licence.modules ?? [], expiresAt: s.licence.expiresAt ?? null, readOnly: s.licence.readOnly === true } : null,
     }));
   };
+
+  // ---- remote access across all cells ---------------------------------------------------------------------------
+  /** Every cell's remote address, switch and rules in one list, so access can be reviewed and changed across independent deployments. */
+  app.get('/remote-access', { preHandler: asStaff('viewer') }, async () => {
+    const items = (await fleet()).map((s) => ({ id: s.id, code: s.code, name: s.name, kind: s.kind, client: s.client, health: s.health.state, eligible: ['hybrid', 'hybrid_plus'].includes(s.client.tier), remote: s.remote }));
+    return { total: items.length, on: items.filter((i) => i.remote.enabled && i.remote.hostname && i.eligible).length, items };
+  });
+  /** Applies one rule set and/or the on/off switch to several cells at once (an admin's decision, audited per cell). Addresses are never changed in bulk. */
+  app.post('/remote-access/apply', { preHandler: asStaff('admin') }, async (req) => {
+    const b = parse(z.strictObject({ siteIds: z.array(uuid).min(1).max(200), remoteRules: remoteRulesSchema.optional(), remoteAccess: z.boolean().optional() }).refine((v) => v.remoteRules !== undefined || v.remoteAccess !== undefined, 'Send rules, the switch, or both'), req.body);
+    const ids = [...new Set(b.siteIds)];
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const found = (await client.query<{ id: string; code: string }>("SELECT id, code FROM sites WHERE id = ANY($1::uuid[]) AND status <> 'retired'", [ids])).rows;
+      if (found.length !== ids.length) throw new HttpError(404, 'not_found', 'One or more of those cells do not exist');
+      const sets: string[] = []; const vals: unknown[] = [ids];
+      if (b.remoteRules !== undefined) { vals.push(b.remoteRules); sets.push(`remote_rules = $${vals.length}`); }
+      if (b.remoteAccess !== undefined) { vals.push(b.remoteAccess); sets.push(`remote_access = $${vals.length}`); }
+      await client.query(`UPDATE sites SET ${sets.join(', ')} WHERE id = ANY($1::uuid[])`, vals);
+      for (const f of found) await client.query('INSERT INTO staff_audit (staff_id, action, entity, entity_id, details) VALUES ($1, $2, $3, $4, $5)', [req.staff?.id ?? null, 'site.updated', 'site', f.id, { fields: sets.map((x) => x.split(' ')[0]), bulk: true, ...(b.remoteRules ? { remoteRules: b.remoteRules } : {}), ...(b.remoteAccess !== undefined ? { remoteAccess: b.remoteAccess } : {}) }]);
+      await client.query('COMMIT');
+      return { ok: true, updated: found.length };
+    } catch (e) { await client.query('ROLLBACK').catch(() => undefined); throw e; } finally { client.release(); }
+  });
+
   app.get('/fleet', { preHandler: asStaff('viewer') }, async (req) => {
     const q = z.object({ state: z.enum(['healthy', 'degraded', 'silent', 'never']).optional(), tier: z.string().optional() }).parse(req.query);
     const items = (await fleet()).filter((s) => (!q.state || s.health.state === q.state) && (!q.tier || s.client.tier === q.tier));
@@ -366,13 +394,13 @@ export function buildApp({ pool, config }: AppDeps): FastifyInstance {
     const siteId = m?.[1]; const secret = m?.[2];
     const refuse = (code: string, message: string) => new HttpError(403, code, message);
     if (!siteId || !secret || !uuid.safeParse(siteId).success) throw refuse('denied', 'The site token is not valid');
-    const r = (await pool.query<{ id: string; hostname: string | null; remote_access: boolean; status: string; agent_token_hash: Buffer | null; tier: string; client_status: string }>(
-      'SELECT s.id, s.hostname, s.remote_access, s.status, s.agent_token_hash, c.tier, c.status AS client_status FROM sites s JOIN clients c ON c.id = s.client_id WHERE s.id = $1', [siteId])).rows[0];
+    const r = (await pool.query<{ id: string; hostname: string | null; remote_access: boolean; status: string; agent_token_hash: Buffer | null; tier: string; client_status: string; remote_rules: unknown }>(
+      'SELECT s.id, s.hostname, s.remote_access, s.remote_rules, s.status, s.agent_token_hash, c.tier, c.status AS client_status FROM sites s JOIN clients c ON c.id = s.client_id WHERE s.id = $1', [siteId])).rows[0];
     const matches = timingSafeEqual(sha256(secret), r?.agent_token_hash ?? Buffer.alloc(32));
     if (!r || !matches || r.status === 'retired') throw refuse('denied', 'The site token is not valid');
     if (!r.hostname) throw refuse('no_address', 'This site has no remote address');
     if (!r.remote_access || !['hybrid', 'hybrid_plus'].includes(r.tier) || r.client_status !== 'active') throw refuse('remote_access_off', 'Remote access is not available for this site');
-    return { siteId: r.id, hostname: r.hostname, tier: r.tier };
+    return { siteId: r.id, hostname: r.hostname, tier: r.tier, rules: r.remote_rules };
   });
 
   // ---- backup keys ----------------------------------------------------------------------------------------------

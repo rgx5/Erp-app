@@ -53,3 +53,9 @@ TOTP with recovery codes; in production staff must set it up before doing anythi
 ## Super admin dashboard
 
 `/ui` is a single page for staff: Overview (cells, tenant health, expiring licences, alerts), Tenants (every tenant across every cell with search and filters), a tenant page (usage, validation results, licence history and issuing, suspend/reactivate, requests sent to the cell), Cells (health, tenants, support sessions), Releases and the audit log. What staff can do follows their role. Cells report their tenants (`/agent/tenants`) and daily checks (`/agent/validations`) and collect requests from `/agent/commands`. See ADR 60.
+
+## Remote access rules
+
+Per cell, an admin sets who may use the remote address and how: view only or owner dashboard only, allowed networks, allowed days and hours, and a request-rate cap. The gateway enforces them (ADR 62). They are on the cell page of the dashboard and in `PATCH /sites/:id` as `remoteRules`.
+
+The **Remote access** page lists every cell with its address, switch, rules and tunnel state, and an admin can apply a rule set or the switch to many cells at once (`GET /remote-access`, `POST /remote-access/apply`).
