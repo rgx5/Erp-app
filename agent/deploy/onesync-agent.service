@@ -1,0 +1,22 @@
+[Unit]
+Description=OneSyncERP fleet agent
+After=network-online.target docker.service
+Wants=network-online.target
+Requires=docker.service
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/onesync/agent.env
+ExecStart=/usr/bin/node /opt/onesync/agent/dist/main.js
+Restart=always
+RestartSec=10
+# The agent needs Docker and the state directory; nothing else on the machine.
+User=root
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/var/lib/onesync /etc/onesync /home/onesync-support/.ssh
+ProtectHome=read-only
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,8 @@
+# HTTPS for the office network. The certificate comes from a private authority that the install script trusts on each desktop.
+{
+	local_certs
+}
+https://onesync.local, https://:443 {
+	tls internal
+	reverse_proxy api:8080
+}

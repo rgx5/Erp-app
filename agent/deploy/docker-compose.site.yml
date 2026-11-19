@@ -1,0 +1,40 @@
+# The OneSyncERP application stack on a site server. Images come from /etc/onesync/release.env, which the fleet agent rewrites
+# (with a verified, signed release) before each upgrade. Nothing here is edited by hand.
+name: onesync
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    env_file: /etc/onesync/postgres.env
+    environment:
+      POSTGRES_DB: erp
+    volumes:
+      - /var/lib/onesync/pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d erp"]
+      interval: 5s
+      retries: 20
+    # The database is reachable only by the containers on this stack, never from the network.
+
+  api:
+    image: ${API_IMAGE:?run the agent or install.sh first}
+    restart: unless-stopped
+    env_file: /etc/onesync/api.env
+    environment:
+      NODE_ENV: production
+      PORT: "8080"
+      HOST: 0.0.0.0
+    depends_on:
+      postgres: { condition: service_healthy }
+    ports:
+      - "127.0.0.1:8080:8080"   # the local port the agent checks and posts licences to
+
+  proxy:
+    image: caddy:2
+    restart: unless-stopped
+    volumes:
+      - /opt/onesync/Caddyfile:/etc/caddy/Caddyfile:ro
+      - /var/lib/onesync/caddy:/data
+    ports:
+      - "443:443"               # the desktop apps on the office network connect here
+    depends_on: [api]

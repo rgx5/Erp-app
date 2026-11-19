@@ -1,0 +1,20 @@
+{
+  "name": "@onesync/agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "The fleet agent that runs on every OneSyncERP site server: heartbeat, signed updates with backup and rollback, licence sync, approved support access.",
+  "scripts": {
+    "start": "tsx src/main.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "oxlint src test",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "oxlint": "^1.93.0",
+    "tsx": "^4.23.15",
+    "typescript": "^6.0.3",
+    "vitest": "^5.1.0"
+  }
+}
