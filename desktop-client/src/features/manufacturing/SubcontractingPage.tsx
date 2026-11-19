@@ -92,7 +92,7 @@ function ActionDrawer({ order, kind, onClose }: { order: SubcontractOrder; kind:
         <div className="w-44"><TextField label="Date" type="date" value={date} onChange={(e) => setDate(e.target.value)} /></div>
         {kind !== 'receive' ? (
           <>
-            <table className="w-full text-sm" aria-label="Challan lines"><thead><tr className="text-left text-xs text-muted"><th className="py-1">Item</th><th className="py-1" /><th className="w-28 py-1 text-right">Quantity</th></tr></thead>
+            <table className="w-full text-sm" aria-label="Challan lines"><thead><tr className="text-left text-xs text-muted"><th className="py-1">Item</th><th className="py-1"><span className="sr-only">Actions</span></th><th className="w-28 py-1 text-right">Quantity</th></tr></thead>
               <tbody>{rows.map((r) => <tr key={r.itemId} className="border-t border-line/60"><td className="py-1.5">{items.data?.get(r.itemId)?.code ?? ''}</td><td className="py-1.5 text-xs text-muted">{r.hint}</td>
                 <td className="py-1"><input aria-label={`Quantity of ${items.data?.get(r.itemId)?.code ?? ''}`} className="h-8 w-full rounded border border-line bg-surface px-2 text-right text-sm" value={qty[r.itemId] ?? ''} onChange={(e) => setQty({ ...qty, [r.itemId]: e.target.value })} /></td></tr>)}</tbody></table>
             <div className="grid grid-cols-2 gap-4"><TextField label="Vehicle number (optional)" value={vehicle} onChange={(e) => setVehicle(e.target.value)} /><TextField label="E-way bill number (optional)" value={eway} onChange={(e) => setEway(e.target.value)} /></div>

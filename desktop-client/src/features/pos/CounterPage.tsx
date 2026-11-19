@@ -305,12 +305,12 @@ export function CounterPage() {
 
   const cell = 'h-8 rounded border border-line bg-surface px-2 text-right text-sm'
   return (
-    <div className="grid h-full grid-cols-[1fr_360px] gap-4">
+    <div className="grid h-full grid-cols-[minmax(0,1fr)_340px] gap-4">
       <div className="flex min-w-0 flex-col gap-3">
-        <div className="flex items-center justify-between">
-          <h1 className="page-title">{terminal.name} <span className="text-sm font-normal text-muted">· {shift.shiftNo}{priceList ? ` · ${priceList.name}` : ''}</span></h1>
-          <div className="flex items-center gap-2">
-            <span className={`rounded px-2 py-0.5 text-xs ${offline ? 'bg-bad/10 text-bad' : 'bg-good/10 text-good'}`}>{offline ? 'Offline' : 'Online'}</span>
+        <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+          <h1 className="page-title min-w-0">{terminal.name} <span className="text-sm font-normal text-muted">· {shift.shiftNo}{priceList ? ` · ${priceList.name}` : ''}</span></h1>
+          <div className="flex flex-wrap items-center gap-2">
+            <span className={`rounded px-2 py-0.5 text-xs ${offline ? 'bg-bad-soft text-bad' : 'bg-good-soft text-good'}`}>{offline ? 'Offline' : 'Online'}</span>
             {queue.length ? <Button variant="secondary" busy={syncing} onClick={() => void sync()}>Upload {queue.length} offline sale{queue.length === 1 ? '' : 's'}</Button> : null}
             <Button variant="secondary" disabled={cart.length === 0} onClick={hold}>Hold bill</Button>
             <Button variant="secondary" onClick={() => setShowParked(!showParked)}>Held bills ({parked.length})</Button>
@@ -342,7 +342,7 @@ export function CounterPage() {
         ) : null}
         <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-line bg-surface">
           <table className="w-full text-sm" aria-label="Cart">
-            <thead><tr className="bg-canvas text-left text-xs text-muted"><th className="p-2">Item</th><th className="w-20 p-2 text-right">Qty</th><th className="w-28 p-2 text-right">Price</th><th className="w-20 p-2 text-right">Disc %</th><th className="w-28 p-2 text-right">Amount</th><th className="w-8" /></tr></thead>
+            <thead><tr className="bg-canvas text-left text-xs text-muted"><th className="p-2">Item</th><th className="w-20 p-2 text-right">Qty</th><th className="w-28 p-2 text-right">Price</th><th className="w-20 p-2 text-right">Disc %</th><th className="w-28 p-2 text-right">Amount</th><th className="w-8"><span className="sr-only">Actions</span></th></tr></thead>
             <tbody>
               {cart.length === 0 ? <tr><td colSpan={6} className="p-6 text-center text-muted">Scan an item to begin.</td></tr> : cart.map((l) => {
                 const set = (p: Partial<CartLine>): void => setCart(cart.map((x) => (x.key === l.key ? { ...x, ...p } : x)))

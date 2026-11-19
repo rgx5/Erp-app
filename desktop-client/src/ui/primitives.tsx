@@ -62,7 +62,7 @@ export const TextField = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLIn
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? `${id}-error` : hint ? `${id}-hint` : undefined}
         {...rest}
-        className={cn('h-8 rounded-md border bg-surface px-2.5 text-[13px] outline-none placeholder:text-faint hover:border-faint focus:border-brand focus:ring-[3px] focus:ring-brand/15', error ? 'border-bad' : 'border-line-strong', className)}
+        className={cn('h-8 w-full min-w-0 rounded-md border bg-surface px-2.5 text-[13px] outline-none placeholder:text-faint hover:border-faint focus:border-brand focus:ring-[3px] focus:ring-brand/15', error ? 'border-bad' : 'border-line-strong', className)}
       />
       {error ? <p id={`${id}-error`} className="text-xs text-bad">{error}</p> : hint ? <p id={`${id}-hint`} className="text-xs text-muted">{hint}</p> : null}
     </div>
@@ -92,7 +92,7 @@ export const SelectField = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HT
   return (
     <div className="flex flex-col gap-1">
       <label htmlFor={id} className="text-[12px] font-medium text-muted">{label}</label>
-      <select id={id} ref={ref} aria-invalid={error ? true : undefined} {...rest} className={cn('h-8 rounded-md border bg-surface px-2 text-[13px] outline-none hover:border-faint focus:border-brand focus:ring-[3px] focus:ring-brand/15', error ? 'border-bad' : 'border-line-strong', className)}>
+      <select id={id} ref={ref} aria-invalid={error ? true : undefined} {...rest} className={cn('h-8 w-full min-w-0 rounded-md border bg-surface px-2 text-[13px] outline-none hover:border-faint focus:border-brand focus:ring-[3px] focus:ring-brand/15', error ? 'border-bad' : 'border-line-strong', className)}>
         {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
       {error ? <p className="text-xs text-bad">{error}</p> : null}

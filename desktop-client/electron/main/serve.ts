@@ -25,9 +25,12 @@ export async function resolveAppFile(root: string, url: string): Promise<{ path:
   return { path, type: MIME[extname(path)] ?? 'application/octet-stream' }
 }
 
+/** The same policy as index.html's meta tag, sent as a header too: a meta tag cannot carry `frame-ancestors`. Servers are chosen by the user, so connections may go to any http(s) address. */
+export const APP_CSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' http: https:; object-src 'none'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'"
+
 export async function readAppFile(file: { path: string; type: string }): Promise<Response> {
   try {
-    return new Response(new Uint8Array(await readFile(file.path)), { headers: { 'content-type': file.type, 'cache-control': 'no-store' } })
+    return new Response(new Uint8Array(await readFile(file.path)), { headers: { 'content-type': file.type, 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', ...(file.type.startsWith('text/html') ? { 'content-security-policy': APP_CSP, 'referrer-policy': 'no-referrer' } : {}) } })
   } catch {
     return new Response('Not found', { status: 404 })
   }

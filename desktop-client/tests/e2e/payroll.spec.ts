@@ -97,7 +97,7 @@ test('payroll: set up, add a person, run the month, pay the salaries and the sta
   // ---- statutory dues ----
   await goTo(page, 'Statutory dues')
   await expect(page.getByRole('table', { name: 'Statutory dues' })).toBeVisible()
-  await page.getByRole('button', { name: /^Remit pf/ }).click()
+  await page.getByRole('button', { name: /^Pay pf dues/ }).click()
   await pick(page, 'Paid from (bank or cash)', '1120')
   await page.getByRole('dialog').getByRole('button', { name: 'Record payment' }).click()
   await expect(page.getByRole('status').filter({ hasText: 'REM/' })).toBeVisible()

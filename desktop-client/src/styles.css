@@ -14,7 +14,7 @@
   --color-line-strong: #d5d1c5;
   --color-ink: #0e1220;
   --color-muted: #5b6377;
-  --color-faint: #8d93a3;
+  --color-faint: #656d80;
   --color-brand: #2b59ff;
   --color-brand-ink: #ffffff;
   --color-brand-soft: #e9eeff;
@@ -24,11 +24,11 @@
   --color-chrome-ink: #c5cde6;
   --color-accent: #ff8a1f;
   --color-accent-soft: #fff0df;
-  --color-good: #0a8a5e;
+  --color-good: #087a53;
   --color-good-soft: #e1f5ec;
-  --color-bad: #d6343b;
+  --color-bad: #c52d34;
   --color-bad-soft: #fce8e9;
-  --color-warn: #b86e00;
+  --color-warn: #9a5b00;
   --color-warn-soft: #fff2d6;
   --radius-sm: 3px;
   --radius-md: 4px;

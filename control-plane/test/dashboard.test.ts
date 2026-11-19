@@ -158,3 +158,13 @@ describe('remote access across cells', () => {
     expect((await t.call('POST', '/remote-access/apply', admin.token, { siteIds: [a.id], remoteRules: { mode: 'bad' } })).status).toBe(422);
   });
 });
+
+describe('security headers', () => {
+  it('keep the dashboard out of frames and stop sniffing, caching and referrer leaks', async () => {
+    const ui = await t.app.inject({ method: 'GET', url: '/ui' });
+    expect(ui.headers['x-frame-options']).toBe('DENY'); expect(ui.headers['x-content-type-options']).toBe('nosniff'); expect(ui.headers['referrer-policy']).toBe('no-referrer');
+    expect(ui.headers['content-security-policy']).toContain("frame-ancestors 'none'"); expect(ui.headers['content-security-policy']).toContain("connect-src 'self'"); expect(ui.headers['cache-control']).toBe('no-store');
+    const api = await t.app.inject({ method: 'GET', url: '/overview', headers: { authorization: `Bearer ${viewer.token}` } });
+    expect(api.headers['cache-control']).toBe('no-store'); expect(api.headers['x-frame-options']).toBe('DENY');
+  });
+});

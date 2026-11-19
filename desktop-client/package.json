@@ -65,6 +65,13 @@
     "appId": "com.onesync.erp.client",
     "productName": "OneSyncERP",
     "artifactName": "OneSyncERP-${version}-${os}-${arch}.${ext}",
+    "electronFuses": {
+      "runAsNode": false,
+      "enableNodeOptionsEnvironmentVariable": false,
+      "enableNodeCliInspectArguments": false,
+      "onlyLoadAppFromAsar": true,
+      "grantFileProtocolExtraPrivileges": false
+    },
     "directories": {
       "output": "release",
       "buildResources": "build"

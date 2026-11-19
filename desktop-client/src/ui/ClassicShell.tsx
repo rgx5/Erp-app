@@ -95,9 +95,9 @@ function UserMenu() {
   const initials = (me?.user?.displayName ?? '?').split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase()
   return (
     <div ref={box} className="relative">
-      <button type="button" aria-label={`Account menu, ${me?.user?.displayName ?? 'signed in'}`} aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="flex h-8 items-center gap-2 rounded-md pl-1 pr-2 hover:bg-sunken">
+      <button type="button" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="flex h-8 items-center gap-2 rounded-md pl-1 pr-2 hover:bg-sunken">
         <span className="grid size-6 place-items-center rounded-full bg-brand-soft text-[10.5px] font-semibold text-brand" aria-hidden>{initials}</span>
-        <span className="max-w-32 truncate text-[12.5px] font-medium">{me?.user?.displayName ?? 'Signed in'}</span>
+        <span className="max-w-32 truncate text-[12.5px] font-medium"><span className="sr-only">Account menu: </span>{me?.user?.displayName ?? 'Signed in'}</span>
         <ChevronDown className="size-3.5 text-muted" aria-hidden />
       </button>
       {open ? (
@@ -146,14 +146,14 @@ export function ClassicShell() {
       </aside>
       <div className="flex min-h-0 min-w-0 flex-col">
         <header className="flex h-12 shrink-0 items-center gap-3 border-b border-line bg-surface px-5">
-          <nav aria-label="Where you are" className="flex min-w-0 items-center gap-1.5 text-[13px]">
+          <nav aria-label="Where you are" className="flex min-w-0 shrink-0 items-center gap-1.5 whitespace-nowrap text-[13px]">
             {here?.section ? <><span className="text-muted">{here.section}</span><ChevronRight className="size-3.5 text-faint" aria-hidden /></> : null}
             <span className="truncate font-medium">{here?.label ?? 'OneSyncERP'}</span>
           </nav>
-          <button type="button" onClick={() => setPaletteOpen(true)} className="mx-auto flex h-8 w-full max-w-md items-center gap-2 rounded-md border border-line bg-sunken px-3 text-[13px] text-faint hover:border-line-strong">
-            <Search className="size-3.5" aria-hidden /><span className="flex-1 text-left">Search pages or start something…</span><kbd>Ctrl</kbd><kbd>K</kbd>
+          <button type="button" onClick={() => setPaletteOpen(true)} className="mx-auto flex h-8 w-full min-w-0 max-w-md items-center gap-2 rounded-md border border-line bg-sunken px-3 text-[13px] text-faint hover:border-line-strong">
+            <Search className="size-3.5" aria-hidden /><span className="min-w-0 flex-1 truncate text-left">Search pages or start something…</span><kbd className="hidden lg:inline">Ctrl</kbd><kbd className="hidden lg:inline">K</kbd>
           </button>
-          {company ? <Link to="/organization/companies" className="hidden max-w-48 items-center gap-1.5 truncate rounded-md border border-line px-2.5 py-1 text-[12.5px] font-medium hover:bg-sunken md:flex" title="Company"><Building2 className="size-3.5 shrink-0 text-muted" aria-hidden /><span className="truncate">{company.tradeName ?? company.legalName}</span></Link> : null}
+          {company ? <Link to="/organization/companies" className="hidden max-w-48 items-center gap-1.5 truncate rounded-md border border-line px-2.5 py-1 text-[12.5px] font-medium hover:bg-sunken xl:flex" title="Company"><Building2 className="size-3.5 shrink-0 text-muted" aria-hidden /><span className="truncate">{company.tradeName ?? company.legalName}</span></Link> : null}
           <UserMenu />
         </header>
         <main className="min-h-0 flex-1 overflow-auto">

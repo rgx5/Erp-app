@@ -158,10 +158,10 @@ export function JournalEditorPage() {
           <div className="col-span-2"><TextField label="Description" value={description} onChange={(e) => setDescription(e.target.value)} autoFocus /></div>
         </div>
       </Card>
-      <div className="overflow-visible rounded-lg border border-line bg-surface" role="table" aria-label="Journal lines">
-        <div role="row" className="grid grid-cols-[2fr_1.4fr_1fr_1fr_32px] gap-1 border-b border-line bg-canvas px-2 py-1.5 text-xs font-semibold text-muted"><span>Account</span><span>Note</span><span className="text-right">Debit</span><span className="text-right">Credit</span><span /></div>
+      <div className="overflow-visible rounded-lg border border-line bg-surface" role="group" aria-label="Journal lines">
+        <div className="grid grid-cols-[2fr_1.4fr_1fr_1fr_32px] gap-1 border-b border-line bg-canvas px-2 py-1.5 text-xs font-semibold text-muted"><span>Account</span><span>Note</span><span className="text-right">Debit</span><span className="text-right">Credit</span><span /></div>
         {lines.map((l) => (
-          <div key={l.key} role="row" className="grid grid-cols-[2fr_1.4fr_1fr_1fr_32px] items-center gap-1 border-b border-line/60 px-2 py-1 last:border-0">
+          <div key={l.key} className="grid grid-cols-[2fr_1.4fr_1fr_1fr_32px] items-center gap-1 border-b border-line/60 px-2 py-1 last:border-0">
             <AccountPicker label="Account" compact value={l.account} onPick={(a) => patch(l.key, { account: a })} />
             <input aria-label="Note" className={cell} value={l.note} onChange={(e) => patch(l.key, { note: e.target.value })} />
             <input aria-label="Debit" inputMode="decimal" className={`${cell} num text-right`} value={l.debit} onChange={(e) => patch(l.key, { debit: e.target.value, ...(e.target.value ? { credit: '' } : {}) })} />

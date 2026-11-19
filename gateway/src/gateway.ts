@@ -15,6 +15,8 @@ export interface Verdict { siteId: string; hostname: string; tier: string; /** T
 export interface GatewayOptions {
   /** Asks the control plane whether this site token may hold a tunnel. Resolves null when refused; rejects when the control plane cannot be reached. */
   verify(token: string): Promise<Verdict | null>;
+  /** How many reverse proxies sit in front of the gateway (default 1: the hosting panel's Traefik). Only the address that the nearest trusted proxy saw is believed; anything a visitor put to its left in X-Forwarded-For is ignored. Use 2 behind a CDN plus Traefik. */
+  trustedProxyHops?: number;
   maxBodyBytes?: number; maxInflightPerSite?: number; requestsPerSecond?: number; recheckSeconds?: number; requestTimeoutMs?: number; pingSeconds?: number;
   log?: (m: string) => void;
 }
@@ -39,7 +41,7 @@ export function buildGateway(o: GatewayOptions): { app: FastifyInstance; session
   const log = o.log ?? (() => undefined);
   const maxBody = o.maxBodyBytes ?? 8 * 1024 * 1024; const maxInflight = o.maxInflightPerSite ?? 32; const rps = o.requestsPerSecond ?? 50;
   const sessions = new Map<string, Session>(); // by host name
-  const app = Fastify({ logger: false, bodyLimit: maxBody, trustProxy: true });
+  const app = Fastify({ logger: false, bodyLimit: maxBody, trustProxy: ((_address: string, hop: number) => hop < (o.trustedProxyHops ?? 1)) });
   app.removeAllContentTypeParsers();
   app.addContentTypeParser('*', { parseAs: 'buffer' }, (_req, body, done) => done(null, body));
 

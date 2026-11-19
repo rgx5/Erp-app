@@ -29,8 +29,11 @@ export function DataTable<T>({ columns, rows, rowKey, onOpen, empty = 'Nothing h
   const virtual = useVirtualizer({ count: list.length, getScrollElement: () => body.current, estimateSize: () => 34, overscan: 12 })
   const template = `grid-template-columns: ${table.getAllLeafColumns().map((c) => `minmax(${c.getSize() ? Math.min(c.getSize(), 140) : 100}px, ${Math.max(c.getSize(), 100)}fr)`).join(' ')}`
 
+  // every column keeps at least its minimum width; a screen narrower than that scrolls sideways instead of hiding columns
+  const minWidth = table.getAllLeafColumns().reduce((sum, c) => sum + Math.min(c.getSize() || 100, 140) + 12, 24)
   return (
-    <div className="overflow-hidden rounded-lg border border-line bg-surface" role="table" aria-rowcount={list.length}
+    <div className="overflow-x-auto rounded-lg border border-line bg-surface">
+    <div role="table" aria-rowcount={list.length} style={{ minWidth }}
       onKeyDown={(e) => {
         if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return
         e.preventDefault()
@@ -42,10 +45,10 @@ export function DataTable<T>({ columns, rows, rowKey, onOpen, empty = 'Nothing h
         {table.getHeaderGroups().map((group) => (
           <div key={group.id} role="row" className="grid gap-x-3 px-3" style={cssGrid(template)}>
             {group.headers.map((h) => (
-              <button key={h.id} role="columnheader" type="button" onClick={h.column.getToggleSortingHandler()} className={cn('group flex h-8 items-center gap-1 text-left text-[10.5px] font-semibold uppercase tracking-[0.06em] text-muted hover:text-ink', (h.column.columnDef.meta as { align?: string } | undefined)?.align === 'right' && 'justify-end')}>
+              <div key={h.id} role="columnheader" aria-sort={h.column.getIsSorted() === "asc" ? "ascending" : h.column.getIsSorted() === "desc" ? "descending" : "none"} className="min-w-0"><button type="button" onClick={h.column.getToggleSortingHandler()} className={cn('group flex h-8 items-center gap-1 text-left text-[10.5px] font-semibold uppercase tracking-[0.06em] text-muted hover:text-ink', (h.column.columnDef.meta as { align?: string } | undefined)?.align === 'right' && 'justify-end')}>
                 {flexRender(h.column.columnDef.header, h.getContext())}
                 {h.column.getIsSorted() === 'asc' ? <ArrowUp className="size-3 text-brand" aria-hidden /> : h.column.getIsSorted() === 'desc' ? <ArrowDown className="size-3 text-brand" aria-hidden /> : <ChevronsUpDown className="size-3 opacity-0 group-hover:opacity-60" aria-hidden />}
-              </button>
+              </button></div>
             ))}
           </div>
         ))}
@@ -82,6 +85,7 @@ export function DataTable<T>({ columns, rows, rowKey, onOpen, empty = 'Nothing h
         </div>
       )}
       {list.length > 0 ? <div className="flex h-7 items-center justify-between border-t border-line bg-sunken px-3 text-[11.5px] text-muted"><span>{list.length.toLocaleString('en-IN')} {list.length === 1 ? 'row' : 'rows'}</span>{onOpen ? <span><kbd>↑</kbd> <kbd>↓</kbd> move · <kbd>Enter</kbd> open</span> : null}</div> : null}
+    </div>
     </div>
   )
 }

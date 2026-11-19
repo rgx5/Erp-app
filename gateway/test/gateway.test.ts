@@ -202,3 +202,17 @@ describe('per-client remote rules', () => {
     expect(json((await call(port, 'r.remote.test', '/v1/items')).body)).toMatchObject({ code: 'remote_rules_invalid' });
   });
 });
+
+describe('who the gateway says a visitor is', () => {
+  it('does not let a visitor invent an allowed address in X-Forwarded-For', async () => {
+    const rules = { mode: 'full', allowedNetworks: ['203.0.113.0/24'] };
+    TOKENS['tok-xff'] = verdict('xff.remote.test');
+    const local = await localApi(); const { port } = await start({ verify: async (t) => (t === 'tok-xff' ? { ...verdict('xff.remote.test'), rules } : null) });
+    await connect(port, 'tok-xff', local.url);
+    // one proxy (Traefik) sits in front: it appends the address it saw (198.51.100.7, outside the allowed network) after whatever the visitor sent
+    const spoof = await call(port, 'xff.remote.test', '/v1/items', { headers: { 'x-forwarded-for': '203.0.113.5, 198.51.100.7' } });
+    expect(spoof.status).toBe(403); expect(json(spoof.body)).toMatchObject({ code: 'remote_network_blocked' });
+    const real = await call(port, 'xff.remote.test', '/v1/items', { headers: { 'x-forwarded-for': '198.51.100.7, 203.0.113.9' } }); // the address the proxy saw IS inside
+    expect(real.status).toBe(200);
+  });
+});

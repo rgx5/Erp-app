@@ -142,8 +142,8 @@ function SalesDocEditor({ kind }: { kind: DocKind }) {
           {calcError ? <Alert>{calcError}</Alert> : null}
           {problem ? <Alert>{problem}</Alert> : null}
         </div>
-        <dl className="flex items-center gap-5 text-[13px]" aria-label="Totals" aria-busy={calc.isFetching || stale}>
-          {t ? (
+        {t ? (
+          <dl className="flex items-center gap-5 text-[13px]" aria-label="Totals" aria-busy={calc.isFetching || stale}>
             <>
               <Row label="Taxable value" value={t.taxable} />
               {calc.data?.taxRegime === 'intra' ? <><Row label="CGST" value={t.cgst} /><Row label="SGST" value={t.sgst} /></> : <Row label="IGST" value={t.igst} />}
@@ -151,8 +151,8 @@ function SalesDocEditor({ kind }: { kind: DocKind }) {
               {Number(t.roundOff) ? <Row label="Round off" value={t.roundOff} /> : null}
               <div className="border-l border-line pl-5 text-right"><dt className="eyebrow">Grand total</dt><dd className={`num text-[20px] font-semibold leading-tight ${calc.isFetching || stale ? 'opacity-50' : ''}`}>{formatInr(t.grandTotal)}</dd></div>
             </>
-          ) : <p className="text-muted">No totals yet.</p>}
-        </dl>
+          </dl>
+        ) : <p className="text-muted" role="status" aria-label="Totals">No totals yet.</p>}
         <Button className="h-9 px-5" busy={post.isPending || createQuote.isPending || createOrder.isPending} disabled={!body || stale || calc.isError || !calc.data} onClick={() => void submit()}>{words.action}</Button>
       </div>
     </div>

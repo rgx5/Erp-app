@@ -59,6 +59,8 @@ services:
       PORT: "8443"
       CONTROL_PLANE_URL: http://control-plane:8090
       GATEWAY_TOKEN: ${GATEWAY_TOKEN}
+      # How many reverse proxies are in front (Dokploy's Traefik = 1; behind Cloudflare as well = 2). Only the address the nearest proxy saw is believed.
+      TRUSTED_PROXY_HOPS: ${TRUSTED_PROXY_HOPS:-1}
     expose: ["8443"]
     networks: [internal, dokploy-network]
 

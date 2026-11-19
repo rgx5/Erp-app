@@ -104,8 +104,12 @@ function createWindow(): void {
   nativeTheme.themeSource = 'light' // always light, whatever the operating system is set to
   win = new BrowserWindow({
     width: 1360, height: 860, minWidth: 1000, minHeight: 640, show: false, backgroundColor: '#f3f5f9', autoHideMenuBar: true,
-    webPreferences: { preload: join(__dirname, '../preload/index.js'), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false },
+    webPreferences: { preload: join(__dirname, '../preload/index.js'), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false, devTools: !app.isPackaged },
   })
+  // The app asks for nothing from the browser (no camera, location, notifications, clipboard reads...): refuse every permission prompt, and never allow <webview>.
+  win.webContents.session.setPermissionRequestHandler((_wc, _permission, callback) => callback(false))
+  win.webContents.session.setPermissionCheckHandler(() => false)
+  win.webContents.on('will-attach-webview', (event) => event.preventDefault())
   win.once('ready-to-show', () => win?.show())
   win.on('closed', () => { win = null })
   // Links to the outside world open in the real browser; the app never navigates away from its own origin.

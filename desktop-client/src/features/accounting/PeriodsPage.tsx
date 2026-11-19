@@ -53,7 +53,7 @@ export function PeriodsPage() {
               {closing ? <><span className="rounded bg-good/10 px-2 py-0.5 text-good">Year closed · profit {formatInr(closing.netProfit)}</span>{canClose ? <Button variant="secondary" onClick={() => setReopening(y.id)}>Reopen year</Button> : null}</> : canClose ? <Button variant="secondary" busy={closeYear.isPending} onClick={() => void run(() => closeYear.mutateAsync(y.id), `Year ${y.label} closed.`)}>Close the year</Button> : <span className="text-muted">Year not closed yet.</span>}
             </div>
             <table className="w-full text-sm" aria-label={`Periods ${y.label}`}>
-              <thead><tr className="text-left text-xs text-muted"><th className="py-1">Period</th><th className="py-1">From</th><th className="py-1">To</th><th className="py-1">Status</th><th /></tr></thead>
+              <thead><tr className="text-left text-xs text-muted"><th className="py-1">Period</th><th className="py-1">From</th><th className="py-1">To</th><th className="py-1">Status</th><th><span className="sr-only">Actions</span></th></tr></thead>
               <tbody>
                 {y.periods.map((p) => (
                   <tr key={p.id} className="border-t border-line/60">

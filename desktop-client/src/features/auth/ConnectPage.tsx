@@ -29,7 +29,7 @@ export function ConnectPage() {
 
   return (
     <main className="flex h-full flex-col items-center justify-center p-6">
-      <div className="mb-5 flex flex-col items-center gap-2"><Logo className="size-14 drop-shadow-sm" /><p className="text-lg font-semibold tracking-tight">OneSyncERP</p></div>
+      <div className="mb-5 flex flex-col items-center gap-2"><Logo className="size-14 drop-shadow-sm" /><h1 className="text-lg font-semibold tracking-tight">OneSyncERP</h1></div>
       <Card className="w-full max-w-md" title="Connect to your server">
         <form onSubmit={submit} className="flex flex-col gap-4">
           <TextField label="Server address" placeholder="erp.yourcompany.com" value={url} onChange={(e) => setUrl(e.target.value)} autoFocus required hint="The address your administrator gave you." />

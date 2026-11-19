@@ -607,6 +607,14 @@ export function buildApp({ pool, config }: AppDeps): FastifyInstance {
 
   // ---- audit and the fleet screen -------------------------------------------------------------------------------
   app.get('/audit', { preHandler: asStaff('admin') }, async () => ({ items: (await pool.query('SELECT a.at, u.email AS staff, a.action, a.entity, a.entity_id, a.details FROM staff_audit a LEFT JOIN staff_users u ON u.id = a.staff_id ORDER BY a.id DESC LIMIT 200')).rows }));
+  // Every response: never embedded in another site (clickjacking), never sniffed, no referrer leaked. The dashboard page is the only HTML we serve, so its policy
+  // also pins scripts, styles and connections to this origin; the JSON API is never cached.
+  app.addHook('onSend', async (req, reply, payload) => {
+    reply.header('X-Content-Type-Options', 'nosniff').header('X-Frame-Options', 'DENY').header('Referrer-Policy', 'no-referrer');
+    if (req.url === '/ui' || req.url.startsWith('/ui?')) reply.header('Content-Security-Policy', "default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; connect-src 'self'; img-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'").header('Cache-Control', 'no-store');
+    else if (req.url !== '/keys') reply.header('Cache-Control', 'no-store');
+    return payload;
+  });
   app.get('/', async (_req, reply: FastifyReply) => reply.redirect('/ui'));
   app.get('/ui', async (_req, reply) => { const { readFileSync } = await import('node:fs'); const { resolve } = await import('node:path'); return reply.type('text/html').send(readFileSync(resolve(import.meta.dirname, '../ui/index.html'), 'utf8')); });
   return app;
