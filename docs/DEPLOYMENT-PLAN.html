@@ -1,0 +1,525 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>OneSyncERP deployment and live-client plan</title>
+<style>
+@page{size:A4;margin:18mm 16mm 18mm 16mm}
+*{box-sizing:border-box}
+body{font:10.4pt/1.5 "Inter","Segoe UI",Helvetica,Arial,sans-serif;color:#0e1220;margin:0}
+h1{font-size:25pt;letter-spacing:-.02em;margin:0 0 4pt}
+h2{font-size:15pt;margin:22pt 0 6pt;padding-bottom:4pt;border-bottom:2px solid #2b59ff;letter-spacing:-.01em;page-break-after:avoid}
+h3{font-size:11.5pt;margin:14pt 0 4pt;color:#0c1747;page-break-after:avoid}
+p{margin:4pt 0 6pt}ul,ol{margin:3pt 0 7pt;padding-left:17pt}li{margin:1.5pt 0}
+table{border-collapse:collapse;width:100%;margin:6pt 0 10pt;font-size:9.2pt;page-break-inside:auto}
+th{background:#0c1747;color:#fff;text-align:left;padding:4pt 6pt;font-weight:600}
+td{border-bottom:1px solid #e3e0d6;padding:4pt 6pt;vertical-align:top}tr{page-break-inside:avoid}
+tr:nth-child(even) td{background:#faf9f6}
+.cover{height:240mm;display:flex;flex-direction:column;justify-content:center;page-break-after:always}
+.cover .tag{color:#2b59ff;font-weight:700;letter-spacing:.12em;font-size:9.5pt;text-transform:uppercase}
+.cover .sub{font-size:13pt;color:#4a5266;margin:6pt 0 28pt;max-width:140mm}
+.box{border:1px solid #d5d1c5;border-left:4px solid #2b59ff;background:#f6f8ff;padding:7pt 10pt;margin:8pt 0;border-radius:4pt}
+.warn{border-left-color:#ff8a1f;background:#fff7ec}
+.good{border-left-color:#0a8a5e;background:#effaf4}
+.small{font-size:8.8pt;color:#4a5266}
+.pill{display:inline-block;padding:0 6pt;border-radius:8pt;background:#e9eeff;color:#2b59ff;font-size:8.5pt;font-weight:600}
+.pb{page-break-before:always}
+code{font:9pt ui-monospace,Menlo,monospace;background:#f1efe9;padding:0 3pt;border-radius:3pt}
+.toc li{margin:2pt 0}
+figure{margin:8pt 0;text-align:center;page-break-inside:avoid}figcaption{font-size:8.8pt;color:#4a5266}
+</style></head><body>
+
+<div class="cover">
+  <div class="tag">OneSyncERP · Production readiness</div>
+  <h1>Taking OneSyncERP live with clients</h1>
+  <div class="sub">Deployment model, feature packaging, hosting, onboarding, releases, data protection, security, operations and the phased roadmap, for clients from a single shop to a multi-branch group.</div>
+  <table style="max-width:150mm"><tr><th>Document</th><td>Deployment and live-client plan, version 1.0 (for review)</td></tr>
+  <tr><th>Scope decided</th><td>Both pooled and dedicated deployments · 50 to 100 clients · an in-house IT team runs and supports it · some clients may require data on their own premises</td></tr>
+  <tr><th>Status</th><td>Proposal. Items marked <b>Decision</b> need an owner's answer; items marked <b>Assumption</b> are my working numbers and must be validated.</td></tr></table>
+</div>
+
+<h2 style="margin-top:0">Contents</h2>
+<ol class="toc">
+<li>Executive summary and what you decided</li>
+<li>Where we are today (honest baseline)</li>
+<li>Client segments and service tiers</li>
+<li>Deployment architecture: control plane, cells, dedicated and on-premise</li>
+<li>Feature packaging: giving each client only what they buy</li>
+<li>Hosting and infrastructure</li>
+<li>Tenant lifecycle: onboarding, migration, go-live, offboarding</li>
+<li>Environments and release management</li>
+<li>Backup, disaster recovery and data retention</li>
+<li>Security and compliance</li>
+<li>Operations: monitoring, support and incident response</li>
+<li>Licensing, billing and commercial terms</li>
+<li>Desktop client and counter distribution</li>
+<li>Phased roadmap with exit criteria</li>
+<li>Team and responsibilities</li>
+<li>Risks and mitigations</li>
+<li>Decisions needed from you</li>
+<li>Appendix A: engineering backlog · B: go-live checklist · C: release and incident checklists</li>
+</ol>
+
+<h2 class="pb">1. Executive summary</h2>
+<p>You will serve between 50 and 100 clients, from one-shop retailers to larger multi-branch businesses, some of whom may insist on keeping data on their own premises. Not every client needs every feature. Your own IT team will run the platform. This plan is built on four ideas.</p>
+<div class="box"><b>1. One codebase, one build, several deployment shapes.</b> We never fork the product per client. A client differs from another only by <i>where it runs</i> (a shared cell, a dedicated stack, or their own server) and <i>what is switched on</i> (their entitlements). This keeps releases, fixes and support affordable at 100 clients.</div>
+<div class="box"><b>2. Cells.</b> A <i>cell</i> is a complete, self-contained deployment (application servers + its own database + storage + monitoring) that hosts many tenants. Pooled clients live in shared cells; a dedicated client is simply a cell with one tenant; an on-premise client is a cell on their hardware. A failure or a heavy client in one cell cannot affect another.</div>
+<div class="box"><b>3. A small control plane above the cells.</b> One central service knows every tenant, which cell it lives in, which modules and limits it has paid for, its licence, its release channel and its status. Cells ask it; support staff use it. This is what makes 100 different clients manageable by a small team.</div>
+<div class="box"><b>4. Entitlements, not editions.</b> Features are grouped into modules; each client has a signed entitlement record (modules, limits, expiry). The server enforces it on every request and the app hides what is not bought. The database schema is identical for everyone, so upgrading a client is a switch, not a migration project.</div>
+
+<h3>Recommended shape in one table</h3>
+<table><tr><th>Tier</th><th>Who</th><th>Where it runs</th><th>Headline commitments</th></tr>
+<tr><td><b>Starter</b></td><td>Single shop or small trader, 1 to 5 users</td><td>Shared (pooled) cell</td><td>Business hours support, daily backups, 99.5% target</td></tr>
+<tr><td><b>Business</b></td><td>Growing retailer or distributor, several users and locations</td><td>Shared cell, priority placement, optional sandbox tenant</td><td>Extended support, 5-minute data-loss target, 99.9% target</td></tr>
+<tr><td><b>Enterprise</b></td><td>Multi-company, multi-branch, or regulated</td><td>Dedicated stack in your cloud, with warm standby option</td><td>Named contact, 1-minute data-loss target, change windows, SSO</td></tr>
+<tr><td><b>On-premise</b></td><td>Clients who must keep data on their premises</td><td>Client servers, same images, signed licence</td><td>Remote-managed by your IT team under a managed-service contract</td></tr></table>
+<p class="small">Uptime and recovery numbers are proposals for you to confirm in Section 17; do not promise them to clients until the matching controls in this plan are built and tested.</p>
+
+<h3>Timeline at a glance</h3>
+<table><tr><th>Phase</th><th>Outcome</th><th>Indicative duration (Assumption)</th></tr>
+<tr><td>0 Foundations</td><td>Infrastructure as code, one production cell, CI/CD, backups with a proven restore, monitoring</td><td>5 to 7 weeks</td></tr>
+<tr><td>1 Control plane and entitlements</td><td>Tenant registry, module licensing enforced, support console, tenant suspension and export</td><td>6 to 8 weeks (overlaps phase 0)</td></tr>
+<tr><td>2 Pilot</td><td>2 to 3 friendly clients live, security review, runbooks exercised</td><td>6 weeks</td></tr>
+<tr><td>3 General availability</td><td>Repeatable onboarding of the first 10 to 20 clients, support rota running</td><td>8 to 12 weeks</td></tr>
+<tr><td>4 Dedicated and on-premise</td><td>Installable bundle, licence keys, remote management, first dedicated client</td><td>8 to 10 weeks (can start after phase 2)</td></tr>
+<tr><td>5 Scale to 50 to 100</td><td>Second and third cells, automation, compliance programme, cost tuning</td><td>Ongoing over 6 to 12 months</td></tr></table>
+
+<h2 class="pb">2. Where we are today</h2>
+<p>An honest baseline matters: much of the hard multi-tenant safety work is done, but the "business of running it for many clients" is not built yet.</p>
+<h3>Already in place</h3>
+<table><tr><th>Area</th><th>What exists</th></tr>
+<tr><td>Tenant isolation</td><td>Every table is tenant-scoped with row-level security. The runtime database role cannot bypass it, owns no tables and cannot delete rows; the app refuses to start if that is not true. Two separate database roles: migrator (owns tables) and runtime.</td></tr>
+<tr><td>Tenant creation</td><td>A platform-admin API creates a tenant with its owner; self sign-up is off by default. Tenants have a status that is checked on every authenticated request.</td></tr>
+<tr><td>Packaging</td><td>A Docker image for the API and a separate migration image (same code, plus tooling to apply migrations as the owner role). A docker-compose file for local use.</td></tr>
+<tr><td>Scaling shape</td><td>Stateless instances behind a load balancer; health endpoints (<code>/health</code>, <code>/live</code>, <code>/ready</code>); idempotency keys on writes; an outbox relay that any number of instances may run; optional rate limiting and principal cache.</td></tr>
+<tr><td>Operations scripts</td><td>A retention job (purges expired idempotency keys, delivered events, old sessions; never audit or ledgers); a performance script; documented required secrets and key rotation for signing keys.</td></tr>
+<tr><td>Client</td><td>Desktop app (Windows, macOS, Linux builds), server discovery (<code>/v1/meta</code>), CORS for the desktop origin, two layouts, POS with offline selling and sync, a permission system (roles) used to hide menu entries.</td></tr>
+<tr><td>Quality gates</td><td>CI for backend (typecheck, lint, unit and integration tests against Postgres), client (lint, unit, end-to-end) and a check that the generated API types match the server.</td></tr></table>
+<h3>Not built yet (the gap this plan closes)</h3>
+<table><tr><th>Gap</th><th>Why it matters for live clients</th><th>Section</th></tr>
+<tr><td>Entitlements / module licensing</td><td>Today every tenant can use everything their roles allow. Roles are not licences.</td><td>5</td></tr>
+<tr><td>Control plane (tenant to cell map, support console)</td><td>Without it, each added client is manual work and mistakes.</td><td>4, 11</td></tr>
+<tr><td>Infrastructure as code, staging, production environments</td><td>Nothing yet defines how production is built or rebuilt.</td><td>6, 8</td></tr>
+<tr><td>Backups with a tested restore; single-tenant restore tooling</td><td>In a shared database, "restore one client" is a hard problem that must be solved before the first live client.</td><td>9</td></tr>
+<tr><td>Usage metering and billing</td><td>Needed for plans, limits, invoices and suspension.</td><td>12</td></tr>
+<tr><td>Signed, auto-updating desktop installers</td><td>Installer workflow exists, but code signing, notarisation and update hosting are not set up.</td><td>13</td></tr>
+<tr><td>Minimum-client-version handshake, tenant data export, observability stack, status page, on-call runbooks</td><td>Safe upgrades, exit rights, and being able to see and fix problems quickly.</td><td>8, 10, 11</td></tr>
+<tr><td>Security assurance (pen test, formal DPDP review)</td><td>Expected by larger clients before signing.</td><td>10</td></tr>
+<tr><td>Installable on-premise bundle and licence keys</td><td>Required if any client insists on their own servers.</td><td>4, 12</td></tr></table>
+
+<h2 class="pb">3. Client segments and service tiers</h2>
+<p>Design to the segments, not to individual clients. A new client is assigned to a tier; the tier decides placement, support, backup targets and default modules.</p>
+<table><tr><th></th><th>Starter</th><th>Business</th><th>Enterprise</th><th>On-premise</th></tr>
+<tr><td><b>Typical client</b></td><td>One shop, trader, small service business</td><td>Retailer with a few counters, distributor, small factory</td><td>Multi-company group, many branches, manufacturer, regulated</td><td>Any size that must hold data locally</td></tr>
+<tr><td><b>Users</b></td><td>1 to 5</td><td>5 to 30</td><td>30+</td><td>Per licence</td></tr>
+<tr><td><b>Companies / locations</b></td><td>1 / 1</td><td>1 to 3 / up to 10</td><td>Many</td><td>Per licence</td></tr>
+<tr><td><b>Placement</b></td><td>Shared cell</td><td>Shared cell (less crowded), sandbox tenant on request</td><td>Dedicated stack; optional second region standby</td><td>Client hardware or private cloud</td></tr>
+<tr><td><b>Modules (default)</b></td><td>Core, Sales, Inventory, POS or Accounting-lite</td><td>Add Purchasing, Accounting, GST, Banking, Approvals</td><td>All, plus Manufacturing, Payroll, SSO, API access</td><td>As licensed</td></tr>
+<tr><td><b>Data-loss target (RPO)</b></td><td>15 min</td><td>5 min</td><td>1 min</td><td>Per client backup design</td></tr>
+<tr><td><b>Recovery time target (RTO)</b></td><td>8 h</td><td>4 h</td><td>1 h with standby, 4 h without</td><td>Agreed in contract</td></tr>
+<tr><td><b>Availability target</b></td><td>99.5%</td><td>99.9%</td><td>99.9% to 99.95%</td><td>Depends on client infrastructure</td></tr>
+<tr><td><b>Support</b></td><td>Business hours, ticket and chat</td><td>Extended hours, phone for urgent</td><td>24x7 for severity 1, named contact</td><td>Remote managed; on-site optional</td></tr>
+<tr><td><b>Upgrades</b></td><td>Automatic, with notice</td><td>Automatic, with notice and release notes</td><td>Scheduled change windows, may pin one version back</td><td>Scheduled, signed bundles</td></tr></table>
+<div class="box warn"><b>Assumption.</b> The numbers above are proposals. Each only becomes a promise when the capability behind it exists and has been tested (for example, a 1-minute data-loss target needs synchronous or near-synchronous replication, which costs money). Section 17 asks you to confirm which commitments you want to sell.</div>
+
+<h2 class="pb">4. Deployment architecture</h2>
+<h3>4.1 The shape: control plane above independent cells</h3>
+<figure>
+<svg viewBox="0 0 760 430" width="100%" font-family="Helvetica,Arial,sans-serif" font-size="11">
+<rect x="10" y="10" width="740" height="92" rx="10" fill="#0c1747"/>
+<text x="26" y="32" fill="#fff" font-weight="700" font-size="13">CONTROL PLANE (one, small, highly available)</text>
+<g fill="#fff" font-size="10.5"><text x="26" y="54">Tenant registry · tenant → cell map</text><text x="26" y="70">Entitlements and signed licences</text><text x="26" y="86">Release channels and rollout</text>
+<text x="300" y="54">Support console (audited access)</text><text x="300" y="70">Usage metering → billing</text><text x="300" y="86">Status page · alerts · audit of admin actions</text>
+<text x="545" y="54">Installer and update hosting</text><text x="545" y="70">Identity for staff (MFA, SSO)</text><text x="545" y="86">Backups index and restore tooling</text></g>
+<line x1="380" y1="102" x2="380" y2="130" stroke="#2b59ff" stroke-width="2"/>
+<line x1="130" y1="130" x2="650" y2="130" stroke="#2b59ff" stroke-width="2"/>
+<g stroke="#2b59ff" stroke-width="2"><line x1="130" y1="130" x2="130" y2="150"/><line x1="380" y1="130" x2="380" y2="150"/><line x1="650" y1="130" x2="650" y2="150"/></g>
+<rect x="20" y="150" width="220" height="190" rx="10" fill="#e9eeff" stroke="#2b59ff"/>
+<text x="34" y="172" font-weight="700" fill="#0c1747" font-size="12">POOLED CELL A</text>
+<text x="34" y="190" fill="#4a5266">Starter + Business tenants</text>
+<rect x="34" y="200" width="192" height="26" rx="5" fill="#fff" stroke="#c9d3f5"/><text x="44" y="217">Edge: WAF · TLS · load balancer</text>
+<rect x="34" y="232" width="192" height="26" rx="5" fill="#fff" stroke="#c9d3f5"/><text x="44" y="249">API instances (stateless, N copies)</text>
+<rect x="34" y="264" width="192" height="26" rx="5" fill="#fff" stroke="#c9d3f5"/><text x="44" y="281">PostgreSQL primary + standby</text>
+<rect x="34" y="296" width="192" height="30" rx="5" fill="#fff" stroke="#c9d3f5"/><text x="44" y="312">Backups · logs · metrics (own)</text>
+<rect x="270" y="150" width="220" height="190" rx="10" fill="#e9eeff" stroke="#2b59ff" stroke-dasharray="5 3"/>
+<text x="284" y="172" font-weight="700" fill="#0c1747" font-size="12">POOLED CELL B (added when A fills)</text>
+<text x="284" y="190" fill="#4a5266">Same build, same layout as A</text>
+<text x="284" y="215" fill="#4a5266">New tenants go to the cell with</text><text x="284" y="231" fill="#4a5266">room; existing ones can be moved</text><text x="284" y="247" fill="#4a5266">between cells with a tenant</text><text x="284" y="263" fill="#4a5266">move tool (planned).</text>
+<rect x="520" y="150" width="220" height="190" rx="10" fill="#effaf4" stroke="#0a8a5e"/>
+<text x="534" y="172" font-weight="700" fill="#0c1747" font-size="12">DEDICATED CELL (Enterprise)</text>
+<text x="534" y="190" fill="#4a5266">Exactly one tenant, own database</text>
+<text x="534" y="215" fill="#4a5266">Own network, own keys, own</text><text x="534" y="231" fill="#4a5266">upgrade window, optional standby</text><text x="534" y="247" fill="#4a5266">region. Same images as pooled.</text>
+<rect x="20" y="352" width="720" height="66" rx="10" fill="#fff7ec" stroke="#ff8a1f"/>
+<text x="34" y="374" font-weight="700" fill="#0c1747" font-size="12">ON-PREMISE CELL (client hardware)</text>
+<text x="34" y="392" fill="#4a5266">Same images and migrations, installed from a signed bundle. Talks outward only (licence, updates, health), never inward.</text>
+<text x="34" y="408" fill="#4a5266">Managed remotely by your team over an approved, audited channel. Desktop clients connect to it on the client's own network.</text>
+</svg>
+<figcaption>Figure 1. A control plane above independent cells. A dedicated or on-premise client is a cell that contains one tenant.</figcaption></figure>
+
+<h3>4.2 Why cells instead of one big shared system</h3>
+<ul><li><b>Blast radius.</b> A bad release, a runaway report or a failed database in one cell affects only the tenants in that cell, not all 100 clients.</li>
+<li><b>Predictable cost and capacity.</b> You size a cell once, fill it, then add another. No large re-architecture to grow.</li>
+<li><b>Dedicated and on-premise come for free.</b> They are the same thing with fewer tenants, so there is no second product to maintain.</li>
+<li><b>Rolling releases.</b> Roll a release to the canary cell first (your own and friendly tenants), then the others.</li></ul>
+<h3>4.3 How a client finds its cell</h3>
+<p>The desktop app already asks for a server address and a business code. Two options, and the plan recommends the first:</p>
+<table><tr><th>Option</th><th>How</th><th>Trade-off</th></tr>
+<tr><td><b>A. One public address, routed (recommended)</b></td><td><code>app.yourdomain.in</code> in front of all pooled cells; the edge asks the control plane (cached) which cell serves the business code and forwards the request. Dedicated clients get a vanity name such as <code>acme.yourdomain.in</code>.</td><td>Simple for clients and support; moving a tenant between cells is invisible. Needs the routing layer to be small, cached and reliable.</td></tr>
+<tr><td>B. A different address per cell</td><td>The app is told which cell address to use for each business.</td><td>Easier to build, but moves between cells need client reconfiguration, and support has more to explain.</td></tr></table>
+<h3>4.4 What the control plane is, and is not</h3>
+<ul><li>It is a <b>small, separate service</b> with its own database and its own staff-only access. It stores no client business data (invoices, stock, ledgers), only tenant metadata, entitlements, usage counts and the audit of admin actions.</li>
+<li>If it is briefly unavailable, cells keep working: they cache each tenant's signed entitlements and keep serving. Only provisioning, plan changes and the support console pause.</li>
+<li>Entitlements are <b>signed</b> by the control plane. A cell, including an on-premise one, verifies the signature with a public key, so a licence cannot be edited by hand, and an offline on-premise cell can run on a signed licence file.</li></ul>
+<h3>4.5 The on-premise cell</h3>
+<table><tr><th>Question</th><th>Plan</th></tr>
+<tr><td>What is installed</td><td>The same API image, migration image and PostgreSQL, delivered as a signed bundle (container images plus compose or Kubernetes manifests) and an installer script. A hardware guide gives minimum sizing.</td></tr>
+<tr><td>Updates</td><td>Signed bundles; pulled from your registry when the server has internet, or delivered as an offline package. Migrations are applied by the migration image before the new API starts, exactly as in your cloud.</td></tr>
+<tr><td>Licence</td><td>A signed licence file (tenant, modules, limits, expiry). Expiry has a grace period, then the system becomes read-only, never deletes data.</td></tr>
+<tr><td>Backups</td><td>Nightly base backup plus continuous log shipping to the client's storage, and an encrypted off-site copy to you or a cloud bucket if the client agrees. The client is responsible for the hardware, power and local network; you are responsible for the software and, if contracted, backup monitoring.</td></tr>
+<tr><td>Remote management</td><td>Outbound-only heartbeat (version, health, disk, backup age). Support access only through a client-approved, time-limited, recorded session. No permanent inbound access.</td></tr>
+<tr><td>Commercial note</td><td>On-premise is more work per client than any other tier. Price it as a managed service with an annual fee and a minimum, and limit how many you accept early on.</td></tr></table>
+
+<h2 class="pb">5. Feature packaging: each client gets what it buys</h2>
+<h3>5.1 The model</h3>
+<p><b>Plans</b> are bundles of <b>modules</b>. A client's <b>entitlement</b> is: which modules are on, which numeric limits apply, when it expires, and which add-ons it has. It is stored in the control plane, signed, and cached in the cell.</p>
+<table><tr><th>Layer</th><th>Meaning</th><th>Example</th></tr>
+<tr><td>Plan</td><td>A named default bundle for a tier</td><td>Business = Core + Sales + Inventory + POS + Purchasing + Accounting + GST</td></tr>
+<tr><td>Module</td><td>A sellable area of the product</td><td>Manufacturing</td></tr>
+<tr><td>Limit</td><td>A numeric cap</td><td>10 users, 2 companies, 5 locations, 3 POS counters, 5,000 documents a month</td></tr>
+<tr><td>Add-on</td><td>An extra on top of a plan</td><td>Extra counters, API access, SSO, sandbox tenant</td></tr>
+<tr><td>Override</td><td>Per-client exception set by support, with an expiry and a reason</td><td>Trial of Payroll for 30 days</td></tr></table>
+<h3>5.2 Proposed modules and dependencies</h3>
+<table><tr><th>Module</th><th>Contains</th><th>Needs</th></tr>
+<tr><td><b>Core</b> (always on)</td><td>Sign-in, users and roles, organisation, master data (items, parties, tax codes, units), the ledger engine, audit</td><td>none</td></tr>
+<tr><td>Sales</td><td>Quotes, orders, invoices, receipts, receivables</td><td>Core</td></tr>
+<tr><td>Purchasing</td><td>Purchase orders, goods receipts, supplier bills, payments, payables, landed costs</td><td>Core</td></tr>
+<tr><td>Inventory</td><td>Stock, movements, transfers, counts, batches and serials, valuation</td><td>Core</td></tr>
+<tr><td>POS and Retail</td><td>Counter, shifts, returns, offline selling, barcodes, loyalty, coupons, store credit, staff PIN approvals, expenses</td><td>Sales, Inventory</td></tr>
+<tr><td>Accounting</td><td>Journals, chart of accounts, financial reports, periods and year-end, report centre</td><td>Core</td></tr>
+<tr><td>GST</td><td>GSTR returns and reconciliation</td><td>Sales, Accounting</td></tr>
+<tr><td>Banking</td><td>Bank reconciliation and statement import</td><td>Accounting</td></tr>
+<tr><td>Approvals</td><td>Approval workflows</td><td>Core</td></tr>
+<tr><td>Manufacturing</td><td>Bills of material, work orders, work centres, job work, costing</td><td>Inventory</td></tr>
+<tr><td>Payroll</td><td>People, runs, statutory dues, payslips</td><td>Accounting</td></tr>
+<tr><td>Platform extras</td><td>API keys and integrations, SSO, extended audit retention, sandbox tenant</td><td>Core</td></tr></table>
+<div class="box warn"><b>Decision (important).</b> Sales and POS post to the ledger. A small client who buys Sales but not Accounting still needs correct books underneath. <b>Recommendation:</b> the ledger engine is part of Core and always active; "Accounting" licenses the <i>screens and reports</i> (journals, chart editing, statements, periods), while Sales and POS continue to post using the default chart. That keeps data correct and makes upgrading a client a pure switch, with no data conversion.</div>
+<h3>5.3 How it is enforced</h3>
+<ol><li><b>Server is the authority.</b> Each API route is tagged with its module. A request whose tenant lacks that module is refused with a clear <code>module_not_licensed</code> error. Entitlements <i>narrow</i> permissions: a user can do something only if their role allows it <b>and</b> the module is licensed.</li>
+<li><b>Limits are checked at the point of creation</b> (add user, add company, open a counter), with a friendly message and a path to upgrade, and recorded in usage metering.</li>
+<li><b>The app adapts.</b> The sign-in response lists the licensed modules; the menu, command palette and screens hide anything not bought, and show a short "not in your plan" message for deep links.</li>
+<li><b>One schema for all.</b> Every client's database has every table; unused modules are simply empty. Enabling a module is instant and never needs a data migration. Schema migrations run for everyone, always.</li>
+<li><b>Graceful removal.</b> If a module lapses, its screens become read-only for a grace period (so a client can still export and reconcile), never deleted.</li>
+<li><b>Background work respects it too.</b> Scheduled jobs, imports, API keys and webhooks for an unlicensed module stop.</li></ol>
+<h3>5.4 Related per-client configuration (not licensing)</h3>
+<p>Industry templates (category trees), tax setup, numbering series, print layouts, discount limits and loyalty rates are <b>configuration inside the tenant</b>, set during onboarding. They stay separate from entitlements so support can adjust them without touching licences.</p>
+<h3>5.5 Feature flags for rollout</h3>
+<p>A separate, lightweight flag system lets you ship a new feature "dark", turn it on for your own tenant, then pilot clients, then everyone. Flags are for rollout safety and are removed after rollout; entitlements are for commercial scope and are long-lived.</p>
+
+<h2 class="pb">6. Hosting and infrastructure</h2>
+<h3>6.1 Principles</h3>
+<ul><li><b>India region and residency.</b> Choose a cloud region in India for all client data by default. Offer on-premise for clients who need physical control.</li>
+<li><b>Everything as code.</b> Networks, databases, instances, DNS, alerts and access policies are written in infrastructure-as-code and reviewed like software. A cell can be rebuilt from code; no hand-made servers.</li>
+<li><b>Managed services where possible.</b> A small IT team should not run its own database cluster if a managed, multi-zone PostgreSQL service meets your needs. Spend effort on the application and operations, not on plumbing.</li>
+<li><b>Separate everything that can be separated:</b> per-cell credentials, encryption keys and networks; staging fully apart from production.</li></ul>
+<h3>6.2 Recommended starting design for a pooled cell</h3>
+<table><tr><th>Component</th><th>Recommendation</th><th>Notes</th></tr>
+<tr><td>Cloud</td><td>One major cloud with an India region (AWS Mumbai or Hyderabad, Azure Central India or GCP Mumbai)</td><td><b>Decision:</b> choose by existing skills, credits and price. The design is cloud-neutral.</td></tr>
+<tr><td>Compute</td><td>The API container on a managed container service (serverless containers or a small managed Kubernetes cluster), at least 2 instances across zones, autoscaling on CPU and request latency</td><td>Stateless, so scaling and replacement are simple. For a small IT team, managed containers are easier than self-run Kubernetes; Kubernetes becomes attractive when you have many cells.</td></tr>
+<tr><td>Database</td><td>Managed PostgreSQL 16, multi-zone with automatic failover, continuous log archiving for point-in-time recovery, connection pooler in front</td><td>Same runtime and migrator roles as today.</td></tr>
+<tr><td>Edge</td><td>Managed load balancer, TLS certificates auto-renewed, a web application firewall, global rate limits, DDoS protection</td><td>The app's own limiter stays as a second layer.</td></tr>
+<tr><td>Storage</td><td>Object storage for exports, documents, installers and backups, with versioning and lifecycle rules</td><td>Backups copied to a second region.</td></tr>
+<tr><td>Secrets and keys</td><td>Cloud secret manager and key management service; per-cell signing and encryption keys; rotation procedure already documented</td><td>No secrets in images or repositories.</td></tr>
+<tr><td>Observability</td><td>Central log store, metrics, traces, uptime probes, alerting to the on-call phone</td><td>See Section 11.</td></tr>
+<tr><td>Network</td><td>Database in private subnets; only the API can reach it; staff reach cells through a bastion or identity-aware proxy, never open ports</td><td></td></tr></table>
+<h3>6.3 Capacity and cell sizing</h3>
+<div class="box warn"><b>Assumption, to be validated.</b> I have not load-tested production-like data. Use these as planning numbers only: a pooled cell with 2 to 3 API instances (2 vCPU, 4 GB each) and a database of 4 to 8 vCPU, 16 to 32 GB RAM should comfortably carry <b>25 to 40 Starter and Business tenants</b>. Therefore 50 to 100 clients is roughly <b>2 to 3 pooled cells plus a handful of dedicated ones</b>. The existing performance script is the starting point: before the pilot, run it with realistic data volumes (several years of invoices, many items, busy counters) and set the real per-cell tenant cap from the results.</div>
+<h3>6.4 Capacity controls in a shared cell</h3>
+<ul><li><b>Per-tenant rate limits</b> and a cap on concurrent heavy reports so one client cannot starve others.</li>
+<li><b>Statement and query timeouts</b> in the database, and a read replica for reports when needed.</li>
+<li><b>Tenant placement rules:</b> large or fast-growing tenants are placed with fewer neighbours, or promoted to dedicated. The control plane records size and growth so this is a decision, not a surprise.</li>
+<li><b>A tenant move tool</b> (planned in the backlog) that copies a tenant's data to another cell and flips routing in a short, scheduled window.</li></ul>
+<h3>6.5 Dedicated stack</h3>
+<p>The same code deployed from the same infrastructure templates, with one tenant. Differences are only: its own database and keys, optional standby in a second region, the client's chosen upgrade window, and (if needed) a private network connection or IP allow-list. Because it is the same artefact, a dedicated client can be demoted into a pooled cell, or a pooled client promoted, with the tenant move tool.</p>
+
+<h2 class="pb">7. Tenant lifecycle</h2>
+<h3>7.1 States</h3>
+<table><tr><th>State</th><th>What happens</th></tr>
+<tr><td>Trial</td><td>Full or limited modules for a fixed period, in a pooled cell, clearly labelled; data is kept if they convert.</td></tr>
+<tr><td>Active</td><td>Normal operation under their plan.</td></tr>
+<tr><td>Past due</td><td>Warnings in the app; no restriction for a grace period.</td></tr>
+<tr><td>Suspended</td><td>Read-only: users can sign in, view and export, but cannot post. Never data deletion for non-payment.</td></tr>
+<tr><td>Cancelled</td><td>Full data export provided; data retained for the agreed period; then anonymised or deleted subject to legal retention (Section 9).</td></tr></table>
+<h3>7.2 Onboarding steps (standard path)</h3>
+<table><tr><th>#</th><th>Step</th><th>Owner</th><th>Tooling</th></tr>
+<tr><td>1</td><td>Order captured: tier, modules, limits, users, locations, go-live date, any special needs (on-premise, SSO, data residency)</td><td>Sales</td><td>Order form linked to the control plane</td></tr>
+<tr><td>2</td><td>Provision: create tenant in the right cell, owner account, entitlements, region, domain; send invitation</td><td>Implementation</td><td>Control plane (one action, no manual database work)</td></tr>
+<tr><td>3</td><td>Configure: company, GST registration, locations, tax setup, chart template, numbering, industry category template, users and roles, discount limits, printers</td><td>Implementation with client</td><td>Setup wizard in the app, templates</td></tr>
+<tr><td>4</td><td>Migrate data: items, customers, suppliers (CSV import exists); opening balances and opening stock; open invoices and bills; optionally history</td><td>Implementation</td><td>Import tools plus a guided opening-balance wizard (backlog); Tally and Excel mappers later</td></tr>
+<tr><td>5</td><td>Verify: reconcile the old system's trial balance, stock and receivables to the new opening figures; client signs off</td><td>Implementation and client accountant</td><td>Reconciliation checklist and reports</td></tr>
+<tr><td>6</td><td>Train: role-based sessions, quick guides, counter practice for POS</td><td>Implementation</td><td>User guide, sandbox tenant for practice</td></tr>
+<tr><td>7</td><td>UAT in sandbox or staging tenant (Business and above), then freeze</td><td>Client and implementation</td><td>Sandbox tenant</td></tr>
+<tr><td>8</td><td>Go-live: cut-over plan, final balances, devices registered, installers deployed</td><td>Implementation, IT</td><td>Go-live checklist (Appendix B)</td></tr>
+<tr><td>9</td><td>Hypercare: daily check-in for the first 2 weeks, fast-lane support, first month-end closely watched</td><td>Support</td><td>Support console, usage dashboards</td></tr></table>
+<h3>7.3 Indicative effort by size (Assumption)</h3>
+<table><tr><th>Size</th><th>Typical timeline</th><th>Notes</th></tr>
+<tr><td>Starter</td><td>1 to 3 days</td><td>Mostly self-service with a template and a short call.</td></tr>
+<tr><td>Business</td><td>2 to 4 weeks</td><td>Data migration and training dominate.</td></tr>
+<tr><td>Enterprise</td><td>6 to 12 weeks</td><td>Multi-company set-up, integrations, SSO, UAT, dedicated stack build.</td></tr>
+<tr><td>On-premise</td><td>Enterprise timeline plus 1 to 2 weeks</td><td>Hardware readiness, network, backup design.</td></tr></table>
+<h3>7.4 Offboarding and data rights</h3>
+<ul><li>A self-service and support-assisted <b>full export</b> (documents, ledgers, masters, attachments) in open formats, available at any time and always before deletion.</li>
+<li>Retention after cancellation follows the contract and law (Section 9). Deletion is a logged, two-person action; deleted tenants are purged from backups by expiry, and the client is told the schedule.</li></ul>
+
+<h2 class="pb">8. Environments and release management</h2>
+<h3>8.1 Environments</h3>
+<table><tr><th>Environment</th><th>Purpose</th><th>Data</th></tr>
+<tr><td>Developer / CI</td><td>Every change builds and runs the full tests against a throwaway database (exists today)</td><td>Synthetic</td></tr>
+<tr><td>Staging</td><td>A production-like cell built from the same code as production; release candidates, migration rehearsal, load and restore tests</td><td>Synthetic plus an anonymised copy of realistic volumes</td></tr>
+<tr><td>Canary cell (production)</td><td>First production cell to get each release: your own company, friendly clients who agreed</td><td>Real</td></tr>
+<tr><td>Pooled production cells</td><td>Starter and Business clients</td><td>Real</td></tr>
+<tr><td>Dedicated and on-premise</td><td>Enterprise and local clients on their own schedule</td><td>Real</td></tr>
+<tr><td>Client sandbox tenants</td><td>Practice and UAT, in a pooled cell, never connected to live data</td><td>Client's test data</td></tr></table>
+<h3>8.2 The release train</h3>
+<ol><li><b>Cadence:</b> a regular release (for example every two weeks) plus hotfixes on demand. Fixed cadence beats ad hoc: clients and support know when to expect change.</li>
+<li><b>Gates:</b> typecheck, lint, unit, integration and end-to-end tests, API contract check, security scans of dependencies and images, and a migration dry run on a copy of staging data.</li>
+<li><b>Roll-out order:</b> staging, then the canary cell for 24 to 72 hours, then pooled cells one at a time, then dedicated cells in their windows.</li>
+<li><b>In each cell:</b> run the migration image (as the owner role), then roll the new API instances gradually (rolling or blue-green), watching error rate and latency; automatic halt and rollback of the application if they worsen.</li>
+<li><b>Release notes</b> for clients in plain language, and an internal changelog for support.</li></ol>
+<h3>8.3 Database change rules (what keeps releases safe)</h3>
+<ul><li><b>Expand, then contract.</b> A migration may only add things the previous version can ignore. Removing or renaming happens a release later, after no running version uses the old shape. This makes rolling releases and instant app rollback safe.</li>
+<li><b>Forward-only data.</b> Ledgers are append-only, and migrations are not reversed. If a release goes wrong, you roll the application back and fix forward with a new migration.</li>
+<li><b>Large changes in batches</b> with time limits and visibility, never a table-locking surprise during business hours.</li>
+<li><b>Every migration is rehearsed</b> on staging data of realistic size, and its duration is recorded.</li></ul>
+<h3>8.4 Client and server compatibility</h3>
+<ul><li><b>API versioning</b> (<code>/v1</code>) and the rule that changes within a version only add.</li>
+<li><b>Version handshake:</b> the server publishes the oldest client version it supports, and the app shows "update required" instead of failing mysteriously. (Backlog item.)</li>
+<li><b>Support window:</b> the server supports the current and previous client versions. Auto-update keeps nearly everyone on the current one; Enterprise clients that control their own roll-out get a longer window by contract.</li>
+<li><b>Dedicated and on-premise clients</b> may run at most one release behind the pooled cells, and are upgraded within an agreed period to keep your support matrix small (at most two server versions in the field).</li></ul>
+<h3>8.5 Feature flags and emergency switches</h3>
+<p>Risky features ship behind flags. Support can turn a flag off per tenant or per cell in minutes without a deployment. A global "read-only" switch per cell exists for emergencies such as a data fix or a failed disk.</p>
+
+<h2 class="pb">9. Backup, disaster recovery and retention</h2>
+<h3>9.1 What we protect and how</h3>
+<table><tr><th>Layer</th><th>Method</th><th>Notes</th></tr>
+<tr><td>Database, continuous</td><td>Write-ahead log archiving for point-in-time recovery, stored in a separate account or region</td><td>The only reliable recovery from data errors, because ledgers are append-only and corrections are reversals.</td></tr>
+<tr><td>Database, snapshots</td><td>Daily base backup, retained 35 days, with weekly and monthly copies for longer</td><td>Encrypted.</td></tr>
+<tr><td>Files and exports</td><td>Versioned object storage with a second-region copy</td><td></td></tr>
+<tr><td>Configuration</td><td>Infrastructure code and the control-plane database backed up separately</td><td>A lost control plane must not mean lost clients: it is backed up like a ledger.</td></tr>
+<tr><td>Standby (Enterprise)</td><td>Warm standby in a second region with replication</td><td>Gives the 1-minute and 1-hour targets.</td></tr></table>
+<h3>9.2 Recovery targets by tier (proposed)</h3>
+<table><tr><th>Tier</th><th>Max data loss (RPO)</th><th>Time to restore (RTO)</th><th>Mechanism</th></tr>
+<tr><td>Starter</td><td>15 minutes</td><td>8 hours</td><td>Point-in-time recovery to a rebuilt cell</td></tr>
+<tr><td>Business</td><td>5 minutes</td><td>4 hours</td><td>Point-in-time recovery, in-region multi-zone failover for hardware faults</td></tr>
+<tr><td>Enterprise</td><td>1 minute</td><td>1 hour</td><td>Warm standby, rehearsed failover</td></tr></table>
+<h3>9.3 The hard problem: restoring one client in a shared database</h3>
+<p>If one client deletes or corrupts their own data, you cannot roll the whole shared database back without harming 30 other clients. The standard answer, and the one to build before go-live:</p>
+<ol><li>Restore the database to the wanted moment in a <b>separate, temporary</b> instance.</li>
+<li>A <b>tenant extraction tool</b> reads that one tenant's rows (every table is tenant-keyed, which makes this possible) and produces a verified bundle.</li>
+<li>Either import the bundle into a fresh tenant for the client to compare, or, with the client's written approval, replace the damaged data in a controlled window.</li></ol>
+<div class="box good">The same extraction tool also powers client data export, tenant moves between cells, promotion to dedicated, and offboarding, so it is a high-value build.</div>
+<h3>9.4 Proving it works</h3>
+<ul><li><b>Monthly automated restore test</b> of the latest backup into a scratch instance, with data checks (ledgers balance, row counts, a sample tenant opens).</li>
+<li><b>Quarterly disaster drill</b>: rebuild a cell from code and the latest backup in a clean account, timed against the RTO. Failover drill yearly for Enterprise standbys.</li>
+<li>Alerts when a backup is late, when log archiving lags, or when a restore test fails.</li></ul>
+<h3>9.5 Retention</h3>
+<table><tr><th>Data</th><th>Proposed retention</th></tr>
+<tr><td>Financial records, ledgers, audit trail</td><td>Never purged while the tenant is active; after cancellation retained for the legally required period (commonly 8 years for books of account in India) unless the client asks for earlier export and the law allows it. <b>Confirm exact periods with a Chartered Accountant and counsel.</b></td></tr>
+<tr><td>Operational data (idempotency keys, delivered events, old sessions)</td><td>Purged by the existing retention job</td></tr>
+<tr><td>Backups</td><td>35 days daily, longer weekly and monthly sets; expire naturally so deleted tenants leave backups on schedule</td></tr>
+<tr><td>Logs</td><td>90 days searchable, 1 year archived; no secrets or full personal data in logs</td></tr></table>
+
+<h2 class="pb">10. Security and compliance</h2>
+<h3>10.1 Controls</h3>
+<table><tr><th>Area</th><th>Control</th></tr>
+<tr><td>Tenant isolation</td><td>Row-level security in the database (exists), the runtime role cannot bypass it (checked at start-up), isolation tests in CI that try cross-tenant reads and writes; per-cell separation as the second wall.</td></tr>
+<tr><td>Identity</td><td>Strong password rules and optional two-step sign-in (exists); make it <b>mandatory for owners and administrators</b>; SSO via OIDC for Enterprise; session revocation; sign-in throttling.</td></tr>
+<tr><td>Data protection</td><td>TLS everywhere; encryption at rest for databases, backups and storage; field-level encryption for secrets using the data-encryption key (exists), with per-cell keys held in a key management service and a rotation runbook.</td></tr>
+<tr><td>Secrets</td><td>Secret manager only; no secrets in code, images or chat; separate credentials per cell and per role.</td></tr>
+<tr><td>Staff access</td><td>No shared accounts; SSO with MFA; least privilege; <b>break-glass access to a client's data only with a ticket, the client's approval where the contract requires it, a time limit and full recording</b>; quarterly access review.</td></tr>
+<tr><td>Application security</td><td>Dependency and container scanning in CI; signed images; a pen test by an independent firm <b>before the first live client</b> and yearly after; a vulnerability disclosure address; patch SLA by severity.</td></tr>
+<tr><td>Network</td><td>Private database, WAF, no open admin ports, CORS limited to known origins (exists), self sign-up and API docs off in production (exists as settings).</td></tr>
+<tr><td>Audit</td><td>Append-only audit log of business actions (exists) plus a control-plane audit of every admin and support action, exportable to clients on request.</td></tr>
+<tr><td>Abuse and resilience</td><td>Per-tenant limits, request size limits, bulk-import limits, and automated suspension of an attacked tenant.</td></tr></table>
+<h3>10.2 Legal and compliance (needs counsel)</h3>
+<ul><li><b>India's Digital Personal Data Protection Act, 2023.</b> For each client, decide the roles: normally the client is the data fiduciary and you are a data processor. Sign a <b>data processing agreement</b> that covers purpose, sub-processors (your cloud and email providers), security measures, breach notification, deletion and return of data, and cross-border rules.</li>
+<li><b>Breach response:</b> a written plan with roles, triage, client notification timelines, and regulator notification where required.</li>
+<li><b>Contracts:</b> master service agreement, service levels, acceptable use, privacy notice, and a clear statement of what is and is not guaranteed (for example, tax computations are client responsibility and need their accountant's review).</li>
+<li><b>Accounting and tax software expectations:</b> audit trail and immutability are already designed in; confirm the current Companies Act and GST audit-trail requirements with a Chartered Accountant before claiming compliance.</li>
+<li><b>Certification path (optional, later):</b> a security framework such as ISO 27001 or SOC 2 is often requested by large clients; start by documenting policies, then decide.</li></ul>
+<div class="box warn">This section is an engineering plan, not legal advice. Treat the compliance points as a checklist for your lawyer and accountant to confirm.</div>
+
+<h2 class="pb">11. Operations: monitoring, support and incidents</h2>
+<h3>11.1 Observability</h3>
+<table><tr><th>Signal</th><th>What</th><th>Alert examples</th></tr>
+<tr><td>Logs</td><td>Structured logs with request id and tenant id (never secrets or full personal data), centrally searchable</td><td>Spike in errors for one tenant</td></tr>
+<tr><td>Metrics</td><td>Request rate, errors, latency; database load, connections, replication lag, disk; queue and outbox depth; backup age; per-tenant usage</td><td>5xx rate, slow requests, ready-check failures, outbox dead letters (already named in the deployment guide), backup late, disk filling</td></tr>
+<tr><td>Traces</td><td>Request traces through API and database for slow screens</td><td></td></tr>
+<tr><td>Uptime</td><td>External probes from outside your cloud against the real sign-in path</td><td>Down for more than 2 minutes pages on-call</td></tr>
+<tr><td>Client-side</td><td>Desktop crash and error reports (with consent), sync queue health for POS counters</td><td>Counters with old queues, repeated failed syncs</td></tr>
+<tr><td>Business health</td><td>Per-tenant dashboard: last activity, document volume, errors, version, backup status</td><td>Tenant with no activity on a working day</td></tr></table>
+<h3>11.2 Support model</h3>
+<table><tr><th>Level</th><th>Who</th><th>Handles</th></tr>
+<tr><td>L1</td><td>Support desk</td><td>How-to, access, printing, small configuration, known issues; uses the support console (read-only by default)</td></tr>
+<tr><td>L2</td><td>Implementation and application specialists</td><td>Data and accounting questions, import problems, complex configuration, reconciliation help</td></tr>
+<tr><td>L3</td><td>Engineering and the platform on-call</td><td>Bugs, performance, incidents, data fixes (always via reviewed scripts, never ad hoc edits to ledgers)</td></tr></table>
+<h3>11.3 Severity and response targets (proposed)</h3>
+<table><tr><th>Severity</th><th>Meaning</th><th>Starter</th><th>Business</th><th>Enterprise</th></tr>
+<tr><td>1 Critical</td><td>System down or data at risk</td><td>Next business hour</td><td>1 hour, 24x7</td><td>30 minutes, 24x7</td></tr>
+<tr><td>2 Major</td><td>Key function broken, no workaround</td><td>Same business day</td><td>4 hours</td><td>2 hours</td></tr>
+<tr><td>3 Normal</td><td>Problem with workaround or how-to</td><td>2 business days</td><td>1 business day</td><td>1 business day</td></tr></table>
+<h3>11.4 Incident response</h3>
+<ol><li><b>Detect and declare</b> (alert or report); an incident lead is named; a channel and a timeline start.</li>
+<li><b>Contain and restore</b> first, investigate second. Use the runbooks (cell read-only switch, app rollback, flag off, failover).</li>
+<li><b>Communicate</b> on a fixed rhythm through the status page and direct messages to affected clients.</li>
+<li><b>Post-incident review</b> within a week, blameless, with owners and dates for fixes; share a summary with affected clients.</li></ol>
+<h3>11.5 Support console (control plane)</h3>
+<p>Tenant search; plan, entitlements and limits; usage; version and last backup; recent errors; sign-in and lock status; resend invitations; reset two-step sign-in with verification; toggle flags; suspend or reinstate; start an audited "view as" session; trigger export. Every action is recorded with who, what, why.</p>
+<h3>11.6 Operating rhythm</h3>
+<ul><li>On-call rota with a primary and a secondary, handover notes, and paid on-call for after-hours cover.</li>
+<li>Weekly operations review (incidents, capacity, upcoming releases), monthly cost and capacity review, quarterly restore drill and access review.</li>
+<li>A public or client-only <b>status page</b> and a maintenance calendar.</li></ul>
+
+<h2 class="pb">12. Licensing, billing and commercial terms</h2>
+<h3>12.1 Pricing drivers (for you to decide)</h3>
+<table><tr><th>Driver</th><th>Used for</th><th>Pros and cons</th></tr>
+<tr><td>Per company or per location</td><td>Starter and Business base price</td><td>Simple to explain; fits retail chains.</td></tr>
+<tr><td>Per named user</td><td>Seats beyond an included number</td><td>Predictable; discourages shared logins.</td></tr>
+<tr><td>Modules</td><td>Plan differences</td><td>Clear upsell path.</td></tr>
+<tr><td>Counters / terminals</td><td>POS-heavy clients</td><td>Matches the value they get.</td></tr>
+<tr><td>Transaction volume (fair use)</td><td>Guard rails, not the main price</td><td>Protects shared cells from abuse; needs metering.</td></tr>
+<tr><td>Service fees</td><td>Onboarding, migration, training, managed on-premise, dedicated stack hosting</td><td>Covers real effort.</td></tr></table>
+<h3>12.2 Billing operations</h3>
+<ul><li>Annual or monthly plans in advance, GST invoices issued from your own OneSyncERP (a useful dogfood), payment by UPI, bank transfer or a payment gateway, with automated reminders.</li>
+<li><b>Dunning ladder:</b> reminder, past-due warning in the app, grace period, then read-only suspension (Section 7.1), then reinstatement on payment. No surprise data loss.</li>
+<li><b>Plan changes</b> take effect immediately in entitlements; downgrades honour a notice period.</li>
+<li><b>Metering</b> records active users, companies, locations, counters and monthly documents per tenant, feeding both billing and capacity planning.</li></ul>
+<h3>12.3 Licence keys for on-premise</h3>
+<p>A signed file naming the tenant, modules, limits and expiry, verified offline by the public key built into the product. On expiry the system warns for a grace period and then becomes read-only; export always works. Renewal is a new file (or an automatic refresh when the server can reach the control plane).</p>
+<h3>12.4 Documents to prepare</h3>
+<p>Master service agreement, service level agreement per tier, data processing agreement, privacy notice, acceptable use, on-premise managed-service addendum, support policy, and a one-page security overview for sales. Have counsel review all of them.</p>
+
+<h2 class="pb">13. Desktop client and counter distribution</h2>
+<table><tr><th>Topic</th><th>Plan</th></tr>
+<tr><td>Installers</td><td>Windows (primary), plus macOS and Linux builds from the existing workflow. <b>Windows code-signing certificate</b> (extended validation recommended so SmartScreen trusts it) and <b>Apple developer account</b> for signing and notarisation. These need purchase and identity verification, which can take weeks: start early.</td></tr>
+<tr><td>Auto-update</td><td>Signed updates served from your own storage and CDN (not a third party's account), with <b>stable</b> and <b>beta</b> channels, staged roll-out (a percentage at a time), and the minimum-version handshake from Section 8.4. A rollback means publishing a fixed version quickly, so keep the previous installer available.</td></tr>
+<tr><td>Large clients</td><td>MSI or silent-install packages and a policy to hold updates until the client's IT approves, for clients that manage their own machines.</td></tr>
+<tr><td>Server address</td><td>Clients connect to <code>app.yourdomain.in</code> or their vanity or on-premise address; the app already discovers server type and version from its metadata endpoint. Pre-configure the address in the installer for managed clients.</td></tr>
+<tr><td>Counter resilience</td><td>Counters keep selling offline for cash and card sales (exists), queue sales locally and upload when the connection returns. Define for each client what must stay online-only (for example wallet use, manager approvals, tracked items) and train staff. Monitor queue age per counter and alert the client and support when it grows.</td></tr>
+<tr><td>Hardware guide</td><td>A tested list: receipt printers (80 mm), barcode scanners, cash drawers, label printers, supported Windows versions, minimum specs, recommended UPS and network for counters, and how to set up the printer driver to open the drawer.</td></tr>
+<tr><td>Remote help</td><td>A remote-support tool used only with the client's consent, plus a one-click "export diagnostics" in the app that collects version, logs without personal data, and queue state.</td></tr>
+<tr><td>Local data on counters</td><td>Only the offline queue and the catalogue cache are stored locally, and the cache holds no financial history. Disk encryption is recommended in the hardware guide.</td></tr></table>
+
+<h2 class="pb">14. Phased roadmap with exit criteria</h2>
+<p class="small">Durations are working estimates for a small dedicated team and assume the cloud account, certificates and legal documents are started in parallel. They are meant to size the effort, not to be a commitment.</p>
+<table><tr><th>Phase</th><th>Build</th><th>Exit criteria (all must be true)</th></tr>
+<tr><td><b>0 Foundations</b><br>5 to 7 weeks</td><td>Cloud account structure and access; infrastructure as code for network, database, containers, edge, secrets; CI/CD from the main branch to staging and a production cell; logging, metrics, alerts and uptime probes; backups with log archiving; restore drill; runbooks v1</td><td>A cell can be created from code in under a day; a staged release is deployed with one approval; a backup is restored and verified; the on-call phone receives a test alert</td></tr>
+<tr><td><b>1 Control plane and entitlements</b><br>6 to 8 weeks</td><td>Control-plane service and database; tenant registry and routing; signed entitlements; module tags on routes with enforcement; limits; app hides unlicensed modules; tenant suspension; support console v1; usage metering; version handshake; tenant export (first version)</td><td>Two test tenants with different plans behave differently on every module in automated tests; suspending a tenant makes it read-only; a tenant export re-imports cleanly</td></tr>
+<tr><td><b>2 Pilot</b><br>6 weeks</td><td>2 to 3 friendly clients (one retail, one distributor, ideally one multi-user accounting-heavy); signed installers and auto-update; independent pen test and fixes; load test with realistic data; DPA and service terms drafted; support rota (office hours) live</td><td>No severity-1 incidents unresolved; pen-test critical and high findings fixed; each pilot client completes a month-end close; restore of a single pilot tenant demonstrated</td></tr>
+<tr><td><b>3 General availability</b><br>8 to 12 weeks</td><td>Repeatable onboarding with templates and opening-balance wizard; billing and dunning; status page; on-call rota extended; self-service onboarding for Starter; second canary routine; release cadence established</td><td>10 to 20 clients live; onboarding for a Starter tenant done by one person in a day; support response targets met for two consecutive months</td></tr>
+<tr><td><b>4 Dedicated and on-premise</b><br>8 to 10 weeks</td><td>Dedicated cell template; tenant move tool; signed on-premise bundle, installer script, licence verification; outbound heartbeat; remote support procedure; on-premise runbooks and hardware guide</td><td>A dedicated client live; an on-premise install, upgrade and restore performed on a clean machine by someone who did not write the bundle</td></tr>
+<tr><td><b>5 Scale to 50 to 100</b><br>6 to 12 months</td><td>Second and third pooled cells; automation of provisioning, patching and capacity alerts; cost tuning; warm standby for Enterprise; security framework preparation; Tally and Excel migration helpers</td><td>Cell cap and cost per tenant known and tracked; a cell failover drilled; quarterly reviews running</td></tr></table>
+<h3>Dependency notes</h3>
+<ul><li>Start procurement (cloud account, code-signing certificates, domain, payment gateway) and legal drafting in week 1: they have long lead times.</li>
+<li>Phase 1 can overlap phase 0 once the first environment exists.</li>
+<li>Do not onboard a paying client onto a cell that has not had a tested restore.</li></ul>
+
+<h2 class="pb">15. Team and responsibilities</h2>
+<table><tr><th>Role</th><th>Responsibilities</th><th>Early headcount (Assumption)</th></tr>
+<tr><td>Platform / DevOps engineer</td><td>Infrastructure code, CI/CD, cells, backups, networking, cost</td><td>1 to 2</td></tr>
+<tr><td>Backend engineer(s)</td><td>Control plane, entitlements, tenant tools, performance, security fixes</td><td>2</td></tr>
+<tr><td>Client engineer</td><td>Installers, auto-update, offline sync, hardware support</td><td>1</td></tr>
+<tr><td>Site reliability / on-call</td><td>Monitoring, incidents, runbooks, capacity (shared by engineers at first)</td><td>Rota of 3 to 4</td></tr>
+<tr><td>Implementation consultants</td><td>Onboarding, migration, training, reconciliation (with an accounting background)</td><td>2 to 3, growing with sales</td></tr>
+<tr><td>Support desk</td><td>L1 and L2</td><td>2, growing</td></tr>
+<tr><td>Security and compliance owner</td><td>Policies, vendor reviews, access reviews, pen test, DPDP contact</td><td>1 (part time at first)</td></tr>
+<tr><td>Product / release manager</td><td>Release train, entitlement design, client communication</td><td>1</td></tr></table>
+<h3>Who decides what (summary)</h3>
+<table><tr><th>Decision</th><th>Owner</th><th>Consulted</th></tr>
+<tr><td>Which tier a client gets, placement</td><td>Sales lead with platform lead</td><td>Implementation</td></tr>
+<tr><td>Release go/no-go</td><td>Release manager</td><td>Engineering, support</td></tr>
+<tr><td>Emergency data fix</td><td>Engineering lead, with second approver</td><td>Client contact, support</td></tr>
+<tr><td>Access to a client's data</td><td>Client contact, security owner</td><td>Support</td></tr>
+<tr><td>Price and contract terms</td><td>Business owner</td><td>Counsel</td></tr></table>
+
+<h2 class="pb">16. Risks and mitigations</h2>
+<table><tr><th>Risk</th><th>Impact</th><th>Mitigation</th></tr>
+<tr><td>Cross-tenant data exposure</td><td>Severe: legal and reputation</td><td>Row-level security with start-up checks, isolation tests in CI, per-cell separation, pen test before go-live, code review rule for new queries</td></tr>
+<tr><td>Cannot restore a single client</td><td>Severe for the affected client</td><td>Tenant extraction tool built and drilled before the first live client (Section 9.3)</td></tr>
+<tr><td>A bad release hits everyone</td><td>High</td><td>Expand-then-contract migrations, canary cell, gradual rollout with automatic halt, flags, app rollback runbook</td></tr>
+<tr><td>Noisy neighbour in a shared cell</td><td>Medium</td><td>Per-tenant limits, timeouts, read replica for reports, placement rules, tenant move tool, promotion to dedicated</td></tr>
+<tr><td>Too many versions in the field</td><td>Support cost explodes</td><td>At most two server versions, contractual upgrade windows, version handshake, auto-update</td></tr>
+<tr><td>On-premise becomes unmanageable</td><td>High effort per client</td><td>Managed-service pricing, signed bundles only, outbound heartbeat, cap the number accepted early, strict hardware guide</td></tr>
+<tr><td>Wrong accounting defaults or tax rules for a client</td><td>High: client trust</td><td>Accountant sign-off on templates, reconciliation step in onboarding, clear contract language, effective-dated tax rules (exist)</td></tr>
+<tr><td>Data migration errors</td><td>High at go-live</td><td>Reconcile trial balance, stock and receivables before sign-off; rehearsal import in a sandbox; parallel run for Business and above</td></tr>
+<tr><td>Single points of failure in the team</td><td>Medium to high</td><td>Runbooks, shared on-call, documented infrastructure code, no single person holding credentials</td></tr>
+<tr><td>Unsigned installers frighten clients</td><td>Medium</td><td>Buy certificates early; staged roll-out; downloads only from your domain</td></tr>
+<tr><td>Cloud cost overrun</td><td>Medium</td><td>Cost per tenant tracked, budgets and alerts, right-sizing reviews, reserved capacity after load is known</td></tr>
+<tr><td>Control plane outage</td><td>Medium</td><td>Cells cache signed entitlements and keep serving; control plane is small, redundant and independently backed up</td></tr>
+<tr><td>Regulatory change (DPDP rules, audit trail rules)</td><td>Medium</td><td>Named compliance owner, quarterly review with counsel and an accountant</td></tr></table>
+
+<h2 class="pb">17. Decisions needed from you</h2>
+<p>Answer these in this order; the earlier ones unblock the later ones. My recommendation is in the last column.</p>
+<table><tr><th>#</th><th>Decision</th><th>Why it matters</th><th>Recommendation</th></tr>
+<tr><td>1</td><td>Which cloud and region?</td><td>Drives infrastructure code, cost, residency</td><td>The cloud your IT team already knows, in an India region</td></tr>
+<tr><td>2</td><td>Which tiers and commitments will you sell (uptime, RPO, RTO, support hours)?</td><td>Each promise needs matching controls and staffing</td><td>Start with Starter, Business and Enterprise as in Section 3; sell numbers only after drills prove them</td></tr>
+<tr><td>3</td><td>Is the ledger always on (Core) with Accounting as screens and reports?</td><td>Decides how modules interact and upgrades behave</td><td>Yes (Section 5.2)</td></tr>
+<tr><td>4</td><td>How many on-premise clients will you accept at first, and on what terms?</td><td>Highest support cost per client</td><td>Limit early on; managed-service contract with annual fee</td></tr>
+<tr><td>5</td><td>Billing tool and payment methods</td><td>Dunning, invoices, licences</td><td>Your own OneSyncERP for invoices; a payment gateway for cards and UPI</td></tr>
+<tr><td>6</td><td>Domain and naming scheme</td><td>Routing, vanity names, certificates</td><td>One product domain, <code>app.</code> for pooled, <code>client.</code> vanity names for dedicated</td></tr>
+<tr><td>7</td><td>Who is the security and compliance owner, and which counsel and CA will review the documents?</td><td>DPDP, contracts, retention periods</td><td>Name them in week 1</td></tr>
+<tr><td>8</td><td>Support hours and on-call policy</td><td>Staffing and cost</td><td>Office hours for Starter, extended for Business, 24x7 severity 1 for Enterprise</td></tr>
+<tr><td>9</td><td>Pilot clients (2 to 3) and their agreement terms</td><td>Phase 2 depends on them</td><td>Friendly, varied, willing to give feedback and accept a pilot discount</td></tr>
+<tr><td>10</td><td>Pricing model (per company, user, module, counters)</td><td>Entitlement design and metering</td><td>Base per company plus included users, modules by plan, counters as add-on</td></tr>
+<tr><td>11</td><td>Data retention and deletion policy after cancellation</td><td>Legal and storage cost</td><td>Retain for the legal period, export always available, documented deletion</td></tr>
+<tr><td>12</td><td>Tally and Excel migration priority</td><td>Onboarding speed for most clients</td><td>Excel and CSV first (exists), Tally mapper after pilot feedback</td></tr></table>
+
+<h2 class="pb">Appendix A: engineering backlog (new work this plan requires)</h2>
+<table><tr><th>#</th><th>Item</th><th>Phase</th><th>Size (S/M/L)</th></tr>
+<tr><td>1</td><td>Infrastructure as code for a cell (network, database, containers, edge, secrets, alerts) and a staging cell</td><td>0</td><td>L</td></tr>
+<tr><td>2</td><td>CI/CD pipeline to staging and production with approvals, image signing and scans</td><td>0</td><td>M</td></tr>
+<tr><td>3</td><td>Log, metric, trace and alert stack; structured logging with tenant id; uptime probes</td><td>0</td><td>M</td></tr>
+<tr><td>4</td><td>Backup, log archiving, automated monthly restore test, runbooks</td><td>0</td><td>M</td></tr>
+<tr><td>5</td><td>Control-plane service (tenant registry, routing, audit, staff auth)</td><td>1</td><td>L</td></tr>
+<tr><td>6</td><td>Entitlement model: modules, limits, signed records, cache in cells, route module tags, <code>module_not_licensed</code> and limit errors</td><td>1</td><td>L</td></tr>
+<tr><td>7</td><td>Entitlements in the sign-in response; app hides unlicensed modules and shows upgrade messaging</td><td>1</td><td>M</td></tr>
+<tr><td>8</td><td>Ledger-always-on default posting when Accounting is not licensed</td><td>1</td><td>M</td></tr>
+<tr><td>9</td><td>Tenant states: trial, past due, suspended (read-only), cancelled; enforcement in the request pipeline</td><td>1</td><td>M</td></tr>
+<tr><td>10</td><td>Tenant extraction and import tool (export, restore-one-tenant, move between cells)</td><td>1 to 4</td><td>L</td></tr>
+<tr><td>11</td><td>Support console with audited view-as and actions</td><td>1</td><td>M</td></tr>
+<tr><td>12</td><td>Usage metering and limits dashboard</td><td>1</td><td>M</td></tr>
+<tr><td>13</td><td>Minimum-client-version handshake and "update required" experience</td><td>1</td><td>S</td></tr>
+<tr><td>14</td><td>Per-tenant rate limits, statement timeouts, heavy-report concurrency caps</td><td>2</td><td>M</td></tr>
+<tr><td>15</td><td>Mandatory two-step sign-in for administrators; OIDC SSO for Enterprise</td><td>2 to 4</td><td>M</td></tr>
+<tr><td>16</td><td>Code signing, notarisation, update hosting, staged roll-out, channels, diagnostics export</td><td>2</td><td>M</td></tr>
+<tr><td>17</td><td>Opening-balance wizard and reconciliation reports for onboarding</td><td>3</td><td>M</td></tr>
+<tr><td>18</td><td>Billing integration, dunning, status page</td><td>3</td><td>M</td></tr>
+<tr><td>19</td><td>Dedicated cell template; on-premise bundle, installer, signed licences, heartbeat</td><td>4</td><td>L</td></tr>
+<tr><td>20</td><td>Load and soak test suite with realistic data and a published per-cell tenant cap</td><td>2</td><td>M</td></tr>
+<tr><td>21</td><td>Tally and spreadsheet migration mappers</td><td>5</td><td>M to L</td></tr></table>
+
+<h2>Appendix B: go-live checklist (per client)</h2>
+<ul>
+<li>Order, tier, modules, limits and contacts recorded in the control plane; contract and data processing agreement signed.</li>
+<li>Tenant provisioned in the intended cell; owner has signed in and enabled two-step sign-in.</li>
+<li>Company, GST registration, locations, tax codes, numbering and chart reviewed with the client's accountant.</li>
+<li>Roles and users created; discount limits, approver PINs and printers configured.</li>
+<li>Opening balances, stock and open documents loaded; trial balance, stock valuation and receivables and payables agree to the old system, signed by the client.</li>
+<li>Installers deployed and signed; counters registered; test sale, return, print and offline sale tried.</li>
+<li>Staff trained by role; quick guides handed over; support contacts and hours confirmed.</li>
+<li>Backups confirmed for this tenant's cell, with last successful restore test date noted.</li>
+<li>Cut-over date and rollback plan agreed; hypercare schedule booked; first month-end close visit planned.</li></ul>
+
+<h2>Appendix C: checklists</h2>
+<h3>Release checklist</h3>
+<ul><li>All gates green (types, lint, unit, integration, end-to-end, API contract, scans).</li>
+<li>Migrations are expand-only; dry run done on staging data; duration noted.</li>
+<li>Release notes written; support briefed; risky features behind flags.</li>
+<li>Canary cell updated and watched for the agreed period; error and latency within bounds.</li>
+<li>Pooled cells updated one at a time; dedicated and on-premise scheduled.</li>
+<li>Rollback plan confirmed (application version, flags); previous installer retained.</li></ul>
+<h3>Incident checklist</h3>
+<ul><li>Declare, name the incident lead, open the channel and timeline.</li>
+<li>Assess blast radius (which cells, which tenants); post an initial status update.</li>
+<li>Contain: flag off, cell read-only, roll back, or fail over per the runbook.</li>
+<li>Restore service; verify with real sign-in and a sample transaction.</li>
+<li>Communicate resolution; keep evidence; schedule the blameless review within a week.</li>
+<li>If personal data may be involved, notify the security owner immediately to follow the breach plan.</li></ul>
+
+<p class="small" style="margin-top:20pt">Prepared for review. Sections 5 to 9 describe capabilities that are not all built yet; Appendix A lists the work. Figures marked Assumption are planning estimates to be replaced with measured values from the load test and cloud quotes.</p>
+</body></html>
