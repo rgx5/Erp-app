@@ -45,8 +45,8 @@ const verdict = (host: string): Verdict => ({ siteId: `site-${host}`, hostname: 
 
 describe('what the gateway lets through', () => {
   it('knows which paths may go through', () => {
-    for (const ok of ['/v1/auth/login', '/v1/items?limit=5', '/health/live', '/v1/auth/me']) expect(routable(ok), ok).toBe(true);
-    for (const no of ['/v1/platform/tenants', '/V1/PLATFORM/tenants', '/v1/../v1/platform/tenants', '/v1/%2e%2e/platform', '/v1//platform/tenants', '/admin', '/', '/health/ready', '/metrics', '/v1/a\\b', `/${'a'.repeat(5000)}`]) expect(routable(no), no).toBe(false);
+    for (const ok of ['/v1/auth/login', '/v1/items?limit=5', '/health/live', '/owner', '/v1/auth/me']) expect(routable(ok), ok).toBe(true);
+    for (const no of ['/v1/platform/tenants', '/V1/PLATFORM/tenants', '/v1/../v1/platform/tenants', '/v1/%2e%2e/platform', '/v1//platform/tenants', '/admin', '/', '/owner/x', '/health/ready', '/metrics', '/v1/a\\b', `/${'a'.repeat(5000)}`]) expect(routable(no), no).toBe(false);
   });
 });
 

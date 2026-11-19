@@ -22,11 +22,11 @@ interface Session { ws: WebSocket; verdict: Verdict; token: string; connectedAt:
 interface Pending { onHead: (status: number, headers: Record<string, string>) => void; onChunk: (b: Buffer) => void; onEnd: () => void; onErr: (m: string) => void }
 
 const REQ_DROP = new Set(['connection', 'keep-alive', 'proxy-authorization', 'te', 'trailer', 'transfer-encoding', 'upgrade', 'host', 'content-length', 'x-forwarded-for', 'x-forwarded-host', 'x-forwarded-proto', 'x-real-ip']);
-/** Only the product's own API and the liveness probe go through. The platform administration routes never do. */
+/** Only the product's own API, its owner dashboard page and the liveness probe go through. The platform administration routes never do. */
 export function routable(path: string): boolean {
   const clean = path.split('?')[0]?.toLowerCase() ?? '';
   if (path.length > 4000 || !path.startsWith('/') || clean.includes('..') || clean.includes('//') || clean.includes('%2e') || clean.includes('%2f') || clean.includes('\\')) return false;
-  return clean === '/health/live' || (clean.startsWith('/v1/') && !clean.startsWith('/v1/platform'));
+  return clean === '/health/live' || clean === '/owner' || (clean.startsWith('/v1/') && !clean.startsWith('/v1/platform'));
 }
 
 /**
