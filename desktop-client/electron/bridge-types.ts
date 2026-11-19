@@ -1,6 +1,8 @@
 /** What the desktop shell offers the app through `window.onesync`. Nothing else crosses the context-isolation boundary. */
 export interface DesktopSettings {
   serverUrl?: string
+  /** The address to use when the office address cannot be reached (through the remote-access gateway). */
+  remoteUrl?: string
   tenant?: string
   email?: string
   theme?: 'system' | 'light' | 'dark'

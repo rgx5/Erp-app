@@ -31,6 +31,10 @@ Only the menu items your role allows are shown. If something you expect is missi
 - **A period that is closed accepts no postings.** Reopen it (if you have the right) or post in the next one.
 - **Large payments, purchase orders and journals may need approval.** The app asks for it and a second person approves under *Purchasing, Approvals*.
 
+## Using it away from the office
+
+When you connect, you can also enter a **remote address** (given by your administrator). The app always tries the office address first and uses the remote one only when the office server cannot be reached, so the same sign-in works at the shop and at home. If the office server is switched off or has no internet, the remote address shows that the server is not connected.
+
 ## Layout
 
 *My account, Appearance* chooses between the **Sidebar** (a menu down the left) and the **Command centre** (a slim rail of areas, the pages of each area as tabs, and records that open beside the list). The choice is kept on this computer.

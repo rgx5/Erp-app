@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { createApi, normalizeServerUrl, type Api, type Tokens } from '@/api/client'
 import { ApiError } from '@/api/errors'
 import { compareVersions } from '@/domain/version'
+import { answers, chooseServer } from './serverChoice'
 import { me as meSchema, meta as metaSchema, session as sessionSchema, type Me } from '@/api/schemas'
 import { bridge } from '@/bridge'
 
@@ -19,7 +20,7 @@ interface SessionState {
   remembered: boolean
   api: Api | null
   restore(): Promise<void>
-  connect(url: string): Promise<ServerInfo>
+  connect(url: string, remote?: string): Promise<ServerInfo>
   login(input: { tenant: string; email: string; password: string; mfaCode?: string; remember: boolean }): Promise<void>
   logout(): Promise<void>
   forgetServer(): Promise<void>
@@ -52,7 +53,7 @@ export const useSession = create<SessionState>()((set, get) => {
       const saved = await bridge.settings.get()
       set({ tenant: saved.tenant ?? '', email: saved.email ?? '' })
       if (!saved.serverUrl) { set({ status: 'anonymous' }); return }
-      const server: ServerInfo = { url: saved.serverUrl, selfSignup: false }
+      const server: ServerInfo = { url: await chooseServer(saved.serverUrl, saved.remoteUrl, answers), selfSignup: false }
       const api = buildApi(server.url, lost)
       set({ server, api })
       const refreshToken = await bridge.secure.get(REFRESH_KEY)
@@ -72,8 +73,10 @@ export const useSession = create<SessionState>()((set, get) => {
       }
     },
 
-    async connect(rawUrl) {
-      const url = normalizeServerUrl(rawUrl)
+    async connect(rawUrl, rawRemote) {
+      const officeUrl = normalizeServerUrl(rawUrl)
+      const remoteUrl = rawRemote?.trim() ? normalizeServerUrl(rawRemote) : undefined
+      const url = await chooseServer(officeUrl, remoteUrl, answers)
       const probe = createApi({ baseUrl: url, getTokens: () => null, setTokens: () => undefined })
       const info = await probe.call(probe.raw.GET('/v1/meta'), metaSchema)
       if (info.minClientVersion) {
@@ -81,7 +84,7 @@ export const useSession = create<SessionState>()((set, get) => {
         if (/^\d+\.\d+\.\d+/.test(mine) && compareVersions(mine, info.minClientVersion) < 0) throw new Error(`This server needs OneSyncERP ${info.minClientVersion} or newer, and this app is ${mine}. Please update the app, then connect again.`)
       }
       const server: ServerInfo = { url, selfSignup: info.auth.selfSignup }
-      await bridge.settings.set({ serverUrl: url })
+      await bridge.settings.set({ serverUrl: officeUrl, remoteUrl: remoteUrl ?? null })
       set({ server, api: buildApi(url, lost) })
       return server
     },
