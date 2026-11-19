@@ -64,6 +64,7 @@
   "build": {
     "appId": "com.onesync.erp.client",
     "productName": "OneSyncERP",
+    "artifactName": "OneSyncERP-${version}-${os}-${arch}.${ext}",
     "directories": {
       "output": "release",
       "buildResources": "build"

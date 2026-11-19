@@ -125,7 +125,8 @@ jobs:
           fi
           if [ "$signed" = "false" ]; then echo "CSC_IDENTITY_AUTO_DISCOVERY=false" >> "$GITHUB_ENV"; echo "::notice::No signing secrets for ${{ matrix.label }}: building an unsigned installer"; fi
       - name: Build the installer
-        run: npx electron-builder ${{ matrix.args }} --publish never "-c.artifactName=OneSyncERP-\${version}-\${os}-\${arch}.\${ext}"
+        shell: bash
+        run: npx electron-builder ${{ matrix.args }} --publish never
       - name: List what was built
         shell: bash
         run: ls -la release | grep -E '\.(exe|dmg|AppImage|deb)$'
