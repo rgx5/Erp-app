@@ -10,6 +10,7 @@ COPY tsconfig.json ./
 COPY src ./src
 COPY db ./db
 COPY ui ./ui
+COPY scripts ./scripts
 USER node
 EXPOSE 8090
 HEALTHCHECK --interval=15s --timeout=3s --start-period=25s --retries=3 \

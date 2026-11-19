@@ -35,6 +35,12 @@ Nothing in these files publishes a host port. Dokploy's Traefik terminates TLS a
    (`DATABASE_URL` is already set inside the container.) Open `https://control.yourdomain.in/ui`, sign in; you will be asked to set up two-step sign-in before anything else.
 7. Make the **escrow key** once (Terminal, same container: `node --import tsx src/cli.ts escrow-keygen`). Put the public key in `ESCROW_PUBLIC_KEY` in the Environment tab and redeploy. The two private shares go to two different people, stored offline.
 
+**Demo data for the control panel** (demo servers only): once you have an admin, in the same Terminal run
+```
+CP_EMAIL=you@yourdomain.in CP_PASSWORD='your password' node scripts/seed-demo.mjs
+```
+It creates 8 clients across the four editions with their cells (on-premises, dedicated, one shared cloud cell), remote addresses and rules, licences, reported businesses with usage, validation results, three releases rolling out, and a few things needing attention (a nearly full disk, a cell that never reported, a business at its user limit, an expiring licence, a failed check, a suspended business). Set `REMOTE_DOMAIN=remote.yourdomain.in` to put your own domain on the remote addresses. Running it again duplicates nothing; it refreshes every cell's "last seen" time. Demo cells go silent about 10 minutes after the last run because no real agent reports for them: run it again before showing the dashboard, or add `KEEP_ALIVE=1` to leave it running and report every minute.
+
 **Wildcard addresses.** Dokploy's default certificates use the HTTP challenge, which cannot issue `*.remote.yourdomain.in`; that is why each client's address is added as its own domain. If you want a wildcard, switch Traefik to a DNS challenge (Cloudflare or your DNS host) in Dokploy's Traefik settings; then one wildcard domain on `gateway:8443` is enough.
 
 **WebSockets** (the site tunnels use them) work through Traefik with no extra settings. The gateway reads the visitor's address from Traefik's forwarded header, which is what the "allowed networks" rule uses.
