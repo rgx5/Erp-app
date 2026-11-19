@@ -21,31 +21,13 @@
  * Add KEEP_ALIVE=1 to keep it running and report every minute instead.
  */
 import { createHash } from 'node:crypto';
+import { pathToFileURL } from 'node:url';
 
-const BASE = (process.env.CP_URL ?? `http://127.0.0.1:${process.env.PORT ?? 8090}`).replace(/\/$/, '');
-const EMAIL = process.env.CP_EMAIL ?? '';
-const PASSWORD = process.env.CP_PASSWORD ?? '';
-if (!EMAIL || !PASSWORD) { console.error('Set CP_EMAIL and CP_PASSWORD (an admin account).'); process.exit(2); }
-
-let staffToken = '';
-async function call(method, path, body, token = staffToken) {
-  const res = await fetch(`${BASE}${path}`, { method, headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) }, ...(body === undefined ? (method === 'GET' ? {} : { body: '{}' }) : { body: JSON.stringify(body) }) });
-  const text = await res.text(); const json = text ? JSON.parse(text) : {};
-  if (!res.ok) { const e = new Error(`${method} ${path} -> ${res.status} ${json.message ?? text.slice(0, 160)}${json.issues ? ' ' + JSON.stringify(json.issues) : ''}`); e.status = res.status; e.code = json.code; throw e; }
-  return json;
-}
 /** A stable id for a name, so running again finds the same business. */
 const idOf = (seed) => { const h = createHash('sha1').update(`onesync-demo:${seed}`).digest('hex'); return `${h.slice(0, 8)}-${h.slice(8, 12)}-7${h.slice(13, 16)}-8${h.slice(17, 20)}-${h.slice(20, 32)}`; };
 const ago = (minutes) => new Date(Date.now() - minutes * 60_000).toISOString();
 const inDays = (d) => new Date(Date.now() + d * 86_400_000).toISOString();
-
-// ---- sign in ----
-const login = await call('POST', '/auth/login', { email: EMAIL, password: PASSWORD, ...(process.env.CP_CODE ? { code: process.env.CP_CODE } : {}) }, '');
-staffToken = login.token;
-if (login.mfaSetupRequired) { console.error('This account must set up two-step sign-in first (open the dashboard and finish that), then run this again.'); process.exit(1); }
-console.log(`Signed in as ${login.staff.displayName}`);
-const EDITIONS = Object.fromEntries(((await call('GET', '/plans')).items ?? []).map((e) => [e.id, e]));
-for (const k of ['starter', 'growth', 'enterprise', 'manufacturing']) if (!EDITIONS[k]) { console.error('This control plane does not know the editions yet (update it first).'); process.exit(1); }
+const digest = (s) => `sha256:${createHash('sha256').update(s).digest('hex')}`;
 
 // ---- what to create ----
 const HB = { good: { disk: 64, baseMin: 180, walMin: 1, tunnel: true }, lowDisk: { disk: 6, baseMin: 200, walMin: 2, tunnel: true }, staleBackup: { disk: 55, baseMin: 4300, walMin: 90, tunnel: false } };
@@ -72,7 +54,22 @@ const FLEET = [
   { client: 'Bharat Auto Components', tier: 'hybrid_plus', cell: { code: 'BHARAT-D', name: 'Bharat dedicated cloud', kind: 'dedicated', host: 'bharat', rules: { mode: 'full', allowedNetworks: [], hours: null }, version: '1.3.0', hb: HB.good },
     tenants: [['bharat-auto', 'Bharat Auto Components', 'manufacturing', { users: 112, companies: 4, documents30d: 9800, events30d: 40500 }, {}, 'ok']] },
 ];
-const DOMAIN = process.env.REMOTE_DOMAIN ?? 'remote.example.in';
+
+/**
+ * @param {{ base: string; token: string; domain?: string; log?: (m: string) => void }} o  a signed-in admin's session token
+ * @returns {Promise<{ clients: number; cells: number; tenants: number; pass: () => Promise<void> }>}
+ */
+export async function seedControlPlane(o) {
+  const BASE = o.base.replace(/\/$/, ''); const log = o.log ?? (() => undefined);
+  async function call(method, path, body, token = o.token) {
+    const res = await fetch(`${BASE}${path}`, { method, headers: { 'content-type': 'application/json', ...(token ? { authorization: `Bearer ${token}` } : {}) }, ...(body === undefined ? (method === 'GET' ? {} : { body: '{}' }) : { body: JSON.stringify(body) }) });
+    const text = await res.text(); const json = text ? JSON.parse(text) : {};
+    if (!res.ok) { const e = new Error(`${method} ${path} -> ${res.status} ${json.message ?? text.slice(0, 160)}${json.issues ? ' ' + JSON.stringify(json.issues) : ''}`); e.status = res.status; e.code = json.code; throw e; }
+    return json;
+  }
+  const EDITIONS = Object.fromEntries(((await call('GET', '/plans')).items ?? []).map((e) => [e.id, e]));
+  for (const k of ['starter', 'growth', 'enterprise', 'manufacturing']) if (!EDITIONS[k]) throw new Error('This control plane does not know the editions yet (update it first).');
+const DOMAIN = o.domain ?? process.env.REMOTE_DOMAIN ?? 'remote.example.in';
 
 // ---- clients and cells ----
 let created = 0; let touched = 0;
@@ -118,10 +115,9 @@ for (const f of FLEET) {
 }
 }
 await pass();
-console.log(`Fleet: ${FLEET.length} clients, ${created} new records, ${touched} cells refreshed`);
+log(`Fleet: ${FLEET.length} clients, ${created} new records, ${touched} cells refreshed`);
 
 // ---- releases rolling out ----
-const digest = (s) => `sha256:${createHash('sha256').update(s).digest('hex')}`;
 const have = (await call('GET', '/releases')).items ?? [];
 for (const [version, notes, rings] of [['1.2.0', 'Stable: fixes for the counter and GST returns', 3], ['1.3.0', 'Edition support, faster invoices, owner dashboard', 3], ['1.4.0', 'Candidate: manufacturing costing improvements', 1]]) {
   if (have.some((r) => r.version === version)) continue;
@@ -129,9 +125,25 @@ for (const [version, notes, rings] of [['1.2.0', 'Stable: fixes for the counter 
   for (let i = 0; i < rings; i++) await call('POST', `/releases/${r.id}/promote`).catch(() => undefined);
   created++;
 }
-console.log(`Releases: ${((await call('GET', '/releases')).items ?? []).map((r) => `${r.version} (${r.status})`).join(', ')}`);
+log(`Releases: ${((await call('GET', '/releases')).items ?? []).map((r) => `${r.version} (${r.status})`).join(', ')}`);
 
-const o = await call('GET', '/overview');
-console.log(`\nDone. The dashboard now shows ${o.cells.total} cells and ${o.tenants.total} businesses; ${o.alerts.critical} critical and ${o.alerts.attention} needing attention.`);
-console.log(`Open ${BASE}/ui${process.env.KEEP_ALIVE ? '' : '. Cells show "last seen" as of now: run this again later to refresh, or use KEEP_ALIVE=1.'}`);
-if (process.env.KEEP_ALIVE) { console.log('Keeping the demo cells alive (reporting every minute). Ctrl+C to stop.'); for (;;) { await new Promise((r) => setTimeout(r, 60_000)); try { await pass(); } catch (e) { console.error(e.message); } } }
+  return { pass, call };
+}
+
+// ---- command line ------------------------------------------------------------------------------------------------
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  const BASE = (process.env.CP_URL ?? `http://127.0.0.1:${process.env.PORT ?? 8090}`).replace(/\/$/, '');
+  const EMAIL = process.env.CP_EMAIL ?? ''; const PASSWORD = process.env.CP_PASSWORD ?? '';
+  if (!EMAIL || !PASSWORD) { console.error('Set CP_EMAIL and CP_PASSWORD (an admin account).'); process.exit(2); }
+  try {
+    const res = await fetch(`${BASE}/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ email: EMAIL, password: PASSWORD, ...(process.env.CP_CODE ? { code: process.env.CP_CODE } : {}) }) });
+    const login = await res.json(); if (!res.ok) throw new Error(`Sign-in failed: ${login.message ?? res.status}`);
+    if (login.mfaSetupRequired) throw new Error('This account must set up two-step sign-in first (open the dashboard and finish that), then run this again.');
+    console.log(`Signed in as ${login.staff.displayName}`);
+    const { pass, call } = await seedControlPlane({ base: BASE, token: login.token, log: console.log });
+    const o = await call('GET', '/overview');
+    console.log(`\nDone. The dashboard now shows ${o.cells.total} cells and ${o.tenants.total} businesses; ${o.alerts.critical} critical and ${o.alerts.attention} needing attention.`);
+    console.log(`Open ${BASE}/ui${process.env.KEEP_ALIVE ? '' : '. Cells show "last seen" as of now: run this again later to refresh, or use KEEP_ALIVE=1.'}`);
+    if (process.env.KEEP_ALIVE) { console.log('Keeping the demo cells alive (reporting every minute). Ctrl+C to stop.'); for (;;) { await new Promise((r) => setTimeout(r, 60_000)); try { await pass(); } catch (e) { console.error(e.message); } } }
+  } catch (e) { console.error(e.message); process.exit(1); }
+}

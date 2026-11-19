@@ -28,14 +28,14 @@ Nothing in these files publishes a host port. Dokploy's Traefik terminates TLS a
    - `gateway.yourdomain.in` → service `gateway`, port `8443`
    - for each Hybrid client, add `<client>.remote.yourdomain.in` → service `gateway`, port `8443` (this is the address its remote users open, and the one you type into the cell's page in the super admin dashboard)
 5. **Deploy**. The control plane creates its own tables on start. Check `https://control.yourdomain.in/health` shows `{"ok":true}`.
-6. Create the first admin (Dokploy → service → **Terminal** → container `control-plane`):
+6. Create the first admin. **Without a terminal:** set `BOOTSTRAP_ADMIN_EMAIL` and `BOOTSTRAP_ADMIN_PASSWORD` (12+ characters) in the Environment tab and deploy: on start-up the control plane creates that admin if it has no staff yet, and the log says so. Sign in at `https://control.yourdomain.in/ui`, then delete the two settings (they do nothing once any staff exists, but the password should not stay in a settings page). **Or with the Terminal** (Dokploy → service → Terminal → container `control-plane`):
    ```
    CP_PASSWORD='a-long-password-of-12-or-more-characters' node --import tsx src/cli.ts create-staff you@yourdomain.in "Your Name" admin
    ```
-   (`DATABASE_URL` is already set inside the container.) Open `https://control.yourdomain.in/ui`, sign in; you will be asked to set up two-step sign-in before anything else.
+   (`DATABASE_URL` is already set inside the container.) You will be asked to set up two-step sign-in before anything else, unless `REQUIRE_STAFF_MFA=false`.
 7. Make the **escrow key** once (Terminal, same container: `node --import tsx src/cli.ts escrow-keygen`). Put the public key in `ESCROW_PUBLIC_KEY` in the Environment tab and redeploy. The two private shares go to two different people, stored offline.
 
-**Demo data for the control panel** (demo servers only): once you have an admin, in the same Terminal run
+**Demo data for the control panel** (demo servers only). **Without a terminal:** set `DEMO_SEED_ENABLED=true`, redeploy, sign in as an admin, and press **Fill with demo data** on the empty Overview (or `curl -X POST https://control.yourdomain.in/demo/seed -H "Authorization: Bearer <session token>"`). **Or with the Terminal**, run
 ```
 CP_EMAIL=you@yourdomain.in CP_PASSWORD='your password' node scripts/seed-demo.mjs
 ```

@@ -181,7 +181,17 @@ export function buildApp({ pool, config }: AppDeps): FastifyInstance {
     await pool.query('UPDATE staff_sessions SET revoked_at = now() WHERE token_hash = $1', [sha256((req.headers.authorization as string).slice(7).trim())]);
     return reply.status(204).send();
   });
-  app.get('/me', { preHandler: asStaff('viewer', { allowSetup: true }) }, async (req) => req.staff);
+  app.get('/me', { preHandler: asStaff('viewer', { allowSetup: true }) }, async (req) => ({ ...req.staff, demoSeed: config.DEMO_SEED_ENABLED === 'true' }));
+  /** Fills the dashboard with a demo fleet. Off (404) unless DEMO_SEED_ENABLED=true; an admin only. It uses the server's own API through its local socket with the caller's session. */
+  app.post('/demo/seed', { preHandler: asStaff('admin') }, async (req) => {
+    if (config.DEMO_SEED_ENABLED !== 'true') throw new HttpError(404, 'not_found', 'Not found');
+    const { pathToFileURL } = await import('node:url'); const { resolve } = await import('node:path');
+    const mod = (await import(pathToFileURL(resolve(process.cwd(), 'scripts/seed-demo.mjs')).href)) as { seedControlPlane(o: { base: string; token: string; log?: (m: string) => void }): Promise<unknown> };
+    const lines: string[] = [];
+    await mod.seedControlPlane({ base: `http://127.0.0.1:${req.socket.localPort}`, token: (req.headers.authorization ?? '').slice(7), log: (m) => lines.push(m) });
+    await audit(req, 'demo.seeded', 'control_plane', null, {});
+    return { ok: true, steps: lines };
+  });
   app.post('/staff', { preHandler: asStaff('admin') }, async (req, reply) => {
     const b = parse(schemas.staff, req.body);
     const id = randomUUID();

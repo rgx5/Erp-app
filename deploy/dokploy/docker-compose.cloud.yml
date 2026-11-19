@@ -38,6 +38,12 @@ services:
       ESCROW_PUBLIC_KEY: ${ESCROW_PUBLIC_KEY:-}
       REQUIRE_STAFF_MFA: ${REQUIRE_STAFF_MFA:-true}
       SILENT_AFTER_MINUTES: ${SILENT_AFTER_MINUTES:-10}
+      # Optional, no terminal needed: creates the first admin on start-up when there is no staff yet (remove after the first sign-in).
+      BOOTSTRAP_ADMIN_EMAIL: ${BOOTSTRAP_ADMIN_EMAIL:-}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+      BOOTSTRAP_ADMIN_NAME: ${BOOTSTRAP_ADMIN_NAME:-Administrator}
+      # Demo servers only: an "Fill with demo data" button on an empty dashboard.
+      DEMO_SEED_ENABLED: ${DEMO_SEED_ENABLED:-false}
     expose: ["8090"]
     networks: [internal, dokploy-network]
 

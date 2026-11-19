@@ -20,6 +20,12 @@ const schema = z.object({
   ESCROW_PUBLIC_KEY: z.string().min(50).optional(),
   /** Staff must set up two-step sign-in before they can do anything else. Default: on in production. */
   REQUIRE_STAFF_MFA: z.enum(['true', 'false']).optional(),
+  /** Creates the first admin on start-up when there is no staff user yet (so no terminal is needed). Remove both after the first sign-in. */
+  BOOTSTRAP_ADMIN_EMAIL: z.email().optional(),
+  BOOTSTRAP_ADMIN_PASSWORD: z.string().min(12).optional(),
+  BOOTSTRAP_ADMIN_NAME: z.string().min(1).max(100).default('Administrator'),
+  /** Lets an admin fill an empty dashboard with demo data (POST /demo/seed, and a button). Demo servers only. */
+  DEMO_SEED_ENABLED: z.enum(['true', 'false']).optional(),
 }).superRefine((env, ctx) => {
   if (env.NODE_ENV === 'production' && !env.DATA_ENCRYPTION_KEY) ctx.addIssue({ code: 'custom', path: ['DATA_ENCRYPTION_KEY'], message: 'is required in production' });
   if (env.DATA_ENCRYPTION_KEY && Buffer.from(env.DATA_ENCRYPTION_KEY, 'base64').length !== 32) ctx.addIssue({ code: 'custom', path: ['DATA_ENCRYPTION_KEY'], message: 'must be 32 random bytes, base64-encoded' });
