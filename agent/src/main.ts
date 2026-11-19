@@ -2,6 +2,7 @@ import { Agent, AGENT_VERSION } from './agent.js';
 import { loadConfig } from './config.js';
 import { ControlPlane } from './controlPlane.js';
 import { StateStore } from './state.js';
+import { Tunnel } from './tunnel.js';
 import { heartbeatPorts, licencePorts, supportPorts, upgradePorts } from './system.js';
 
 const config = loadConfig();
@@ -13,5 +14,6 @@ const every = (seconds: number, fn: () => Promise<unknown>): void => { let busy 
 every(config.heartbeatSeconds, () => agent.sendHeartbeat());
 every(config.supportSeconds, () => agent.supervise());
 every(config.checkSeconds, async () => { await agent.syncLicence(); await agent.checkRelease(); });
+if (config.gatewayUrl) { const t = new Tunnel({ gatewayUrl: config.gatewayUrl, token: config.agentToken, localApiUrl: config.localApiUrl, statusFile: config.tunnelStatusFile }); t.start(); process.on('SIGTERM', () => { t.stop(); process.exit(0); }); }
 process.on('SIGTERM', () => process.exit(0));
 setInterval(() => undefined, 1 << 30); // keep running

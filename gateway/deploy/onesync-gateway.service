@@ -1,0 +1,15 @@
+[Unit]
+Description=OneSyncERP remote-access gateway
+After=network-online.target
+[Service]
+EnvironmentFile=/etc/onesync-gateway/gateway.env
+ExecStart=/usr/bin/node --import tsx /opt/onesync/gateway/src/main.ts
+Restart=always
+RestartSec=5
+User=onesync-gateway
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+[Install]
+WantedBy=multi-user.target

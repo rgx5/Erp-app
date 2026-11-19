@@ -3,13 +3,13 @@
 #
 #   sudo ./install.sh --control-plane https://control.example.in --agent-token cpa_... --release-public-key release-public.pem \
 #                     --registry registry.example.in/onesync --first-release-env release.env --bundle /path/to/bundle \
-#                     --backup-json backup.json --backup-key-file backup-cipher.pass   (from the control plane: POST /sites/:id/backup-key)
+#                     --backup-json backup.json --backup-key-file backup-cipher.pass [--gateway-url https://gateway.example.in  (Hybrid sites)]   (from the control plane: POST /sites/:id/backup-key)
 #
 # The bundle directory holds: docker-compose.site.yml, Caddyfile, bootstrap.sql (from backend/db/bootstrap), agent/ (built agent: dist/ and package.json).
 # It sets up encrypted backups (pgBackRest, key per client) with the bundle's agent/dist/backup-cli.js and systemd timers. It does NOT open the tunnel (tunnel client, later).
 set -euo pipefail
 
-CONTROL_PLANE="" AGENT_TOKEN="" RELEASE_KEY="" REGISTRY="" FIRST_RELEASE="" BUNDLE="" BACKUP_JSON="" BACKUP_KEY=""
+CONTROL_PLANE="" AGENT_TOKEN="" RELEASE_KEY="" REGISTRY="" FIRST_RELEASE="" BUNDLE="" BACKUP_JSON="" BACKUP_KEY="" GATEWAY=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --control-plane) CONTROL_PLANE="$2"; shift 2 ;;
@@ -18,6 +18,7 @@ while [ $# -gt 0 ]; do
     --registry) REGISTRY="$2"; shift 2 ;;
     --first-release-env) FIRST_RELEASE="$2"; shift 2 ;;
     --bundle) BUNDLE="$2"; shift 2 ;;
+    --gateway-url) GATEWAY="$2"; shift 2 ;;
     --backup-json) BACKUP_JSON="$2"; shift 2 ;;
     --backup-key-file) BACKUP_KEY="$2"; shift 2 ;;
     *) echo "unknown option: $1" >&2; exit 2 ;;
@@ -84,6 +85,7 @@ AGENT_TOKEN_FILE=/etc/onesync/agent.token
 RELEASE_PUBLIC_KEY_FILE=/etc/onesync/release-public.pem
 PLATFORM_ADMIN_TOKEN_FILE=/etc/onesync/platform-admin.token
 IMAGE_REGISTRY=$REGISTRY
+$( [ -n "$GATEWAY" ] && echo "GATEWAY_URL=$GATEWAY" )
 ENV
 )
 

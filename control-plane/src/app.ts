@@ -31,6 +31,7 @@ const schemas = {
   client: z.strictObject({ name: z.string().trim().min(1).max(150), tier: z.enum(['local', 'hybrid', 'hybrid_plus', 'cloud']), contact: z.record(z.string(), z.string()).default({}), notes: z.string().max(2000).optional() }),
   site: z.strictObject({ clientId: uuid, code: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_-]{0,29}$/), name: z.string().trim().min(1).max(150), kind: z.enum(['onprem', 'dedicated', 'pooled']).default('onprem'), tenantId: uuid.optional(), ring: z.number().int().min(0).max(2).default(2) }),
   siteUpdate: z.strictObject({ name: z.string().trim().min(1).max(150).optional(), status: z.enum(['planned', 'installed', 'active', 'suspended', 'retired']).optional(), tenantId: uuid.nullable().optional(), ring: z.number().int().min(0).max(2).optional(), updatesPaused: z.boolean().optional(),
+    hostname: z.string().toLowerCase().regex(/^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/, 'A host name such as pune.remote.example.in').nullable().optional(), remoteAccess: z.boolean().optional(),
     maintenanceWindow: z.strictObject({ days: z.array(z.number().int().min(0).max(6)).min(1).max(7), startHour: z.number().int().min(0).max(23), durationHours: z.number().int().min(1).max(12), timezone: z.string().min(1).max(60) }).optional() }).refine((v) => Object.keys(v).length > 0, 'Send at least one field'),
   licence: z.strictObject({ plan: z.string().trim().min(1).max(60), modules: z.array(z.enum(MODULES)).max(20), limits: z.partialRecord(z.enum(LIMIT_KEYS), z.number().int().min(0).max(1_000_000)).default({}), readOnly: z.boolean().default(false), expiresAt: iso.nullable().optional(), graceDays: z.number().int().min(0).max(365).default(14) }),
   support: z.strictObject({ reason: z.string().trim().min(5).max(300), minutes: z.number().int().min(5).max(120), publicKey: z.string().regex(/^(ssh-ed25519|ecdsa-sha2-nistp256) [A-Za-z0-9+/=]{20,600}( [^\s]{1,80})?$/, 'An ssh-ed25519 or ecdsa-sha2-nistp256 public key') }),
@@ -202,7 +203,8 @@ export function buildApp({ pool, config }: AppDeps): FastifyInstance {
     const cols: [string, unknown][] = [];
     if (b.name !== undefined) cols.push(['name', b.name]); if (b.status !== undefined) cols.push(['status', b.status]); if (b.tenantId !== undefined) cols.push(['tenant_id', b.tenantId]);
     if (b.ring !== undefined) cols.push(['ring', b.ring]); if (b.updatesPaused !== undefined) cols.push(['updates_paused', b.updatesPaused]); if (b.maintenanceWindow !== undefined) cols.push(['maintenance_window', b.maintenanceWindow]);
-    const r = await pool.query(`UPDATE sites SET ${cols.map(([c], i) => `${c} = $${i + 2}`).join(', ')} WHERE id = $1 RETURNING id, code, name, status, tenant_id, ring, updates_paused, maintenance_window`, [id, ...cols.map(([, v]) => v)]);
+    if (b.hostname !== undefined) cols.push(['hostname', b.hostname]); if (b.remoteAccess !== undefined) cols.push(['remote_access', b.remoteAccess]);
+    const r = await pool.query(`UPDATE sites SET ${cols.map(([c], i) => `${c} = $${i + 2}`).join(', ')} WHERE id = $1 RETURNING id, code, name, status, tenant_id, ring, updates_paused, maintenance_window, hostname, remote_access`, [id, ...cols.map(([, v]) => v)]).catch((e: { code?: string }) => { if (e.code === '23505') throw new HttpError(409, 'hostname_taken', 'Another site already uses that address'); throw e; });
     if (!r.rows[0]) throw new HttpError(404, 'not_found', 'No such site');
     await audit(req, 'site.updated', 'site', id, { fields: cols.map(([c]) => c) });
     return r.rows[0];
@@ -326,6 +328,26 @@ export function buildApp({ pool, config }: AppDeps): FastifyInstance {
     const rows = (await pool.query<{ manifest: { version: string }; signature: string }>("SELECT manifest, signature FROM releases WHERE status = 'rolling' AND open_ring >= $1", [site.ring])).rows;
     const best = rows.filter((r) => !current || compareVersions(r.manifest.version, current) > 0).sort((a, b) => compareVersions(b.manifest.version, a.manifest.version))[0];
     return best ? { release: { manifest: best.manifest, signature: best.signature }, maintenanceWindow: site.maintenanceWindow } : { release: null, reason: 'up_to_date', maintenanceWindow: site.maintenanceWindow };
+  });
+
+  // ---- the gateway ----------------------------------------------------------------------------------------------
+  /** The gateway asks, for each tunnel that connects and every minute after: may this site's tunnel stay up, and under what address? */
+  app.post('/gateway/verify', async (req) => {
+    const h = req.headers.authorization;
+    const given = h?.startsWith('Bearer ') ? h.slice(7).trim() : '';
+    if (!config.GATEWAY_TOKEN || !timingSafeEqual(sha256(given), sha256(config.GATEWAY_TOKEN))) throw new HttpError(401, 'unauthorized', 'The gateway token is not valid');
+    const { token } = z.object({ token: z.string().min(20).max(300) }).parse(req.body);
+    const m = /^cpa_([0-9a-fA-F-]{36})_(.{20,})$/.exec(token);
+    const siteId = m?.[1]; const secret = m?.[2];
+    const refuse = (code: string, message: string) => new HttpError(403, code, message);
+    if (!siteId || !secret || !uuid.safeParse(siteId).success) throw refuse('denied', 'The site token is not valid');
+    const r = (await pool.query<{ id: string; hostname: string | null; remote_access: boolean; status: string; agent_token_hash: Buffer | null; tier: string; client_status: string }>(
+      'SELECT s.id, s.hostname, s.remote_access, s.status, s.agent_token_hash, c.tier, c.status AS client_status FROM sites s JOIN clients c ON c.id = s.client_id WHERE s.id = $1', [siteId])).rows[0];
+    const matches = timingSafeEqual(sha256(secret), r?.agent_token_hash ?? Buffer.alloc(32));
+    if (!r || !matches || r.status === 'retired') throw refuse('denied', 'The site token is not valid');
+    if (!r.hostname) throw refuse('no_address', 'This site has no remote address');
+    if (!r.remote_access || !['hybrid', 'hybrid_plus'].includes(r.tier) || r.client_status !== 'active') throw refuse('remote_access_off', 'Remote access is not available for this site');
+    return { siteId: r.id, hostname: r.hostname, tier: r.tier };
   });
 
   // ---- backup keys ----------------------------------------------------------------------------------------------

@@ -14,6 +14,8 @@ const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   /** 32 random bytes, base64: seals staff two-step secrets at rest. Required in production. */
   DATA_ENCRYPTION_KEY: z.string().optional(),
+  /** Shared secret the gateway presents when it asks whether a site's tunnel may connect. */
+  GATEWAY_TOKEN: z.string().min(32).optional(),
   /** Public key (PEM) that each site's backup key is sealed to (made with `cli escrow-keygen`; the private key is split between two custodians). */
   ESCROW_PUBLIC_KEY: z.string().min(50).optional(),
   /** Staff must set up two-step sign-in before they can do anything else. Default: on in production. */

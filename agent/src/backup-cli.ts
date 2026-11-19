@@ -7,6 +7,7 @@
  *   backup-cli restore [<label>] [--time T] [--repo N]   rebuild the database from the repository (stops the application first)
  *   backup-cli write-config                  write pgbackrest.conf from /etc/onesync/backup.json
  *   backup-cli restore-test [--time T]       (verification host) restore into a scratch database and check it
+ *   backup-cli cloud expire|verify|restore-test --clients <dir> [--per-month N]   cloud-side jobs over every client file in <dir> (see deploy/cloud)
  */
 import { chmodSync, readFileSync, writeFileSync } from 'node:fs';
 import { pgbackrestConf, type BackupConfig } from './backup/config.js';
@@ -15,6 +16,11 @@ import { nativeScratchPorts } from './backup/native.js';
 import { PgBackRest } from './backup/pgbackrest.js';
 import { restoreSite } from './backup/restoreSite.js';
 import { runRestoreTest } from './backup/restoreTest.js';
+import { execFile } from 'node:child_process';
+import { readdirSync } from 'node:fs';
+import path from 'node:path';
+import { promisify } from 'node:util';
+import { expireAll, restoreTests, sampleFor, verifyAll, type CloudClient } from './backup/cloudJobs.js';
 
 const env = process.env;
 const readJson = <T>(f: string): T => JSON.parse(readFileSync(f, 'utf8')) as T;
@@ -64,6 +70,28 @@ try {
     const report = await runRestoreTest(ports, env['SCRATCH_DIR'] ?? '/var/tmp/onesync-restore-test', { ...(flag('time') ? { time: flag('time') as string } : {}) });
     console.log(JSON.stringify(report, null, 2));
     if (!report.ok) process.exit(1);
+  } else if (cmd === 'cloud') {
+    const dir = flag('clients') ?? fail('usage: backup-cli cloud <expire|verify|restore-test> --clients <dir>');
+    // each client file: { site, stanza, configFile, repoCount, keyCommand: ["vault","kv","get","-field=key","secret/clients/<site>"] }  (the command prints the client's key)
+    const run = promisify(execFile);
+    const clients: CloudClient[] = readdirSync(dir as string).filter((f) => f.endsWith('.json')).map((f) => {
+      const c = readJson<{ site: string; stanza: string; configFile: string; repoCount: number; keyCommand: string[] }>(path.join(dir as string, f));
+      return { site: c.site, stanza: c.stanza, configFile: c.configFile, repoCount: c.repoCount, cipherPass: async () => (await run(c.keyCommand[0] as string, c.keyCommand.slice(1))).stdout.trim() };
+    });
+    const runner = { run: async (cmd2: string, a: string[], o?: { env?: Record<string, string>; timeoutMs?: number }) => { const r = await run(cmd2, a, { env: { ...process.env, ...(o?.env ?? {}) }, timeout: o?.timeoutMs ?? 3_600_000, maxBuffer: 20 * 1024 * 1024 }); return { stdout: r.stdout, stderr: r.stderr }; } };
+    let results;
+    if (sub === 'expire') results = await expireAll(clients, runner);
+    else if (sub === 'verify') results = await verifyAll(clients, runner);
+    else if (sub === 'restore-test') {
+      const month = new Date().getUTCFullYear() * 12 + new Date().getUTCMonth();
+      results = await restoreTests(sampleFor(clients, month, Number(flag('per-month') ?? 3)), async (c) => {
+        const pass = await c.cipherPass();
+        process.env['PGBACKREST_REPO1_CIPHER_PASS'] = pass; process.env['PGBACKREST_REPO2_CIPHER_PASS'] = pass; process.env['PGBACKREST_REPO3_CIPHER_PASS'] = pass;
+        return nativeScratchPorts({ pgBin: env['NATIVE_PG_BIN'] ?? '/usr/lib/postgresql/16/bin', configFile: c.configFile, stanza: c.stanza, port: Number(env['SCRATCH_PORT'] ?? 55440), sockDir: env['SCRATCH_SOCK'] ?? '/tmp', logFile: `/tmp/restore-test-${c.site}.log`, ...(env['SCRATCH_USER'] ? { asUser: env['SCRATCH_USER'] } : {}) });
+      }, (c) => path.join(env['SCRATCH_DIR'] ?? '/var/tmp/onesync-restore-test', c.site));
+    } else fail('usage: backup-cli cloud <expire|verify|restore-test> --clients <dir>');
+    console.log(JSON.stringify(results, null, 2));
+    if ((results ?? []).some((r) => !r.ok)) process.exit(1);
   } else fail('usage: backup-cli init | backup now <label> [--full] | backup status | backup verify | restore [label] [--time T] | write-config | restore-test');
 } catch (e) {
   fail(e instanceof Error ? e.message : String(e));

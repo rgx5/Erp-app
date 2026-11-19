@@ -1,0 +1,6 @@
+[Unit]
+Description=OneSyncERP cloud backup job: monthly restore test of a rotating sample of clients
+[Service]
+Type=oneshot
+Environment=SCRATCH_USER=postgres
+ExecStart=/usr/bin/node /opt/onesync/agent/dist/backup-cli.js cloud restore-test --clients /etc/onesync-cloud/clients --per-month 3

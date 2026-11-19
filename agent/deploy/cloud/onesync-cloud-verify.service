@@ -1,0 +1,5 @@
+[Unit]
+Description=OneSyncERP cloud backup job: verify
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/node /opt/onesync/agent/dist/backup-cli.js cloud verify --clients /etc/onesync-cloud/clients

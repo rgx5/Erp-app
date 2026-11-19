@@ -16,5 +16,10 @@ retention/verification jobs read it. The sealed escrow (control plane `POST /sit
 - nightly: `onesync-backup backup verify` against every repository of a sample of sites;
 - monthly: `backup-cli restore-test` on the verification host for a rotating sample of clients (restores to a scratch database with archiving off, checks the books balance).
 
-**Not decided yet (needs your answer):** whether retention and restore tests run centrally with an operational copy of each client's key (as above), or on each site
-(no central key copy, but heavier on the site). The first is simpler and matches "we hold the keys"; it means whoever operates the cloud can read client backups.
+**Decision taken (change it if you disagree):** retention, verification and restore tests run centrally from the cloud with each client's key fetched from the secret manager at run time (`keyCommand`), not stored on disk. This matches "we hold the keys"; it means whoever operates the cloud jobs can read client backups, so restrict and audit access to that host and the secret manager. The alternative (jobs on each site) avoids that but loads the site.
+
+**Setup:** one JSON file per client in `/etc/onesync-cloud/clients/`:
+
+    { "site": "PUNE-01", "stanza": "onesync", "configFile": "/etc/onesync-cloud/pgbackrest/PUNE-01.conf", "repoCount": 2, "keyCommand": ["vault", "kv", "get", "-field=key", "secret/clients/PUNE-01"] }
+
+Then enable the timers here (`onesync-cloud-expire`, `-verify`, `-restore-test`). Each job prints a JSON report and exits non-zero if any client failed: alert on that.

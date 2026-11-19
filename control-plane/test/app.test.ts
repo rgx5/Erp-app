@@ -211,3 +211,34 @@ describe('audit', () => {
     for (const a of ['staff.login', 'client.created', 'site.created', 'site.agent_token_issued', 'licence.issued', 'licence.revoked', 'release.created', 'release.promoted', 'release.withdrawn']) expect(log.map((e) => e.action)).toContain(a);
   });
 });
+
+describe('gateway', () => {
+  it('lets a hybrid site with an address hold a tunnel, and refuses everything else', async () => {
+    const gw = await testApp({ GATEWAY_TOKEN: 'g'.repeat(40) });
+    const a = await gw.staff('admin');
+    const mk = async (code: string, tier: string, host: string | null) => {
+      const client = (await gw.call('POST', '/clients', a.token, { name: code, tier })).json;
+      const site = (await gw.call('POST', '/sites', a.token, { clientId: client.id, code, name: code })).json;
+      if (host) await gw.call('PATCH', `/sites/${site.id}`, a.token, { hostname: host });
+      return { site, token: (await gw.call('POST', `/sites/${site.id}/agent-token`, a.token)).json.token as string };
+    };
+    const verify = (gwToken: string | null, token: string) => gw.call('POST', '/gateway/verify', gwToken, { token });
+    const h = await mk('GW-1', 'hybrid', 'pune.remote.example.in'); const local = await mk('GW-2', 'local', 'local.remote.example.in'); const bare = await mk('GW-3', 'hybrid', null);
+    expect((await verify('g'.repeat(40), h.token)).json).toMatchObject({ siteId: h.site.id, hostname: 'pune.remote.example.in', tier: 'hybrid' });
+    expect((await verify('x'.repeat(40), h.token)).status).toBe(401); // not the gateway
+    expect((await verify(null, h.token)).status).toBe(401);
+    expect((await verify('g'.repeat(40), `${h.token.slice(0, -3)}xyz`)).json.code).toBe('denied');
+    expect((await verify('g'.repeat(40), local.token)).json.code).toBe('remote_access_off'); // a Local client has no remote access
+    expect((await verify('g'.repeat(40), bare.token)).json.code).toBe('no_address');
+    await gw.call('PATCH', `/sites/${h.site.id}`, a.token, { remoteAccess: false });
+    expect((await verify('g'.repeat(40), h.token)).json.code).toBe('remote_access_off'); // switched off
+    // an address belongs to one site
+    const c2 = (await gw.call('POST', '/clients', a.token, { name: 'Other', tier: 'hybrid' })).json;
+    const s2 = (await gw.call('POST', '/sites', a.token, { clientId: c2.id, code: 'GW-4', name: 'x' })).json;
+    expect((await gw.call('PATCH', `/sites/${s2.id}`, a.token, { hostname: 'PUNE.remote.example.in' })).json.code).toBe('hostname_taken');
+    expect((await gw.call('PATCH', `/sites/${s2.id}`, a.token, { hostname: 'not a host' })).status).toBe(422);
+    const noGw = await testApp(); // no gateway token configured: nobody can verify
+    expect((await noGw.call('POST', '/gateway/verify', 'g'.repeat(40), { token: h.token })).status).toBe(401);
+    await noGw.close(); await gw.close();
+  });
+});

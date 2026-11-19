@@ -1,0 +1,15 @@
+{
+  "name": "@onesync/gateway",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "OneSyncERP remote-access gateway: terminates TLS for client addresses and carries each request to the site's server through the tunnel the site opened.",
+  "scripts": {
+    "start": "tsx src/main.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "oxlint src test",
+    "test": "vitest run"
+  },
+  "dependencies": { "fastify": "^5.12.8", "ws": "^8.18.0", "zod": "^4.6.7" },
+  "devDependencies": { "@types/node": "^26.6.6", "@types/ws": "^8.5.12", "oxlint": "^1.93.0", "tsx": "^4.23.15", "typescript": "^6.0.3", "vitest": "^5.1.0" }
+}
