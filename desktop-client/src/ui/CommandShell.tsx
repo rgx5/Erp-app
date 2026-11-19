@@ -4,9 +4,10 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { can } from '@/auth/permissions'
 import { useSession } from '@/auth/session'
 import { CommandPalette } from './CommandPalette'
+import { LicenceBanner } from './LicenceBanner'
 import { cn } from './cn'
 import { useFlash } from './flash'
-import { MODULES, NAV, currentNav, moduleOf, type NavItem } from './nav'
+import { MODULES, NAV, currentNav, moduleOf, visibleNav, type NavItem } from './nav'
 import { PaneContext } from './paneContext'
 import { Alert } from './primitives'
 
@@ -20,7 +21,7 @@ export function CommandShell() {
   const path = useRouterState({ select: (s) => s.location.pathname })
   const granted = me?.permissions ?? []
   const allowed = useCallback((needs: string[]) => can(granted, ...needs), [granted])
-  const items = useMemo(() => NAV.filter((n) => allowed(n.needs ?? [])), [allowed])
+  const items = useMemo(() => visibleNav(NAV, allowed, me), [allowed, me])
   const here = currentNav(items, path)
   const area = here ? moduleOf(here) : MODULES[0]!
   const tabs = items.filter((n) => moduleOf(n) === area)
@@ -72,6 +73,7 @@ export function CommandShell() {
       <div className="col-start-2 flex min-h-0 min-w-0">
         <main className="min-w-0 flex-1 overflow-auto px-5 py-4">
           <div className="mx-auto max-w-[1400px]">
+            <LicenceBanner />
             {flash.message ? <div className="mb-3"><Alert tone={flash.tone}><span className="flex items-center justify-between gap-4">{flash.message}<button type="button" className="text-xs underline" onClick={flash.clear}>Dismiss</button></span></Alert></div> : null}
             <PaneContext.Provider value={pane}><Outlet /></PaneContext.Provider>
           </div>

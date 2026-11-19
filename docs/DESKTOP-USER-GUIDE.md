@@ -35,6 +35,10 @@ Only the menu items your role allows are shown. If something you expect is missi
 
 *My account, Appearance* chooses between the **Sidebar** (a menu down the left) and the **Command centre** (a slim rail of areas, the pages of each area as tabs, and records that open beside the list). The choice is kept on this computer.
 
+## Your plan
+
+The menu shows only the parts of OneSyncERP included in your plan. If something you expect is missing, ask your administrator to add it. If a notice says the system is read-only (suspended, or the licence has ended), you can still view and export everything; ask your administrator to renew it. The app also tells you when a server needs a newer version of the app than the one you have.
+
 ## Keyboard
 
 | Key | Where | Does |

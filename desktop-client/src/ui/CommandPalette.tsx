@@ -1,18 +1,20 @@
 import { useNavigate } from '@tanstack/react-router'
 import { Search } from 'lucide-react'
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { licensed } from '@/auth/permissions'
+import { useSession } from '@/auth/session'
 import { MODULES, moduleOf, type NavItem } from './nav'
 
 interface Command { id: string; label: string; hint: string; run: () => void; rank: number }
 /** Things to do, beyond going to a page. Each needs the same permission as the page it opens. */
-export const ACTIONS: { label: string; to: string; needs: string[]; keys?: string }[] = [
-  { label: 'New invoice', to: '/sales/invoices/new', needs: ['sales:read'] },
-  { label: 'New quote', to: '/sales/quotes/new', needs: ['sales:read'] },
-  { label: 'New sales order', to: '/sales/orders/new', needs: ['sales:read'] },
-  { label: 'New supplier bill', to: '/purchasing/bills/new', needs: ['purchasing:read'] },
-  { label: 'New purchase order', to: '/purchasing/orders/new', needs: ['purchasing:read'] },
-  { label: 'New journal entry', to: '/accounting/journals/new', needs: ['accounting:read'] },
-  { label: 'Open the counter', to: '/pos/counter', needs: ['pos:sell'], keys: 'Ctrl B' },
+export const ACTIONS: { label: string; to: string; needs: string[]; module: string; keys?: string }[] = [
+  { label: 'New invoice', to: '/sales/invoices/new', needs: ['sales:read'], module: 'sales' },
+  { label: 'New quote', to: '/sales/quotes/new', needs: ['sales:read'], module: 'sales' },
+  { label: 'New sales order', to: '/sales/orders/new', needs: ['sales:read'], module: 'sales' },
+  { label: 'New supplier bill', to: '/purchasing/bills/new', needs: ['purchasing:read'], module: 'purchasing' },
+  { label: 'New purchase order', to: '/purchasing/orders/new', needs: ['purchasing:read'], module: 'purchasing' },
+  { label: 'New journal entry', to: '/accounting/journals/new', needs: ['accounting:read'], module: 'accounting' },
+  { label: 'Open the counter', to: '/pos/counter', needs: ['pos:sell'], module: 'pos', keys: 'Ctrl B' },
 ]
 
 const score = (label: string, q: string): number => {
@@ -26,14 +28,15 @@ const score = (label: string, q: string): number => {
 /** Ctrl+K: type to jump to any page or start something new. Enter runs the top match; the arrows choose another. */
 export function CommandPalette({ items, can, open, onClose }: { items: NavItem[]; can: (needs: string[]) => boolean; open: boolean; onClose: () => void }) {
   const go = useNavigate()
+  const me = useSession((s) => s.me)
   const [q, setQ] = useState('')
   const [at, setAt] = useState(0)
   const input = useRef<HTMLInputElement>(null)
   useEffect(() => { if (open) input.current?.focus(); else { setQ(''); setAt(0) } }, [open])
   const all = useMemo<Command[]>(() => [
-    ...ACTIONS.filter((a) => can(a.needs)).map((a) => ({ id: `a:${a.to}`, label: a.label, hint: a.keys ?? 'Action', rank: 0, run: () => void go({ to: a.to as never }) })),
+    ...ACTIONS.filter((a) => can(a.needs) && licensed(me, a.module)).map((a) => ({ id: `a:${a.to}`, label: a.label, hint: a.keys ?? 'Action', rank: 0, run: () => void go({ to: a.to as never }) })),
     ...items.map((n) => ({ id: `n:${n.to}`, label: n.label, hint: MODULES.find((m) => m === moduleOf(n))?.label ?? '', rank: 1, run: () => void go({ to: n.to as never }) })),
-  ], [items, can, go])
+  ], [items, can, go, me])
   const query = q.trim().toLowerCase()
   const shown = useMemo(() => (query ? all.map((c) => ({ c, s: score(c.label, query) })).filter((x) => x.s >= 0).sort((a, b) => a.s - b.s || a.c.rank - b.c.rank).map((x) => x.c) : all.filter((c) => c.rank === 0)).slice(0, 9), [all, query])
   if (!open) return null

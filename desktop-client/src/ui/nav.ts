@@ -1,6 +1,21 @@
+import { licensed } from '@/auth/permissions'
 import { ArrowLeftRight, BadgeCheck, Calculator, ListChecks, Warehouse as WarehouseIcon, Boxes, ClipboardList, PackageCheck, ShoppingCart, Wallet, FileText, Landmark, Receipt as ReceiptIcon, Building2, ClipboardCheck, Clock, LayoutDashboard, Percent, Ruler, Tags, Truck, Users, BookOpen, Layers, Users2, ShieldCheck, KeyRound, ScrollText, UserCog, ScanBarcode, Store, UserRound, Banknote, Settings2, Scale, Factory, Cog, Gauge, Handshake, FileSpreadsheet, FolderOpen, CalendarCheck, LineChart, ListTree, type LucideIcon } from 'lucide-react'
 
 export interface NavItem { to: string; label: string; icon: LucideIcon; needs?: string[]; section?: string }
+
+/** The licensed module a page belongs to (see the server's modules); pages that belong to none are Core and always shown. */
+export function moduleOfPage(n: Pick<NavItem, 'to' | 'section'>): string | undefined {
+  if (n.to === '/accounting/expenses') return 'pos'
+  if (n.to === '/accounting/bank') return 'banking'
+  if (n.to === '/gst') return 'gst'
+  if (n.to === '/approvals') return 'approvals'
+  if (n.to === '/accounting/journals' || n.to === '/accounting/chart' || n.to === '/accounting/reports' || n.to === '/accounting/periods' || n.to === '/report-centre') return 'accounting'
+  return ({ Sales: 'sales', Purchasing: 'purchasing', Inventory: 'inventory', Manufacturing: 'manufacturing', Payroll: 'payroll', 'Point of sale': 'pos' } as Record<string, string>)[n.section ?? '']
+}
+/** The menu this person sees: what their role allows and their plan includes. */
+export function visibleNav(items: NavItem[], allowed: (needs: string[]) => boolean, me: Parameters<typeof licensed>[0]): NavItem[] {
+  return items.filter((n) => allowed(n.needs ?? []) && licensed(me, moduleOfPage(n)))
+}
 
 /** What exists today. Each later slice adds its entries here; an entry is hidden when the person lacks the permission it needs. */
 export const NAV: NavItem[] = [

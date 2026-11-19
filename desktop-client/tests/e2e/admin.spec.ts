@@ -92,3 +92,28 @@ test('administration: a limited role and user, an API key shown once, the audit 
   await expect(page.getByRole('link', { name: 'Audit log' })).toHaveCount(0)
   await expect(page.getByRole('link', { name: 'My account' })).toBeVisible()
 })
+
+test('licence: a tenant sees only the modules it has bought, and a suspended one is read-only with a notice', async ({ page }) => {
+  const s = await seedBusiness(process.env['E2E_BACKEND_URL'] as string, process.env['E2E_PLATFORM_TOKEN'] as string, { prefix: 'lic' })
+  await s.setLicence({ plan: 'Starter', modules: ['sales', 'inventory'], limits: { users: 5 } })
+  await signIn(page, s)
+  const menu = page.getByRole('navigation', { name: 'Main' })
+  await expect(menu.getByRole('link', { name: 'Invoices' })).toBeVisible()
+  await expect(menu.getByRole('link', { name: 'Stock on hand' })).toBeVisible()
+  await expect(menu.getByRole('link', { name: 'Purchase orders' })).toHaveCount(0)
+  await expect(menu.getByRole('link', { name: 'Payroll runs' })).toHaveCount(0)
+  await expect(menu.getByRole('link', { name: 'Journal entries' })).toHaveCount(0)
+  await expect(menu.getByRole('link', { name: 'Items', exact: true })).toBeVisible() // master data is Core
+  await page.keyboard.press('Control+k')
+  const box = page.getByLabel('Search or run a command').last()
+  await box.fill('purchase')
+  await expect(page.getByRole('dialog', { name: 'Command palette' })).toContainText('Nothing matches')
+  await page.keyboard.press('Escape')
+
+  // suspended: a notice, and a write is refused with the reason
+  await s.setLicence({ plan: 'Starter', modules: ['sales', 'inventory'], readOnly: true })
+  await page.reload()
+  await expect(page.getByRole('status').filter({ hasText: 'suspended' })).toBeVisible()
+  const refused = await page.evaluate(async ([base, token]) => (await fetch(`${base}/v1/companies`, { method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: JSON.stringify({ legalName: 'X Pvt Ltd', pan: 'ABCDE1234F' }) })).json(), [s.base, s.token])
+  expect((refused as { code: string }).code).toBe('tenant_read_only')
+})

@@ -15,7 +15,7 @@ export async function seedBusiness(base: string, platformToken: string, o: { nam
     if (!r.ok) throw new Error(`${method} ${path}: ${r.status} ${await r.text()}`)
     return (await r.json()) as Json
   }
-  await call('POST', '/v1/platform/tenants', { name: o.name ?? 'Seed Co', slug, owner: { email, displayName: 'Seed Owner', password: PASSWORD } }, platformToken)
+  const tenantRow = await call('POST', '/v1/platform/tenants', { name: o.name ?? 'Seed Co', slug, owner: { email, displayName: 'Seed Owner', password: PASSWORD } }, platformToken)
   const token = (await call('POST', '/v1/auth/login', { tenant: slug, email, password: PASSWORD })).accessToken as string
   const company = await call('POST', '/v1/companies', { legalName: 'Sunrise Traders Pvt Ltd', tradeName: 'Sunrise', pan: 'ABCDE1234F' }, token)
   const registration = await call('POST', `/v1/companies/${company.id}/gst-registrations`, { gstin: makeGstin('27', 'ABCDE1234F'), legalName: 'Sunrise Traders Pvt Ltd', effectiveFrom: '2025-04-01' }, token)
@@ -38,6 +38,8 @@ export async function seedBusiness(base: string, platformToken: string, o: { nam
   const walkIn = await call('POST', '/v1/parties', { code: 'WALKIN', legalName: 'Walk-in customer', gstTreatment: 'consumer', isCustomer: true }, token)
   const accounts = ((await call('GET', `/v1/accounts?companyId=${company.id}&limit=200`, undefined, token)).items as Json[])
   const account = (code: string): string => (accounts.find((a) => a['code'] === code) as Json).id
-  return { base, slug, email, password: PASSWORD, token, year, company, registration, location, warehouse, widget, cheap, customer, address, supplier, walkIn, bank: account('1120'), cash: account('1110'), call: (m: string, p: string, b?: unknown) => call(m, p, b, token) }
+  /** Sets what the tenant has licensed (the platform's call, not the tenant's). */
+  const setLicence = (body: unknown) => call('PUT', `/v1/platform/tenants/${tenantRow.id}/entitlements`, body, platformToken)
+  return { base, slug, tenantId: tenantRow.id, setLicence, email, password: PASSWORD, token, year, company, registration, location, warehouse, widget, cheap, customer, address, supplier, walkIn, bank: account('1120'), cash: account('1110'), call: (m: string, p: string, b?: unknown) => call(m, p, b, token) }
 }
 export type Seed = Awaited<ReturnType<typeof seedBusiness>>

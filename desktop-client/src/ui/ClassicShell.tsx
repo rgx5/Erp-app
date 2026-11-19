@@ -3,11 +3,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { ChevronDown, LogOut } from 'lucide-react'
 import { can } from '@/auth/permissions'
 import { useSession } from '@/auth/session'
+import { LicenceBanner } from './LicenceBanner'
 import { cn } from './cn'
 import { useFlash } from './flash'
 import { Alert } from './primitives'
 import { CommandPalette } from './CommandPalette'
-import { NAV, type NavItem } from './nav'
+import { NAV, visibleNav, type NavItem } from './nav'
 
 const OPEN_KEY = 'onesync.nav.closed'
 const readClosed = (): string[] => { try { return JSON.parse(localStorage.getItem(OPEN_KEY) ?? '[]') as string[] } catch { return [] } }
@@ -47,7 +48,7 @@ export function ClassicShell() {
   const flash = useFlash()
   const granted = me?.permissions ?? []
   const allowed = useCallback((needs: string[]) => can(granted, ...needs), [granted])
-  const palette = useMemo(() => NAV.filter((n) => allowed(n.needs ?? [])), [allowed])
+  const palette = useMemo(() => visibleNav(NAV, allowed, me), [allowed, me])
   const [paletteOpen, setPaletteOpen] = useState(false)
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); setPaletteOpen((o) => !o) } }
@@ -62,7 +63,7 @@ export function ClassicShell() {
           <span className="grid size-8 place-items-center rounded-lg hero-gradient text-sm font-bold text-brand-ink shadow-card" aria-hidden>O</span>
           <span className="text-[15px] font-semibold tracking-tight">OneSyncERP</span>
         </div>
-        <Sidebar items={NAV.filter((n) => can(granted, ...(n.needs ?? [])))} />
+        <Sidebar items={palette} />
         <div className="flex items-center gap-2.5 border-t border-line p-3">
           <span className="grid size-8 shrink-0 place-items-center rounded-full bg-brand-soft text-xs font-semibold text-brand" aria-hidden>{initials}</span>
           <div className="min-w-0 flex-1 text-xs">
@@ -74,6 +75,7 @@ export function ClassicShell() {
       </aside>
       <main className="min-h-0 overflow-auto px-8 py-7">
         <div className="mx-auto max-w-[1280px]">
+          <LicenceBanner />
           {flash.message ? <div className="mb-4"><Alert tone={flash.tone}><span className="flex items-center justify-between gap-4">{flash.message}<button type="button" className="text-xs underline" onClick={flash.clear}>Dismiss</button></span></Alert></div> : null}
           <Outlet />
         </div>

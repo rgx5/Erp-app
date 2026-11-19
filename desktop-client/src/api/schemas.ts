@@ -5,6 +5,7 @@ export const meta = z.object({
   app: z.literal('onesync-erp'),
   apiVersion: z.string(),
   auth: z.object({ passwordLogin: z.boolean(), mfa: z.boolean(), apiKeys: z.boolean(), selfSignup: z.boolean() }),
+  minClientVersion: z.string().nullable().optional(),
   time: z.string(),
 })
 
@@ -17,7 +18,9 @@ export type User = z.infer<typeof user>
 export const session = z.object({ accessToken: z.string(), refreshToken: z.string(), tokenType: z.string(), expiresIn: z.number(), user })
 export type SessionResponse = z.infer<typeof session>
 
-export const me = z.object({ kind: z.enum(['user', 'api_key']), user: user.optional(), permissions: z.array(z.string()) })
+export const entitlements = z.object({ restricted: z.boolean(), plan: z.string().nullable(), modules: z.array(z.string()), limits: z.record(z.string(), z.number()), readOnly: z.boolean(), readOnlyReason: z.string().nullable(), expiresAt: z.string().nullable(), daysLeft: z.number().nullable() })
+export type EntitlementsInfo = z.infer<typeof entitlements>
+export const me = z.object({ kind: z.enum(['user', 'api_key']), user: user.optional(), permissions: z.array(z.string()), entitlements: entitlements.optional() })
 export type Me = z.infer<typeof me>
 
 export const company = z.object({ id: z.string(), legalName: z.string(), tradeName: z.string().nullable(), pan: z.string().nullable(), baseCurrency: z.string(), fiscalYearStartMonth: z.number(), status: z.string(), version: z.number() })

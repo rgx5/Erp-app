@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { createApi, normalizeServerUrl, type Api, type Tokens } from '@/api/client'
 import { ApiError } from '@/api/errors'
+import { compareVersions } from '@/domain/version'
 import { me as meSchema, meta as metaSchema, session as sessionSchema, type Me } from '@/api/schemas'
 import { bridge } from '@/bridge'
 
@@ -75,6 +76,10 @@ export const useSession = create<SessionState>()((set, get) => {
       const url = normalizeServerUrl(rawUrl)
       const probe = createApi({ baseUrl: url, getTokens: () => null, setTokens: () => undefined })
       const info = await probe.call(probe.raw.GET('/v1/meta'), metaSchema)
+      if (info.minClientVersion) {
+        const mine = (await bridge.info()).version
+        if (/^\d+\.\d+\.\d+/.test(mine) && compareVersions(mine, info.minClientVersion) < 0) throw new Error(`This server needs OneSyncERP ${info.minClientVersion} or newer, and this app is ${mine}. Please update the app, then connect again.`)
+      }
       const server: ServerInfo = { url, selfSignup: info.auth.selfSignup }
       await bridge.settings.set({ serverUrl: url })
       set({ server, api: buildApi(url, lost) })
