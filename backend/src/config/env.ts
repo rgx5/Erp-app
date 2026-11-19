@@ -33,6 +33,8 @@ const schema = z
     IDEMPOTENCY_TTL_SECONDS: z.coerce.number().int().min(60).default(86_400),
     /** Allows POST /v1/auth/signup (anyone can create a tenant). Off by default; tenants are otherwise provisioned by the platform operator. */
     SELF_SIGNUP_ENABLED: bool.optional(),
+    /** Turns on POST /v1/demo/seed (fills a demo server with sample data; platform token required). Never on a server with real businesses. */
+    DEMO_SEED_ENABLED: bool.optional(),
     /** Enables POST /v1/platform/tenants. At least 32 characters. Unset disables the endpoint. */
     PLATFORM_ADMIN_TOKEN: z.string().min(32).optional(),
     /** Ed25519 public key (PEM) that signed licences must verify against. Absent: signed licences cannot be imported. */
@@ -62,7 +64,7 @@ const schema = z
     }
   });
 
-export type Env = Omit<z.infer<typeof schema>, 'SWAGGER_ENABLED' | 'SELF_SIGNUP_ENABLED' | 'OUTBOX_RELAY_ENABLED'> & { SWAGGER_ENABLED: boolean; SELF_SIGNUP_ENABLED: boolean; OUTBOX_RELAY_ENABLED: boolean };
+export type Env = Omit<z.infer<typeof schema>, 'SWAGGER_ENABLED' | 'SELF_SIGNUP_ENABLED' | 'OUTBOX_RELAY_ENABLED' | 'DEMO_SEED_ENABLED'> & { SWAGGER_ENABLED: boolean; SELF_SIGNUP_ENABLED: boolean; DEMO_SEED_ENABLED: boolean; OUTBOX_RELAY_ENABLED: boolean };
 
 /** Reads and validates the environment once. Anything missing or malformed stops the process at startup. */
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
@@ -75,7 +77,7 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
     throw new Error(`Invalid configuration:\n${problems}`);
   }
   const env = parsed.data;
-  return { ...env, SWAGGER_ENABLED: env.SWAGGER_ENABLED ?? env.NODE_ENV !== 'production', SELF_SIGNUP_ENABLED: env.SELF_SIGNUP_ENABLED ?? false, OUTBOX_RELAY_ENABLED: env.OUTBOX_RELAY_ENABLED ?? env.NODE_ENV !== 'test' };
+  return { ...env, SWAGGER_ENABLED: env.SWAGGER_ENABLED ?? env.NODE_ENV !== 'production', SELF_SIGNUP_ENABLED: env.SELF_SIGNUP_ENABLED ?? false, DEMO_SEED_ENABLED: env.DEMO_SEED_ENABLED ?? false, OUTBOX_RELAY_ENABLED: env.OUTBOX_RELAY_ENABLED ?? env.NODE_ENV !== 'test' };
 }
 
 export const ENV = Symbol('ENV');

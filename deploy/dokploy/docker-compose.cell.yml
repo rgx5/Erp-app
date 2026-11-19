@@ -53,6 +53,8 @@ services:
       SITE_ID: ${SITE_ID:-}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-app://onesync}
       SELF_SIGNUP_ENABLED: "false"
+      # Demo servers only: lets POST /v1/demo/seed fill the cell with sample data (platform token required). Leave false anywhere real.
+      DEMO_SEED_ENABLED: ${DEMO_SEED_ENABLED:-false}
       LOG_LEVEL: ${LOG_LEVEL:-info}
     # Reachable inside the stack and, for the fleet agent on this server, on the host's loopback only.
     ports:

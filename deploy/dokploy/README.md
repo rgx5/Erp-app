@@ -58,7 +58,11 @@ Nothing in these files publishes a host port. Dokploy's Traefik terminates TLS a
      -d '{"name":"Acme","slug":"acme","owner":{"email":"owner@acme.in","displayName":"Owner","password":"…"}}'
    ```
    Then register the cell in the dashboard (kind **pooled**) and set `SITE_ID` to its id.
-6. **Demo data** (demo servers only): in Dokploy → the cell service → **Terminal** → container `api`, run `node scripts/seed-demo.mjs`. It creates a business (code `demo`, owner `owner@demo.example.com`, password `demo-passphrase-2026`) with items, customers, suppliers, about 45 invoices and receipts; run it again and it does nothing. Change the login with `DEMO_SLUG`, `DEMO_OWNER_EMAIL`, `DEMO_PASSWORD`.
+6. **Demo data** (demo servers only): set `DEMO_SEED_ENABLED=true` in the cell's environment, redeploy, then call
+   ```
+   curl -X POST https://app.yourdomain.in/v1/demo/seed -H "Authorization: Bearer <PLATFORM_ADMIN_TOKEN>"
+   ```
+   It takes a few seconds and answers with the steps it did and the login: a business with code `demo` (owner `owner@demo.example.com`, password `demo-passphrase-2026`), items, customers, suppliers, about 45 invoices and receipts. Calling it again adds nothing. To pick another business code or login, send JSON: `{"slug":"acme","email":"o@acme.in","password":"a-long-password","name":"Acme"}`. Without `DEMO_SEED_ENABLED=true` the endpoint answers 404, and it always needs the platform token. Turn the flag off again when the demo is set up. The same seeder also runs in the `api` container's terminal: `node scripts/seed-demo.mjs`.
 7. Clients' desktop apps: server address `https://app.yourdomain.in`; owners can open `https://app.yourdomain.in/owner` in a browser.
 
 ## 4. Backups (do this before the first client)
