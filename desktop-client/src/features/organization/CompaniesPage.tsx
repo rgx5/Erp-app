@@ -16,7 +16,7 @@ export function CompaniesPage() {
   const q = useCompanies()
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-lg font-semibold">Companies</h1>
+      <h1 className="page-title">Companies</h1>
       {q.isPending ? <Spinner /> : null}
       {q.error ? <Alert>{q.error.message}</Alert> : null}
       {q.data ? <DataTable columns={columns} rows={q.data} rowKey={(c) => c.id} empty="No company yet." /> : null}

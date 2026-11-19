@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test'
-import { goTo } from '../nav'
+import { accountMenu, goTo } from '../nav'
 
 const PASSWORD = 'a long passphrase for tests 42'
 
@@ -56,7 +56,7 @@ test('connects to a server, signs in, sees the dashboard and companies, and sign
   await expect(page.getByRole('cell', { name: 'Sunrise Traders Pvt Ltd' })).toBeVisible()
 
   // the address and business are remembered; the session is not (a browser has no keychain)
-  await page.getByRole('button', { name: 'Sign out' }).click()
+  await accountMenu(page, 'Sign out')
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()
   await page.reload()
   await expect(page.getByRole('heading', { name: 'Sign in' })).toBeVisible()

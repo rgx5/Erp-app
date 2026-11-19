@@ -287,7 +287,7 @@ export function CounterPage() {
   if (!shift) {
     return (
       <div className="mx-auto flex max-w-lg flex-col gap-4">
-        <h1 className="text-lg font-semibold">Counter</h1>
+        <h1 className="page-title">Counter</h1>
         <Card title="Open a shift">
           <div className="flex flex-col gap-4">
             <SelectField label="Terminal" value={terminal.id} onChange={(e) => { setTerminalId(e.target.value); saveCounterState(tenant, { terminalId: e.target.value }) }} options={(terminals.data ?? []).filter((t) => t.status === 'active').map((t) => ({ value: t.id, label: `${t.code} · ${t.name}` }))} />
@@ -308,7 +308,7 @@ export function CounterPage() {
     <div className="grid h-full grid-cols-[1fr_360px] gap-4">
       <div className="flex min-w-0 flex-col gap-3">
         <div className="flex items-center justify-between">
-          <h1 className="text-lg font-semibold">{terminal.name} <span className="text-sm font-normal text-muted">· {shift.shiftNo}{priceList ? ` · ${priceList.name}` : ''}</span></h1>
+          <h1 className="page-title">{terminal.name} <span className="text-sm font-normal text-muted">· {shift.shiftNo}{priceList ? ` · ${priceList.name}` : ''}</span></h1>
           <div className="flex items-center gap-2">
             <span className={`rounded px-2 py-0.5 text-xs ${offline ? 'bg-bad/10 text-bad' : 'bg-good/10 text-good'}`}>{offline ? 'Offline' : 'Online'}</span>
             {queue.length ? <Button variant="secondary" busy={syncing} onClick={() => void sync()}>Upload {queue.length} offline sale{queue.length === 1 ? '' : 's'}</Button> : null}

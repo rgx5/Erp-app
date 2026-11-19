@@ -124,7 +124,7 @@ export function BillEditorPage() {
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-4">
-      <div className="flex items-center justify-between"><h1 className="text-lg font-semibold">Enter a supplier bill</h1><span className="text-xs text-muted">Ctrl+S checks, then posts</span></div>
+      <div className="flex items-center justify-between"><h1 className="page-title">Enter a supplier bill</h1><span className="text-xs text-muted">Ctrl+S checks, then posts</span></div>
       <Card>
         <div className="grid grid-cols-4 gap-4">
           <div className="col-span-2"><PartyPicker label="Supplier" role="supplier" value={supplier} onPick={(p) => { setChosen(p); setPicks({}) }} autoFocus={!search.supplierId} /></div>

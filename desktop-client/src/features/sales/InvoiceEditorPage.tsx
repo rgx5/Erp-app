@@ -9,7 +9,7 @@ import { PartyPicker } from '@/features/masterdata/PartyPicker'
 import { useWorkspace } from '@/features/organization/workspace'
 import { useFlash } from '@/ui/flash'
 import { useDebounced } from '@/ui/hooks'
-import { Alert, Button, Card, CheckField, SelectField, Spinner, TextField } from '@/ui/primitives'
+import { Alert, Button, Card, CheckField, PageHeader, SelectField, Spinner, TextField } from '@/ui/primitives'
 import { emptyLine, isBlank, LineGrid, serialsOf, trackingIssue, type Line } from './LineGrid'
 import { useCreateOrder, useCreateQuote } from './orderQueries'
 import { useCalculation, usePostInvoice, type InvoiceInput } from './queries'
@@ -114,8 +114,8 @@ function SalesDocEditor({ kind }: { kind: DocKind }) {
   const calcError = calc.error instanceof ApiError ? calc.error.message : calc.error ? 'Could not work out the totals.' : null
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-4">
-      <div className="flex items-center justify-between"><h1 className="text-lg font-semibold">{words.title}</h1><span className="text-xs text-muted">Ctrl+S saves · Enter moves to the next field</span></div>
+    <div className="flex flex-col gap-4">
+      <PageHeader title={words.title} sub={<><kbd>Ctrl</kbd> <kbd>S</kbd> saves · <kbd>Enter</kbd> moves to the next field</>} />
       <Card>
         <div className="grid grid-cols-4 gap-4">
           <div className="col-span-2"><PartyPicker role="customer" value={customer} onPick={(p) => { setCustomer(p); setTaxPayment('') }} autoFocus /></div>
@@ -136,31 +136,29 @@ function SalesDocEditor({ kind }: { kind: DocKind }) {
       <LineGrid lines={lines} onChange={setLines} warehouses={ws.warehouses} computed={computed as { taxableValue: string; lineTotal: string }[]} />
       <Button variant="ghost" className="self-start" onClick={() => setLines([...lines, emptyLine(whId)])}>+ Add line</Button>
 
-      <div className="grid grid-cols-[1fr_320px] gap-4">
-        <div className="flex flex-col gap-2">
-          {calc.data ? <p className="text-sm text-muted">Place of supply {stateName(calc.data.placeOfSupply)} · {calc.data.taxRegime === 'intra' ? 'CGST + SGST' : 'IGST'}{calc.data.dueDate ? ` · due ${calc.data.dueDate.split('-').reverse().join('/')}` : ''}</p> : <p className="text-sm text-muted">{body ? 'Working out the totals…' : 'Choose a customer and fill in at least one line to see the totals.'}</p>}
+      <div className="sticky bottom-0 z-10 -mx-6 -mb-5 mt-2 flex items-center gap-6 border-t border-line-strong bg-surface px-6 py-3">
+        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+          {calc.data ? <p className="truncate text-[12.5px] text-muted">Place of supply {stateName(calc.data.placeOfSupply)} · {calc.data.taxRegime === 'intra' ? 'CGST + SGST' : 'IGST'}{calc.data.dueDate ? ` · due ${calc.data.dueDate.split('-').reverse().join('/')}` : ''}</p> : <p className="text-[12.5px] text-muted">Choose a customer and fill in at least one line to see the totals.</p>}
           {calcError ? <Alert>{calcError}</Alert> : null}
           {problem ? <Alert>{problem}</Alert> : null}
         </div>
-        <Card>
-          <dl className="flex flex-col gap-1 text-sm" aria-label="Totals" aria-busy={calc.isFetching || stale}>
-            {t ? (
-              <>
-                <Row label="Taxable value" value={t.taxable} />
-                {calc.data?.taxRegime === 'intra' ? <><Row label="CGST" value={t.cgst} /><Row label="SGST" value={t.sgst} /></> : <Row label="IGST" value={t.igst} />}
-                {Number(t.cess) ? <Row label="Cess" value={t.cess} /> : null}
-                {Number(t.roundOff) ? <Row label="Round off" value={t.roundOff} /> : null}
-                <div className="mt-1 flex items-center justify-between border-t border-line pt-2 text-base font-semibold"><dt>Grand total</dt><dd className={`num ${calc.isFetching || stale ? 'opacity-50' : ''}`}>{formatInr(t.grandTotal)}</dd></div>
-              </>
-            ) : <p className="text-muted">No totals yet.</p>}
-          </dl>
-          <Button className="mt-4 w-full" busy={post.isPending || createQuote.isPending || createOrder.isPending} disabled={!body || stale || calc.isError || !calc.data} onClick={() => void submit()}>{words.action}</Button>
-        </Card>
+        <dl className="flex items-center gap-5 text-[13px]" aria-label="Totals" aria-busy={calc.isFetching || stale}>
+          {t ? (
+            <>
+              <Row label="Taxable value" value={t.taxable} />
+              {calc.data?.taxRegime === 'intra' ? <><Row label="CGST" value={t.cgst} /><Row label="SGST" value={t.sgst} /></> : <Row label="IGST" value={t.igst} />}
+              {Number(t.cess) ? <Row label="Cess" value={t.cess} /> : null}
+              {Number(t.roundOff) ? <Row label="Round off" value={t.roundOff} /> : null}
+              <div className="border-l border-line pl-5 text-right"><dt className="eyebrow">Grand total</dt><dd className={`num text-[20px] font-semibold leading-tight ${calc.isFetching || stale ? 'opacity-50' : ''}`}>{formatInr(t.grandTotal)}</dd></div>
+            </>
+          ) : <p className="text-muted">No totals yet.</p>}
+        </dl>
+        <Button className="h-9 px-5" busy={post.isPending || createQuote.isPending || createOrder.isPending} disabled={!body || stale || calc.isError || !calc.data} onClick={() => void submit()}>{words.action}</Button>
       </div>
     </div>
   )
 }
 
 function Row({ label, value }: { label: string; value: string }) {
-  return <div className="flex items-center justify-between"><dt className="text-muted">{label}</dt><dd className="num">{formatInr(value)}</dd></div>
+  return <div className="text-right"><dt className="eyebrow">{label}</dt><dd className="num text-[13px]">{formatInr(value)}</dd></div>
 }

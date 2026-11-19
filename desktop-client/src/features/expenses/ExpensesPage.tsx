@@ -107,7 +107,7 @@ export function ExpensesPage() {
   if (!ws.company) return <Alert tone="info">Set up your business first.</Alert>
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between"><h1 className="text-lg font-semibold">Expenses</h1>{canPost && tab === 'vouchers' ? <Button onClick={() => setAdding(true)}><Plus className="size-4" aria-hidden /> New expense</Button> : null}</div>
+      <div className="flex items-center justify-between"><h1 className="page-title">Expenses</h1>{canPost && tab === 'vouchers' ? <Button onClick={() => setAdding(true)}><Plus className="size-4" aria-hidden /> New expense</Button> : null}</div>
       <div role="tablist" className="flex gap-1 border-b border-line">{([['vouchers', 'Expenses'], ['categories', 'Categories']] as const).map(([id, label]) => <button key={id} role="tab" aria-selected={tab === id} className={`-mb-px border-b-2 px-3 py-2 text-sm ${tab === id ? 'border-brand font-medium text-brand' : 'border-transparent text-muted hover:text-ink'}`} onClick={() => setTab(id)}>{label}</button>)}</div>
       {tab === 'categories' ? <Categories companyId={ws.company.id} /> : (<>
         <Toolbar><div className="w-52"><SelectField label="For" value={category} onChange={(e) => setCategory(e.target.value)} options={[{ value: '', label: 'Everything' }, ...(cats.data ?? []).map((c) => ({ value: c.id, label: c.name }))]} /></div><div className="w-40"><TextField label="From" type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div><div className="w-40"><TextField label="To" type="date" value={to} onChange={(e) => setTo(e.target.value)} /></div><p className="self-end pb-2 text-sm text-muted" aria-label="Total spent">Total {formatInr(String(total))}</p></Toolbar>

@@ -114,7 +114,7 @@ export function CountsPage() {
   if (!ws.company) return <Alert tone="info">Set up your business first.</Alert>
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between"><h1 className="text-lg font-semibold">Stock counts</h1>{canPost ? <Button onClick={() => setOpen('new')}><Plus className="size-4" aria-hidden /> New count</Button> : null}</div>
+      <div className="flex items-center justify-between"><h1 className="page-title">Stock counts</h1>{canPost ? <Button onClick={() => setOpen('new')}><Plus className="size-4" aria-hidden /> New count</Button> : null}</div>
       {list.error ? <Alert>{list.error.message}</Alert> : null}
       {list.isPending ? <Spinner /> : <DataTable columns={columns} rows={list.rows} rowKey={(c) => c.id} onOpen={(c) => setOpen(c.id)} empty="No counts yet." height={520} />}
       {open === 'new' ? <NewCount onClose={() => setOpen(null)} onCreated={(id) => setOpen(id)} /> : open ? <Sheet id={open} onClose={() => setOpen(null)} /> : null}

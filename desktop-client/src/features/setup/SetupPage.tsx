@@ -200,7 +200,7 @@ export function SetupPage() {
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-4">
       <div>
-        <h1 className="text-lg font-semibold">Set up your business</h1>
+        <h1 className="page-title">Set up your business</h1>
         <p className="text-xs text-muted">A few details, once. Everything here can be changed later in Organization.</p>
       </div>
       <div className="grid grid-cols-[220px_1fr] gap-4">

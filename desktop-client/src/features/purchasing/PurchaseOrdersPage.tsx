@@ -32,7 +32,7 @@ export function PurchaseOrdersPage() {
   if (!ws.company) return <Alert tone="info">No company yet. <Link to="/setup" className="underline">Set up your business</Link>.</Alert>
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between"><h1 className="text-lg font-semibold">Purchase orders</h1>{canPost ? <Button onClick={() => void navigate({ to: '/purchasing/orders/new' })}><Plus className="size-4" aria-hidden /> New order</Button> : null}</div>
+      <div className="flex items-center justify-between"><h1 className="page-title">Purchase orders</h1>{canPost ? <Button onClick={() => void navigate({ to: '/purchasing/orders/new' })}><Plus className="size-4" aria-hidden /> New order</Button> : null}</div>
       <Toolbar><div className="w-48"><SelectField label="Status" value={status} onChange={(e) => setStatus(e.target.value)} options={[{ value: '', label: 'All' }, ...Object.entries(ORDER_STATUS).map(([value, label]) => ({ value, label }))]} /></div></Toolbar>
       {list.error ? <Alert>{list.error.message}</Alert> : null}
       {list.isPending ? <Spinner /> : <DataTable columns={columns} rows={list.rows} rowKey={(o) => o.id} onOpen={(o) => void navigate({ to: '/purchasing/orders/$orderId', params: { orderId: o.id } })} empty="No purchase orders yet." height={560} />}

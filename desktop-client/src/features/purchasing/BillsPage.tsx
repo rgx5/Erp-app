@@ -32,7 +32,7 @@ export function BillsPage() {
   if (!ws.company) return <Alert tone="info">No company yet. <Link to="/setup" className="underline">Set up your business</Link>.</Alert>
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between"><h1 className="text-lg font-semibold">Supplier bills</h1>{canPost ? <Button onClick={() => void navigate({ to: '/purchasing/bills/new' })}><Plus className="size-4" aria-hidden /> Enter bill</Button> : null}</div>
+      <div className="flex items-center justify-between"><h1 className="page-title">Supplier bills</h1>{canPost ? <Button onClick={() => void navigate({ to: '/purchasing/bills/new' })}><Plus className="size-4" aria-hidden /> Enter bill</Button> : null}</div>
       <Toolbar>
         <div className="w-36"><SelectField label="Status" value={status} onChange={(e) => setStatus(e.target.value)} options={[{ value: '', label: 'All' }, { value: 'posted', label: 'Posted' }, { value: 'cancelled', label: 'Cancelled' }]} /></div>
         <div className="w-40"><TextField label="From" type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div>

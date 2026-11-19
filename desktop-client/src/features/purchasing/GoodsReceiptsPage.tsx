@@ -99,7 +99,7 @@ export function GoodsReceiptsPage() {
   if (!ws.company) return <Alert tone="info">Set up your business first.</Alert>
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-lg font-semibold">Goods receipts</h1>
+      <h1 className="page-title">Goods receipts</h1>
       <p className="text-sm text-muted">Goods are received against a purchase order: open the order and choose "Receive goods".</p>
       {list.error ? <Alert>{list.error.message}</Alert> : null}
       {list.isPending ? <Spinner /> : <DataTable columns={columns} rows={list.rows} rowKey={(r) => r.id} onOpen={(r) => setOpen(r.id)} empty="Nothing received yet." height={560} />}

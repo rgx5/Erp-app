@@ -30,7 +30,7 @@ export function RemittancesPage() {
   const periods = q.data?.periods ?? []
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-lg font-semibold">Statutory dues</h1>
+      <h1 className="page-title">Statutory dues</h1>
       <p className="max-w-3xl text-sm text-muted">What payroll has deducted or accrued and not yet paid over, by month. Pay it, then record the payment here so the books and this list agree.</p>
       {q.error ? <Alert>{q.error.message}</Alert> : null}
       {periods.length === 0 ? <Alert tone="info">Nothing is due.</Alert> : (

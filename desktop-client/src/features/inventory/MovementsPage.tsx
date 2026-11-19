@@ -47,7 +47,7 @@ export function MovementsPage() {
   if (!ws.company) return <Alert tone="info">Set up your business first.</Alert>
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-lg font-semibold">Stock movements</h1>
+      <h1 className="page-title">Stock movements</h1>
       <Toolbar>
         <div className="w-48"><SelectField label="Type" value={type} onChange={(e) => setType(e.target.value)} options={[{ value: '', label: 'All' }, ...Object.entries(MOVEMENT_TYPES).map(([value, label]) => ({ value, label }))]} /></div>
         <div className="w-40"><TextField label="From" type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div>

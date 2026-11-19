@@ -46,7 +46,7 @@ function BillDetail({ billId }: { billId: string }) {
       <div className="flex items-start justify-between">
         <div>
           <p className="text-xs text-muted"><Link to="/purchasing/bills" className="underline">Supplier bills</Link></p>
-          <h1 className="text-lg font-semibold">{BILL_TYPE[b.documentType] ?? b.documentType} {b.billNo} <MatchBadge status={b.matchStatus} /> {!posted ? <span className="ml-2 rounded bg-bad/15 px-2 py-0.5 text-xs font-medium text-bad">Cancelled</span> : null}</h1>
+          <h1 className="page-title">{BILL_TYPE[b.documentType] ?? b.documentType} {b.billNo} <MatchBadge status={b.matchStatus} /> {!posted ? <span className="ml-2 rounded bg-bad/15 px-2 py-0.5 text-xs font-medium text-bad">Cancelled</span> : null}</h1>
           <p className="text-sm text-muted">{formatDate(b.billDate)} · {b.supplierName}{b.supplierGstin ? ` · ${b.supplierGstin}` : ''} · supply to {stateName(b.placeOfSupply)} · supplier's invoice {b.supplierInvoiceNo} of {formatDate(b.supplierInvoiceDate)}{b.dueDate ? ` · due ${formatDate(b.dueDate)}` : ''}</p>
         </div>
         <div className="flex gap-2">

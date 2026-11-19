@@ -1,6 +1,6 @@
 import { createHmac } from 'node:crypto'
 import { expect, test, type Page } from '@playwright/test'
-import { goTo } from '../nav'
+import { accountMenu, goTo, openArea } from '../nav'
 import { seedBusiness } from '../seed'
 
 async function signIn(page: Page, s: { base: string; slug: string; email: string; password: string }, code?: string) {
@@ -82,7 +82,7 @@ test('administration: a limited role and user, an API key shown once, the audit 
   await expect(page.getByText('Two-step sign-in is on.')).toBeVisible()
 
   // ---- the limited user sees only what the role allows ----
-  await page.getByRole('button', { name: 'Sign out' }).click()
+  await accountMenu(page, 'Sign out')
   await page.getByLabel('Business code').fill(s.slug)
   await page.getByLabel('Email').fill('asha@example.com')
   await page.getByLabel('Password').fill('a long starting passphrase 7')
@@ -90,7 +90,8 @@ test('administration: a limited role and user, an API key shown once, the audit 
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Users', exact: true })).toHaveCount(0)
   await expect(page.getByRole('link', { name: 'Audit log' })).toHaveCount(0)
-  await expect(page.getByRole('link', { name: 'My account' })).toBeVisible()
+  await page.getByRole('button', { name: /^Account menu/ }).click()
+  await expect(page.getByRole('menuitem', { name: 'My account and layout' })).toBeVisible()
 })
 
 test('licence: a tenant sees only the modules it has bought, and a suspended one is read-only with a notice', async ({ page }) => {
@@ -98,12 +99,14 @@ test('licence: a tenant sees only the modules it has bought, and a suspended one
   await s.setLicence({ plan: 'Starter', modules: ['sales', 'inventory'], limits: { users: 5 } })
   await signIn(page, s)
   const menu = page.getByRole('navigation', { name: 'Main' })
+  const area = (name: string) => menu.getByRole('button', { name, exact: true })
+  await expect(area('Sales')).toBeVisible()
+  await expect(area('Inventory')).toBeVisible()
+  await expect(area('Master data')).toBeVisible() // master data is Core
+  for (const none of ['Purchasing', 'Payroll', 'Accounting', 'Manufacturing']) await expect(area(none)).toHaveCount(0)
+  await openArea(page, 'Sales')
   await expect(menu.getByRole('link', { name: 'Invoices' })).toBeVisible()
-  await expect(menu.getByRole('link', { name: 'Stock on hand' })).toBeVisible()
-  await expect(menu.getByRole('link', { name: 'Purchase orders' })).toHaveCount(0)
-  await expect(menu.getByRole('link', { name: 'Payroll runs' })).toHaveCount(0)
   await expect(menu.getByRole('link', { name: 'Journal entries' })).toHaveCount(0)
-  await expect(menu.getByRole('link', { name: 'Items', exact: true })).toBeVisible() // master data is Core
   await page.keyboard.press('Control+k')
   const box = page.getByLabel('Search or run a command').last()
   await box.fill('purchase')

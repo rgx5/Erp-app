@@ -112,7 +112,7 @@ export function TransfersPage() {
   if (!ws.company) return <Alert tone="info">Set up your business first.</Alert>
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between"><h1 className="text-lg font-semibold">Stock transfers</h1>{canPost && ws.warehouses.length > 1 ? <Button onClick={() => setOpen('new')}><Plus className="size-4" aria-hidden /> New transfer</Button> : null}</div>
+      <div className="flex items-center justify-between"><h1 className="page-title">Stock transfers</h1>{canPost && ws.warehouses.length > 1 ? <Button onClick={() => setOpen('new')}><Plus className="size-4" aria-hidden /> New transfer</Button> : null}</div>
       {ws.warehouses.length < 2 ? <Alert tone="info">Transfers move stock between warehouses. Add a second warehouse under Organization to use them.</Alert> : null}
       <Toolbar><div className="w-48"><SelectField label="Status" value={status} onChange={(e) => setStatus(e.target.value)} options={[{ value: '', label: 'All' }, ...Object.entries(STATUS).map(([value, label]) => ({ value, label }))]} /></div></Toolbar>
       {list.error ? <Alert>{list.error.message}</Alert> : null}

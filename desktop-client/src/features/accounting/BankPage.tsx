@@ -127,7 +127,7 @@ export function BankPage() {
   const addSchema = z.object({ name: z.string().trim().min(1, 'Required').max(100), bankName: z.string().trim().max(100), accountRef: z.string().trim().max(40) })
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between"><h1 className="text-lg font-semibold">Bank reconciliation</h1>{canManage ? <Button variant="secondary" onClick={() => setAdding(true)}>Add bank account</Button> : null}</div>
+      <div className="flex items-center justify-between"><h1 className="page-title">Bank reconciliation</h1>{canManage ? <Button variant="secondary" onClick={() => setAdding(true)}>Add bank account</Button> : null}</div>
       {accounts.data?.length === 0 ? <Alert tone="info">No bank account yet. Add one, linked to its ledger account, then import a statement.</Alert> : (
         <>
           <Toolbar>

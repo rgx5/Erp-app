@@ -76,7 +76,7 @@ export function WorkOrdersPage() {
   if (!ws.company) return <Alert tone="info">Set up your business first.</Alert>
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between"><h1 className="text-lg font-semibold">Work orders</h1>{canProduce ? <Button onClick={() => setAdding(true)}><Plus className="size-4" aria-hidden /> New work order</Button> : null}</div>
+      <div className="flex items-center justify-between"><h1 className="page-title">Work orders</h1>{canProduce ? <Button onClick={() => setAdding(true)}><Plus className="size-4" aria-hidden /> New work order</Button> : null}</div>
       <Toolbar><div className="w-48"><SelectField label="Status" value={status} onChange={(e) => setStatus(e.target.value)} options={[{ value: '', label: 'All' }, ...Object.entries(WO_STATUS).map(([value, label]) => ({ value, label }))]} /></div></Toolbar>
       {list.error ? <Alert>{list.error.message}</Alert> : null}
       {list.isPending ? <Spinner /> : <DataTable columns={columns} rows={list.rows} rowKey={(w) => w.id} onOpen={(w) => void navigate({ to: '/manufacturing/orders/$orderId', params: { orderId: w.id } })} empty="No work orders yet." height={520} />}
@@ -171,7 +171,7 @@ function WorkOrderDetail({ id }: { id: string }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-start justify-between">
-        <div><Link to="/manufacturing/orders" className="text-xs text-muted hover:underline">← Work orders</Link><h1 className="text-lg font-semibold">{wo.woNo} · {items.data?.get(wo.itemId)?.name ?? ''}</h1>
+        <div><Link to="/manufacturing/orders" className="text-xs text-muted hover:underline">← Work orders</Link><h1 className="page-title">{wo.woNo} · {items.data?.get(wo.itemId)?.name ?? ''}</h1>
           <p className="text-sm text-muted">{WO_STATUS[wo.status] ?? wo.status} · planned {showQty(wo.plannedQuantity)}, made {showQty(wo.producedQuantity)}{Number(wo.scrapQuantity) ? `, spoiled ${showQty(wo.scrapQuantity)}` : ''}{wo.dueDate ? ` · due ${formatDate(wo.dueDate)}` : ''}</p></div>
         {canProduce ? (
           <div className="flex flex-wrap justify-end gap-2">

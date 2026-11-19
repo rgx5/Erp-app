@@ -158,7 +158,7 @@ export function GstPage() {
   const active: Tab = composition ? 'cmp08' : tab
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-lg font-semibold">GST returns</h1>
+      <h1 className="page-title">GST returns</h1>
       <Toolbar>
         <div className="w-80"><SelectField label="GST registration" value={reg.id} onChange={(e) => setRegId(e.target.value)} options={ws.registrations.map((r) => ({ value: r.id, label: `${r.gstin} · ${r.registrationType === 'composition' ? 'Composition' : 'Regular'}` }))} /></div>
         {active === 'cmp08' ? <div className="w-40"><TextField label="Quarter" value={quarter} placeholder="2026-Q1" onChange={(e) => setQuarter(e.target.value.toUpperCase())} hint="Q1 = April to June" /></div> : <div className="w-44"><TextField label="Month" type="month" value={period} onChange={(e) => setPeriod(e.target.value)} /></div>}

@@ -130,7 +130,7 @@ export function PosAdminPage() {
   if (!ws.company) return <Alert tone="info">Set up your business first.</Alert>
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-lg font-semibold">Point of sale</h1>
+      <h1 className="page-title">Point of sale</h1>
       <div role="tablist" className="flex gap-1 border-b border-line">{([['shifts', 'Shifts'], ['setup', 'Setup']] as [Tab, string][]).map(([id, label]) => <button key={id} role="tab" aria-selected={tab === id} className={`-mb-px border-b-2 px-3 py-2 text-sm ${tab === id ? 'border-brand font-medium text-brand' : 'border-transparent text-muted hover:text-ink'}`} onClick={() => setTab(id)}>{label}</button>)}</div>
       {tab === 'setup' ? <div className="flex flex-col gap-4"><Settings companyId={ws.company.id} /><ReceiptPrinter /><Terminals companyId={ws.company.id} /></div> : (
         <>{shifts.error ? <Alert>{shifts.error.message}</Alert> : null}{shifts.isPending ? <Spinner /> : <DataTable columns={columns} rows={shifts.rows} rowKey={(s) => s.id} onOpen={(s) => setOpen(s.id)} empty="No shifts yet." height={480} />}</>)}

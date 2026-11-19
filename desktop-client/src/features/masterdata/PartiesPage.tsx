@@ -74,7 +74,7 @@ export function PartiesPage({ role }: { role?: 'customer' | 'supplier' }) {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold">{noun}</h1>
+        <h1 className="page-title">{noun}</h1>
         <div className="flex gap-2">
           <Button variant="secondary" onClick={() => void exportAll()}><Download className="size-4" aria-hidden /> Export</Button>
           {canWrite ? <Button variant="secondary" onClick={() => setImporting(true)}><Upload className="size-4" aria-hidden /> Import</Button> : null}

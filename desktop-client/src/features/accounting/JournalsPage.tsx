@@ -75,7 +75,7 @@ export function JournalsPage() {
   if (!ws.company) return <Alert tone="info">No company yet. <Link to="/setup" className="underline">Set up your business</Link>.</Alert>
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between"><h1 className="text-lg font-semibold">Journal entries</h1>{canPost ? <Button onClick={() => void navigate({ to: '/accounting/journals/new' })}><Plus className="size-4" aria-hidden /> New journal</Button> : null}</div>
+      <div className="flex items-center justify-between"><h1 className="page-title">Journal entries</h1>{canPost ? <Button onClick={() => void navigate({ to: '/accounting/journals/new' })}><Plus className="size-4" aria-hidden /> New journal</Button> : null}</div>
       <Toolbar>
         <div className="w-48"><SelectField label="Type" value={type} onChange={(e) => setType(e.target.value)} options={[{ value: '', label: 'All' }, ...Object.entries(TYPES).map(([value, label]) => ({ value, label }))]} /></div>
         <div className="w-40"><TextField label="From" type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
@@ -150,7 +150,7 @@ export function JournalEditorPage() {
   const cell = 'h-8 w-full rounded border border-transparent bg-transparent px-2 text-sm outline-none hover:border-line focus:border-brand focus:bg-surface focus:ring-1 focus:ring-brand/40'
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-4">
-      <div className="flex items-center justify-between"><h1 className="text-lg font-semibold">New journal entry</h1><span className="text-xs text-muted">Ctrl+S posts when the entry balances</span></div>
+      <div className="flex items-center justify-between"><h1 className="page-title">New journal entry</h1><span className="text-xs text-muted">Ctrl+S posts when the entry balances</span></div>
       <Card>
         <div className="grid grid-cols-4 gap-4">
           <TextField label="Date" type="date" value={date} onChange={(e) => setDate(e.target.value)} />

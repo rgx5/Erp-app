@@ -100,7 +100,7 @@ export function StockPage() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold">Stock on hand</h1>
+        <h1 className="page-title">Stock on hand</h1>
         <div className="flex gap-2">
           <Button variant="secondary" onClick={() => download('stock-on-hand.csv', toCsv(['Item code', 'Item', 'Warehouse', 'On hand', 'Average cost', 'Value', 'Method'], rows.map((r) => [r.itemCode, r.itemName, r.warehouseCode, r.quantity, r.averageCost, r.value, r.costingMethod])))}><Download className="size-4" aria-hidden /> Export</Button>
           {canPost ? <Button onClick={() => setAdjusting(true)}><SlidersHorizontal className="size-4" aria-hidden /> Adjust stock</Button> : null}

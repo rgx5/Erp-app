@@ -39,7 +39,7 @@ export function WorkCentresPage() {
   const wc = editing && editing !== 'new' ? editing : null
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between"><h1 className="text-lg font-semibold">Work centres</h1>{canManage ? <Button onClick={() => setEditing('new')}><Plus className="size-4" aria-hidden /> New work centre</Button> : null}</div>
+      <div className="flex items-center justify-between"><h1 className="page-title">Work centres</h1>{canManage ? <Button onClick={() => setEditing('new')}><Plus className="size-4" aria-hidden /> New work centre</Button> : null}</div>
       <p className="max-w-3xl text-sm text-muted">A work centre is a machine, line or bench. Its hourly rates cost the time reported against it in a work order.</p>
       {list.error ? <Alert>{list.error.message}</Alert> : null}
       {list.isPending ? <Spinner /> : <DataTable columns={columns} rows={list.data ?? []} rowKey={(w) => w.id} onOpen={(w) => canManage && setEditing(w)} empty="No work centres yet." height={420} />}
@@ -185,7 +185,7 @@ export function BomsPage() {
   if (!ws.company) return <Alert tone="info">Set up your business first.</Alert>
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between"><h1 className="text-lg font-semibold">Bills of material</h1>{canManage ? <Button onClick={() => setAdding(true)}><Plus className="size-4" aria-hidden /> New bill of materials</Button> : null}</div>
+      <div className="flex items-center justify-between"><h1 className="page-title">Bills of material</h1>{canManage ? <Button onClick={() => setAdding(true)}><Plus className="size-4" aria-hidden /> New bill of materials</Button> : null}</div>
       <Toolbar><div className="w-44"><SelectField label="Show" value={status} onChange={(e) => setStatus(e.target.value)} options={[{ value: 'active', label: 'In use' }, { value: 'obsolete', label: 'Obsolete' }, { value: '', label: 'All' }]} /></div></Toolbar>
       {list.error ? <Alert>{list.error.message}</Alert> : null}
       {list.isPending ? <Spinner /> : <DataTable columns={columns} rows={list.rows} rowKey={(b) => b.id} onOpen={(b) => setOpen(b.id)} empty="No bills of material yet." height={480} />}

@@ -45,7 +45,7 @@ export function ChartPage() {
   const groups = (accounts.data ?? []).filter((a) => a.isGroup && a.status === 'active')
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between"><h1 className="text-lg font-semibold">Chart of accounts</h1>
+      <div className="flex items-center justify-between"><h1 className="page-title">Chart of accounts</h1>
         <div className="flex gap-2"><Button variant="secondary" onClick={() => download('chart-of-accounts.csv', toCsv(['Code', 'Name', 'Type', 'Group', 'Status'], rows.map((a) => [a.code, a.name, a.type, a.isGroup ? 'yes' : 'no', a.status])))}>Export</Button>{canManage ? <Button onClick={() => setOpen('new')}><Plus className="size-4" aria-hidden /> New account</Button> : null}</div></div>
       <Toolbar>
         <div className="w-72"><TextField label="Search" placeholder="Code or name" value={search} onChange={(e) => setSearch(e.target.value)} /></div>

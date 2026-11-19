@@ -70,7 +70,7 @@ export function QuotesPage() {
   if (!ws.company) return <Alert tone="info">Set up your business first.</Alert>
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between"><h1 className="text-lg font-semibold">Quotes</h1>{canPost ? <Button onClick={() => void navigate({ to: '/sales/quotes/new' })}><Plus className="size-4" aria-hidden /> New quote</Button> : null}</div>
+      <div className="flex items-center justify-between"><h1 className="page-title">Quotes</h1>{canPost ? <Button onClick={() => void navigate({ to: '/sales/quotes/new' })}><Plus className="size-4" aria-hidden /> New quote</Button> : null}</div>
       <Toolbar><div className="w-44"><SelectField label="Show" value={status} onChange={(e) => setStatus(e.target.value)} options={[{ value: 'open', label: 'Open' }, { value: 'converted', label: 'Became an order' }, { value: 'rejected', label: 'Rejected' }, { value: '', label: 'All' }]} /></div></Toolbar>
       {list.error ? <Alert>{list.error.message}</Alert> : null}
       {list.isPending ? <Spinner /> : <DataTable columns={columns} rows={list.rows} rowKey={(q) => q.id} onOpen={(q) => setOpen(q.id)} empty="No quotes yet." height={480} />}
@@ -139,7 +139,7 @@ export function OrdersPage() {
   if (!ws.company) return <Alert tone="info">Set up your business first.</Alert>
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between"><h1 className="text-lg font-semibold">Sales orders</h1>{canPost ? <Button onClick={() => void navigate({ to: '/sales/orders/new' })}><Plus className="size-4" aria-hidden /> New sales order</Button> : null}</div>
+      <div className="flex items-center justify-between"><h1 className="page-title">Sales orders</h1>{canPost ? <Button onClick={() => void navigate({ to: '/sales/orders/new' })}><Plus className="size-4" aria-hidden /> New sales order</Button> : null}</div>
       <Toolbar><div className="w-48"><SelectField label="Status" value={status} onChange={(e) => setStatus(e.target.value)} options={[{ value: '', label: 'All' }, ...Object.entries(OSTATUS).map(([value, label]) => ({ value, label }))]} /></div></Toolbar>
       {list.error ? <Alert>{list.error.message}</Alert> : null}
       {list.isPending ? <Spinner /> : <DataTable columns={columns} rows={list.rows} rowKey={(o) => o.id} onOpen={(o) => setOpen(o.id)} empty="No sales orders yet." height={480} />}

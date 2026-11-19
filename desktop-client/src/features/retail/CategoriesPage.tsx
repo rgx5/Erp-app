@@ -45,7 +45,7 @@ export function CategoriesPage() {
   const schema = z.object({ code: z.string().trim().regex(/^[A-Za-z0-9][A-Za-z0-9_./-]{0,29}$/, 'Letters, digits and . _ / -'), name: z.string().trim().min(1, 'Required').max(100), parentId: z.string(), noDiscount: z.boolean(), status: z.string() })
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between"><h1 className="text-lg font-semibold">Item categories</h1>{canWrite ? <div className="flex gap-2"><Button variant="secondary" onClick={() => setTemplates(true)}>Start from a template</Button><Button onClick={() => setEditing('new')}><Plus className="size-4" aria-hidden /> New category</Button></div> : null}</div>
+      <div className="flex items-center justify-between"><h1 className="page-title">Item categories</h1>{canWrite ? <div className="flex gap-2"><Button variant="secondary" onClick={() => setTemplates(true)}>Start from a template</Button><Button onClick={() => setEditing('new')}><Plus className="size-4" aria-hidden /> New category</Button></div> : null}</div>
       <p className="max-w-3xl text-sm text-muted">Group items (for example Grocery, then Staples under it). A category can forbid discounts: the counter then refuses a discount on every item in it, and in the categories below it.</p>
       {list.error ? <Alert>{list.error.message}</Alert> : null}
       {list.isPending ? <Spinner /> : ordered.length === 0 ? <Alert tone="info">No categories yet.</Alert> : (

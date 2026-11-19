@@ -164,7 +164,7 @@ export function SubcontractingPage() {
   if (!ws.company) return <Alert tone="info">Set up your business first.</Alert>
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between"><h1 className="text-lg font-semibold">Job work</h1>{canProduce ? <Button onClick={() => setAdding(true)}><Plus className="size-4" aria-hidden /> New job-work order</Button> : null}</div>
+      <div className="flex items-center justify-between"><h1 className="page-title">Job work</h1>{canProduce ? <Button onClick={() => setAdding(true)}><Plus className="size-4" aria-hidden /> New job-work order</Button> : null}</div>
       {pending.data && pending.data.overdueCount > 0 ? <Alert>{pending.data.overdueCount} order(s) have materials still with the job worker past the return date.</Alert> : null}
       <Toolbar><div className="w-44"><SelectField label="Show" value={status} onChange={(e) => setStatus(e.target.value)} options={[{ value: 'open', label: 'Open' }, { value: 'closed', label: 'Closed' }, { value: 'cancelled', label: 'Cancelled' }, { value: '', label: 'All' }]} /></div></Toolbar>
       {list.error ? <Alert>{list.error.message}</Alert> : null}

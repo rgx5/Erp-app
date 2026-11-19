@@ -49,7 +49,7 @@ export function ReportsPage() {
   const err = (tab === 'tb' ? tb : tab === 'pl' ? pl : tab === 'bs' ? bs : cf).error
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-lg font-semibold">Financial reports</h1>
+      <h1 className="page-title">Financial reports</h1>
       <div role="tablist" className="flex gap-1 border-b border-line">
         {TABS.map((t) => <button key={t.id} role="tab" aria-selected={tab === t.id} className={`-mb-px border-b-2 px-3 py-2 text-sm ${tab === t.id ? 'border-brand font-medium text-brand' : 'border-transparent text-muted hover:text-ink'}`} onClick={() => setTab(t.id)}>{t.label}</button>)}
       </div>

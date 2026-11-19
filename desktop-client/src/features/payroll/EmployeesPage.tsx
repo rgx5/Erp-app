@@ -133,7 +133,7 @@ export function EmployeesPage() {
   if (!ws.company) return <Alert tone="info">Set up your business first.</Alert>
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between"><h1 className="text-lg font-semibold">People</h1>{canManage ? <Button onClick={() => setAdding(true)}><Plus className="size-4" aria-hidden /> Add person</Button> : null}</div>
+      <div className="flex items-center justify-between"><h1 className="page-title">People</h1>{canManage ? <Button onClick={() => setAdding(true)}><Plus className="size-4" aria-hidden /> Add person</Button> : null}</div>
       <Toolbar><div className="w-44"><SelectField label="Show" value={status} onChange={(e) => setStatus(e.target.value)} options={[{ value: 'active', label: 'Working' }, { value: 'exited', label: 'Left' }, { value: '', label: 'All' }]} /></div></Toolbar>
       {list.error ? <Alert>{list.error.message}</Alert> : null}
       {list.isPending ? <Spinner /> : <DataTable columns={columns} rows={list.rows} rowKey={(e) => e.id} onOpen={setOpen} empty="No one yet." height={480} />}

@@ -41,7 +41,7 @@ export function PeriodsPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between"><h1 className="text-lg font-semibold">Periods and year-end</h1>{canManage ? <Button onClick={() => setAdding(true)}>New financial year</Button> : null}</div>
+      <div className="flex items-center justify-between"><h1 className="page-title">Periods and year-end</h1>{canManage ? <Button onClick={() => setAdding(true)}>New financial year</Button> : null}</div>
       <p className="max-w-3xl text-sm text-muted">Postings are only accepted into an <b>open</b> period. A <b>closed</b> period can be reopened; a <b>locked</b> period cannot. Closing the year posts the profit and loss accounts into the retained earnings account and locks nothing by itself.</p>
       {error ? <Alert>{error}</Alert> : null}
       {years.isPending ? <Spinner /> : years.error ? <Alert>{years.error.message}</Alert> : years.data?.length === 0 ? <Alert tone="info">No financial year yet. Create one to start posting.</Alert> : null}

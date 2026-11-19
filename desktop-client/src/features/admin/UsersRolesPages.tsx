@@ -40,7 +40,7 @@ export function UsersPage() {
   const schema = z.object({ email: z.string().trim().toLowerCase().email('A valid email'), displayName: z.string().trim().min(1, 'Required').max(200), password: z.string() })
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between"><h1 className="text-lg font-semibold">Users</h1>{canWrite ? <Button onClick={() => { setPicked([]); setProblem(null); setOpen('new') }}><Plus className="size-4" aria-hidden /> Add user</Button> : null}</div>
+      <div className="flex items-center justify-between"><h1 className="page-title">Users</h1>{canWrite ? <Button onClick={() => { setPicked([]); setProblem(null); setOpen('new') }}><Plus className="size-4" aria-hidden /> Add user</Button> : null}</div>
       {users.error ? <Alert>{users.error.message}</Alert> : null}
       {users.isPending ? <Spinner /> : <DataTable columns={columns} rows={users.rows} rowKey={(u) => u.id} onOpen={(u) => { setPicked(u.roleIds ?? []); setProblem(null); setOpen(u) }} empty="No users." height={480} />}
       {open ? (
@@ -87,7 +87,7 @@ export function RolesPage() {
   const locked = role?.isSystem === true || !canWrite
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between"><h1 className="text-lg font-semibold">Roles</h1>{canWrite ? <Button onClick={() => show('new')}><Plus className="size-4" aria-hidden /> New role</Button> : null}</div>
+      <div className="flex items-center justify-between"><h1 className="page-title">Roles</h1>{canWrite ? <Button onClick={() => show('new')}><Plus className="size-4" aria-hidden /> New role</Button> : null}</div>
       <p className="max-w-3xl text-sm text-muted">A role is a set of things a person may do. You can only give a role permissions you hold yourself. The Owner role is built in and cannot be changed.</p>
       {roles.error ? <Alert>{roles.error.message}</Alert> : null}
       {roles.isPending ? <Spinner /> : <DataTable columns={columns} rows={roles.rows} rowKey={(r) => r.id} onOpen={show} empty="No roles." height={420} />}

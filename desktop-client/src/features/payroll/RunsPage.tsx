@@ -121,7 +121,7 @@ export function PayrollRunsPage() {
   const company = ws.company
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between"><h1 className="text-lg font-semibold">Payroll runs</h1>{canProcess ? <Button onClick={() => setAdding(true)}>New payroll run</Button> : null}</div>
+      <div className="flex items-center justify-between"><h1 className="page-title">Payroll runs</h1>{canProcess ? <Button onClick={() => setAdding(true)}>New payroll run</Button> : null}</div>
       <div role="tablist" className="flex gap-1 border-b border-line">{([['runs', 'Runs'], ['inputs', 'Monthly inputs']] as [Tab, string][]).map(([id, label]) => <button key={id} role="tab" aria-selected={tab === id} className={`-mb-px border-b-2 px-3 py-2 text-sm ${tab === id ? 'border-brand font-medium text-brand' : 'border-transparent text-muted hover:text-ink'}`} onClick={() => setTab(id)}>{label}</button>)}</div>
       {tab === 'inputs' ? <Inputs companyId={company.id} /> : (<>
         {list.error ? <Alert>{list.error.message}</Alert> : null}

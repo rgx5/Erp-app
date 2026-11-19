@@ -7,3 +7,14 @@ export async function goTo(page: Page, name: string): Promise<void> {
   await box.fill(name)
   await box.press('Enter')
 }
+
+/** Opens the account menu (top right) and picks an entry from it. */
+export async function accountMenu(page: Page, entry: 'Sign out' | 'My account and layout'): Promise<void> {
+  await page.getByRole('button', { name: /^Account menu/ }).click()
+  await page.getByRole('menuitem', { name: entry }).click()
+}
+/** Opens an area of the sidebar (Sales, Inventory...) so its pages are listed. */
+export async function openArea(page: Page, area: string): Promise<void> {
+  const b = page.getByRole('navigation', { name: 'Main' }).getByRole('button', { name: area, exact: true })
+  if ((await b.getAttribute('aria-expanded')) !== 'true') await b.click()
+}

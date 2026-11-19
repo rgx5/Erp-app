@@ -84,7 +84,7 @@ export function LoyaltyPage() {
   if (!ws.company) return <Alert tone="info">Set up your business first.</Alert>
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-lg font-semibold">Loyalty and coupons</h1>
+      <h1 className="page-title">Loyalty and coupons</h1>
       <Rates companyId={ws.company.id} canManage={canManage} />
       <Card title="Coupons">
         <div className="flex flex-col gap-3">

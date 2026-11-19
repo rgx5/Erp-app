@@ -33,7 +33,7 @@ export function ApiKeysPage() {
   if (!can(mine, 'api_keys:manage')) return <Alert tone="info">You do not have the right to manage API keys.</Alert>
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between"><h1 className="text-lg font-semibold">API keys</h1><Button onClick={() => { setName(''); setPerms([]); setExpires(''); setSecret(null); setProblem(null); setAdding(true) }}>New API key</Button></div>
+      <div className="flex items-center justify-between"><h1 className="page-title">API keys</h1><Button onClick={() => { setName(''); setPerms([]); setExpires(''); setSecret(null); setProblem(null); setAdding(true) }}>New API key</Button></div>
       <p className="max-w-3xl text-sm text-muted">A key lets another program use this business&apos;s data with only the permissions you choose. The key is shown once, when it is made.</p>
       {keys.isPending ? <Spinner /> : <DataTable columns={columns} rows={keys.rows} rowKey={(k) => k.id} onOpen={() => undefined} empty="No API keys." height={360} />}
       <div className="flex flex-col gap-1">{keys.rows.filter((k) => !k.revokedAt).map((k) => <div key={k.id} className="flex items-center justify-between text-sm"><span>{k.name} <span className="text-muted">({k.keyPrefix}…)</span></span><Button variant="ghost" aria-label={`Revoke ${k.name}`} onClick={async () => { try { await revoke.mutateAsync(k.id); flash.show(`${k.name} revoked: it stops working now.`) } catch (e) { flash.show(msg(e, 'Could not revoke.')) } }}>Revoke</Button></div>)}</div>
@@ -73,7 +73,7 @@ export function AuditPage() {
   if (!canRead) return <Alert tone="info">You do not have the right to read the audit log.</Alert>
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-lg font-semibold">Audit log</h1>
+      <h1 className="page-title">Audit log</h1>
       <p className="max-w-3xl text-sm text-muted">Everything that changed or was refused, newest first. Entries cannot be edited or removed.</p>
       <Toolbar>
         <div className="w-48"><TextField label="Action contains" value={action} onChange={(e) => setAction(e.target.value.trim())} placeholder="e.g. invoice.posted" /></div>

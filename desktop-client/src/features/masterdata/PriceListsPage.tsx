@@ -78,7 +78,7 @@ export function PriceListsPage() {
   const columns: ColumnDef<PriceList, unknown>[] = [{ header: 'Code', accessorKey: 'code', size: 120 }, { header: 'Name', accessorKey: 'name', size: 240 }, { header: 'For', accessorFn: (l) => (l.kind === 'sales' ? 'Selling' : 'Buying'), size: 90 }, { header: 'Currency', accessorKey: 'currency', size: 90 }, { header: 'GST', accessorFn: (l) => (l.taxInclusive ? 'Included' : 'Extra'), size: 90 }, { header: 'Status', accessorKey: 'status', size: 90 }]
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between"><h1 className="text-lg font-semibold">Price lists</h1>{canManage ? <Button onClick={() => setOpen('new')}><Plus className="size-4" aria-hidden /> New price list</Button> : null}</div>
+      <div className="flex items-center justify-between"><h1 className="page-title">Price lists</h1>{canManage ? <Button onClick={() => setOpen('new')}><Plus className="size-4" aria-hidden /> New price list</Button> : null}</div>
       {lists.isPending ? <Spinner /> : <DataTable columns={columns} rows={lists.data ?? []} rowKey={(l) => l.id} onOpen={setOpen} empty="No price lists yet." />}
       {open === 'new' ? (
         <Drawer title="New price list" onClose={() => setOpen(null)}>

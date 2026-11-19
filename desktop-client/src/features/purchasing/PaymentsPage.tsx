@@ -118,7 +118,7 @@ export function PaymentsPage() {
   if (!ws.company) return <Alert tone="info">Set up your business first.</Alert>
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between"><h1 className="text-lg font-semibold">Payments to suppliers</h1>{canPost ? <Button onClick={() => setOpen(true)}><Plus className="size-4" aria-hidden /> New payment</Button> : null}</div>
+      <div className="flex items-center justify-between"><h1 className="page-title">Payments to suppliers</h1>{canPost ? <Button onClick={() => setOpen(true)}><Plus className="size-4" aria-hidden /> New payment</Button> : null}</div>
       {list.error ? <Alert>{list.error.message}</Alert> : null}
       {list.isPending ? <Spinner /> : <DataTable columns={columns} rows={list.rows} rowKey={(p) => p.id} empty="No payments yet." height={560} />}
       {list.hasNextPage ? <Button variant="secondary" className="self-start" onClick={() => void list.fetchNextPage()}>Load more</Button> : null}

@@ -14,7 +14,7 @@ import { useAddTaxRate, useCreatePaymentTerm, useCreateTaxCode, useCreateUnit, u
 
 const KINDS = [{ value: 'gst', label: 'GST (with a rate)' }, { value: 'exempt', label: 'Exempt' }, { value: 'nil_rated', label: 'Nil rated' }, { value: 'non_gst', label: 'Non-GST' }]
 const useCan = (...p: string[]): boolean => can(useSession((s) => s.me?.permissions ?? []), ...p)
-const Header = ({ title, action }: { title: string; action?: React.ReactNode }) => <div className="flex items-center justify-between"><h1 className="text-lg font-semibold">{title}</h1>{action}</div>
+const Header = ({ title, action }: { title: string; action?: React.ReactNode }) => <div className="flex items-center justify-between"><h1 className="page-title">{title}</h1>{action}</div>
 
 // ---- tax codes ---------------------------------------------------------------------------------------------------------
 const taxCodeSchema = z.object({ code: z.string().trim().regex(/^[A-Z0-9][A-Z0-9_.-]{0,29}$/, 'Capital letters, digits and . _ -'), name: z.string().trim().min(1, 'Required').max(100), kind: z.string() })

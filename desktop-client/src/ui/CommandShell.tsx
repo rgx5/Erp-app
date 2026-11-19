@@ -5,11 +5,11 @@ import { can } from '@/auth/permissions'
 import { useSession } from '@/auth/session'
 import { CommandPalette } from './CommandPalette'
 import { LicenceBanner } from './LicenceBanner'
+import { Logo } from './Logo'
 import { cn } from './cn'
-import { useFlash } from './flash'
 import { MODULES, NAV, currentNav, moduleOf, visibleNav, type NavItem } from './nav'
 import { PaneContext } from './paneContext'
-import { Alert } from './primitives'
+import { Toasts } from './Toasts'
 
 /**
  * The frame: a slim rail of areas, a top bar with search (Ctrl+K), the pages of the current area as tabs, the page itself with a
@@ -17,7 +17,6 @@ import { Alert } from './primitives'
  */
 export function CommandShell() {
   const { me, logout, server } = useSession()
-  const flash = useFlash()
   const path = useRouterState({ select: (s) => s.location.pathname })
   const granted = me?.permissions ?? []
   const allowed = useCallback((needs: string[]) => can(granted, ...needs), [granted])
@@ -40,7 +39,7 @@ export function CommandShell() {
   return (
     <div className="grid h-full grid-cols-[68px_minmax(0,1fr)] overflow-hidden grid-rows-[48px_40px_1fr_26px]">
       <aside className="row-span-3 flex min-h-0 flex-col items-center gap-1 border-r border-line bg-surface py-3" aria-label="Areas">
-        <span className="mb-2 grid size-9 place-items-center rounded-xl hero-gradient text-sm font-bold text-brand-ink" aria-hidden>O</span>
+        <Logo className="mb-2 size-9" />
         <nav className="flex flex-1 flex-col items-center gap-1" aria-label="Main">
           {modules.map((m) => {
             const target = first(m)
@@ -74,7 +73,7 @@ export function CommandShell() {
         <main className="min-w-0 flex-1 overflow-auto px-5 py-4">
           <div className="mx-auto max-w-[1400px]">
             <LicenceBanner />
-            {flash.message ? <div className="mb-3"><Alert tone={flash.tone}><span className="flex items-center justify-between gap-4">{flash.message}<button type="button" className="text-xs underline" onClick={flash.clear}>Dismiss</button></span></Alert></div> : null}
+            <Toasts />
             <PaneContext.Provider value={pane}><Outlet /></PaneContext.Provider>
           </div>
         </main>

@@ -62,7 +62,7 @@ export function PayablesPage() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-end justify-between">
-        <h1 className="text-lg font-semibold">Payables</h1>
+        <h1 className="page-title">Payables</h1>
         <div className="flex items-end gap-2"><div className="w-40"><TextField label="As of" type="date" value={asOf} onChange={(e) => setAsOf(e.target.value)} /></div>
           <Button variant="secondary" disabled={!ageing.data} onClick={() => ageing.data && download('payables-ageing.csv', toCsv(['Supplier', 'Not due', '1-30', '31-60', '61-90', 'Over 90', 'Total', 'Advance'], ageing.data.suppliers.map((c) => [c.supplierName, c.current, c.days1to30, c.days31to60, c.days61to90, c.over90, c.total, c.unapplied])))}>Export CSV</Button></div>
       </div>

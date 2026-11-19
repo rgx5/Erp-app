@@ -127,7 +127,7 @@ export function ReceiptsPage() {
   if (!ws.company) return <Alert tone="info">Set up your business first.</Alert>
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between"><h1 className="text-lg font-semibold">Receipts</h1>{canPost ? <Button onClick={() => setOpen(true)}><Plus className="size-4" aria-hidden /> New receipt</Button> : null}</div>
+      <div className="flex items-center justify-between"><h1 className="page-title">Receipts</h1>{canPost ? <Button onClick={() => setOpen(true)}><Plus className="size-4" aria-hidden /> New receipt</Button> : null}</div>
       {list.error ? <Alert>{list.error.message}</Alert> : null}
       {list.isPending ? <Spinner /> : <DataTable columns={columns} rows={rows} rowKey={(r) => r.id} empty="No receipts yet." height={560} />}
       {list.hasNextPage ? <Button variant="secondary" className="self-start" onClick={() => void list.fetchNextPage()}>Load more</Button> : null}

@@ -31,7 +31,7 @@ export function ReportCentrePage() {
   const perms = useSession((s) => s.me?.permissions ?? [])
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-lg font-semibold">Report centre</h1>
+      <h1 className="page-title">Report centre</h1>
       {GROUPS.map((g) => {
         const shown = g.reports.filter((r) => can(perms, r.needs))
         return shown.length === 0 ? null : (

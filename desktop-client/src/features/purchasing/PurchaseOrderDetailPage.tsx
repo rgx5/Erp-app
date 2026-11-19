@@ -105,7 +105,7 @@ function OrderDetail({ orderId }: { orderId: string }) {
       <div className="flex items-start justify-between">
         <div>
           <p className="text-xs text-muted"><Link to="/purchasing/orders" className="underline">Purchase orders</Link></p>
-          <h1 className="text-lg font-semibold">Purchase order {o.poNo} <span className="ml-2 rounded bg-canvas px-2 py-0.5 text-xs font-medium">{ORDER_STATUS[o.status] ?? o.status}</span></h1>
+          <h1 className="page-title">Purchase order {o.poNo} <span className="ml-2 rounded bg-canvas px-2 py-0.5 text-xs font-medium">{ORDER_STATUS[o.status] ?? o.status}</span></h1>
           <p className="text-sm text-muted">{formatDate(o.orderDate)} · {supplier.data?.legalName ?? '…'}{o.expectedDate ? ` · expected ${formatDate(o.expectedDate)}` : ''}</p>
         </div>
         <div className="flex gap-2">

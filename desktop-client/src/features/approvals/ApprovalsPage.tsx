@@ -122,7 +122,7 @@ export function ApprovalsPage() {
   const tabs = [...(can(perms, 'approvals:decide') ? [['inbox', 'To decide']] : []), ['mine', 'My requests'], ...(can(perms, 'approvals:read') ? [['rules', 'Rules']] : [])] as [typeof tab, string][]
   return (
     <div className="flex flex-col gap-4">
-      <h1 className="text-lg font-semibold">Approvals</h1>
+      <h1 className="page-title">Approvals</h1>
       <div role="tablist" className="flex gap-1 border-b border-line">
         {tabs.map(([key, label]) => <button key={key} role="tab" aria-selected={tab === key} type="button" onClick={() => setTab(key)} className={`px-3 py-2 text-sm ${tab === key ? 'border-b-2 border-brand font-medium' : 'text-muted'}`}>{label}</button>)}
       </div>

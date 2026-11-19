@@ -105,7 +105,7 @@ export function LandedCostPage() {
   if (!ws.company) return <Alert tone="info">Set up your business first.</Alert>
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-center justify-between"><h1 className="text-lg font-semibold">Landed costs</h1>{canPost ? <Button onClick={() => setAdding(true)}><Plus className="size-4" aria-hidden /> New voucher</Button> : null}</div>
+      <div className="flex items-center justify-between"><h1 className="page-title">Landed costs</h1>{canPost ? <Button onClick={() => setAdding(true)}><Plus className="size-4" aria-hidden /> New voucher</Button> : null}</div>
       {list.error ? <Alert>{list.error.message}</Alert> : null}
       {list.isPending ? <Spinner /> : <DataTable columns={columns} rows={list.rows} rowKey={(v) => v.id} onOpen={(v) => setOpen(v.id)} empty="No landed-cost vouchers yet." height={480} />}
       {open ? <Detail id={open} onClose={() => setOpen(null)} /> : null}
