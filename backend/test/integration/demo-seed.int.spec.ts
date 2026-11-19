@@ -19,12 +19,16 @@ describe('POST /v1/demo/seed', () => {
     const first = await call(on, 'POST', '/v1/demo/seed', { token: PLATFORM_TOKEN, body: { slug } });
     expect(first.status).toBe(200);
     expect(first.json).toMatchObject({ created: true, login: { businessCode: slug, password: 'demo-passphrase-2026' } });
-    expect(first.json.invoices).toBeGreaterThan(30);
+    expect(first.json.steps.join(' ')).toMatch(/purchasing.*quotes and sales orders.*expenses.*bank.*counter.*manufacturing.*payroll.*users and roles.*approvals/);
+    expect(first.json.steps.join(' ')).not.toMatch(/skipped/);
     const login = await call(on, 'POST', '/v1/auth/login', { body: { tenant: slug, email: `owner@${slug}.example.com`, password: 'demo-passphrase-2026' } });
     const token = login.json.accessToken as string;
     const company = (await call(on, 'GET', '/v1/companies', { token })).json.items[0].id as string;
     const dash = (await call(on, 'GET', `/v1/dashboard?companyId=${company}`, { token })).json;
-    expect(Number(dash.yearToDate.revenue)).toBeGreaterThan(100_000);
+    expect(Number(dash.yearToDate.revenue)).toBeGreaterThan(500_000);
+    expect(dash.attention).toMatchObject({ unmatchedBankLines: 8, openPurchaseOrders: 2, openWorkOrders: 1 });
+    const tb = (await call(on, 'GET', `/v1/accounting/trial-balance?companyId=${company}&from=${new Date().getFullYear() - 1}-01-01&to=${new Date().getFullYear() + 1}-12-31`, { token })).json;
+    expect(tb.balanced).toBe(true);
     const second = await call(on, 'POST', '/v1/demo/seed', { token: PLATFORM_TOKEN, body: { slug } });
     expect(second.status).toBe(200); expect(second.json).toMatchObject({ created: false });
   }, 120_000);
