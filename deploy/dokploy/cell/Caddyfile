@@ -1,0 +1,25 @@
+# The only door to the product API from the internet. Dokploy's Traefik sends the cell's public domain here (port 8080), and this
+# lets through just what remote users need. The platform administration routes, the API documentation and everything else are
+# refused here and exist only inside the stack.
+:8080 {
+	@allowed {
+		path /owner /owner/* /health/live /v1/*
+		not path /v1/platform /v1/platform/*
+	}
+	handle @allowed {
+		reverse_proxy api:8080 {
+			header_up X-Forwarded-Proto https
+		}
+	}
+	handle {
+		respond "Not found" 404
+	}
+	header {
+		-Server
+		X-Content-Type-Options nosniff
+		Referrer-Policy no-referrer
+	}
+	request_body {
+		max_size 9MB
+	}
+}

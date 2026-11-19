@@ -1,0 +1,100 @@
+# A pooled/dedicated cloud cell for Dokploy: the product API for many clients on one database, behind a small filter.
+# In Dokploy: Create Service -> Compose -> Git, compose path "deploy/dokploy/docker-compose.cell.yml"; set the variables in cell.env.example;
+# add ONE domain: service "edge", port 8080 (for example app.yourdomain.in). Do not point a domain at "api".
+# One Dokploy service per cell (copy the service for a second cell with its own variables and domain).
+name: onesync-cell
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${PG_SUPERUSER_PASSWORD:?set PG_SUPERUSER_PASSWORD}
+      POSTGRES_DB: erp
+      MIGRATOR_PASSWORD: ${MIGRATOR_PASSWORD:?set MIGRATOR_PASSWORD}
+      APP_PASSWORD: ${APP_PASSWORD:?set APP_PASSWORD}
+    volumes:
+      - cell-pgdata:/var/lib/postgresql/data
+      - ../../backend/docker/init-db.sh:/docker-entrypoint-initdb.d/10-init.sh:ro
+      - ../../backend/db/bootstrap:/bootstrap:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d erp"]
+      interval: 5s
+      retries: 20
+    networks: [internal]
+
+  migrate:
+    build:
+      context: ../../backend
+      target: migrate
+    restart: "no"
+    depends_on:
+      postgres: { condition: service_healthy }
+    environment:
+      MIGRATOR_DATABASE_URL: postgresql://erp_migrator:${MIGRATOR_PASSWORD}@postgres:5432/erp
+    networks: [internal]
+
+  api:
+    build:
+      context: ../../backend
+      target: runtime
+    restart: unless-stopped
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    environment:
+      NODE_ENV: production
+      PORT: "8080"
+      HOST: 0.0.0.0
+      DATABASE_URL: postgresql://erp_app:${APP_PASSWORD}@postgres:5432/erp
+      AUTH_JWT_PRIVATE_KEY: ${AUTH_JWT_PRIVATE_KEY:?set AUTH_JWT_PRIVATE_KEY}
+      DATA_ENCRYPTION_KEY: ${DATA_ENCRYPTION_KEY:?set DATA_ENCRYPTION_KEY}
+      PLATFORM_ADMIN_TOKEN: ${PLATFORM_ADMIN_TOKEN:?set PLATFORM_ADMIN_TOKEN}
+      LICENCE_PUBLIC_KEY: ${LICENCE_PUBLIC_KEY:-}
+      SITE_ID: ${SITE_ID:-}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-app://onesync}
+      SELF_SIGNUP_ENABLED: "false"
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    # Reachable inside the stack and, for the fleet agent on this server, on the host's loopback only.
+    ports:
+      - "127.0.0.1:${API_LOOPBACK_PORT:-8081}:8080"
+    networks: [internal]
+
+  edge:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on: [api]
+    volumes:
+      - ./cell/Caddyfile:/etc/caddy/Caddyfile:ro
+    expose: ["8080"]
+    networks: [internal, dokploy-network]
+
+  # Interim safety net: a compressed logical dump every day, the last 14 kept, in a volume. Extend with Dokploy volume backups to S3 and a
+  # second provider (see README). The standard for paying clients is the agent's continuous backups (pgBackRest), which this stack does not run.
+  dump:
+    image: postgres:16
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+    environment:
+      PGPASSWORD: ${PG_SUPERUSER_PASSWORD}
+    volumes:
+      - cell-dumps:/dumps
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        while true; do
+          f=/dumps/erp-$$(date -u +%Y%m%d-%H%M).sql.gz
+          if pg_dump -h postgres -U postgres -d erp | gzip > "$$f"; then echo "dumped $$f"; else echo "dump failed"; fi
+          ls -1t /dumps/erp-*.sql.gz | tail -n +15 | while read -r old; do unlink "$$old"; done
+          sleep 86400
+        done
+    networks: [internal]
+
+volumes:
+  cell-pgdata:
+  cell-dumps:
+
+networks:
+  internal:
+  dokploy-network:
+    external: true

@@ -1,0 +1,76 @@
+# Deploying OneSyncERP's cloud side with Dokploy
+
+Two Dokploy **Compose** services from this repository, on your Hostinger VPS (Mumbai):
+
+| Service | Compose file | What it runs | Public address (you choose) |
+|---|---|---|---|
+| **onesync-cloud** | `deploy/dokploy/docker-compose.cloud.yml` | the control plane (staff dashboard + its database) and the remote-access gateway | `control.yourdomain.in` → `control-plane:8090`; `gateway.yourdomain.in` and one `<client>.remote.yourdomain.in` per client → `gateway:8443` |
+| **onesync-cell-…** (optional, one per pooled/dedicated cell) | `deploy/dokploy/docker-compose.cell.yml` | the product API + its database + a small filter, for clients hosted by you | `app.yourdomain.in` → `edge:8080` |
+
+On-premises clients do **not** run on Dokploy: they run the installer in `agent/deploy` on their own server and call out to `gateway.yourdomain.in` and `control.yourdomain.in`.
+
+Nothing in these files publishes a host port. Dokploy's Traefik terminates TLS and reaches the services over `dokploy-network`.
+
+## 0. Before you start
+
+- A VPS with Dokploy installed: **2 vCPU / 4 GB RAM** is enough for the cloud service plus one small cell; give each extra cell about 1 vCPU / 2 GB.
+- Firewall: open only 22 (your IP), 80 and 443. Put the Dokploy panel behind its own domain with HTTPS (or restrict port 3000 to your IP).
+- DNS `A` records pointing at the VPS: `control`, `gateway`, `app` (if you host a cell), and one `<client>.remote` per Hybrid client (add them as you onboard).
+- The repository connected in Dokploy (GitHub app). Deploy from the branch you trust: today the work is on `ccr-8ac47726-gfjbpv`; merge it to your main branch first if you want auto-deploys from main.
+
+## 1. The cloud service (control plane + gateway)
+
+1. On your own machine: `deploy/dokploy/gen-secrets.sh cloud` and keep the output (it is not stored anywhere). Back the keys up in your password manager: **if the licence or release private key is lost, no client can receive a new licence or upgrade.**
+2. Dokploy → **Create Service → Compose**, source **Git**, repository + branch, compose path `deploy/dokploy/docker-compose.cloud.yml`.
+3. **Environment** tab: paste the `cloud` output (`CP_DB_PASSWORD`, `LICENCE_PRIVATE_KEY`, `RELEASE_PRIVATE_KEY`, `DATA_ENCRYPTION_KEY`, `GATEWAY_TOKEN`, `REQUIRE_STAFF_MFA`). Keys can stay on one line with `\n` for the line breaks.
+4. **Domains** tab (Dokploy writes the Traefik rules; HTTPS on, certificate "letsencrypt"):
+   - `control.yourdomain.in` → service `control-plane`, port `8090`
+   - `gateway.yourdomain.in` → service `gateway`, port `8443`
+   - for each Hybrid client, add `<client>.remote.yourdomain.in` → service `gateway`, port `8443` (this is the address its remote users open, and the one you type into the cell's page in the super admin dashboard)
+5. **Deploy**. The control plane creates its own tables on start. Check `https://control.yourdomain.in/health` shows `{"ok":true}`.
+6. Create the first admin (Dokploy → service → **Terminal** → container `control-plane`):
+   ```
+   CP_PASSWORD='a-long-password-of-12-or-more-characters' node --import tsx src/cli.ts create-staff you@yourdomain.in "Your Name" admin
+   ```
+   (`DATABASE_URL` is already set inside the container.) Open `https://control.yourdomain.in/ui`, sign in; you will be asked to set up two-step sign-in before anything else.
+7. Make the **escrow key** once (Terminal, same container: `node --import tsx src/cli.ts escrow-keygen`). Put the public key in `ESCROW_PUBLIC_KEY` in the Environment tab and redeploy. The two private shares go to two different people, stored offline.
+
+**Wildcard addresses.** Dokploy's default certificates use the HTTP challenge, which cannot issue `*.remote.yourdomain.in`; that is why each client's address is added as its own domain. If you want a wildcard, switch Traefik to a DNS challenge (Cloudflare or your DNS host) in Dokploy's Traefik settings; then one wildcard domain on `gateway:8443` is enough.
+
+**WebSockets** (the site tunnels use them) work through Traefik with no extra settings. The gateway reads the visitor's address from Traefik's forwarded header, which is what the "allowed networks" rule uses.
+
+## 2. Onboarding a client (from the dashboard)
+
+1. Create the client (tier Local / Cloud / Hybrid / Hybrid Plus) and its cell (on-premises, dedicated or pooled), and issue the cell's **agent token** (shown once), with the control plane's API: `POST /clients`, `POST /sites`, `POST /sites/{id}/agent-token` (the dashboard has no form for these yet; see `control-plane/README.md`).
+2. Hybrid clients: on the cell's page in the super admin dashboard set the remote address (`<client>.remote.yourdomain.in`), switch remote access on, choose the rules.
+3. On-premises: run the installer on the client's server (`agent/deploy/install.sh`) with the control-plane URL, the agent token, the release **public** key and `GATEWAY_URL=https://gateway.yourdomain.in`.
+4. Issue the licence for each business on its tenant page.
+
+## 3. A pooled cell on Dokploy (optional)
+
+1. `deploy/dokploy/gen-secrets.sh cell`, plus `LICENCE_PUBLIC_KEY` from the `cloud` run.
+2. Dokploy → **Create Service → Compose** with `deploy/dokploy/docker-compose.cell.yml`; paste the variables (see `cell.env.example`).
+3. **Domains**: `app.yourdomain.in` → service **`edge`**, port `8080`. Never point a domain at `api`: the `edge` filter is what keeps the platform administration routes (`/v1/platform/*`) off the internet.
+4. Deploy. The one-shot `migrate` service applies the database changes before the API starts, on every deploy.
+5. Create a business (over SSH, on the VPS):
+   ```
+   curl -s http://127.0.0.1:8081/v1/platform/tenants -H "authorization: Bearer $PLATFORM_ADMIN_TOKEN" -H 'content-type: application/json' \
+     -d '{"name":"Acme","slug":"acme","owner":{"email":"owner@acme.in","displayName":"Owner","password":"…"}}'
+   ```
+   Then register the cell in the dashboard (kind **pooled**) and set `SITE_ID` to its id.
+6. Clients' desktop apps: server address `https://app.yourdomain.in`; owners can open `https://app.yourdomain.in/owner` in a browser.
+
+## 4. Backups (do this before the first client)
+
+- **Control plane database** (fleet state, sealed backup keys): Dokploy → the service's volume `cp-db-data` → **Volume Backups** to an S3 destination (a second provider, not Hostinger). Run a restore into a scratch service once to prove it.
+- **Pooled cell database**: the `dump` service keeps a daily compressed dump (14 kept) in the `cell-dumps` volume. That protects against mistakes, not against losing the VPS: also back up the `cell-dumps` volume off the server, the same way. This stack does **not** run the continuous (point-in-time) backups that on-premises sites get from the agent; do not promise those RPO/RTO figures for pooled clients until that is added.
+
+## 5. Updating
+
+Push to the connected branch; enable **Auto Deploy** (webhook) on each Dokploy service, or press Deploy. Database changes apply on start (control plane) or by the `migrate` service (cells). Roll back with Dokploy's deployment history; database changes are forward-only, so take a backup first.
+
+## What has and has not been tested
+
+Tested here: the compose files parse and resolve with real-looking values (`docker compose config`); the control plane and gateway start with the same command and environment the images use (keys pasted as `\n` one-liners, production mode), apply their migrations, serve `/health`, accept the first admin and require two-step setup; the backend accepts the cell's environment, including empty optional values.
+
+**Not tested**: building the images and running them under Docker (no Docker daemon was available where this was prepared), Traefik/Dokploy domain handling, certificate issuance, and the Caddy filter in `cell/Caddyfile`. Do a first deploy to a throwaway subdomain and run through sections 1–3 before pointing real clients at it.

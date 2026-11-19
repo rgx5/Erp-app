@@ -1,0 +1,65 @@
+# OneSyncERP cloud side for Dokploy: the fleet control plane (staff dashboard) and the remote-access gateway.
+# In Dokploy: Create Service -> Compose -> Git, compose path "deploy/dokploy/docker-compose.cloud.yml". Set the variables listed in
+# cloud.env.example in the service's Environment tab, then add the Domains described in README.md. Nothing here publishes a host port:
+# Dokploy's Traefik reaches the services over the shared "dokploy-network" and terminates TLS.
+name: onesync-cloud
+
+services:
+  cp-db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: controlplane
+      POSTGRES_PASSWORD: ${CP_DB_PASSWORD:?set CP_DB_PASSWORD}
+      POSTGRES_DB: controlplane
+    volumes:
+      - cp-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U controlplane -d controlplane"]
+      interval: 5s
+      retries: 20
+    networks: [internal]
+
+  control-plane:
+    build:
+      context: ../../control-plane
+    restart: unless-stopped
+    depends_on:
+      cp-db: { condition: service_healthy }
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "8090"
+      DATABASE_URL: postgresql://controlplane:${CP_DB_PASSWORD}@cp-db:5432/controlplane
+      LICENCE_PRIVATE_KEY: ${LICENCE_PRIVATE_KEY:?set LICENCE_PRIVATE_KEY}
+      RELEASE_PRIVATE_KEY: ${RELEASE_PRIVATE_KEY:?set RELEASE_PRIVATE_KEY}
+      DATA_ENCRYPTION_KEY: ${DATA_ENCRYPTION_KEY:?set DATA_ENCRYPTION_KEY}
+      GATEWAY_TOKEN: ${GATEWAY_TOKEN:?set GATEWAY_TOKEN}
+      ESCROW_PUBLIC_KEY: ${ESCROW_PUBLIC_KEY:-}
+      REQUIRE_STAFF_MFA: ${REQUIRE_STAFF_MFA:-true}
+      SILENT_AFTER_MINUTES: ${SILENT_AFTER_MINUTES:-10}
+    expose: ["8090"]
+    networks: [internal, dokploy-network]
+
+  gateway:
+    build:
+      context: ../../gateway
+    restart: unless-stopped
+    depends_on:
+      control-plane: { condition: service_healthy }
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: "8443"
+      CONTROL_PLANE_URL: http://control-plane:8090
+      GATEWAY_TOKEN: ${GATEWAY_TOKEN}
+    expose: ["8443"]
+    networks: [internal, dokploy-network]
+
+volumes:
+  cp-db-data:
+
+networks:
+  internal:
+  dokploy-network:
+    external: true

@@ -27,4 +27,6 @@ const schema = z.object({
 export type Config = z.infer<typeof schema>;
 /** Whether staff must have two-step sign-in. */
 export const mfaRequired = (c: Config): boolean => (c.REQUIRE_STAFF_MFA ?? (c.NODE_ENV === 'production' ? 'true' : 'false')) === 'true';
-export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => schema.parse(env);
+/** Keys pasted into a hosting panel often arrive on one line with the line breaks written as \n: turn them back. */
+const PEM_VARS = ['LICENCE_PRIVATE_KEY', 'RELEASE_PRIVATE_KEY', 'ESCROW_PUBLIC_KEY'];
+export const loadConfig = (env: NodeJS.ProcessEnv = process.env): Config => schema.parse(Object.fromEntries(Object.entries(env).filter(([, v]) => v !== '').map((([k, v]) => [k, PEM_VARS.includes(k) && typeof v === 'string' ? v.replace(/\\n/g, '\n') : v]))));

@@ -35,3 +35,10 @@ describe('loadEnv', () => {
     expect(() => loadEnv({ ...base, PLATFORM_ADMIN_TOKEN: 'short' })).toThrow(/PLATFORM_ADMIN_TOKEN/);
   });
 });
+
+describe('configuration from a hosting panel', () => {
+  it('treats empty optional settings as unset and accepts keys with \\n for line breaks', () => {
+    const env = loadEnv({ NODE_ENV: 'production', DATABASE_URL: 'postgres://a:b@h/erp', AUTH_JWT_PRIVATE_KEY: '-----BEGIN PRIVATE KEY-----\\nabc\\n-----END PRIVATE KEY-----', DATA_ENCRYPTION_KEY: Buffer.alloc(32, 1).toString('base64'), LICENCE_PUBLIC_KEY: '', SITE_ID: '', MIN_CLIENT_VERSION: '' } as NodeJS.ProcessEnv);
+    expect(env.AUTH_JWT_PRIVATE_KEY).toContain('\n'); expect(env.LICENCE_PUBLIC_KEY).toBeUndefined(); expect(env.SITE_ID).toBeUndefined();
+  });
+});

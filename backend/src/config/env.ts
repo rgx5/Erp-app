@@ -66,7 +66,10 @@ export type Env = Omit<z.infer<typeof schema>, 'SWAGGER_ENABLED' | 'SELF_SIGNUP_
 
 /** Reads and validates the environment once. Anything missing or malformed stops the process at startup. */
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): Env {
-  const parsed = schema.safeParse(source);
+  // Keys pasted into a hosting panel often arrive on one line with the line breaks written as \n: turn them back.
+  // A hosting panel (or a compose file) passes an unset optional setting as an empty string: that means "not set".
+  const fixed = Object.fromEntries(Object.entries(source).filter(([, v]) => v !== '').map(([k, v]) => [k, (k === 'AUTH_JWT_PRIVATE_KEY' || k === 'LICENCE_PUBLIC_KEY') && typeof v === 'string' ? v.replace(/\\n/g, '\n') : v]));
+  const parsed = schema.safeParse(fixed);
   if (!parsed.success) {
     const problems = parsed.error.issues.map((i) => `  ${i.path.join('.') || '(root)'}: ${i.message}`).join('\n');
     throw new Error(`Invalid configuration:\n${problems}`);
