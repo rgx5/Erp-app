@@ -12,6 +12,7 @@ import { SalesModule, presentInvoice } from '../sales/sales.controller.js';
 import * as s from './pos.schemas.js';
 import { PosSyncService } from './pos-sync.service.js';
 import { PosService } from './pos.service.js';
+import { RequiresModule } from '../identity/entitlements.js';
 
 const id = z.uuid();
 const strip = <T extends object>(row: T): Omit<T, 'tenantId'> => {
@@ -21,6 +22,7 @@ const strip = <T extends object>(row: T): Omit<T, 'tenantId'> => {
 
 @ApiTags('pos')
 @ApiBearerAuth()
+@RequiresModule('pos')
 @Controller('v1/pos')
 export class PosController {
   constructor(@Inject(PosService) private readonly pos: PosService, @Inject(StaffService) private readonly staff: StaffService) {}
@@ -75,6 +77,7 @@ export class PosController {
 
 @ApiTags('pos offline sync')
 @ApiBearerAuth()
+@RequiresModule('pos')
 @Controller('v1/pos')
 export class PosSyncController {
   constructor(@Inject(PosSyncService) private readonly sync: PosSyncService) {}

@@ -14,6 +14,7 @@ import { SalesInvoiceService, type InvoiceLineRow, type InvoiceRow } from './sal
 import { ReceivablesService } from './receivables.service.js';
 import { SalesOrdersService, type OrderLineRow, type OrderRow, type QuoteRow } from './sales-orders.service.js';
 import { SalesSettingsService } from './sales-settings.service.js';
+import { RequiresModule } from '../identity/entitlements.js';
 
 const id = z.uuid();
 const strip = <T extends object>(row: T): Omit<T, 'tenantId'> => {
@@ -24,6 +25,7 @@ export const presentInvoice = (r: { invoice: InvoiceRow; lines: InvoiceLineRow[]
 
 @ApiTags('sales')
 @ApiBearerAuth()
+@RequiresModule('sales')
 @Controller('v1')
 export class SalesController {
   constructor(
@@ -60,6 +62,7 @@ const presentOrder = (r: { order: OrderRow; lines: OrderLineRow[]; invoices?: ob
 
 @ApiTags('sales orders')
 @ApiBearerAuth()
+@RequiresModule('sales')
 @Controller('v1/sales')
 export class SalesOrdersController {
   constructor(@Inject(SalesOrdersService) private readonly orders: SalesOrdersService) {}
@@ -93,6 +96,7 @@ export class SalesOrdersController {
 
 @ApiTags('receivables')
 @ApiBearerAuth()
+@RequiresModule('sales')
 @Controller('v1/receivables')
 export class ReceivablesController {
   constructor(@Inject(ReceivablesService) private readonly receivables: ReceivablesService) {}

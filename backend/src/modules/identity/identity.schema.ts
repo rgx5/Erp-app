@@ -1,4 +1,4 @@
-import { bigint, boolean, customType, integer, pgSchema, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { bigint, boolean, customType, integer, jsonb, pgSchema, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 /** Mirrors db/migrations/0003_identity.sql (the SQL is the source of truth; a test compares the columns). */
 const erp = pgSchema('erp');
@@ -87,4 +87,18 @@ export const mfaRecoveryCodes = erp.table('mfa_recovery_codes', {
   codeHash: bytea('code_hash').notNull(),
   usedAt: ts('used_at'),
   createdAt: ts('created_at').notNull().defaultNow(),
+});
+
+export const tenantEntitlements = erp.table('tenant_entitlements', {
+  tenantId: uuid('tenant_id').notNull(),
+  plan: text('plan'),
+  modules: text('modules').array().notNull().default([]),
+  limits: jsonb('limits').notNull().default({}),
+  readOnly: boolean('read_only').notNull().default(false),
+  expiresAt: ts('expires_at'),
+  graceDays: integer('grace_days').notNull().default(14),
+  licenceId: text('licence_id'),
+  source: text('source').notNull().default('platform'),
+  version: integer('version').notNull().default(1),
+  updatedAt: ts('updated_at').notNull().defaultNow(),
 });

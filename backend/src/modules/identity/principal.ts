@@ -1,6 +1,7 @@
 import { createParamDecorator, type ExecutionContext, SetMetadata } from '@nestjs/common';
 export { Public, PUBLIC_KEY } from '../../platform/http/public.js';
 import { unauthorized } from '../../platform/http/errors.js';
+import type { Entitlements } from './entitlements.js';
 
 export interface Principal {
   tenantId: string;
@@ -10,6 +11,8 @@ export interface Principal {
   apiKeyId?: string;
   sessionId?: string;
   permissions: ReadonlySet<string>;
+  /** What the tenant has licensed. Absent means unrestricted (older code paths and tests). */
+  entitlements?: Entitlements;
 }
 
 export const PERMISSIONS_KEY = 'auth:permissions';

@@ -5,6 +5,7 @@ import { ApiZodBody } from '../../platform/http/validation.js';
 import { RequirePermissions, TenantId } from '../identity/principal.js';
 import { Recorder } from '../masterdata/helpers.js';
 import { GstReturnsService } from './returns.service.js';
+import { RequiresModule } from '../identity/entitlements.js';
 
 const id = z.uuid();
 const monthQuery = z.object({ registrationId: z.uuid(), period: z.string().regex(/^\d{4}-\d{2}$/, 'A month as YYYY-MM') });
@@ -13,6 +14,7 @@ const settingsSchema = z.strictObject({ compositionRate: z.string().regex(/^(100
 
 @ApiTags('gst returns')
 @ApiBearerAuth()
+@RequiresModule('gst')
 @Controller('v1/gst')
 export class GstController {
   constructor(@Inject(GstReturnsService) private readonly returns: GstReturnsService) {}

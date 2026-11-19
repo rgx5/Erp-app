@@ -13,6 +13,7 @@ import * as w from './wallet.schemas.js';
 import { StaffService } from './staff.service.js';
 import { WalletService } from './wallet.service.js';
 import { ExpensesService } from './expenses.service.js';
+import { RequiresModule } from '../identity/entitlements.js';
 
 const id = z.uuid();
 const strip = <T extends object>(row: T): Omit<T, 'tenantId'> => { const { tenantId: _t, ...rest } = row as T & { tenantId?: string }; return rest as Omit<T, 'tenantId'>; };
@@ -20,6 +21,7 @@ const versionOf = (h: string | undefined): number => { if (!h) throw preconditio
 
 @ApiTags('expenses')
 @ApiBearerAuth()
+@RequiresModule('pos')
 @Controller('v1/expenses')
 export class ExpensesController {
   constructor(@Inject(ExpensesService) private readonly expenses: ExpensesService) {}
@@ -43,6 +45,7 @@ export class ExpensesController {
 
 @ApiTags('retail')
 @ApiBearerAuth()
+@RequiresModule('pos')
 @Controller('v1/retail')
 export class RetailController {
   constructor(@Inject(WalletService) private readonly wallet: WalletService) {}

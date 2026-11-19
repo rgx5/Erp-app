@@ -14,6 +14,7 @@ import { TransfersService } from './transfers.service.js';
 import { InventorySettingsService } from './settings.service.js';
 import { StockQueriesService } from './stock-queries.service.js';
 import { StockService } from './stock.service.js';
+import { RequiresModule } from '../identity/entitlements.js';
 
 const id = z.uuid();
 const out = <T extends { tenantId: string }>(row: T): Omit<T, 'tenantId'> => {
@@ -27,6 +28,7 @@ const hide = <T extends object>(row: T): Omit<T, 'tenantId' | 'txId'> => {
 
 @ApiTags('inventory')
 @ApiBearerAuth()
+@RequiresModule('inventory')
 @Controller('v1')
 export class InventoryController {
   constructor(

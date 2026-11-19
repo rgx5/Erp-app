@@ -24,6 +24,7 @@
     "perf": "tsx scripts/perf.ts",
     "db:bootstrap": "tsx scripts/bootstrap-db.ts",
     "openapi": "tsx scripts/export-openapi.ts",
+    "licence": "tsx scripts/licence.ts",
     "maintenance:retention": "tsx scripts/retention.ts"
   },
   "dependencies": {

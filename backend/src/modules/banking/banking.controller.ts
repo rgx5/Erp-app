@@ -9,6 +9,7 @@ import { CurrentPrincipal, type Principal, RequirePermissions, TenantId } from '
 import { Recorder } from '../masterdata/helpers.js';
 import { BankService } from './bank.service.js';
 import * as s from './banking.schemas.js';
+import { RequiresModule } from '../identity/entitlements.js';
 
 const id = z.uuid();
 const strip = <T extends object>(row: T): Omit<T, 'tenantId'> => {
@@ -25,6 +26,7 @@ const lineView = (r: { line: object; matches: object[] }) => ({ ...strip(r.line)
 
 @ApiTags('banking')
 @ApiBearerAuth()
+@RequiresModule('banking')
 @Controller('v1')
 export class BankingController {
   constructor(@Inject(BankService) private readonly bank: BankService) {}

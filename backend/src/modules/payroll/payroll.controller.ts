@@ -9,6 +9,7 @@ import { Recorder } from '../masterdata/helpers.js';
 import { PayrollMastersService } from './masters.service.js';
 import * as s from './payroll.schemas.js';
 import { PayrollRunsService } from './runs.service.js';
+import { RequiresModule } from '../identity/entitlements.js';
 
 const id = z.uuid();
 const strip = <T extends object>(row: T): Omit<T, 'tenantId'> => { const { tenantId: _t, ...rest } = row as T & { tenantId?: string }; return rest as Omit<T, 'tenantId'>; };
@@ -16,6 +17,7 @@ const presentRun = (r: { run: object; payslips: object[] }) => ({ ...strip(r.run
 
 @ApiTags('payroll')
 @ApiBearerAuth()
+@RequiresModule('payroll')
 @Controller('v1/payroll')
 export class PayrollController {
   constructor(

@@ -34,3 +34,17 @@ export const presentApiKey = (k: ApiKeyRow) => ({
 });
 
 export const presentSession = (user: Parameters<typeof presentUser>[0], tokens: TokenPair) => ({ ...tokens, user: presentUser(user) });
+
+import type { Entitlements } from './entitlements.js';
+import { daysLeft, writesBlocked } from './entitlements.js';
+import type { tenantEntitlements } from './identity.schema.js';
+
+/** A stored licence as the platform sees it. */
+export const presentEntitlements = (row: typeof tenantEntitlements.$inferSelect) => ({
+  plan: row.plan, modules: [...row.modules].sort(), limits: row.limits, readOnly: row.readOnly, expiresAt: row.expiresAt?.toISOString() ?? null, graceDays: row.graceDays, licenceId: row.licenceId, source: row.source, updatedAt: row.updatedAt.toISOString(),
+});
+/** What a signed-in client needs to know: which modules to show, the limits, whether the system is read-only, and a warning before expiry. */
+export const presentMyEntitlements = (e: Entitlements | undefined) => {
+  if (!e || !e.restricted) return { restricted: false, plan: null, modules: [] as string[], limits: {}, readOnly: false, readOnlyReason: null, expiresAt: null, daysLeft: null };
+  return { restricted: true, plan: e.plan, modules: [...e.modules].sort(), limits: e.limits, readOnly: writesBlocked(e) !== undefined, readOnlyReason: writesBlocked(e) ?? null, expiresAt: e.expiresAt?.toISOString() ?? null, daysLeft: daysLeft(e) };
+};

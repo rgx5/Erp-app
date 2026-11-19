@@ -8,6 +8,7 @@ import { CountsService, type CountLineRow, type CountRow } from './counts.servic
 import * as s from './inventory.schemas.js';
 import { ReservationsService } from './reservations.service.js';
 import { TransfersService, type TransferLineRow, type TransferRow } from './transfers.service.js';
+import { RequiresModule } from '../identity/entitlements.js';
 
 const id = z.uuid();
 const strip = <T extends object>(row: T): Omit<T, 'tenantId'> => {
@@ -19,6 +20,7 @@ const presentCount = (r: { count: CountRow; lines: CountLineRow[] }) => ({ ...st
 
 @ApiTags('stock operations')
 @ApiBearerAuth()
+@RequiresModule('inventory')
 @Controller('v1/stock')
 export class StockOperationsController {
   constructor(

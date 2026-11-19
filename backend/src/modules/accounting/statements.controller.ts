@@ -6,6 +6,7 @@ import { Idempotent } from '../../platform/services/idempotency.js';
 import { CurrentPrincipal, type Principal, RequirePermissions, TenantId } from '../identity/principal.js';
 import { StatementsService } from './statements.service.js';
 import { YearEndService } from './year-end.service.js';
+import { RequiresModule } from '../identity/entitlements.js';
 
 const id = z.uuid();
 const isoDate = z.iso.date();
@@ -20,6 +21,7 @@ const reopenSchema = z.strictObject({ reason: z.string().trim().min(1).max(300) 
 
 @ApiTags('financial statements')
 @ApiBearerAuth()
+@RequiresModule('accounting')
 @Controller('v1/accounting')
 export class StatementsController {
   constructor(

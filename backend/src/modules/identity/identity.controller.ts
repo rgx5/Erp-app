@@ -29,7 +29,8 @@ import {
   type UpdateRoleInput,
   type UpdateUserInput,
 } from './identity.schemas.js';
-import { presentApiKey, presentRole, presentSession, presentUser } from './identity.presenters.js';
+import { presentApiKey, presentEntitlements, presentMyEntitlements, presentRole, presentSession, presentUser } from './identity.presenters.js';
+import { EntitlementsService, setEntitlementsSchema, signedLicenceSchema, type SetEntitlementsInput, type SignedLicence } from './entitlements.service.js';
 import { Authenticated, CurrentPrincipal, Public, type Principal, RequirePermissions, TenantId } from './principal.js';
 import { Idempotent } from '../../platform/services/idempotency.js';
 import { PlatformAdminGuard } from '../../platform/tenancy/platform-admin.guard.js';
@@ -53,7 +54,19 @@ const versionOf = (ifMatch: string | undefined): number => {
 @Public()
 @UseGuards(PlatformAdminGuard)
 export class PlatformTenantsController {
-  constructor(@Inject(AccessService) private readonly access: AccessService) {}
+  constructor(@Inject(AccessService) private readonly access: AccessService, @Inject(EntitlementsService) private readonly entitlements: EntitlementsService) {}
+
+  /** What this tenant has licensed (null: unrestricted). */
+  @Get(':id/entitlements')
+  async getEntitlements(@Param('id', { schema: z.uuid() }) id: string) { const e = await this.entitlements.get(id); return { entitlements: e ? presentEntitlements(e) : null }; }
+  @Put(':id/entitlements')
+  @ApiZodBody(setEntitlementsSchema)
+  async setEntitlements(@Param('id', { schema: z.uuid() }) id: string, @Body({ schema: setEntitlementsSchema }) body: SetEntitlementsInput) { return presentEntitlements(await this.entitlements.set(id, body)); }
+  /** Applies a licence signed by the control plane (verified against this server's licence public key). */
+  @Post(':id/licence')
+  @HttpCode(200)
+  @ApiZodBody(signedLicenceSchema)
+  async importLicence(@Param('id', { schema: z.uuid() }) id: string, @Body({ schema: signedLicenceSchema }) body: SignedLicence) { return presentEntitlements(await this.entitlements.importLicence(id, body)); }
 
   @Post()
   @ApiZodBody(provisionTenantSchema)
@@ -113,8 +126,9 @@ export class AuthController {
   @Get('me')
   async me(@CurrentPrincipal() principal: Principal) {
     const permissions = [...principal.permissions].sort();
-    if (principal.kind === 'api_key') return { kind: principal.kind, apiKeyId: principal.apiKeyId, permissions };
-    return { kind: principal.kind, user: presentUser(await this.auth.me(principal)), permissions };
+    const entitlements = presentMyEntitlements(principal.entitlements);
+    if (principal.kind === 'api_key') return { kind: principal.kind, apiKeyId: principal.apiKeyId, permissions, entitlements };
+    return { kind: principal.kind, user: presentUser(await this.auth.me(principal)), permissions, entitlements };
   }
 
   @ApiBearerAuth()

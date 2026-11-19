@@ -20,6 +20,7 @@ import { StaffService } from '../retail/staff.service.js';
 import { retailSettings } from '../retail/retail.schema.js';
 import { posPaymentAccounts, posPayments, posSales, posSettings, posShifts, posTerminals } from './pos.schema.js';
 import type { PosReturnInput, PosSaleInput } from './pos.schemas.js';
+import { assertWithinLimit } from '../identity/entitlements.js';
 
 export type TerminalRow = typeof posTerminals.$inferSelect;
 export type ShiftRow = typeof posShifts.$inferSelect;
@@ -78,6 +79,7 @@ export class PosService {
 
   createTerminal(tenantId: string, input: { companyId: string; code: string; name: string; gstRegistrationId: string; businessLocationId: string; warehouseId: string }) {
     return this.uow.inTenant(tenantId, async (tx) => {
+      await assertWithinLimit(tx, tenantId, 'terminals');
       const [r] = await tx.select().from(gstRegistrations).where(and(eq(gstRegistrations.tenantId, tenantId), eq(gstRegistrations.companyId, input.companyId), eq(gstRegistrations.id, input.gstRegistrationId)));
       if (!r) throw validationFailed([{ path: 'gstRegistrationId', message: 'This GST registration does not belong to the company' }]);
       const [loc] = await tx.select().from(businessLocations).where(and(eq(businessLocations.tenantId, tenantId), eq(businessLocations.companyId, input.companyId), eq(businessLocations.id, input.businessLocationId)));

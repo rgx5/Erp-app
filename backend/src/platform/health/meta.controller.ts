@@ -16,6 +16,8 @@ export class MetaController {
       app: 'onesync-erp',
       apiVersion: 'v1',
       auth: { passwordLogin: true, mfa: true, apiKeys: true, selfSignup: this.env.SELF_SIGNUP_ENABLED === true },
+      /** The oldest desktop client this server serves; older ones are asked to update. */
+      minClientVersion: this.env.MIN_CLIENT_VERSION ?? null,
       limits: { requestBodyBytes: this.env.REQUEST_BODY_LIMIT_BYTES },
       time: new Date().toISOString(),
     };

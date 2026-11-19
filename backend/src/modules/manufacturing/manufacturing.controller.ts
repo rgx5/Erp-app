@@ -14,6 +14,7 @@ import { ManufacturingMastersService } from './masters.service.js';
 import { ManufacturingSettingsService } from './manufacturing-settings.service.js';
 import { SubcontractingService } from './subcontracting.service.js';
 import { WorkOrdersService } from './work-orders.service.js';
+import { RequiresModule } from '../identity/entitlements.js';
 
 const id = z.uuid();
 const strip = <T extends object>(row: T): Omit<T, 'tenantId'> => {
@@ -26,6 +27,7 @@ const presentBom = (r: { bom: object; lines: object[]; operations: object[] }) =
 
 @ApiTags('manufacturing')
 @ApiBearerAuth()
+@RequiresModule('manufacturing')
 @Controller('v1/manufacturing')
 export class ManufacturingController {
   constructor(

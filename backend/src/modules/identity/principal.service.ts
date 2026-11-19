@@ -1,3 +1,4 @@
+import { fromRow, UNRESTRICTED, type Entitlements } from './entitlements.js';
 import { Inject, Injectable } from '@nestjs/common';
 import { and, eq, sql } from 'drizzle-orm';
 import { createHash, timingSafeEqual } from 'node:crypto';
@@ -43,7 +44,7 @@ export class PrincipalService {
     const principal = await this.uow.inTenant(
       claims.tid,
       async (tx) => {
-        const result = await tx.execute<{ tenant_status: string; user_status: string | null; session_alive: boolean; permissions: string[] }>(sql`
+        const result = await tx.execute<{ tenant_status: string; user_status: string | null; session_alive: boolean; permissions: string[]; entitlements: Record<string, unknown> | null }>(sql`
           SELECT t.status AS tenant_status,
                  u.status AS user_status,
                  EXISTS (SELECT 1 FROM erp.sessions s
@@ -52,16 +53,17 @@ export class PrincipalService {
                              JOIN erp.roles r ON r.tenant_id = ur.tenant_id AND r.id = ur.role_id
                              CROSS JOIN LATERAL unnest(r.permissions) AS p
                             WHERE ur.tenant_id = ${claims.tid}::uuid AND ur.user_id = ${claims.sub}::uuid AND ur.revoked_at IS NULL), '{}') AS permissions
+                 , (SELECT to_jsonb(e) FROM erp.tenant_entitlements e WHERE e.tenant_id = t.id) AS entitlements
             FROM erp.tenants t
             LEFT JOIN erp.users u ON u.tenant_id = t.id AND u.id = ${claims.sub}::uuid
            WHERE t.id = ${claims.tid}::uuid`);
         const row = result.rows[0];
-        return row && row.tenant_status === 'active' && row.user_status === 'active' && row.session_alive ? new Set(row.permissions) : undefined;
+        return row && row.tenant_status === 'active' && row.user_status === 'active' && row.session_alive ? { permissions: new Set(row.permissions), entitlements: fromRow(row.entitlements) } : undefined;
       },
       { readOnly: true },
     );
     if (!principal) throw unauthorized('The access token is invalid or has expired');
-    return { tenantId: claims.tid, kind: 'user', userId: claims.sub, sessionId: claims.sid, permissions: principal };
+    return { tenantId: claims.tid, kind: 'user', userId: claims.sub, sessionId: claims.sid, permissions: principal.permissions, entitlements: principal.entitlements };
   }
 
   async fromApiKey(key: string): Promise<Principal> {
@@ -71,11 +73,14 @@ export class PrincipalService {
     const tenantId = expandUuid(tenantHex);
     const keyId = expandUuid(keyHex);
     if (!tenantId || !keyId) throw fail();
+    let entitlements: Entitlements = UNRESTRICTED;
     const found = await this.uow.inTenant(
       tenantId,
       async (tx) => {
         const [tenant] = await tx.select({ status: tenants.status }).from(tenants).where(eq(tenants.id, tenantId));
         const [row] = await tx.select().from(apiKeys).where(and(eq(apiKeys.tenantId, tenantId), eq(apiKeys.id, keyId)));
+        const ent = await tx.execute<{ e: Record<string, unknown> | null }>(sql`SELECT to_jsonb(e) AS e FROM erp.tenant_entitlements e WHERE e.tenant_id = ${tenantId}::uuid`);
+        entitlements = fromRow(ent.rows[0]?.e);
         return tenant?.status === 'active' ? row : undefined;
       },
       { readOnly: true },
@@ -90,6 +95,6 @@ export class PrincipalService {
         .inTenant(tenantId, (tx) => tx.update(apiKeys).set({ lastUsedAt: new Date() }).where(and(eq(apiKeys.tenantId, tenantId), eq(apiKeys.id, keyId))))
         .catch(() => undefined); // bookkeeping must never fail a request
     }
-    return { tenantId, kind: 'api_key', userId: found.createdBy, apiKeyId: found.id, permissions: new Set(found.permissions) };
+    return { tenantId, kind: 'api_key', userId: found.createdBy, apiKeyId: found.id, permissions: new Set(found.permissions), entitlements };
   }
 }

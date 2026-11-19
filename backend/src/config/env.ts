@@ -35,6 +35,10 @@ const schema = z
     SELF_SIGNUP_ENABLED: bool.optional(),
     /** Enables POST /v1/platform/tenants. At least 32 characters. Unset disables the endpoint. */
     PLATFORM_ADMIN_TOKEN: z.string().min(32).optional(),
+    /** Ed25519 public key (PEM) that signed licences must verify against. Absent: signed licences cannot be imported. */
+    LICENCE_PUBLIC_KEY: z.string().min(20).optional(),
+    /** The oldest desktop client this server serves. Absent: any. Clients older than this are told to update. */
+    MIN_CLIENT_VERSION: z.string().regex(/^\d+\.\d+\.\d+$/).optional(),
     SWAGGER_ENABLED: bool.optional(),
     /** Requests allowed per client address per window; 0 turns the limiter off. */
     RATE_LIMIT_PER_WINDOW: z.coerce.number().int().min(0).default(0),

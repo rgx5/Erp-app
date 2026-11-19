@@ -17,6 +17,7 @@ import { LandedCostService } from './landed-cost.service.js';
 import { PayablesService } from './payables.service.js';
 import { SupplierBillsService, type BillLineRow, type BillRow } from './supplier-bills.service.js';
 import { PurchasingSettingsService } from './purchasing-settings.service.js';
+import { RequiresModule } from '../identity/entitlements.js';
 
 const id = z.uuid();
 const strip = <T extends object>(row: T): Omit<T, 'tenantId'> => {
@@ -30,6 +31,7 @@ const presentReceipt = (r: { receipt: GoodsReceiptRow; lines: GoodsReceiptLineRo
 
 @ApiTags('purchasing')
 @ApiBearerAuth()
+@RequiresModule('purchasing')
 @Controller('v1')
 export class PurchasingController {
   constructor(
@@ -103,6 +105,7 @@ const presentPayment = (r: { payment: object; allocations: object[]; unallocated
 
 @ApiTags('payables')
 @ApiBearerAuth()
+@RequiresModule('purchasing')
 @Controller('v1/payables')
 export class PayablesController {
   constructor(@Inject(PayablesService) private readonly payables: PayablesService) {}

@@ -16,6 +16,7 @@ import { PostingService, type EntryRow, type LineRow } from './posting.service.j
 import { StatementsController } from './statements.controller.js';
 import { StatementsService } from './statements.service.js';
 import { YearEndService } from './year-end.service.js';
+import { RequiresModule } from '../identity/entitlements.js';
 
 const id = z.uuid();
 const out = <T extends { tenantId: string }>(row: T): Omit<T, 'tenantId'> => {
@@ -70,17 +71,17 @@ export class AccountingController {
   async listFiscalYears(@TenantId() t: string, @Query({ schema: s.companyQuery }) q: { companyId: string }) {
     return { items: (await this.periods.list(t, q.companyId)).map(({ fiscalYear, periods }) => ({ ...out(fiscalYear), periods: periods.map(out) })) };
   }
-  @RequirePermissions('accounting:manage') @Post('accounting-periods/:id/close') @HttpCode(200)
+  @RequirePermissions('accounting:manage') @RequiresModule('accounting') @Post('accounting-periods/:id/close') @HttpCode(200)
   async closePeriod(@TenantId() t: string, @Param('id', { schema: id }) i: string) { return out(await this.periods.close(t, i)); }
-  @RequirePermissions('accounting:reopen') @Post('accounting-periods/:id/reopen') @HttpCode(200)
+  @RequirePermissions('accounting:reopen') @RequiresModule('accounting') @Post('accounting-periods/:id/reopen') @HttpCode(200)
   async reopenPeriod(@TenantId() t: string, @Param('id', { schema: id }) i: string) { return out(await this.periods.reopen(t, i)); }
   /** Permanent. */
-  @RequirePermissions('accounting:manage') @Post('accounting-periods/:id/lock') @HttpCode(200)
+  @RequirePermissions('accounting:manage') @RequiresModule('accounting') @Post('accounting-periods/:id/lock') @HttpCode(200)
   async lockPeriod(@TenantId() t: string, @Param('id', { schema: id }) i: string) { return out(await this.periods.lock(t, i)); }
 
   // ---- journal --------------------------------------------------------------------------------------------------
   /** Manual journal. Control accounts (receivables, payables, stock, GST ...) are refused: only subledgers post there. */
-  @RequirePermissions('accounting:post') @Idempotent() @Post('journal-entries') @ApiZodBody(s.postJournalSchema)
+  @RequirePermissions('accounting:post') @Idempotent() @RequiresModule('accounting') @Post('journal-entries') @ApiZodBody(s.postJournalSchema)
   async post(@CurrentPrincipal() a: Principal, @Headers('approval-id') approvalId: string | undefined, @Body({ schema: s.postJournalSchema }) b: s.PostJournalInput) {
     const { entry, lines } = await this.uow.inTenant(a.tenantId, async (tx) => {
       const approval = await this.approvals.enforce(tx, { tenantId: a.tenantId, userId: a.userId, approvalId }, 'journal', b);
@@ -90,21 +91,21 @@ export class AccountingController {
     });
     return presentEntry(entry, lines);
   }
-  @RequirePermissions('accounting:read') @Get('journal-entries')
+  @RequirePermissions('accounting:read') @RequiresModule('accounting') @Get('journal-entries')
   async list(@TenantId() t: string, @Query({ schema: s.listEntriesQuery }) q: s.ListEntriesQuery) { const p = await this.posting.listEntries(t, q); return { items: p.items.map((e) => ({ ...out(e), txId: undefined })), nextCursor: p.nextCursor }; }
-  @RequirePermissions('accounting:read') @Get('journal-entries/:id')
+  @RequirePermissions('accounting:read') @RequiresModule('accounting') @Get('journal-entries/:id')
   async get(@TenantId() t: string, @Param('id', { schema: id }) i: string) { const r = await this.posting.getEntry(t, i); return presentEntry(r.entry, r.lines, { reversedBy: r.reversedBy }); }
   /** Posts the mirror-image entry. The original is never changed. */
-  @RequirePermissions('accounting:reverse') @Idempotent() @Post('journal-entries/:id/reverse') @ApiZodBody(s.reverseSchema)
+  @RequirePermissions('accounting:reverse') @Idempotent() @RequiresModule('accounting') @Post('journal-entries/:id/reverse') @ApiZodBody(s.reverseSchema)
   async reverse(@CurrentPrincipal() a: Principal, @Param('id', { schema: id }) i: string, @Body({ schema: s.reverseSchema }) b: { postingDate: string; reason: string }) {
     const { entry, lines } = await this.uow.inTenant(a.tenantId, (tx) => this.posting.reverse(tx, a.tenantId, i, { ...b, postedBy: a.userId }));
     return presentEntry(entry, lines);
   }
 
   // ---- reports --------------------------------------------------------------------------------------------------
-  @RequirePermissions('accounting:read') @Get('accounting/trial-balance')
+  @RequirePermissions('accounting:read') @RequiresModule('accounting') @Get('accounting/trial-balance')
   trialBalance(@TenantId() t: string, @Query({ schema: s.trialBalanceQuery }) q: { companyId: string; from: string; to: string }) { return this.posting.trialBalance(t, q.companyId, q.from, q.to); }
-  @RequirePermissions('accounting:read') @Get('accounting/account-ledger')
+  @RequirePermissions('accounting:read') @RequiresModule('accounting') @Get('accounting/account-ledger')
   accountLedger(@TenantId() t: string, @Query({ schema: s.ledgerQuery }) q: { companyId: string; accountId: string; from: string; to: string; limit: number }) { return this.posting.accountLedger(t, q.companyId, q.accountId, q.from, q.to, q.limit); }
 }
 

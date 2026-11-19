@@ -17,6 +17,7 @@ import { hashPassword } from './password.js';
 import { allows, OWNER_ROLE_NAME, WILDCARD } from './permissions.js';
 import type { Principal } from './principal.js';
 import { compactUuid, sha256 } from './principal.service.js';
+import { assertWithinLimit } from './entitlements.js';
 
 export type UserRow = typeof users.$inferSelect;
 export type RoleRow = typeof roles.$inferSelect;
@@ -82,6 +83,7 @@ export class AccessService {
   async createUser(actor: Principal, input: CreateUserInput): Promise<UserWithRoles> {
     const passwordHash = await hashPassword(input.password);
     return this.uow.inTenant(actor.tenantId, async (tx) => {
+      await assertWithinLimit(tx, actor.tenantId, 'users');
       const granted = await this.loadRoles(tx, actor.tenantId, input.roleIds);
       for (const role of granted) assertCanGrant(actor, role.permissions);
       const [user] = await tx

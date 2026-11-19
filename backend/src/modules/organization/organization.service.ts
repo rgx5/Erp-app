@@ -18,6 +18,7 @@ import type {
   UpdateCompanyInput,
 } from './organization.schemas.js';
 import { stateCodeOfGstin } from './gstin.js';
+import { assertWithinLimit } from '../identity/entitlements.js';
 
 export type TenantRow = typeof tenants.$inferSelect;
 export type CompanyRow = typeof companies.$inferSelect;
@@ -51,9 +52,10 @@ export class OrganizationService {
   }
 
   createCompany(tenantId: string, input: CreateCompanyInput): Promise<CompanyRow> {
-    return this.uow.inTenant(tenantId, async (tx) =>
-      this.recorded(tx, tenantId, 'company', 'created', one(await tx.insert(companies).values({ tenantId, id: uuidv7(), ...input }).returning(), 'Company'), { legalName: input.legalName }),
-    );
+    return this.uow.inTenant(tenantId, async (tx) => {
+      await assertWithinLimit(tx, tenantId, 'companies');
+      return this.recorded(tx, tenantId, 'company', 'created', one(await tx.insert(companies).values({ tenantId, id: uuidv7(), ...input }).returning(), 'Company'), { legalName: input.legalName });
+    });
   }
 
   getCompany(tenantId: string, id: string): Promise<CompanyRow> {
@@ -119,9 +121,10 @@ export class OrganizationService {
   }
 
   createBusinessLocation(tenantId: string, input: CreateBusinessLocationInput): Promise<BusinessLocationRow> {
-    return this.uow.inTenant(tenantId, async (tx) =>
-      this.recorded(tx, tenantId, 'business_location', 'created', one(await tx.insert(businessLocations).values({ tenantId, id: uuidv7(), ...input }).returning(), 'Business location'), { companyId: input.companyId, code: input.code }),
-    );
+    return this.uow.inTenant(tenantId, async (tx) => {
+      await assertWithinLimit(tx, tenantId, 'locations');
+      return this.recorded(tx, tenantId, 'business_location', 'created', one(await tx.insert(businessLocations).values({ tenantId, id: uuidv7(), ...input }).returning(), 'Business location'), { companyId: input.companyId, code: input.code });
+    });
   }
 
   listBusinessLocations(tenantId: string, query: ListLocationsQuery): Promise<Page<BusinessLocationRow>> {

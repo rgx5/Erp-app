@@ -8,6 +8,7 @@ import { Authenticated, CurrentPrincipal, type Principal, RequirePermissions, Te
 import { Recorder } from '../masterdata/helpers.js';
 import * as s from './approvals.schemas.js';
 import { ApprovalsService, type DecisionRow, type RequestRow } from './approvals.service.js';
+import { RequiresModule } from '../identity/entitlements.js';
 
 const id = z.uuid();
 const strip = <T extends object>(row: T): Omit<T, 'tenantId'> => {
@@ -30,6 +31,7 @@ const canSee = (a: Principal): boolean => a.permissions.has('*') || a.permission
 
 @ApiTags('approvals')
 @ApiBearerAuth()
+@RequiresModule('approvals')
 @Controller('v1')
 export class ApprovalsController {
   constructor(@Inject(ApprovalsService) private readonly approvals: ApprovalsService) {}
