@@ -30,6 +30,7 @@ import {
   type UpdateUserInput,
 } from './identity.schemas.js';
 import { presentApiKey, presentEntitlements, presentMyEntitlements, presentRole, presentSession, presentUser } from './identity.presenters.js';
+import { PlatformOpsService } from './platform-ops.service.js';
 import { EntitlementsService, setEntitlementsSchema, signedLicenceSchema, type SetEntitlementsInput, type SignedLicence } from './entitlements.service.js';
 import { Authenticated, CurrentPrincipal, Public, type Principal, RequirePermissions, TenantId } from './principal.js';
 import { Idempotent } from '../../platform/services/idempotency.js';
@@ -48,13 +49,26 @@ const versionOf = (ifMatch: string | undefined): number => {
   return version;
 };
 
+const setTenantStatusSchema = z.strictObject({ status: z.enum(['active', 'suspended']), reason: z.string().trim().min(3).max(300) });
+
 /** Platform operator endpoint (static platform token): provisions a tenant together with its first owner. */
 @ApiTags('platform')
 @Controller('v1/platform/tenants')
 @Public()
 @UseGuards(PlatformAdminGuard)
 export class PlatformTenantsController {
-  constructor(@Inject(AccessService) private readonly access: AccessService, @Inject(EntitlementsService) private readonly entitlements: EntitlementsService) {}
+  constructor(@Inject(AccessService) private readonly access: AccessService, @Inject(EntitlementsService) private readonly entitlements: EntitlementsService, @Inject(PlatformOpsService) private readonly ops: PlatformOpsService) {}
+
+  /** Every tenant on this server with its usage and licence: counts only, never business content. */
+  @Get()
+  async listTenants() { return { items: await this.ops.listTenants() }; }
+  @Get(':id/validate')
+  validate(@Param('id', { schema: z.uuid() }) id: string) { return this.ops.validate(id); }
+  /** Suspends or reactivates a tenant (suspended: nobody can sign in). */
+  @Post(':id/status')
+  @HttpCode(200)
+  @ApiZodBody(setTenantStatusSchema)
+  setStatus(@Param('id', { schema: z.uuid() }) id: string, @Body({ schema: setTenantStatusSchema }) b: { status: 'active' | 'suspended'; reason: string }) { return this.ops.setStatus(id, b.status, b.reason); }
 
   /** What this tenant has licensed (null: unrestricted). */
   @Get(':id/entitlements')

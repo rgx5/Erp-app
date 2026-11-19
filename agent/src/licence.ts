@@ -6,12 +6,16 @@ export interface LicencePorts {
   importLicence(tenantId: string, signed: { licence: unknown; signature: string }): Promise<void>;
 }
 
-/** Keeps the product server's licence in step with the control plane. Returns what happened, for the log. */
-export async function syncLicence(cp: ControlPlane, ports: LicencePorts, state: StateStore): Promise<'applied' | 'unchanged' | 'none'> {
-  const latest = await cp.licence();
-  if (!latest) return 'none';
-  if (state.read().appliedLicenceId === latest.licence.licenceId) return 'unchanged';
-  await ports.importLicence(latest.tenantId ?? latest.licence.tenantId, { licence: latest.licence, signature: latest.signature });
-  state.update((s) => { s.appliedLicenceId = latest.licence.licenceId; });
-  return 'applied';
+/** Keeps each tenant's licence on the product server in step with the control plane. Reports how many were applied; one refusal does not stop the others. */
+export async function syncLicence(cp: ControlPlane, ports: LicencePorts, state: StateStore): Promise<{ applied: number; unchanged: number; failed: string[] }> {
+  const result = { applied: 0, unchanged: 0, failed: [] as string[] };
+  for (const l of await cp.licences()) {
+    if (state.read().appliedLicences[l.tenantId] === l.licence.licenceId) { result.unchanged++; continue; }
+    try {
+      await ports.importLicence(l.tenantId, { licence: l.licence, signature: l.signature });
+      state.update((s) => { s.appliedLicences[l.tenantId] = l.licence.licenceId; });
+      result.applied++;
+    } catch (e) { result.failed.push(`${l.licence.licenceId}: ${e instanceof Error ? e.message : String(e)}`); }
+  }
+  return result;
 }

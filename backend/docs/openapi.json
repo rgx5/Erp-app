@@ -265,6 +265,162 @@
         ]
       }
     },
+    "/v1/platform/tenants": {
+      "get": {
+        "operationId": "PlatformTenantsController_listTenants",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "platform"
+        ]
+      },
+      "post": {
+        "operationId": "PlatformTenantsController_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "slug": {
+                    "type": "string",
+                    "pattern": "^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$"
+                  },
+                  "owner": {
+                    "type": "object",
+                    "properties": {
+                      "email": {
+                        "type": "string",
+                        "maxLength": 254,
+                        "pattern": "^[^@\\s]+@[^@\\s]+$"
+                      },
+                      "displayName": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      },
+                      "password": {
+                        "type": "string",
+                        "minLength": 12,
+                        "maxLength": 1024
+                      }
+                    },
+                    "required": [
+                      "email",
+                      "displayName",
+                      "password"
+                    ],
+                    "additionalProperties": false
+                  }
+                },
+                "required": [
+                  "name",
+                  "slug",
+                  "owner"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "platform"
+        ]
+      }
+    },
+    "/v1/platform/tenants/{id}/validate": {
+      "get": {
+        "operationId": "PlatformTenantsController_validate",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "platform"
+        ]
+      }
+    },
+    "/v1/platform/tenants/{id}/status": {
+      "post": {
+        "operationId": "PlatformTenantsController_setStatus",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "active",
+                      "suspended"
+                    ]
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 300
+                  }
+                },
+                "required": [
+                  "status",
+                  "reason"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "platform"
+        ]
+      }
+    },
     "/v1/platform/tenants/{id}/entitlements": {
       "get": {
         "operationId": "PlatformTenantsController_getEntitlements",
@@ -494,73 +650,6 @@
         },
         "responses": {
           "200": {
-            "description": ""
-          }
-        },
-        "tags": [
-          "platform"
-        ]
-      }
-    },
-    "/v1/platform/tenants": {
-      "post": {
-        "operationId": "PlatformTenantsController_create",
-        "parameters": [],
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {
-                  "name": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 200
-                  },
-                  "slug": {
-                    "type": "string",
-                    "pattern": "^[a-z0-9][a-z0-9-]{1,62}[a-z0-9]$"
-                  },
-                  "owner": {
-                    "type": "object",
-                    "properties": {
-                      "email": {
-                        "type": "string",
-                        "maxLength": 254,
-                        "pattern": "^[^@\\s]+@[^@\\s]+$"
-                      },
-                      "displayName": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 200
-                      },
-                      "password": {
-                        "type": "string",
-                        "minLength": 12,
-                        "maxLength": 1024
-                      }
-                    },
-                    "required": [
-                      "email",
-                      "displayName",
-                      "password"
-                    ],
-                    "additionalProperties": false
-                  }
-                },
-                "required": [
-                  "name",
-                  "slug",
-                  "owner"
-                ],
-                "additionalProperties": false
-              }
-            }
-          }
-        },
-        "responses": {
-          "201": {
             "description": ""
           }
         },

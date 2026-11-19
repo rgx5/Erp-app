@@ -7,12 +7,15 @@ export interface AgentState {
   /** The release that is running, and the one before it (kept so a bad release can be rolled back). */
   current: Manifest | null;
   previous: Manifest | null;
-  appliedLicenceId: string | null;
+  /** The licence id last handed to the product server for each tenant. */
+  appliedLicences: Record<string, string>;
+  /** When each tenant's checks last ran. */
+  validatedAt: Record<string, string>;
   lastUpgrade: UpgradeResult | null;
   /** A support session in progress on this site: the hash of the code shown to the customer, wrong guesses so far, and whether access is open. */
   support: { sessionId: string; codeHash: string | null; attempts: number; open: boolean; expiresAt: string | null } | null;
 }
-export const emptyState = (): AgentState => ({ current: null, previous: null, appliedLicenceId: null, lastUpgrade: null, support: null });
+export const emptyState = (): AgentState => ({ current: null, previous: null, appliedLicences: {}, validatedAt: {}, lastUpgrade: null, support: null });
 
 /** The agent's memory across restarts: one small JSON file, replaced atomically so a power cut cannot leave half a file. */
 export class StateStore {

@@ -9,10 +9,11 @@ import { cryptoProviders } from './crypto.providers.js';
 import { ApiKeysController, AuthController, PlatformTenantsController, RolesController, UsersController } from './identity.controller.js';
 import { PrincipalService } from './principal.service.js';
 import { EntitlementsService } from './entitlements.service.js';
+import { PlatformOpsService } from './platform-ops.service.js';
 
 @Module({
   controllers: [PlatformTenantsController, AuthController, UsersController, RolesController, ApiKeysController],
-  providers: [...cryptoProviders, PrincipalCache, PrincipalService, AuthService, AccessService, EntitlementsService, PlatformAdminGuard, { provide: APP_GUARD, useClass: AuthGuard }],
+  providers: [...cryptoProviders, PrincipalCache, PrincipalService, AuthService, AccessService, EntitlementsService, PlatformOpsService, PlatformAdminGuard, { provide: APP_GUARD, useClass: AuthGuard }],
   exports: [PrincipalService],
 })
 export class IdentityModule {}

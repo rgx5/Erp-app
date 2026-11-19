@@ -5,6 +5,7 @@ import { Agent } from '../src/agent.js';
 import { ControlPlane } from '../src/controlPlane.js';
 import type { HeartbeatPorts } from '../src/heartbeat.js';
 import type { LicencePorts } from '../src/licence.js';
+import type { PlatformPorts, TenantSummary } from '../src/platform.js';
 import type { SupportPorts } from '../src/support.js';
 import { fakePorts, tempState } from './helpers.js';
 
@@ -38,8 +39,16 @@ async function site(code: string, tier = 'hybrid') {
   const licence: LicencePorts = { importLicence: async (_t, signed) => { imported.push(signed); } };
   const supportPorts: SupportPorts = { showCode: async (c) => { shown = c; }, openAccess: async () => { access = true; }, closeAccess: async () => { access = false; } };
   const log: string[] = [];
-  const agent = new Agent({ config: { releasePublicKey: publicKey, retryFailedUpgradeHours: 6 }, cp: new ControlPlane(base, token), state, heartbeat, upgrade, licence, support: supportPorts, log: (m) => log.push(m) });
-  return { id: s.id as string, agent, state, upgrade, imported, log, get shown() { return shown; }, get access() { return access; } };
+  // a stand-in for this cell's product server: two tenants, with checks that can be made to fail
+  const tenants: TenantSummary[] = [1, 2].map((n) => ({ id: `01a1ef97-0000-7000-8000-${code.length}${n}${'0'.repeat(10)}`.slice(0, 36), slug: `${code.toLowerCase()}-t${n}`, name: `${code} tenant ${n}`, status: 'active', usage: { users: 2, companies: 1, documents30d: 10 + n }, licence: { restricted: false } }));
+  const failing = new Set<string>(); const statusCalls: string[] = [];
+  const platform: PlatformPorts = {
+    listTenants: async () => tenants,
+    validate: async (id) => ({ tenantId: id, at: NOW.toISOString(), ok: !failing.has(id), checks: failing.has(id) ? [{ key: 'invoice_series', label: 'Invoice series present', status: 'fail', detail: '1 of 1 missing' }] : [{ key: 'ledger_balanced', label: 'Ledger balances', status: 'pass', detail: 'ok' }] }),
+    setStatus: async (id, status, reason) => { statusCalls.push(`${id}:${status}:${reason}`); const t = tenants.find((x) => x.id === id); if (t) t.status = status; },
+  };
+  const agent = new Agent({ config: { releasePublicKey: publicKey, retryFailedUpgradeHours: 6 }, cp: new ControlPlane(base, token), state, heartbeat, upgrade, licence, platform, support: supportPorts, log: (m) => log.push(m) });
+  return { id: s.id as string, agent, state, upgrade, imported, log, tenants, failing, statusCalls, get shown() { return shown; }, get access() { return access; } };
 }
 const fleetRow = async (code: string) => ((await cp.call('GET', '/fleet', admin.token)).json.items as { code: string; version: string | null; health: { state: string; reasons: string[] } }[]).find((s) => s.code === code);
 const release = async (version: string) => {
@@ -76,7 +85,7 @@ describe('agent with the real control plane', () => {
     a.state.update((s) => { s.current = { version: '1.0.0', images: [{ name: 'api', digest: `sha256:${'a'.repeat(64)}` }], migrationDigest: `sha256:${'b'.repeat(64)}`, minClientVersion: null, maxClientVersion: null, notes: '', createdAt: '2026-01-01T00:00:00.000Z' }; });
     await release('2.5.0');
     const bad = fakePorts({ healthyNew: false });
-    const failing = new Agent({ config: { releasePublicKey: publicKey, retryFailedUpgradeHours: 6 }, cp: (a.agent as unknown as { d: { cp: ControlPlane } }).d.cp, state: a.state, heartbeat: (a.agent as unknown as { d: { heartbeat: HeartbeatPorts } }).d.heartbeat, upgrade: bad, licence: { importLicence: async () => undefined }, support: { showCode: async () => undefined, openAccess: async () => undefined, closeAccess: async () => undefined }, log: () => undefined });
+    const failing = new Agent({ config: { releasePublicKey: publicKey, retryFailedUpgradeHours: 6 }, cp: (a.agent as unknown as { d: { cp: ControlPlane } }).d.cp, state: a.state, heartbeat: (a.agent as unknown as { d: { heartbeat: HeartbeatPorts } }).d.heartbeat, upgrade: bad, licence: { importLicence: async () => undefined }, platform: { listTenants: async () => [], validate: async () => { throw new Error('unused'); }, setStatus: async () => undefined }, support: { showCode: async () => undefined, openAccess: async () => undefined, closeAccess: async () => undefined }, log: () => undefined });
     expect(await failing.checkRelease(NOW)).toBe('rolled_back');
     const row = await fleetRow('E2E-03');
     expect(row?.health.state).toBe('degraded');
@@ -100,5 +109,43 @@ describe('agent with the real control plane', () => {
     expect(await a.agent.supervise(new Date(NOW.getTime() + 25 * 60_000))).toBe('closed');
     expect(a.access).toBe(false);
     expect((await cp.call('GET', `/sites/${a.id}/support-sessions`, support.token)).json.items[0]).toMatchObject({ status: 'closed' });
+  });
+
+  it('feeds the super admin dashboard: tenants, their checks, licences per tenant, and staff commands the cell carries out', async () => {
+    const a = await site('E2E-05');
+    await a.agent.sendHeartbeat();
+    await a.agent.reportTenants();
+    const tenantId = a.tenants[0]?.id as string; const other = a.tenants[1]?.id as string;
+    a.failing.add(other);
+    await a.agent.validate(NOW);
+    const list = (await cp.call('GET', '/tenants?cell=E2E-05', admin.token)).json;
+    expect(list.total).toBe(2);
+    expect(list.items.find((t: { tenantId: string }) => t.tenantId === tenantId)).toMatchObject({ health: 'healthy', usage: { documents30d: 11 }, validations: { ok: true } });
+    expect(list.items.find((t: { tenantId: string }) => t.tenantId === other)).toMatchObject({ health: 'critical' });
+    await a.agent.validate(new Date(NOW.getTime() + 3_600_000)); // not again within a day
+    expect(((await cp.call('GET', `/tenants/${tenantId}`, admin.token)).json.validatedAt)).toBe(NOW.toISOString());
+
+    // a licence for one tenant reaches the product server, tagged with that tenant
+    await cp.call('POST', `/tenants/${tenantId}/licences`, admin.token, { plan: 'Business', modules: ['sales'] });
+    await a.agent.syncLicence();
+    expect(a.imported).toHaveLength(1);
+
+    // staff fix the problem and ask for a re-check; then suspend the tenant, all through the cell's own agent
+    a.failing.delete(other);
+    await cp.call('POST', `/tenants/${other}/commands`, support.token, { type: 'validate' });
+    expect(await a.agent.runCommands(NOW)).toBe(1);
+    expect((await cp.call('GET', `/tenants/${other}`, admin.token)).json).toMatchObject({ health: 'healthy', commands: [{ type: 'validate', status: 'done' }] });
+    await cp.call('POST', `/tenants/${tenantId}/commands`, admin.token, { type: 'suspend', reason: 'Unpaid invoice' });
+    expect(await a.agent.runCommands(NOW)).toBe(1);
+    expect(a.statusCalls).toEqual([`${tenantId}:suspended:Unpaid invoice`]);
+    expect((await cp.call('GET', `/tenants/${tenantId}`, admin.token)).json).toMatchObject({ status: 'suspended', commands: [{ type: 'suspend', status: 'done' }] });
+    // a failing command is reported, not lost
+    a.tenants[0]!.status = 'suspended';
+    await cp.call('POST', `/tenants/${tenantId}/commands`, admin.token, { type: 'reactivate', reason: 'Paid' });
+    const broken = { ...a.agent } as unknown as { d: { platform: PlatformPorts } };
+    broken.d.platform.setStatus = async () => { throw new Error('the product server refused'); };
+    await a.agent.runCommands(NOW);
+    const failed = (await cp.call('GET', `/tenants/${tenantId}`, admin.token)).json.commands.find((c: { type: string }) => c.type === 'reactivate');
+    expect(failed).toMatchObject({ status: 'failed', result: { message: expect.stringContaining('refused') } });
   });
 });

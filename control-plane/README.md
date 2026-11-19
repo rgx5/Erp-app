@@ -16,7 +16,7 @@ npm ci
 npm run cli -- keys                        # two key pairs: set the private keys below, give servers the licence public key
 export DATABASE_URL=postgres://... LICENCE_PRIVATE_KEY="$(...)" RELEASE_PRIVATE_KEY="$(...)"
 CP_PASSWORD='a-long-password' npm run cli -- create-staff you@example.com "Your Name" admin
-npm start                                  # http://127.0.0.1:8090/ui is the fleet screen
+npm start                                  # http://127.0.0.1:8090/ui is the super admin dashboard
 ```
 
 `GET /keys` returns the public keys; `LICENCE_PUBLIC_KEY` on each product server must be the licence one.
@@ -49,3 +49,7 @@ TOTP with recovery codes; in production staff must set it up before doing anythi
 ## Tests
 
 `npm test` needs PostgreSQL (default `postgres://postgres@localhost:5434/postgres`, or `TEST_PG_ADMIN_URL`); each run uses a throwaway database. `test/licence-vector.json` is shared with the product server's tests so both sides agree on how a licence is signed.
+
+## Super admin dashboard
+
+`/ui` is a single page for staff: Overview (cells, tenant health, expiring licences, alerts), Tenants (every tenant across every cell with search and filters), a tenant page (usage, validation results, licence history and issuing, suspend/reactivate, requests sent to the cell), Cells (health, tenants, support sessions), Releases and the audit log. What staff can do follows their role. Cells report their tenants (`/agent/tenants`) and daily checks (`/agent/validations`) and collect requests from `/agent/commands`. See ADR 60.

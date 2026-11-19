@@ -19,6 +19,19 @@ export class ControlPlane {
     if (r.status !== 200) throw new Error(`licence request refused (${r.status})`);
     return r.json;
   }
+  async licences(): Promise<{ tenantId: string; licence: { licenceId: string; tenantId: string }; signature: string }[]> {
+    const r = await this.call<{ items: { tenantId: string; licence: { licenceId: string; tenantId: string }; signature: string }[] }>('GET', '/agent/licences');
+    if (r.status !== 200) throw new Error(`licences request refused (${r.status})`);
+    return r.json.items;
+  }
+  async reportTenants(items: object[]): Promise<void> { const r = await this.call('POST', '/agent/tenants', { items }); if (r.status !== 200) throw new Error(`tenant report refused (${r.status})`); }
+  async reportValidation(report: object): Promise<void> { const r = await this.call('POST', '/agent/validations', report); if (r.status !== 200) throw new Error(`validation report refused (${r.status})`); }
+  async commands(): Promise<{ id: string; tenantId: string; type: 'validate' | 'suspend' | 'reactivate'; payload: { reason: string | null } }[]> {
+    const r = await this.call<{ items: { id: string; tenantId: string; type: 'validate' | 'suspend' | 'reactivate'; payload: { reason: string | null } }[] }>('GET', '/agent/commands');
+    if (r.status !== 200) throw new Error(`commands request refused (${r.status})`);
+    return r.json.items;
+  }
+  async commandResult(id: string, body: { ok: boolean; message: string }): Promise<void> { const r = await this.call('POST', `/agent/commands/${id}/result`, body); if (r.status !== 200) throw new Error(`command result refused (${r.status})`); }
   async release(current: string | null): Promise<{ release: { manifest: Manifest; signature: string } | null; maintenanceWindow: MaintenanceWindow; reason?: string }> {
     const r = await this.call<{ release: { manifest: Manifest; signature: string } | null; maintenanceWindow: MaintenanceWindow; reason?: string }>('GET', `/agent/release${current ? `?current=${current}` : ''}`);
     if (r.status !== 200) throw new Error(`release request refused (${r.status})`);

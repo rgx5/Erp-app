@@ -4,11 +4,12 @@ import { collectHeartbeat, type HeartbeatPorts } from './heartbeat.js';
 import { syncLicence, type LicencePorts } from './licence.js';
 import type { StateStore } from './state.js';
 import { superviseSupport, type SupportPorts } from './support.js';
+import { reportTenants, runCommands, runValidations, type PlatformPorts } from './platform.js';
 import { upgrade, type UpgradePorts } from './upgrade.js';
 import { inWindow } from './window.js';
 
 export const AGENT_VERSION = '0.1.0';
-export interface AgentDeps { config: Pick<AgentConfig, 'releasePublicKey' | 'retryFailedUpgradeHours'>; cp: ControlPlane; state: StateStore; heartbeat: HeartbeatPorts; upgrade: UpgradePorts; licence: LicencePorts; support: SupportPorts; log?: (msg: string) => void }
+export interface AgentDeps { config: Pick<AgentConfig, 'releasePublicKey' | 'retryFailedUpgradeHours'>; cp: ControlPlane; state: StateStore; heartbeat: HeartbeatPorts; upgrade: UpgradePorts; licence: LicencePorts; platform: PlatformPorts; support: SupportPorts; log?: (msg: string) => void }
 
 /** One agent's duties, each safe to run on its own and to fail without stopping the others. */
 export class Agent {
@@ -20,8 +21,11 @@ export class Agent {
     await this.guarded('heartbeat', async () => this.d.cp.heartbeat(await collectHeartbeat(this.d.heartbeat, this.d.state.read(), AGENT_VERSION)));
   }
   async syncLicence(): Promise<void> {
-    await this.guarded('licence', async () => { const r = await syncLicence(this.d.cp, this.d.licence, this.d.state); if (r === 'applied') this.log('licence applied'); });
+    await this.guarded('licence', async () => { const r = await syncLicence(this.d.cp, this.d.licence, this.d.state); if (r.applied) this.log(`${r.applied} licence(s) applied`); if (r.failed.length) this.log(`licence: ${r.failed.join('; ')}`); });
   }
+  async reportTenants(): Promise<void> { await this.guarded('tenants', () => reportTenants(this.d.cp, this.d.platform)); }
+  async validate(now = new Date()): Promise<void> { await this.guarded('validation', () => runValidations(this.d.cp, this.d.platform, this.d.state, now)); }
+  async runCommands(now = new Date()): Promise<number> { let n = 0; await this.guarded('commands', async () => { n = await runCommands(this.d.cp, this.d.platform, this.d.state, now); }); return n; }
   async supervise(now = new Date()): Promise<string | undefined> {
     let result: string | undefined;
     await this.guarded('support', async () => { result = await superviseSupport(this.d.cp, this.d.support, this.d.state, now); });

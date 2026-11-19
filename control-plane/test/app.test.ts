@@ -200,7 +200,7 @@ describe('approved remote support', () => {
 describe('fleet screen', () => {
   it('serves the page and the health check without sign-in', async () => {
     const page = await t.app.inject({ method: 'GET', url: '/ui' });
-    expect(page.statusCode).toBe(200); expect(page.headers['content-type']).toContain('text/html'); expect(page.body).toContain('Control Plane');
+    expect(page.statusCode).toBe(200); expect(page.headers['content-type']).toContain('text/html'); expect(page.body).toContain('Super admin');
     expect((await t.call('GET', '/health', null)).json.ok).toBe(true);
   });
 });

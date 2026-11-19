@@ -37,3 +37,7 @@ Runs on every site server. It only ever makes **outbound** requests to the contr
 ## What still needs a real server
 
 `install.sh` and the Docker/backup/SSH ports in `src/system.ts` have been syntax-checked and the compose file validated, but never run on a clean Ubuntu machine (this environment has no Docker daemon). Run them on a test machine before any client. The Docker side of the backup commands (`src/backup/docker.ts`, the postgres image, the compose changes, the systemd timers) is likewise untested on a real site; the backup logic itself is tested against a real database (above). Not included here, by design: the tunnel client. The agent calls the backup commands named in `BACKUP_COMMAND` / `RESTORE_COMMAND` and refuses to upgrade without a working backup.
+
+## Tenant reporting and requests
+
+Each cycle the agent reports its tenants (usage and licence) to the control plane, runs read-only validation checks once a day per tenant, syncs per-tenant licences, and every 15 seconds collects staff requests (`validate`, `suspend`, `reactivate`) which it carries out through the product's platform API.

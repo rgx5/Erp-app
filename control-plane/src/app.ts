@@ -24,6 +24,7 @@ const iso = z.iso.datetime({ offset: true });
 const uuid = z.uuid();
 const parse = <T>(schema: z.ZodType<T>, data: unknown): T => schema.parse(data);
 
+function licenceBody() { return z.strictObject({ plan: z.string().trim().min(1).max(60), modules: z.array(z.enum(MODULES)).max(20), limits: z.partialRecord(z.enum(LIMIT_KEYS), z.number().int().min(0).max(1_000_000)).default({}), readOnly: z.boolean().default(false), expiresAt: iso.nullable().optional(), graceDays: z.number().int().min(0).max(365).default(14) }); }
 const schemas = {
   login: z.strictObject({ email: z.string().email(), password: z.string().min(1), code: z.string().min(6).max(20).optional() }),
   code: z.strictObject({ code: z.string().min(6).max(20) }),
@@ -37,6 +38,13 @@ const schemas = {
   support: z.strictObject({ reason: z.string().trim().min(5).max(300), minutes: z.number().int().min(5).max(120), publicKey: z.string().regex(/^(ssh-ed25519|ecdsa-sha2-nistp256) [A-Za-z0-9+/=]{20,600}( [^\s]{1,80})?$/, 'An ssh-ed25519 or ecdsa-sha2-nistp256 public key') }),
   supportCode: z.strictObject({ code: z.string().regex(/^\d{6}$/, 'The six digits the customer reads out') }),
   supportState: z.strictObject({ state: z.enum(['awaiting_code', 'open', 'closed', 'refused']), expiresAt: iso.optional(), codeRejected: z.boolean().optional() }),
+  tenantReport: z.strictObject({ items: z.array(z.strictObject({
+    id: uuid, slug: z.string().max(80), name: z.string().max(200), status: z.enum(['active', 'suspended']), createdAt: iso.optional(),
+    usage: z.record(z.string(), z.union([z.number(), z.string(), z.null()])), licence: z.record(z.string(), z.unknown()) })).max(2000) }),
+  validationReport: z.strictObject({ tenantId: uuid, at: iso, ok: z.boolean(), checks: z.array(z.strictObject({ key: z.string().max(60), label: z.string().max(200), status: z.enum(['pass', 'warn', 'fail']), detail: z.string().max(500) })).max(50) }),
+  command: z.strictObject({ type: z.enum(['validate', 'suspend', 'reactivate']), reason: z.string().trim().min(3).max(300).optional() }),
+  commandResult: z.strictObject({ ok: z.boolean(), message: z.string().max(500).default('') }),
+  tenantLicence: licenceBody(),
   revoke: z.strictObject({ reason: z.string().trim().min(3).max(300) }),
   release: z.strictObject({ version: z.string().regex(/^\d+\.\d+\.\d+$/), images: z.array(z.strictObject({ name: z.string().min(1).max(100), digest: z.string().regex(/^sha256:[0-9a-f]{64}$/) })).min(1).max(20), migrationDigest: z.string().regex(/^sha256:[0-9a-f]{64}$/), minClientVersion: z.string().regex(/^\d+\.\d+\.\d+$/).optional(), maxClientVersion: z.string().regex(/^\d+\.\d+\.\d+$/).optional(), notes: z.string().max(4000).default('') }),
   heartbeat: z.looseObject({ version: z.string().max(40).optional(), agentVersion: z.string().max(40).optional(),
@@ -249,19 +257,30 @@ export function buildApp({ pool, config }: AppDeps): FastifyInstance {
   });
 
   // ---- licences -------------------------------------------------------------------------------------------------
-  app.post<{ Params: { id: string } }>('/sites/:id/licences', { preHandler: asStaff('admin') }, async (req, reply) => {
-    const id = parse(uuid, req.params.id); const b = parse(schemas.licence, req.body);
+  /** Signs and records a licence for one tenant at one site. */
+  const issueLicence = async (req: FastifyRequest, site: { id: string; code: string }, tenantId: string, label: string, b: z.infer<typeof schemas.licence>) => {
     const problem = moduleProblem(b.modules);
     if (problem) throw new HttpError(422, 'module_dependency', problem);
+    const n = Number((await pool.query<{ n: string }>('SELECT count(*)::text AS n FROM licences WHERE tenant_id = $1', [tenantId])).rows[0]?.n) + 1;
+    const licence = { licenceId: `LIC-${label.toUpperCase().replace(/[^A-Z0-9]+/g, '-').slice(0, 24)}-${String(n).padStart(3, '0')}`, tenantId, plan: b.plan, modules: [...b.modules].sort(), limits: b.limits, readOnly: b.readOnly, expiresAt: b.expiresAt ?? null, graceDays: b.graceDays, issuedAt: new Date().toISOString() };
+    const signature = signDocument(licence, config.LICENCE_PRIVATE_KEY);
+    await pool.query('INSERT INTO licences (id, site_id, tenant_id, licence_id, licence, signature, issued_by) VALUES ($1, $2, $3, $4, $5, $6, $7)', [randomUUID(), site.id, tenantId, licence.licenceId, licence, signature, req.staff?.id]);
+    await audit(req, 'licence.issued', 'site', site.id, { licenceId: licence.licenceId, tenantId, plan: b.plan, modules: licence.modules });
+    return { licence, signature };
+  };
+  app.post<{ Params: { id: string } }>('/sites/:id/licences', { preHandler: asStaff('admin') }, async (req, reply) => {
+    const id = parse(uuid, req.params.id); const b = parse(schemas.licence, req.body);
     const site = (await pool.query<{ code: string; tenant_id: string | null }>('SELECT code, tenant_id FROM sites WHERE id = $1', [id])).rows[0];
     if (!site) throw new HttpError(404, 'not_found', 'No such site');
     if (!site.tenant_id) throw new HttpError(409, 'no_tenant', 'Set the site\'s tenant id before issuing a licence: a licence is bound to one tenant');
-    const n = Number((await pool.query<{ n: string }>('SELECT count(*)::text AS n FROM licences WHERE site_id = $1', [id])).rows[0]?.n) + 1;
-    const licence = { licenceId: `LIC-${site.code.toUpperCase()}-${String(n).padStart(3, '0')}`, tenantId: site.tenant_id, plan: b.plan, modules: [...b.modules].sort(), limits: b.limits, readOnly: b.readOnly, expiresAt: b.expiresAt ?? null, graceDays: b.graceDays, issuedAt: new Date().toISOString() };
-    const signature = signDocument(licence, config.LICENCE_PRIVATE_KEY);
-    await pool.query('INSERT INTO licences (id, site_id, licence_id, licence, signature, issued_by) VALUES ($1, $2, $3, $4, $5, $6)', [randomUUID(), id, licence.licenceId, licence, signature, req.staff?.id]);
-    await audit(req, 'licence.issued', 'site', id, { licenceId: licence.licenceId, plan: b.plan, modules: licence.modules });
-    return reply.status(201).send({ licence, signature });
+    return reply.status(201).send(await issueLicence(req, { id, code: site.code }, site.tenant_id, site.code, b));
+  });
+  /** A licence for any tenant the control plane knows (including one of many in a pooled cell). */
+  app.post<{ Params: { tenantId: string } }>('/tenants/:tenantId/licences', { preHandler: asStaff('admin') }, async (req, reply) => {
+    const tenantId = parse(uuid, req.params.tenantId); const b = parse(schemas.licence, req.body);
+    const t = (await pool.query<{ site_id: string; code: string; slug: string }>('SELECT st.site_id, s.code, st.slug FROM site_tenants st JOIN sites s ON s.id = st.site_id WHERE st.tenant_id = $1', [tenantId])).rows[0];
+    if (!t) throw new HttpError(404, 'not_found', 'No such tenant');
+    return reply.status(201).send(await issueLicence(req, { id: t.site_id, code: t.code }, tenantId, t.slug, b));
   });
   app.get<{ Params: { id: string } }>('/sites/:id/licences', { preHandler: asStaff('viewer') }, async (req) => ({ items: (await pool.query('SELECT licence_id, licence, signature, issued_at, revoked_at, revoked_reason FROM licences WHERE site_id = $1 ORDER BY issued_at DESC', [parse(uuid, req.params.id)])).rows }));
   app.post<{ Params: { licenceId: string } }>('/licences/:licenceId/revoke', { preHandler: asStaff('admin') }, async (req) => {
@@ -319,6 +338,12 @@ export function buildApp({ pool, config }: AppDeps): FastifyInstance {
     const l = (await pool.query<{ licence: unknown; signature: string }>('SELECT licence, signature FROM licences WHERE site_id = $1 AND revoked_at IS NULL ORDER BY issued_at DESC LIMIT 1', [site.id])).rows[0];
     if (!l) throw new HttpError(404, 'no_licence', 'No licence has been issued for this site');
     return { licence: l.licence, signature: l.signature, tenantId: site.tenantId };
+  });
+  /** The newest signed licence for every tenant on this site (a pooled cell has many). */
+  app.get('/agent/licences', { preHandler: asAgent }, async (req) => {
+    const site = req.agentSite as NonNullable<FastifyRequest['agentSite']>;
+    const rows = (await pool.query<{ tenant_id: string; licence: { licenceId: string }; signature: string }>('SELECT DISTINCT ON (tenant_id) tenant_id, licence, signature FROM licences WHERE site_id = $1 AND revoked_at IS NULL ORDER BY tenant_id, issued_at DESC', [site.id])).rows;
+    return { items: rows.map((r) => ({ tenantId: r.tenant_id, licence: r.licence, signature: r.signature })) };
   });
   /** The release this site should move to: the newest one open to its ring and newer than what it runs. Nothing while updates are paused. */
   app.get('/agent/release', { preHandler: asAgent }, async (req) => {
@@ -417,6 +442,125 @@ export function buildApp({ pool, config }: AppDeps): FastifyInstance {
     }
     await pool.query("INSERT INTO staff_audit (staff_id, action, entity, entity_id, details) VALUES (NULL, $1, 'site', $2, $3)", [`support.${b.state}`, site.id, { sessionId: id }]);
     return { ok: true };
+  });
+
+  // ---- what a cell reports about its tenants, and what staff can ask it to do --------------------------------------
+  /** The agent's full list of tenants on this cell: replaces what was known (a tenant no longer there is dropped). Counts and status only. */
+  app.post('/agent/tenants', { preHandler: asAgent }, async (req) => {
+    const site = req.agentSite as NonNullable<FastifyRequest['agentSite']>;
+    const body = parse(schemas.tenantReport, req.body);
+    for (const t of body.items) {
+      await pool.query(
+        `INSERT INTO site_tenants (site_id, tenant_id, slug, name, status, created_at, usage, licence, reported_at) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, now())
+         ON CONFLICT (site_id, tenant_id) DO UPDATE SET slug = EXCLUDED.slug, name = EXCLUDED.name, status = EXCLUDED.status, usage = EXCLUDED.usage, licence = EXCLUDED.licence, reported_at = now()`,
+        [site.id, t.id, t.slug, t.name, t.status, t.createdAt ?? null, t.usage, t.licence]).catch((e: { code?: string }) => { if (e.code === '23505') throw new HttpError(409, 'tenant_elsewhere', `Tenant ${t.slug} is already reported by another cell`); throw e; });
+    }
+    await pool.query('DELETE FROM site_tenants WHERE site_id = $1 AND NOT (tenant_id = ANY ($2::uuid[]))', [site.id, body.items.map((t) => t.id)]);
+    return { ok: true, tenants: body.items.length };
+  });
+  app.post('/agent/validations', { preHandler: asAgent }, async (req) => {
+    const site = req.agentSite as NonNullable<FastifyRequest['agentSite']>;
+    const b = parse(schemas.validationReport, req.body);
+    const r = await pool.query('UPDATE site_tenants SET validations = $3, validated_at = $4 WHERE site_id = $1 AND tenant_id = $2 RETURNING tenant_id', [site.id, b.tenantId, { ok: b.ok, checks: b.checks }, b.at]);
+    if (!r.rows[0]) throw new HttpError(404, 'unknown_tenant', 'Report the tenants first');
+    return { ok: true };
+  });
+  /** Work staff asked for on this cell; marked running so it is handed out once. */
+  app.get('/agent/commands', { preHandler: asAgent }, async (req) => {
+    const site = req.agentSite as NonNullable<FastifyRequest['agentSite']>;
+    const r = await pool.query("UPDATE site_commands SET status = 'running' WHERE id IN (SELECT id FROM site_commands WHERE site_id = $1 AND status = 'pending' ORDER BY created_at LIMIT 10 FOR UPDATE SKIP LOCKED) RETURNING id, tenant_id, type, payload", [site.id]);
+    return { items: r.rows.map((c) => ({ id: c.id, tenantId: c.tenant_id, type: c.type, payload: c.payload })) };
+  });
+  app.post<{ Params: { id: string } }>('/agent/commands/:id/result', { preHandler: asAgent }, async (req) => {
+    const site = req.agentSite as NonNullable<FastifyRequest['agentSite']>;
+    const b = parse(schemas.commandResult, req.body);
+    const r = await pool.query<{ type: string; tenant_id: string }>("UPDATE site_commands SET status = $3, result = $4, finished_at = now() WHERE id = $1 AND site_id = $2 AND status = 'running' RETURNING type, tenant_id", [parse(uuid, req.params.id), site.id, b.ok ? 'done' : 'failed', { message: b.message }]);
+    if (!r.rows[0]) throw new HttpError(404, 'not_found', 'No such running command');
+    await pool.query("INSERT INTO staff_audit (staff_id, action, entity, entity_id, details) VALUES (NULL, $1, 'tenant', $2, $3)", [`tenant.${r.rows[0].type}_${b.ok ? 'done' : 'failed'}`, r.rows[0].tenant_id, { siteId: site.id, message: b.message }]);
+    return { ok: true };
+  });
+
+  const ageDays = (d: Date | null): number | null => (d ? Math.floor((Date.now() - d.getTime()) / 86_400_000) : null);
+  type TenantRow = { site_id: string; tenant_id: string; slug: string; name: string; status: string; created_at: Date | null; usage: Record<string, number | string | null>; licence: { restricted?: boolean; plan?: string | null; modules?: string[]; limits?: Record<string, number>; readOnly?: boolean; expiresAt?: string | null }; validations: { ok: boolean; checks: { key: string; label: string; status: string; detail: string }[] } | null; validated_at: Date | null; reported_at: Date; site_code: string; site_name: string; site_kind: string; client_id: string; client_name: string; tier: string };
+  /** One tenant with everything the dashboard needs to judge it: its cell's health, its licence, its checks, and why it needs attention. */
+  const judgeTenant = (t: TenantRow, siteHealth: { state: string; reasons: string[] } | undefined) => {
+    const reasons: { level: 'critical' | 'attention'; text: string }[] = [];
+    if (t.status === 'suspended') reasons.push({ level: 'attention', text: 'Suspended' });
+    if (siteHealth && siteHealth.state !== 'healthy') reasons.push({ level: siteHealth.state === 'degraded' ? 'attention' : 'critical', text: `Cell ${siteHealth.state}${siteHealth.reasons[0] ? `: ${siteHealth.reasons[0]}` : ''}` });
+    for (const c of t.validations?.checks ?? []) if (c.status !== 'pass') reasons.push({ level: c.status === 'fail' ? 'critical' : 'attention', text: `${c.label}: ${c.detail}` });
+    const v = ageDays(t.validated_at); if (t.validated_at && v !== null && v > 3) reasons.push({ level: 'attention', text: `Not validated for ${v} days` });
+    const limits = t.licence.limits ?? {}; const users = Number(t.usage['users'] ?? 0);
+    if (limits['users'] && users >= limits['users']) reasons.push({ level: 'attention', text: `At its user limit (${users} of ${limits['users']})` });
+    const health = reasons.some((r) => r.level === 'critical') ? 'critical' : reasons.length ? 'attention' : 'healthy';
+    return { health, reasons };
+  };
+  const tenantRows = async (): Promise<TenantRow[]> => (await pool.query<TenantRow>(
+    `SELECT st.*, s.code AS site_code, s.name AS site_name, s.kind AS site_kind, c.id AS client_id, c.name AS client_name, c.tier
+       FROM site_tenants st JOIN sites s ON s.id = st.site_id JOIN clients c ON c.id = s.client_id ORDER BY c.name, st.slug`)).rows;
+  const tenantView = (t: TenantRow, healthBySite: Map<string, { state: string; reasons: string[] }>) => ({
+    tenantId: t.tenant_id, slug: t.slug, name: t.name, status: t.status, createdAt: t.created_at?.toISOString() ?? null, usage: t.usage, licence: t.licence,
+    cell: { id: t.site_id, code: t.site_code, name: t.site_name, kind: t.site_kind }, client: { id: t.client_id, name: t.client_name, tier: t.tier },
+    validatedAt: t.validated_at?.toISOString() ?? null, validations: t.validations, reportedAt: t.reported_at.toISOString(), ...judgeTenant(t, healthBySite.get(t.site_id)),
+  });
+
+  app.get('/tenants', { preHandler: asStaff('viewer') }, async (req) => {
+    const q = z.object({ q: z.string().max(100).optional(), status: z.enum(['active', 'suspended']).optional(), health: z.enum(['healthy', 'attention', 'critical']).optional(), cell: z.string().optional(), plan: z.string().optional(), licence: z.enum(['none', 'expiring', 'expired', 'readonly']).optional() }).parse(req.query);
+    const health = new Map((await fleet()).map((f) => [f.id, f.health]));
+    const needle = q.q?.toLowerCase();
+    let items = (await tenantRows()).map((t) => tenantView(t, health));
+    items = items.filter((t) => (!needle || `${t.slug} ${t.name} ${t.client.name} ${t.cell.code}`.toLowerCase().includes(needle)) && (!q.status || t.status === q.status) && (!q.health || t.health === q.health) && (!q.cell || t.cell.id === q.cell || t.cell.code === q.cell) && (!q.plan || t.licence.plan === q.plan)
+      && (!q.licence || (q.licence === 'none' ? !t.licence.restricted : q.licence === 'readonly' ? t.licence.readOnly === true : (() => { const d = t.licence.expiresAt ? Math.ceil((new Date(t.licence.expiresAt).getTime() - Date.now()) / 86_400_000) : null; return d !== null && (q.licence === 'expired' ? d < 0 : d >= 0 && d <= 30); })())));
+    return { total: items.length, items };
+  });
+  app.get<{ Params: { tenantId: string } }>('/tenants/:tenantId', { preHandler: asStaff('viewer') }, async (req) => {
+    const tenantId = parse(uuid, req.params.tenantId);
+    const t = (await tenantRows()).find((x) => x.tenant_id === tenantId);
+    if (!t) throw new HttpError(404, 'not_found', 'No such tenant');
+    const health = new Map((await fleet()).map((f) => [f.id, f.health]));
+    const licences = (await pool.query('SELECT licence_id, licence, issued_at, revoked_at, revoked_reason FROM licences WHERE tenant_id = $1 ORDER BY issued_at DESC LIMIT 20', [tenantId])).rows;
+    const commands = (await pool.query('SELECT c.id, c.type, c.payload, c.status, c.result, c.created_at, c.finished_at, u.email AS requested_by FROM site_commands c JOIN staff_users u ON u.id = c.requested_by WHERE c.tenant_id = $1 ORDER BY c.created_at DESC LIMIT 20', [tenantId])).rows;
+    return { ...tenantView(t, health), licences, commands };
+  });
+  /** Ask the tenant's cell to run a check now, or to suspend or reactivate the tenant. The agent does it on its next visit (seconds). */
+  app.post<{ Params: { tenantId: string } }>('/tenants/:tenantId/commands', { preHandler: asStaff('support') }, async (req, reply) => {
+    const tenantId = parse(uuid, req.params.tenantId); const b = parse(schemas.command, req.body);
+    if (b.type !== 'validate') { if (RANK[req.staff?.role as Role] < RANK.admin) throw new HttpError(403, 'forbidden', 'Only an admin can suspend or reactivate a tenant'); if (!b.reason) throw new HttpError(422, 'reason_required', 'Say why'); }
+    const t = (await pool.query<{ site_id: string }>('SELECT site_id FROM site_tenants WHERE tenant_id = $1', [tenantId])).rows[0];
+    if (!t) throw new HttpError(404, 'not_found', 'No such tenant');
+    const dup = await pool.query("SELECT 1 FROM site_commands WHERE tenant_id = $1 AND type = $2 AND status IN ('pending', 'running')", [tenantId, b.type]);
+    if (dup.rows[0]) throw new HttpError(409, 'already_requested', 'The same request is already waiting for the cell');
+    const id = randomUUID();
+    await pool.query('INSERT INTO site_commands (id, site_id, tenant_id, type, payload, requested_by) VALUES ($1, $2, $3, $4, $5, $6)', [id, t.site_id, tenantId, b.type, { reason: b.reason ?? null }, req.staff?.id]);
+    await audit(req, `tenant.${b.type}_requested`, 'tenant', tenantId, { reason: b.reason ?? null });
+    return reply.status(202).send({ id, status: 'pending' });
+  });
+
+  /** Everything that needs a person's attention, most serious first. */
+  const alerts = async () => {
+    const f = await fleet(); const health = new Map(f.map((x) => [x.id, x.health]));
+    const out: { level: 'critical' | 'attention'; kind: string; subject: string; text: string; cell?: string; tenantId?: string }[] = [];
+    for (const s of f) {
+      if (s.health.state === 'silent') out.push({ level: 'critical', kind: 'cell', subject: s.code, text: s.health.reasons[0] ?? 'No heartbeat', cell: s.id });
+      else if (s.health.state === 'degraded') for (const r of s.health.reasons) out.push({ level: /did not finish|not healthy|full|Backup queue/.test(r) ? 'critical' : 'attention', kind: 'cell', subject: s.code, text: r, cell: s.id });
+      else if (s.health.state === 'never' && s.status !== 'planned') out.push({ level: 'attention', kind: 'cell', subject: s.code, text: 'Has never reported', cell: s.id });
+    }
+    for (const t of (await tenantRows()).map((r) => tenantView(r, health))) for (const r of t.reasons) if (!r.text.startsWith('Cell ')) out.push({ level: r.level, kind: 'tenant', subject: t.name, text: r.text, cell: t.cell.id, tenantId: t.tenantId });
+    return out.sort((a, b) => (a.level === b.level ? 0 : a.level === 'critical' ? -1 : 1));
+  };
+  app.get('/alerts', { preHandler: asStaff('viewer') }, async () => { const items = await alerts(); return { critical: items.filter((a) => a.level === 'critical').length, attention: items.filter((a) => a.level === 'attention').length, items }; });
+  app.get('/overview', { preHandler: asStaff('viewer') }, async () => {
+    const f = await fleet(); const health = new Map(f.map((x) => [x.id, x.health]));
+    const tenants = (await tenantRows()).map((t) => tenantView(t, health));
+    const count = <T,>(rows: T[], key: (x: T) => string): Record<string, number> => rows.reduce<Record<string, number>>((m, r) => { const k = key(r); m[k] = (m[k] ?? 0) + 1; return m; }, {});
+    const soon = tenants.filter((t) => { const d = t.licence.expiresAt ? Math.ceil((new Date(t.licence.expiresAt).getTime() - Date.now()) / 86_400_000) : null; return d !== null && d >= 0 && d <= 30; }).length;
+    const a = await alerts();
+    return {
+      cells: { total: f.length, byState: count(f, (s) => s.health.state), byKind: count(f, (s) => s.kind), byTier: count(f, (s) => s.client.tier) },
+      tenants: { total: tenants.length, byStatus: count(tenants, (t) => t.status), byHealth: count(tenants, (t) => t.health), byPlan: count(tenants, (t) => t.licence.plan ?? 'unlicensed'), licencesExpiringSoon: soon, unlicensed: tenants.filter((t) => !t.licence.restricted).length },
+      versions: count(f, (s) => s.version ?? 'unknown'),
+      usage: { users: tenants.reduce((n, t) => n + Number(t.usage['users'] ?? 0), 0), documents30d: tenants.reduce((n, t) => n + Number(t.usage['documents30d'] ?? 0), 0) },
+      alerts: { critical: a.filter((x) => x.level === 'critical').length, attention: a.filter((x) => x.level === 'attention').length, top: a.slice(0, 8) },
+    };
   });
 
   // ---- audit and the fleet screen -------------------------------------------------------------------------------
