@@ -1,7 +1,9 @@
 import { licensed } from '@/auth/permissions'
+import { isStarter } from '@/auth/edition'
 import { ArrowLeftRight, BadgeCheck, Calculator, ListChecks, Warehouse as WarehouseIcon, Boxes, ClipboardList, PackageCheck, ShoppingCart, Wallet, FileText, Landmark, Receipt as ReceiptIcon, Building2, ClipboardCheck, Clock, LayoutDashboard, Percent, Ruler, Tags, Truck, Users, BookOpen, Layers, Users2, ShieldCheck, KeyRound, ScrollText, UserCog, ScanBarcode, Store, UserRound, Banknote, Settings2, Scale, Factory, Cog, Gauge, Handshake, FileSpreadsheet, FolderOpen, CalendarCheck, LineChart, ListTree, type LucideIcon } from 'lucide-react'
 
-export interface NavItem { to: string; label: string; icon: LucideIcon; needs?: string[]; section?: string }
+/** `advanced`: left out of the small-business (Starter) menu; the page itself still works if someone opens it. */
+export interface NavItem { to: string; label: string; icon: LucideIcon; needs?: string[]; section?: string; advanced?: boolean }
 
 /** The licensed module a page belongs to (see the server's modules); pages that belong to none are Core and always shown. */
 export function moduleOfPage(n: Pick<NavItem, 'to' | 'section'>): string | undefined {
@@ -14,7 +16,8 @@ export function moduleOfPage(n: Pick<NavItem, 'to' | 'section'>): string | undef
 }
 /** The menu this person sees: what their role allows and their plan includes. */
 export function visibleNav(items: NavItem[], allowed: (needs: string[]) => boolean, me: Parameters<typeof licensed>[0]): NavItem[] {
-  return items.filter((n) => allowed(n.needs ?? []) && licensed(me, moduleOfPage(n)))
+  const starter = isStarter(me)
+  return items.filter((n) => allowed(n.needs ?? []) && licensed(me, moduleOfPage(n)) && !(starter && n.advanced))
 }
 
 /** What exists today. Each later slice adds its entries here; an entry is hidden when the person lacks the permission it needs. */
@@ -48,15 +51,15 @@ export const NAV: NavItem[] = [
   { to: '/pos/admin', label: 'Shifts and setup', icon: Store, needs: ['pos:read'], section: 'Point of sale' },
   { to: '/admin/users', label: 'Users', icon: Users2, needs: ['users:read'], section: 'Administration' },
   { to: '/admin/roles', label: 'Roles', icon: ShieldCheck, needs: ['roles:read'], section: 'Administration' },
-  { to: '/admin/api-keys', label: 'API keys', icon: KeyRound, needs: ['api_keys:manage'], section: 'Administration' },
-  { to: '/admin/audit', label: 'Audit log', icon: ScrollText, needs: ['audit:read'], section: 'Administration' },
+  { to: '/admin/api-keys', label: 'API keys', icon: KeyRound, needs: ['api_keys:manage'], section: 'Administration', advanced: true },
+  { to: '/admin/audit', label: 'Audit log', icon: ScrollText, needs: ['audit:read'], section: 'Administration', advanced: true },
   { to: '/account', label: 'My account', icon: UserCog, section: 'Administration' },
   { to: '/inventory/stock', label: 'Stock on hand', icon: WarehouseIcon, needs: ['stock:read'], section: 'Inventory' },
   { to: '/inventory/movements', label: 'Movements', icon: ListChecks, needs: ['stock:read'], section: 'Inventory' },
-  { to: '/inventory/transfers', label: 'Transfers', icon: ArrowLeftRight, needs: ['stock:read'], section: 'Inventory' },
+  { to: '/inventory/transfers', label: 'Transfers', icon: ArrowLeftRight, needs: ['stock:read'], section: 'Inventory', advanced: true },
   { to: '/inventory/counts', label: 'Stock counts', icon: ClipboardCheck, needs: ['stock:read'], section: 'Inventory' },
-  { to: '/inventory/tracking', label: 'Batches and serials', icon: Layers, needs: ['stock:read'], section: 'Inventory' },
-  { to: '/inventory/valuation', label: 'Valuation', icon: Calculator, needs: ['stock:read'], section: 'Inventory' },
+  { to: '/inventory/tracking', label: 'Batches and serials', icon: Layers, needs: ['stock:read'], section: 'Inventory', advanced: true },
+  { to: '/inventory/valuation', label: 'Valuation', icon: Calculator, needs: ['stock:read'], section: 'Inventory', advanced: true },
   { to: '/purchasing/orders', label: 'Purchase orders', icon: ShoppingCart, needs: ['purchasing:read'], section: 'Purchasing' },
   { to: '/purchasing/receipts', label: 'Goods receipts', icon: PackageCheck, needs: ['purchasing:read'], section: 'Purchasing' },
   { to: '/purchasing/bills', label: 'Supplier bills', icon: ClipboardList, needs: ['purchasing:read'], section: 'Purchasing' },
@@ -70,9 +73,9 @@ export const NAV: NavItem[] = [
   { to: '/masterdata/suppliers', label: 'Suppliers', icon: Truck, needs: ['masterdata:read'], section: 'Master data' },
   { to: '/masterdata/categories', label: 'Categories', icon: FolderOpen, needs: ['masterdata:read'], section: 'Master data' },
   { to: '/masterdata/price-lists', label: 'Price lists', icon: Tags, needs: ['masterdata:read'], section: 'Master data' },
-  { to: '/masterdata/tax-codes', label: 'Tax codes', icon: Percent, needs: ['masterdata:read'], section: 'Master data' },
-  { to: '/masterdata/units', label: 'Units', icon: Ruler, needs: ['masterdata:read'], section: 'Master data' },
-  { to: '/masterdata/payment-terms', label: 'Payment terms', icon: Clock, needs: ['masterdata:read'], section: 'Master data' },
+  { to: '/masterdata/tax-codes', label: 'Tax codes', icon: Percent, needs: ['masterdata:read'], section: 'Master data', advanced: true },
+  { to: '/masterdata/units', label: 'Units', icon: Ruler, needs: ['masterdata:read'], section: 'Master data', advanced: true },
+  { to: '/masterdata/payment-terms', label: 'Payment terms', icon: Clock, needs: ['masterdata:read'], section: 'Master data', advanced: true },
 ]
 
 

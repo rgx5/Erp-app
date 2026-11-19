@@ -1,6 +1,7 @@
 import { Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
 import { BadgeCheck, BookOpen, Boxes, Building2, ChevronDown, ChevronRight, Database, Factory, FileText, LogOut, PanelLeftClose, PanelLeftOpen, ScanBarcode, Search, Settings2, ShoppingCart, UserCog, Users2, type LucideIcon } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { isStarter } from '@/auth/edition'
 import { can } from '@/auth/permissions'
 import { useSession } from '@/auth/session'
 import { useChosenCompany, useCompanies } from '@/features/organization/queries'
@@ -21,6 +22,9 @@ const GROUP_ICON: Record<string, LucideIcon> = { Sales: FileText, Purchasing: Sh
  * small flyout.
  */
 function Sidebar({ items, rail }: { items: NavItem[]; rail: boolean }) {
+  const starter = isStarter(useSession((s) => s.me))
+  /** A small shop's "Accounting" holds only expenses, so it is called that. */
+  const nameOf = (g: string): string => (starter && g === 'Accounting' ? 'Expenses' : g)
   const path = useRouterState({ select: (s) => s.location.pathname })
   const groups = useMemo(() => [...new Set(items.filter((n) => n.section).map((n) => n.section as string))], [items])
   const here = currentNav(items, path)
@@ -57,10 +61,10 @@ function Sidebar({ items, rail }: { items: NavItem[]; rail: boolean }) {
         const isOpen = !rail && open === g
         return (
           <div key={g} className="relative">
-            <button type="button" aria-expanded={rail ? fly === g : isOpen} title={rail ? g : undefined} onClick={() => (rail ? setFly(fly === g ? null : g) : setOpen(isOpen ? null : g))}
+            <button type="button" aria-expanded={rail ? fly === g : isOpen} title={rail ? nameOf(g) : undefined} onClick={() => (rail ? setFly(fly === g ? null : g) : setOpen(isOpen ? null : g))}
               className={cn('flex h-8 w-full items-center gap-2.5 rounded-md text-[13px] transition-colors', rail ? 'justify-center px-0' : 'px-2.5', active && !isOpen ? 'font-medium text-brand' : 'text-muted hover:bg-canvas hover:text-ink')}>
               <Icon className="size-4 shrink-0 opacity-75" aria-hidden />
-              {rail ? <span className="sr-only">{g}</span> : <><span className="flex-1 truncate text-left">{g}</span><ChevronDown className={cn('size-3.5 opacity-60 transition-transform', !isOpen && '-rotate-90')} aria-hidden /></>}
+              {rail ? <span className="sr-only">{nameOf(g)}</span> : <><span className="flex-1 truncate text-left">{nameOf(g)}</span><ChevronDown className={cn('size-3.5 opacity-60 transition-transform', !isOpen && '-rotate-90')} aria-hidden /></>}
             </button>
             {isOpen ? <div className="relative mb-1 mt-0.5 flex flex-col gap-0.5"><span className="absolute bottom-1 left-[17px] top-1 w-px bg-line" aria-hidden />{rows.map((n) => link(n, true))}</div> : null}
             {rail && fly === g ? (

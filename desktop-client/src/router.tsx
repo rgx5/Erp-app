@@ -1,4 +1,6 @@
 import { createRootRoute, createRoute, createRouter, Outlet, redirect } from '@tanstack/react-router'
+import { isStarter } from '@/auth/edition'
+import { can, licensed } from '@/auth/permissions'
 import { useSession } from '@/auth/session'
 import { ConnectPage } from '@/features/auth/ConnectPage'
 import { LoginPage } from '@/features/auth/LoginPage'
@@ -82,7 +84,16 @@ const app = createRoute({
   },
   component: Shell,
 })
-const dashboard = createRoute({ getParentRoute: () => app, path: '/', component: DashboardPage })
+const dashboard = createRoute({
+  getParentRoute: () => app,
+  path: '/',
+  // A small shop's home is the billing counter (when its plan has one and the person may sell); everyone else lands on the dashboard.
+  beforeLoad: () => {
+    const me = useSession.getState().me
+    if (isStarter(me) && licensed(me, 'pos') && can(me?.permissions ?? [], 'pos:sell')) throw redirect({ to: '/pos/counter' })
+  },
+  component: DashboardPage,
+})
 const companies = createRoute({ getParentRoute: () => app, path: '/organization/companies', component: CompaniesPage })
 
 const setup = createRoute({ getParentRoute: () => app, path: '/setup', component: SetupPage })

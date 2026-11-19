@@ -11,6 +11,7 @@ import { SecretBox } from './secret-box.js';
 import { generateTotpSecret, verifyTotp } from './totp.js';
 import { mfaRequired } from './config.js';
 import { readRules, remoteRulesSchema } from './remote-rules.js';
+import { EDITIONS } from './plans.js';
 import { sealToEscrow } from './escrow.js';
 
 class HttpError extends Error { constructor(readonly status: number, readonly code: string, message: string, readonly extra: Record<string, unknown> = {}) { super(message); } }
@@ -243,6 +244,9 @@ export function buildApp({ pool, config }: AppDeps): FastifyInstance {
       licence: s.licence ? { licenceId: s.licence_id, plan: s.licence.plan ?? null, modules: s.licence.modules ?? [], expiresAt: s.licence.expiresAt ?? null, readOnly: s.licence.readOnly === true } : null,
     }));
   };
+
+  /** The editions we sell, as the starting point for a licence. */
+  app.get('/plans', { preHandler: asStaff('viewer') }, async () => ({ items: EDITIONS }));
 
   // ---- remote access across all cells ---------------------------------------------------------------------------
   /** Every cell's remote address, switch and rules in one list, so access can be reviewed and changed across independent deployments. */
