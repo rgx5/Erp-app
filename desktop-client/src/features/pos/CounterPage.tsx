@@ -21,11 +21,13 @@ import { useFlash } from '@/ui/flash'
 import { Alert, Button, Card, SelectField, Spinner, TextField } from '@/ui/primitives'
 import { loadParked, saveParked, type ParkedBill } from './counterStore'
 import { receiptText, whatsappUrl } from './share'
-import { counterState, loadCatalogue, loadQueue, saveCatalogue, saveCounterState, saveQueue, type CachedItem, type QueuedSale } from './counterStore'
+import { counterState, loadQueue, saveCounterState, saveQueue, type QueuedSale } from './counterStore'
+import { searchItems, type LocalItem } from './catalogueSearch'
+import { useLocalCatalogue } from './useLocalCatalogue'
 import { ReturnDrawer } from './ReturnDrawer'
 import { CloseShiftDrawer } from './ShiftDrawers'
 import { useUsers } from '@/features/admin/queries'
-import { fetchCatalogue, postSale, useApprovers, verifyApproval, uploadBatch, useOpenShift, usePosSettings, useShifts, useTerminals } from './queries'
+import { postSale, useApprovers, useRegisterDevice, verifyApproval, uploadBatch, useOpenShift, usePosSettings, useShifts, useTerminals } from './queries'
 import { receiptHtml } from './receiptHtml'
 import { localTotal, serialList, trackingReady, type CartLine } from './totals'
 import { useCustomerWallet } from '@/features/retail/queries'
@@ -34,6 +36,8 @@ import { grossOf, noWallet, pointsValue, walletInUse, withWalletDiscount, type W
 import { toUnits } from '@/domain/money'
 import { useBatches } from '@/features/inventory/trackingQueries'
 
+/** An item offered under the scan box: from this computer's own list, or (rarely) from the server. */
+interface Suggest { id: string; code: string; name: string; taxCodeId: string | null; tracking?: string; mrp?: string | null | undefined; noDiscount?: boolean | undefined }
 interface Tender { key: string; method: string; amount: string; tendered: string }
 const METHOD: Record<string, string> = { cash: 'Cash', upi: 'UPI', card: 'Card', bank_transfer: 'Bank transfer', cheque: 'Cheque', other: 'Other' }
 let n = 0
@@ -73,6 +77,9 @@ export function CounterPage() {
   const [parked, setParked] = useState<ParkedBill[]>(() => loadParked(tenant))
   const [showParked, setShowParked] = useState(false)
   const [phone, setPhone] = useState('')
+  const [deviceId, setDeviceId] = useState(saved.deviceId ?? '')
+  // The item list lives on this computer: finding an item never waits for the server, and the counter keeps working with no connection.
+  const cat = useLocalCatalogue(tenant, deviceId || undefined)
 
   const terminal: PosTerminal | undefined = terminals.data?.find((t) => t.id === terminalId) ?? terminals.data?.find((t) => t.status === 'active')
   const shift: PosShift | undefined = openShifts.rows.find((s) => s.terminalId === terminal?.id)
@@ -82,7 +89,7 @@ export function CounterPage() {
   const [cart, setCart] = useState<CartLine[]>([])
   const [tenders, setTenders] = useState<Tender[]>([newTender()])
   const [scan, setScan] = useState('')
-  const [found, setFound] = useState<Item[]>([])
+  const [found, setFound] = useState<Suggest[]>([])
   const [busy, setBusy] = useState(false)
   const [last, setLast] = useState<PosSaleResult | null>(null)
   const [queue, setQueue] = useState<QueuedSale[]>(() => loadQueue(tenant))
@@ -112,38 +119,53 @@ export function CounterPage() {
     })
     setFound([])
   }
+  /** Adds an item from this computer's own list. */
+  async function addLocal(i: LocalItem) {
+    if (i.tracking !== 'none' && (!navigator.onLine || offline)) { setProblem(`${i.code} is batch or serial tracked: it can only be sold while online.`); return }
+    await addItem({ id: i.id, code: i.code, name: i.name, taxCodeId: i.taxCodeId, tracking: i.tracking, mrp: i.mrp }, undefined, i.noDiscount)
+  }
   async function onScan() {
     const text = scan.trim()
     if (!text) return
-    setScan(''); setProblem(null) // cleared at once so a fast scanner can send the next code
+    setScan(''); setProblem(null); setFound([]) // cleared at once so a fast scanner can send the next code
+    // 1. this computer's own list: instant, no server
+    const local = cat.ready && cat.count > 0 ? searchItems(cat.index, text) : null
+    if (local) {
+      const pick = local.exact ?? (local.matches.length === 1 ? local.matches[0] : undefined)
+      if (pick) { await addLocal(pick); return }
+      if (local.matches.length > 1) { setFound(local.matches); return }
+    }
+    // 2. not there: it may be a very new item, so ask the server once (when there is a connection), and update the list
     try {
       const hit = await lookupItem(text) // a barcode, or an item code
-      if (hit && hit.item.isSellable) { await addItem(hit.item, undefined, hit.noDiscount); return }
+      if (hit && hit.item.isSellable) { await addItem(hit.item, undefined, hit.noDiscount); void cat.syncNow(); return }
       const rows = await lookup(text)
       const exact = rows.find((r) => r.code.toLowerCase() === text.toLowerCase())
-      if (exact) await addItem(exact)
-      else if (rows.length === 1 && rows[0]) await addItem(rows[0])
+      if (exact) { await addItem(exact); void cat.syncNow() }
+      else if (rows.length === 1 && rows[0]) { await addItem(rows[0]); void cat.syncNow() }
       else if (rows.length === 0) setProblem(`Nothing matches "${text}".`)
       else setFound(rows.slice(0, 8))
     } catch (e) {
-      if (e instanceof NetworkError) {
-        const all = loadCatalogue(tenant)
-        const byBarcode = all.find((c) => (c.barcodes ?? []).some((b) => b.toLowerCase() === text.toLowerCase()))
-        if (byBarcode) { if (byBarcode.tracking !== 'none') setProblem(`${byBarcode.code} is batch or serial tracked: it can only be sold while online.`); else await addItem({ ...byBarcode, taxCodeId: byBarcode.taxCodeId }, byBarcode.price, byBarcode.noDiscount === true); return }
-        const cached = all.filter((c) => c.code.toLowerCase() === text.toLowerCase() || c.name.toLowerCase().includes(text.toLowerCase()))
-        const exact = cached.find((c) => c.code.toLowerCase() === text.toLowerCase())
-        if (exact && exact.tracking !== 'none') setProblem(`${exact.code} is batch or serial tracked: it can only be sold while online.`)
-        else if (exact) await addItem({ ...exact, taxCodeId: exact.taxCodeId }, exact.price, exact.noDiscount === true)
-        else if (cached.length === 1 && cached[0] && cached[0].tracking !== 'none') setProblem(`${cached[0].code} is batch or serial tracked: it can only be sold while online.`)
-        else if (cached.length === 1 && cached[0]) await addItem(cached[0], cached[0].price, cached[0].noDiscount === true)
-        else if (cached.length === 0) setProblem(`Offline, and "${text}" is not in the saved catalogue.`)
-        else setFound(cached.slice(0, 8) as unknown as Item[])
-      } else setProblem(msg(e, 'Could not search.'))
+      if (e instanceof NetworkError) setProblem(cat.count > 0 ? `"${text}" is not on this counter's item list, and there is no connection to look further.` : 'No connection, and this counter has no items saved yet. Connect once so it can download them.')
+      else setProblem(msg(e, 'Could not search.'))
     }
   }
+  // what to offer while typing: straight from this computer, nothing sent anywhere
+  const suggestions = useMemo<Suggest[]>(() => (cat.ready && scan.trim() ? searchItems(cat.index, scan).matches : []), [cat.index, cat.ready, scan])
+  const shown: Suggest[] = found.length > 0 ? found : suggestions
+  // a manager's counter registers itself for offline selling the first time it opens, so nobody has to remember to
+  const registering = useRef(false)
+  const registerDevice = useRegisterDevice()
+  useEffect(() => {
+    if (!terminal || deviceId || registering.current || !can(perms, 'pos:manage')) return
+    registering.current = true
+    void registerDevice.mutateAsync({ body: { terminalId: terminal.id, name: `${terminal.name} (this computer)` }, key: crypto.randomUUID() })
+      .then((d) => { saveCounterState(tenant, { deviceId: d.id }); setDeviceId(d.id) })
+      .catch(() => { registering.current = false })
+  }, [terminal, deviceId, perms, tenant]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- totals: the server's own calculation while online, the till's fallback otherwise ----
-  const priced = cart.length > 0 && cart.every((l) => isValid(l.unitPrice) && l.unitPrice !== '' && Number(l.quantity) > 0)
+  const priced = cart.length > 0 && cart.every((l) => isValid(l.unitPrice) && l.unitPrice !== '' && Number(l.quantity) > 0 && (l.discountPercent === '' || (isValid(l.discountPercent) && Number(l.discountPercent) <= 100)))
   const tracked = cart.every(trackingReady)
   const walletQ = useCustomerWallet(company?.id, wallet.customerId || undefined)
   const ptsOk = /^\d{1,8}(\.\d{1,2})?$/.test(wallet.points) && walletQ.data !== undefined && Number(wallet.points) <= Number(walletQ.data.loyalty.points)
@@ -154,7 +176,7 @@ export function CounterPage() {
   useEffect(() => { setWallet((w) => (w.coupon ? { ...w, coupon: null } : w)) }, [gross]) // the cart changed: the coupon has to be checked again
   const body = useMemo(() => (company && terminal && priced && ws.company ? {
     companyId: company.id, gstRegistrationId: terminal.gstRegistrationId, customerId: '', invoiceDate: today,
-    lines: effLines.map((l) => ({ itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice, discountPercent: l.discountPercent, taxInclusive: l.taxInclusive, warehouseId: terminal.warehouseId })),
+    lines: effLines.map((l) => ({ itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice, discountPercent: l.discountPercent || '0', taxInclusive: l.taxInclusive, warehouseId: terminal.warehouseId })),
   } : null), [company, terminal, priced, effLines, today, ws.company])
   const walkIn = usePosSettings(company?.id).data?.settings?.walkInCustomerId ?? null
   const calc = useCalculation(body && (wallet.customerId || walkIn) ? ({ ...body, customerId: wallet.customerId || walkIn } as never) : null)
@@ -212,7 +234,7 @@ export function CounterPage() {
     if (!ready || !shift || busy) return
     setBusy(true); setProblem(null)
     const payments = compare(due, '0') === 0 ? [] : tenders.map((t) => ({ method: t.method, amount: amountOf(t), ...(t.method === 'cash' && isValid(t.tendered) && t.tendered !== '' ? { tendered: t.tendered } : {}) }))
-    const lines = effLines.map((l) => ({ itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice, discountPercent: l.discountPercent, taxInclusive: l.taxInclusive, warehouseId: terminal?.warehouseId, ...(l.tracking === 'batch' ? { batchId: l.batchId } : {}), ...(l.tracking === 'serial' ? { serialNos: serialList(l.serials) } : {}), ...(l.salespersonId ? { salespersonId: l.salespersonId } : {}) }))
+    const lines = effLines.map((l) => ({ itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice, discountPercent: l.discountPercent || '0', taxInclusive: l.taxInclusive, warehouseId: terminal?.warehouseId, ...(l.tracking === 'batch' ? { batchId: l.batchId } : {}), ...(l.tracking === 'serial' ? { serialNos: serialList(l.serials) } : {}), ...(l.salespersonId ? { salespersonId: l.salespersonId } : {}) }))
     const clientId = crypto.randomUUID()
     try {
       const res = await postSale({ shiftId: shift.id, lines, payments, ...(wallet.customerId ? { customerId: wallet.customerId } : {}), ...(wallet.coupon ? { couponCode: wallet.coupon.code } : {}), ...(ptsDisc > 0n ? { loyaltyPoints: wallet.points } : {}), ...(Number(credit) > 0 ? { storeCredit: credit } : {}), ...(approval ? { approval } : {}) }, clientId)
@@ -267,18 +289,6 @@ export function CounterPage() {
       flash.show(rest.length === 0 ? 'Everything is uploaded.' : `${rest.length} sale(s) still need attention.`)
     } catch (e) { setProblem(e instanceof NetworkError ? 'Still no connection.' : msg(e, 'Could not upload.')) } finally { setSyncing(false) }
   }
-  async function prepareOffline() {
-    const deviceId = counterState(tenant).deviceId
-    if (!deviceId) { setProblem('Register this counter as a device in POS setup first.'); return }
-    try {
-      const cat = await fetchCatalogue(deviceId)
-      const list = priceListId ? prices.data ?? (await prices.refetch()).data ?? [] : []
-      const items: CachedItem[] = cat.items.filter((i) => i.status === 'active').map((i) => ({ id: i.id, code: i.code, name: i.name, taxCodeId: i.taxCodeId, price: priceFrom(list, i.id), taxInclusive, tracking: i.tracking, mrp: i.mrp ?? null, noDiscount: i.noDiscount === true, barcodes: (cat.barcodes ?? []).filter((b) => b.itemId === i.id).map((b) => b.barcode) }))
-      if (!saveCatalogue(tenant, items)) { setProblem('This computer has no room to save the catalogue.'); return }
-      flash.show(`${items.length} items saved for selling offline.`)
-    } catch (e) { setProblem(msg(e, 'Could not download the catalogue.')) }
-  }
-
   if (ws.loading || terminals.isPending || openShifts.isPending) return <Spinner />
   if (!company) return <Alert tone="info">Set up your business first.</Alert>
   if (!terminal) return <Alert tone="info">No counter yet. <Link to="/pos/admin" className="underline">Create a terminal in POS setup</Link>.</Alert>
@@ -294,7 +304,7 @@ export function CounterPage() {
             <SelectField label="Sell from price list" value={priceListId} onChange={(e) => { setPriceListId(e.target.value); saveCounterState(tenant, { priceListId: e.target.value }) }} options={[{ value: '', label: 'None: key every price' }, ...(priceLists.data ?? []).filter((p) => p.status === 'active').map((p) => ({ value: p.id, label: `${p.name}${p.taxInclusive ? ' (prices include tax)' : ''}` }))]} />
             <TextField label="Cash in the drawer" value={opening} onChange={(e) => setOpening(e.target.value)} hint="Count it before you start" />
             {problem ? <Alert>{problem}</Alert> : null}
-            <Button busy={open.isPending} disabled={!isValid(opening)} onClick={async () => { setProblem(null); try { const s = await open.mutateAsync({ body: { terminalId: terminal.id, openingCash: opening || '0' }, key: crypto.randomUUID() }); flash.show(`${s.shiftNo} opened.`); await prepareOffline() } catch (e) { setProblem(msg(e, 'Could not open the shift.')) } }}>Open shift</Button>
+            <Button busy={open.isPending} disabled={!isValid(opening)} onClick={async () => { setProblem(null); try { const s = await open.mutateAsync({ body: { terminalId: terminal.id, openingCash: opening || '0' }, key: crypto.randomUUID() }); flash.show(`${s.shiftNo} opened.`); void cat.syncNow() } catch (e) { setProblem(msg(e, 'Could not open the shift.')) } }}>Open shift</Button>
           </div>
         </Card>
         {queue.length ? <Alert>{queue.length} offline sale(s) from an earlier shift are waiting to upload. They upload against the shift they were made in.</Alert> : null}
@@ -319,10 +329,10 @@ export function CounterPage() {
           </div>
         </div>
         <div className="relative">
-          <TextField ref={scanRef} label="Scan or type item code or name (F2)" value={scan} autoFocus disabled={Boolean(priceListId) && prices.isPending} hint={priceListId && prices.isPending ? 'Loading prices…' : undefined} autoComplete="off" onChange={(e) => setScan(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void onScan() } }} />
-          {found.length ? (
+          <TextField ref={scanRef} label="Scan or type item code or name (F2)" value={scan} autoFocus hint={priceListId && prices.isPending && !prices.data ? 'Prices are not loaded yet: items without a printed price will need one.' : undefined} autoComplete="off" onChange={(e) => setScan(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void onScan() } }} />
+          {shown.length ? (
             <ul role="listbox" aria-label="Matches" className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-md border border-line bg-surface text-sm shadow-lg">
-              {found.map((i) => <li key={i.id}><button type="button" role="option" aria-selected={false} className="flex w-full justify-between px-3 py-1.5 text-left hover:bg-canvas" onClick={() => void addItem(i)}><span>{i.code} · {i.name}</span><span className="text-muted">{priceOf(i.id) ? formatInr(priceOf(i.id) as string) : 'no price'}</span></button></li>)}
+              {shown.map((i) => <li key={i.id}><button type="button" role="option" aria-selected={false} className="flex w-full justify-between px-3 py-1.5 text-left hover:bg-canvas" onClick={() => { setScan(''); setFound([]); void addItem(i, undefined, i.noDiscount === true) }}><span>{i.code} · {i.name}</span><span className="text-muted">{priceOf(i.id) ? formatInr(priceOf(i.id) as string) : 'no price'}</span></button></li>)}
             </ul>
           ) : null}
         </div>
@@ -388,7 +398,7 @@ export function CounterPage() {
           </div>
         </Card>
         <Button className="h-12 text-base" disabled={!ready} busy={busy} onClick={() => void charge()}>Charge {formatInr(total)} (F9)</Button>
-        <Button variant="ghost" onClick={() => void prepareOffline()}>Save catalogue for offline selling</Button>
+        <span className="text-xs text-muted" aria-label="Item list status">{deviceId ? `${cat.count.toLocaleString('en-IN')} items on this counter${cat.lastSyncAt ? ` · updated ${new Date(cat.lastSyncAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}${cat.syncing ? ' · updating…' : ''}` : 'Ask a manager to register this counter so it can sell offline'}</span>{deviceId ? <Button variant="ghost" busy={cat.syncing} onClick={async () => { const n = await cat.syncNow(true); if (n !== null) flash.show(`${n.toLocaleString('en-IN')} items updated.`); else setProblem('Could not reach the server: the counter keeps working with the items it has.') }}>Refresh items</Button> : null}
       </div>
       {panel === 'return' ? <ReturnDrawer shift={shift} onClose={() => setPanel(null)} /> : null}
       {closing ? <CloseShiftDrawer shift={closing} onClose={() => setClosing(null)} /> : null}

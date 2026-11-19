@@ -1,12 +1,16 @@
 import { create } from 'zustand'
 import { createApi, normalizeServerUrl, type Api, type Tokens } from '@/api/client'
-import { ApiError } from '@/api/errors'
+import { ApiError, NetworkError } from '@/api/errors'
 import { compareVersions } from '@/domain/version'
 import { answers, chooseServer } from './serverChoice'
 import { me as meSchema, meta as metaSchema, session as sessionSchema, type Me } from '@/api/schemas'
 import { bridge } from '@/bridge'
 
 const REFRESH_KEY = 'refreshToken'
+/** Who the person was at their last successful sign-in (name, permissions, plan), kept in the secure store so a till can open with no connection. */
+const IDENTITY_KEY = 'lastIdentity'
+/** An offline start is allowed only for this long after the last time the server confirmed who the person is. */
+const OFFLINE_START_DAYS = 14
 
 export interface ServerInfo { url: string; selfSignup: boolean }
 
@@ -18,6 +22,8 @@ interface SessionState {
   me: Me | null
   /** True when the refresh token was stored securely and the next launch will not ask for a password. */
   remembered: boolean
+  /** True when the app opened with no connection, using the details from the last sign-in. They are checked with the server as soon as it can be reached. */
+  offlineStart: boolean
   api: Api | null
   restore(): Promise<void>
   connect(url: string, remote?: string): Promise<ServerInfo>
@@ -44,10 +50,19 @@ export const useSession = create<SessionState>()((set, get) => {
   const lost = (): void => set({ status: 'anonymous', me: null })
   const open = async (api: Api, server: ServerInfo): Promise<void> => {
     const me = await api.call(api.raw.GET('/v1/auth/me'), meSchema)
-    set({ status: 'authenticated', me, api, server })
+    set({ status: 'authenticated', me, api, server, offlineStart: false })
+    void bridge.secure.set(IDENTITY_KEY, JSON.stringify({ me, at: Date.now(), server: server.url }))
+  }
+  const lastIdentity = async (serverUrl: string): Promise<Me | null> => {
+    try {
+      const raw = await bridge.secure.get(IDENTITY_KEY); if (!raw) return null
+      const v = JSON.parse(raw) as { me: unknown; at: number; server: string }
+      if (v.server !== serverUrl || Date.now() - v.at > OFFLINE_START_DAYS * 86_400_000) return null
+      const parsed = meSchema.safeParse(v.me); return parsed.success ? parsed.data : null
+    } catch { return null }
   }
   return {
-    status: 'booting', server: null, tenant: '', email: '', me: null, remembered: false, api: null,
+    status: 'booting', server: null, tenant: '', email: '', me: null, remembered: false, offlineStart: false, api: null,
 
     async restore() {
       const saved = await bridge.settings.get()
@@ -67,7 +82,13 @@ export const useSession = create<SessionState>()((set, get) => {
         void bridge.secure.set(REFRESH_KEY, next.refreshToken)
         await open(api, server)
         set({ remembered: true })
-      } catch {
+      } catch (e) {
+        // No connection at start-up (a power cut, the Wi-Fi down): a counter must still open. Use who the server last confirmed, keep the
+        // saved sign-in for when the connection returns, and check again then. Anything else (a refused sign-in) goes to the sign-in screen.
+        if (e instanceof NetworkError) {
+          const me = await lastIdentity(server.url)
+          if (me) { set({ status: 'authenticated', me, api, server, remembered: true, offlineStart: true }); return }
+        }
         tokens = null
         set({ status: 'anonymous' })
       }
@@ -104,20 +125,20 @@ export const useSession = create<SessionState>()((set, get) => {
       const { api } = get()
       try { if (api && tokens) await api.done(api.raw.POST('/v1/auth/logout')) } catch (e) { if (!(e instanceof ApiError)) { /* offline: the token simply expires */ } }
       tokens = null
-      await bridge.secure.delete(REFRESH_KEY)
-      set({ status: 'anonymous', me: null, remembered: false })
+      await bridge.secure.delete(REFRESH_KEY); await bridge.secure.delete(IDENTITY_KEY)
+      set({ status: 'anonymous', me: null, remembered: false, offlineStart: false })
     },
 
     async refreshMe() {
       const { api } = get()
-      if (api) set({ me: await api.call(api.raw.GET('/v1/auth/me'), meSchema) })
+      if (api) { const me = await api.call(api.raw.GET('/v1/auth/me'), meSchema); set({ me, offlineStart: false }); void bridge.secure.set(IDENTITY_KEY, JSON.stringify({ me, at: Date.now(), server: get().server?.url })) }
     },
 
     async forgetServer() {
       tokens = null
-      await bridge.secure.delete(REFRESH_KEY)
+      await bridge.secure.delete(REFRESH_KEY); await bridge.secure.delete(IDENTITY_KEY)
       await bridge.settings.set({ serverUrl: null })
-      set({ status: 'anonymous', server: null, api: null, me: null })
+      set({ status: 'anonymous', server: null, api: null, me: null, offlineStart: false })
     },
   }
 })
@@ -126,4 +147,19 @@ export const currentApi = (): Api => {
   const api = useSession.getState().api
   if (!api) throw new Error('Not connected to a server')
   return api
+}
+
+if (typeof window !== 'undefined') {
+  const confirm = (): void => {
+    const st = useSession.getState()
+    if (st.status === 'authenticated' && st.offlineStart) {
+      st.refreshMe().catch((e: unknown) => {
+        // the saved sign-in no longer works (the person was removed, the password changed): back to the sign-in screen
+        if (e instanceof ApiError && (e.isUnauthorized || e.isForbidden)) void st.logout()
+      })
+    }
+  }
+  window.addEventListener('online', confirm)
+  // a refused connection does not fire 'online' (the computer thinks it is connected), so also look again every half minute while working offline
+  setInterval(confirm, 30_000)
 }

@@ -1,4 +1,4 @@
-import { fromUnits, toUnits } from '@/domain/money'
+import { fromUnits, unitsOrZero } from '@/domain/money'
 
 export interface CartLine { key: string; itemId: string; code: string; name: string; quantity: string; unitPrice: string; discountPercent: string; taxInclusive: boolean; taxCodeId: string | null; tracking: 'none' | 'batch' | 'serial'; batchId: string; serials: string; noDiscount?: boolean; salespersonId?: string }
 
@@ -17,11 +17,11 @@ const round2 = (v: bigint): bigint => { const sign = v < 0n ? -1n : 1n; const a 
 export function localTotal(lines: CartLine[]): { payable: string; roundOff: string; grandTotal: string } {
   let payable = 0n
   for (const l of lines) {
-    const gross = (toUnits(l.unitPrice) * toQty(l.quantity)) / 1_000_000n // 4dp value
-    const net = gross - (gross * toUnits(l.discountPercent)) / 1_000_000n
+    const gross = (unitsOrZero(l.unitPrice) * toQty(l.quantity)) / 1_000_000n // 4dp value
+    const net = gross - (gross * unitsOrZero(l.discountPercent)) / 1_000_000n
     payable += round2(net)
   }
   const rupees = ((payable + 5_000n) / 10_000n) * 10_000n
   return { payable: fromUnits(payable), roundOff: fromUnits(rupees - payable), grandTotal: fromUnits(rupees) }
 }
-const toQty = (q: string): bigint => { const [i = '0', f = ''] = q.split('.'); return BigInt(i) * 1_000_000n + BigInt(f.padEnd(6, '0').slice(0, 6) || '0') }
+const toQty = (q: string): bigint => { if (!/^\d+(\.\d*)?$/.test(q)) return 0n; const [i = '0', f = ''] = q.split('.'); return BigInt(i) * 1_000_000n + BigInt(f.padEnd(6, '0').slice(0, 6) || '0') }

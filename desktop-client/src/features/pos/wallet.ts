@@ -1,4 +1,4 @@
-import { fromUnits, toUnits } from '@/domain/money'
+import { fromUnits, toUnits, unitsOrZero } from '@/domain/money'
 import type { CartLine } from './totals'
 
 /** What the cashier has chosen from the customer's wallet for this sale. */
@@ -6,12 +6,13 @@ export interface WalletChoice { customerId: string; useCredit: boolean; points: 
 export const noWallet = (): WalletChoice => ({ customerId: '', useCredit: false, points: '', code: '', coupon: null })
 export const walletInUse = (w: WalletChoice): boolean => w.useCredit || Number(w.points) > 0 || w.coupon !== null
 
-const lineGross = (l: CartLine): bigint => (toUnits(l.unitPrice) * BigInt(Math.round(Number(l.quantity) * 1_000_000))) / 1_000_000n
+const qtyOf = (q: string): bigint => { const n = Number(q); return Number.isFinite(n) && n > 0 ? BigInt(Math.round(n * 1_000_000)) : 0n }
+const lineGross = (l: CartLine): bigint => (unitsOrZero(l.unitPrice) * qtyOf(l.quantity)) / 1_000_000n
 /** Price x quantity of every line, before any discount (what a coupon's minimum bill is measured on). */
 export const grossOf = (lines: CartLine[]): string => fromUnits(lines.reduce((s, l) => s + lineGross(l), 0n))
 /** What may still be discounted: lines that allow discounts, after their own discount. */
 export function eligibleOf(lines: CartLine[]): bigint {
-  return lines.reduce((s, l) => (l.noDiscount ? s : s + lineGross(l) - (lineGross(l) * toUnits(l.discountPercent)) / 1_000_000n), 0n)
+  return lines.reduce((s, l) => (l.noDiscount ? s : s + lineGross(l) - (lineGross(l) * unitsOrZero(l.discountPercent)) / 1_000_000n), 0n)
 }
 /** The rupee value of a number of points (2 decimals of a point). */
 export function pointsValue(points: string, rupeesPerPoint: string): bigint {
@@ -29,7 +30,7 @@ export function withWalletDiscount(lines: CartLine[], discount: bigint): CartLin
   const extra = Number((d * 1_000_000n) / base) / 10_000 // percent, 4 decimals
   return lines.map((l) => {
     if (l.noDiscount) return l
-    const own = Number(l.discountPercent) || 0
+    const own = Number(l.discountPercent) || 0 // a half-typed discount counts as none
     return { ...l, discountPercent: Math.min(100, own + extra - (own * extra) / 100).toFixed(4) }
   })
 }

@@ -2,6 +2,7 @@ import { createRootRoute, createRoute, createRouter, Outlet, redirect } from '@t
 import { isStarter } from '@/auth/edition'
 import { can, licensed } from '@/auth/permissions'
 import { useSession } from '@/auth/session'
+import { ErrorPage } from '@/ui/ErrorPage'
 import { ConnectPage } from '@/features/auth/ConnectPage'
 import { LoginPage } from '@/features/auth/LoginPage'
 import { DashboardPage } from '@/features/dashboard/DashboardPage'
@@ -163,7 +164,7 @@ const tree = root.addChildren([connect, login, app.addChildren([loyaltyRoute, ex
 
 // A hash history works the same on a custom app:// origin and in a browser, with no server-side route fallback to configure.
 import { createHashHistory } from '@tanstack/react-router'
-export const router = createRouter({ routeTree: tree, history: createHashHistory(), defaultPreload: 'intent' })
+export const router = createRouter({ routeTree: tree, history: createHashHistory(), defaultPreload: 'intent', defaultErrorComponent: ErrorPage })
 
 declare module '@tanstack/react-router' {
   interface Register { router: typeof router }

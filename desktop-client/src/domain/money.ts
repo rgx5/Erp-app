@@ -12,6 +12,9 @@ export function toUnits(amount: string): bigint {
   return m[1] === '-' ? -units : units
 }
 
+/** Like `toUnits`, but anything that is not a valid amount (empty, half-typed, letters) counts as zero: for figures read while someone is still typing. */
+export function unitsOrZero(amount: string): bigint { return PATTERN.test(amount.trim()) ? toUnits(amount) : 0n }
+
 export function fromUnits(units: bigint): string {
   const negative = units < 0n
   const abs = negative ? -units : units

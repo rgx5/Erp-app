@@ -43,5 +43,6 @@ export const postSale = (body: unknown, key: string): Promise<PosSaleResult> => 
 export const postReturn = (body: unknown, key: string): Promise<PosSaleResult> => send('POST', `${P}/returns`, body, posSaleResult, key)
 export const useSales = (companyId: string | undefined, shiftId?: string, kind?: string) => useQuery({ queryKey: ['pos', 'sales', companyId, shiftId, kind], enabled: Boolean(companyId), queryFn: async () => (await get(`${P}/sales`, { query: query({ companyId: companyId as string, limit: 100, ...(shiftId ? { shiftId } : {}), ...(kind ? { kind } : {}) }) }, page(posSaleHeader))).items })
 export const useSaleDetail = (id: string | undefined) => useQuery({ queryKey: ['pos', 'sale', id], enabled: Boolean(id), queryFn: (): Promise<PosSaleDetail> => get(`${P}/sales/{id}`, { path: { id } }, posSaleDetail) })
-export const fetchCatalogue = (deviceId: string): Promise<PosCatalogue> => get(`${P}/sync/catalogue`, { query: query({ deviceId }) }, posCatalogue)
+/** `updatedSince` asks only for items changed after that moment (the counter's regular refresh); without it, everything. */
+export const fetchCatalogue = (deviceId: string, updatedSince?: string): Promise<PosCatalogue> => get(`${P}/sync/catalogue`, { query: query({ deviceId, ...(updatedSince ? { updatedSince } : {}) }) }, posCatalogue)
 export const uploadBatch = (body: unknown): Promise<SyncResult> => send('POST', `${P}/sync/batches`, body, syncResult)

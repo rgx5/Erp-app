@@ -74,3 +74,63 @@ test('inside the desktop shell an invoice can be saved as an A4 PDF', async () =
   expect(statSync(target).size).toBeGreaterThan(2_000)
   await app.close()
 })
+
+test('a counter restarted with no connection still opens, finds its items and sells', async () => {
+  const { createServer, connect } = await import('node:net')
+  const backend = new URL(process.env['E2E_BACKEND_URL'] as string)
+  const s = await seedBusiness(process.env['E2E_BACKEND_URL'] as string, process.env['E2E_PLATFORM_TOKEN'] as string, { prefix: 'off' })
+  const c = s.company.id
+  const accts = (await s.call('GET', `/v1/accounts?companyId=${c}&limit=200`)).items as { id: string; code: string }[]
+  const a = (code: string) => (accts.find((x) => x.code === code) as { id: string }).id
+  await s.call('PUT', `/v1/pos/settings?companyId=${c}`, { walkInCustomerId: s.walkIn.id, cashVarianceAccountId: a('5900') })
+  for (const [m, code] of [['cash', '1110'], ['upi', '1120'], ['card', '1120'], ['bank_transfer', '1120'], ['cheque', '1120'], ['other', '1120']]) await s.call('PUT', `/v1/pos/payment-accounts?companyId=${c}`, { method: m, accountId: a(code as string) })
+  await s.call('POST', '/v1/pos/terminals', { companyId: c, code: 'T1', name: 'Counter 1', gstRegistrationId: s.registration.id, businessLocationId: s.location.id, warehouseId: s.warehouse.id })
+  const nos = ((await s.call('GET', '/v1/units?limit=200')).items as { id: string; code: string }[]).find((u) => u.code === 'NOS') as { id: string }
+  const list = await s.call('POST', '/v1/price-lists', { code: 'COUNTER', name: 'Counter prices', kind: 'sales', taxInclusive: true })
+  await s.call('POST', `/v1/price-lists/${list.id}/prices`, { itemId: s.cheap.id, uomId: nos.id, price: '105', effectiveFrom: `${s.year}-04-01` })
+
+  // the app talks to the backend through a pipe that this test can cut, like a network that goes away
+  const sockets = new Set<import('node:net').Socket>()
+  const open = (port: number) => new Promise<import('node:net').Server>((ok) => { const srv = createServer((cl) => { const up = connect(Number(backend.port), backend.hostname); sockets.add(cl); sockets.add(up); cl.pipe(up).pipe(cl); cl.on('error', () => up.destroy()); up.on('error', () => cl.destroy()) }); srv.listen(port, '127.0.0.1', () => ok(srv)) })
+  let pipe = await open(0); const port = (pipe.address() as { port: number }).port
+  const userData = mkdtempSync(join(tmpdir(), 'onesync-ud-'))
+  const launchLocal = () => electron.launch({ args: ['.', '--no-sandbox', '--password-store=basic', `--user-data-dir=${userData}`], cwd: process.cwd() })
+
+  // a build machine has no keychain: use Electron's plain-text store so the sign-in can be remembered here (a real computer uses its own)
+  const plainText = (a: Awaited<ReturnType<typeof launchLocal>>) => a.evaluate(({ safeStorage }) => { (safeStorage as unknown as { setUsePlainTextEncryption?: (v: boolean) => void }).setUsePlainTextEncryption?.(true) })
+  let app = await launchLocal(); await plainText(app); let page = await app.firstWindow()
+  const secure = (await page.evaluate(() => window.onesync?.info()))?.secureStorage
+  test.skip(!secure, 'this computer has no secure store, so nothing is remembered between launches')
+  await page.getByLabel('Server address').fill(`http://127.0.0.1:${port}`)
+  await page.getByRole('button', { name: 'Continue' }).click()
+  await page.getByLabel('Business code').fill(s.slug); await page.getByLabel('Email').fill(s.email); await page.getByLabel('Password').fill(s.password)
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
+  await page.keyboard.press('Control+k'); await page.getByLabel('Search or run a command').last().fill('Counter'); await page.getByLabel('Search or run a command').last().press('Enter')
+  await page.getByLabel('Sell from price list').selectOption({ label: 'Counter prices (prices include tax)' })
+  await page.getByLabel('Cash in the drawer').fill('500')
+  await page.getByRole('button', { name: 'Open shift' }).click()
+  await expect(page.getByLabel('Item list status')).toContainText(/items on this counter/)
+  await page.waitForTimeout(1500) // the on-disk copy is written a moment after the last change
+  await app.close()
+
+  // the network goes away, and the counter is started again
+  pipe.close(); for (const sk of sockets) sk.destroy()
+  app = await launchLocal(); await plainText(app); page = await app.firstWindow()
+  await expect(page.getByText(/Working offline/)).toBeVisible({ timeout: 30_000 }) // not the sign-in screen
+  await page.keyboard.press('Control+k'); await page.getByLabel('Search or run a command').last().fill('Counter'); await page.getByLabel('Search or run a command').last().press('Enter')
+  await expect(page.getByLabel(/Scan or type item/)).toBeVisible({ timeout: 20_000 }) // the open shift and terminal came from this computer
+  await expect(page.getByLabel('Item list status')).toContainText(/items on this counter/)
+  await page.getByLabel(/Scan or type item/).fill('toy'); await page.keyboard.press('Enter')
+  await expect(page.getByRole('table', { name: 'Cart' })).toContainText('Plastic toy')
+  await expect(page.getByLabel('Sale total')).toHaveText('₹ 105.00')
+  await page.getByRole('button', { name: /^Charge/ }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'saved on this computer' })).toBeVisible()
+
+  // the network returns: the app confirms who is signed in, and the sale uploads
+  pipe = await open(port)
+  await expect(page.getByText(/Working offline/)).toHaveCount(0, { timeout: 60_000 })
+  await page.getByRole('button', { name: /Upload 1 offline sale/ }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'Everything is uploaded' })).toBeVisible()
+  await app.close(); pipe.close(); for (const sk of sockets) sk.destroy()
+})
