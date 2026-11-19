@@ -2,13 +2,14 @@
 # Turns a clean Ubuntu LTS server into a OneSyncERP site. Safe to run again (it never overwrites secrets it already made).
 #
 #   sudo ./install.sh --control-plane https://control.example.in --agent-token cpa_... --release-public-key release-public.pem \
-#                     --registry registry.example.in/onesync --first-release-env release.env --bundle /path/to/bundle
+#                     --registry registry.example.in/onesync --first-release-env release.env --bundle /path/to/bundle \
+#                     --backup-json backup.json --backup-key-file backup-cipher.pass   (from the control plane: POST /sites/:id/backup-key)
 #
 # The bundle directory holds: docker-compose.site.yml, Caddyfile, bootstrap.sql (from backend/db/bootstrap), agent/ (built agent: dist/ and package.json).
-# It does NOT take backups or open the tunnel: those come with their own scripts (onesync-backup, tunnel client).
+# It sets up encrypted backups (pgBackRest, key per client) with the bundle's agent/dist/backup-cli.js and systemd timers. It does NOT open the tunnel (tunnel client, later).
 set -euo pipefail
 
-CONTROL_PLANE="" AGENT_TOKEN="" RELEASE_KEY="" REGISTRY="" FIRST_RELEASE="" BUNDLE=""
+CONTROL_PLANE="" AGENT_TOKEN="" RELEASE_KEY="" REGISTRY="" FIRST_RELEASE="" BUNDLE="" BACKUP_JSON="" BACKUP_KEY=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --control-plane) CONTROL_PLANE="$2"; shift 2 ;;
@@ -17,10 +18,12 @@ while [ $# -gt 0 ]; do
     --registry) REGISTRY="$2"; shift 2 ;;
     --first-release-env) FIRST_RELEASE="$2"; shift 2 ;;
     --bundle) BUNDLE="$2"; shift 2 ;;
+    --backup-json) BACKUP_JSON="$2"; shift 2 ;;
+    --backup-key-file) BACKUP_KEY="$2"; shift 2 ;;
     *) echo "unknown option: $1" >&2; exit 2 ;;
   esac
 done
-for v in CONTROL_PLANE AGENT_TOKEN RELEASE_KEY REGISTRY FIRST_RELEASE BUNDLE; do
+for v in CONTROL_PLANE AGENT_TOKEN RELEASE_KEY REGISTRY FIRST_RELEASE BUNDLE BACKUP_JSON BACKUP_KEY; do
   [ -n "${!v}" ] || { echo "missing --$(echo "$v" | tr 'A-Z_' 'a-z-')" >&2; exit 2; }
 done
 [ "$(id -u)" = 0 ] || { echo "run as root" >&2; exit 2; }
@@ -53,6 +56,7 @@ passwd -l onesync-support >/dev/null
 
 say "Application files"
 cp "$BUNDLE/docker-compose.site.yml" "$BUNDLE/Caddyfile" /opt/onesync/
+install -m 0755 "$BUNDLE/bin/onesync-backup" "$BUNDLE/bin/onesync-restore" /usr/local/bin/
 rm -rf /opt/onesync/agent && cp -r "$BUNDLE/agent" /opt/onesync/agent
 cp "$RELEASE_KEY" /etc/onesync/release-public.pem
 [ -f /etc/onesync/release.env ] || cp "$FIRST_RELEASE" /etc/onesync/release.env
@@ -83,6 +87,14 @@ IMAGE_REGISTRY=$REGISTRY
 ENV
 )
 
+say "Backups: key and configuration"
+install -m 0600 "$BACKUP_KEY" /etc/onesync/backup-cipher.pass
+install -m 0600 "$BACKUP_JSON" /etc/onesync/backup.json
+# the configuration holds the key, so it is written for the database user (uid 999 in the postgres image) only
+BACKUP_JSON=/etc/onesync/backup.json node /opt/onesync/agent/dist/backup-cli.js write-config
+chown 999:999 /etc/onesync/pgbackrest.conf; chmod 0600 /etc/onesync/pgbackrest.conf
+install -d -o 999 -g 999 -m 0750 /var/lib/onesync/backup-repo
+
 say "Database"
 COMPOSE="docker compose -f /opt/onesync/docker-compose.site.yml --env-file /etc/onesync/release.env"
 $COMPOSE up -d postgres
@@ -98,10 +110,16 @@ $COMPOSE up -d
 for i in $(seq 1 30); do curl -fsS http://127.0.0.1:8080/health/ready >/dev/null 2>&1 && break; sleep 3; done
 curl -fsS http://127.0.0.1:8080/health/ready >/dev/null || { echo "the application did not become ready" >&2; exit 1; }
 
+say "First backup"
+onesync-backup init
+onesync-backup now first-install --full
+onesync-backup verify
+
 say "Agent"
 cp "$BUNDLE/onesync-agent.service" /etc/systemd/system/onesync-agent.service
+for u in onesync-backup.service onesync-backup.timer onesync-backup-full.service onesync-backup-full.timer onesync-backup-status.service onesync-backup-status.timer; do cp "$BUNDLE/$u" /etc/systemd/system/; done
 systemctl daemon-reload
-systemctl enable --now onesync-agent
+systemctl enable --now onesync-agent onesync-backup.timer onesync-backup-full.timer onesync-backup-status.timer
 echo
 echo "Done. The agent will report to $CONTROL_PLANE within a minute."
 echo "Office computers must trust the certificate authority in /var/lib/onesync/caddy/pki/authorities/local/root.crt"

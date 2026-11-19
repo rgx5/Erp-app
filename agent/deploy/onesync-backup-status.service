@@ -1,0 +1,6 @@
+[Unit]
+Description=Write the backup status the fleet agent reports
+After=docker.service
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/onesync-backup status

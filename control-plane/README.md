@@ -33,9 +33,16 @@ npm start                                  # http://127.0.0.1:8090/ui is the fle
 
 Sign in with `POST /auth/login`; then `GET /fleet`, `GET /sites/:id`, `POST /clients`, `POST /sites`, `PATCH /sites/:id`, `POST /sites/:id/licences`, `POST /licences/:id/revoke`, `POST /releases`, `POST /releases/:id/promote`, `POST /releases/:id/withdraw`, `GET /audit`. Roles: viewer reads; support also edits clients and sites; admin also issues licences and agent tokens, manages releases and staff, and reads the audit.
 
+## Backup keys (escrow)
+
+`POST /sites/:id/backup-key` (admin) makes a site's backup key, returns it **once** for the installer, and stores it only sealed to `ESCROW_PUBLIC_KEY`. Make that key with `npm run cli -- escrow-keygen`: the private key is split into two shares for two custodians; neither alone can open anything. `escrow-open <sealed> <shareA> <shareB>` is for a recovery ceremony. A new key (rotation) starts a new backup set.
+
+## Staff two-step sign-in and support sessions
+
+TOTP with recovery codes; in production staff must set it up before doing anything else (`REQUIRE_STAFF_MFA`, `DATA_ENCRYPTION_KEY`). Approved remote support: staff request a session, the site shows its customer a code, staff enter it, only the site's agent can approve it.
+
 ## Known gaps (planned)
 
-- Staff two-step sign-in (TOTP): required by the plan before staff use this in production; sign-in has lockout but no second factor yet.
 - Rate limiting, TLS, and running behind the gateway are deployment work (phase 0).
 - Release manifests list image digests; building and pushing the images is the release pipeline's job.
 

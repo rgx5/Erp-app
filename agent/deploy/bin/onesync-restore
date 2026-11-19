@@ -1,0 +1,3 @@
+#!/bin/sh
+# onesync-restore [<backup label>|latest] [--time 'YYYY-MM-DD HH:MM:SS+00']      (the agent calls: onesync-restore <id>)
+exec node /opt/onesync/agent/dist/backup-cli.js restore "$@"

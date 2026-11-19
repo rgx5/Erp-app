@@ -10,6 +10,7 @@ import { LIMIT_KEYS, MODULES, moduleProblem } from './modules.js';
 import { SecretBox } from './secret-box.js';
 import { generateTotpSecret, verifyTotp } from './totp.js';
 import { mfaRequired } from './config.js';
+import { sealToEscrow } from './escrow.js';
 
 class HttpError extends Error { constructor(readonly status: number, readonly code: string, message: string, readonly extra: Record<string, unknown> = {}) { super(message); } }
 type Role = 'admin' | 'support' | 'viewer';
@@ -325,6 +326,28 @@ export function buildApp({ pool, config }: AppDeps): FastifyInstance {
     const rows = (await pool.query<{ manifest: { version: string }; signature: string }>("SELECT manifest, signature FROM releases WHERE status = 'rolling' AND open_ring >= $1", [site.ring])).rows;
     const best = rows.filter((r) => !current || compareVersions(r.manifest.version, current) > 0).sort((a, b) => compareVersions(b.manifest.version, a.manifest.version))[0];
     return best ? { release: { manifest: best.manifest, signature: best.signature }, maintenanceWindow: site.maintenanceWindow } : { release: null, reason: 'up_to_date', maintenanceWindow: site.maintenanceWindow };
+  });
+
+  // ---- backup keys ----------------------------------------------------------------------------------------------
+  /** Makes a site's backup key. It is returned ONCE (for the installer to put on the site) and stored only sealed to the escrow key, which needs two custodians to open. */
+  app.post<{ Params: { id: string } }>('/sites/:id/backup-key', { preHandler: asStaff('admin') }, async (req, reply) => {
+    const id = parse(uuid, req.params.id);
+    const { rotate } = z.object({ rotate: z.boolean().optional() }).parse(req.body ?? {});
+    if (!config.ESCROW_PUBLIC_KEY) throw new HttpError(409, 'escrow_not_configured', 'No escrow public key is configured, so backup keys cannot be made');
+    const site = (await pool.query('SELECT 1 FROM sites WHERE id = $1', [id])).rows[0];
+    if (!site) throw new HttpError(404, 'not_found', 'No such site');
+    const last = Number((await pool.query<{ v: number | null }>('SELECT max(version) AS v FROM backup_keys WHERE site_id = $1', [id])).rows[0]?.v ?? 0);
+    if (last > 0 && !rotate) throw new HttpError(409, 'key_exists', 'This site already has a backup key. A new key starts a new backup set: send {"rotate": true} to make one');
+    const passphrase = randomToken(32);
+    await pool.query('INSERT INTO backup_keys (id, site_id, version, sealed, created_by) VALUES ($1, $2, $3, $4, $5)', [randomUUID(), id, last + 1, sealToEscrow(passphrase, config.ESCROW_PUBLIC_KEY), req.staff?.id]);
+    await audit(req, 'backup_key.created', 'site', id, { version: last + 1, rotated: last > 0 });
+    return reply.status(201).send({ version: last + 1, passphrase, note: 'Shown once. Put it on the site; it cannot be shown again.' });
+  });
+  /** The sealed copies, for a recovery ceremony (two custodians open them offline with `cli escrow-open`). */
+  app.get<{ Params: { id: string } }>('/sites/:id/backup-key/escrow', { preHandler: asStaff('admin') }, async (req) => {
+    const rows = (await pool.query('SELECT version, sealed, created_at FROM backup_keys WHERE site_id = $1 ORDER BY version', [parse(uuid, req.params.id)])).rows;
+    await audit(req, 'backup_key.escrow_read', 'site', req.params.id);
+    return { items: rows };
   });
 
   // ---- approved remote support ----------------------------------------------------------------------------------

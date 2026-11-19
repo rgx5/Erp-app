@@ -1,0 +1,7 @@
+#!/bin/sh
+# onesync-backup now <label> [--full] | status | verify | init      (the agent calls: onesync-backup now <label>)
+set -e
+case "$1" in
+  now|status|verify) exec node /opt/onesync/agent/dist/backup-cli.js backup "$@" ;;
+  *) exec node /opt/onesync/agent/dist/backup-cli.js "$@" ;;
+esac

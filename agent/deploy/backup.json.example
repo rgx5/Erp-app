@@ -1,0 +1,15 @@
+{
+  "stanza": "onesync",
+  "pgDataPath": "/var/lib/postgresql/data",
+  "pgSocketPath": "/var/run/postgresql",
+  "pgPort": 5432,
+  "pgUser": "postgres",
+  "cipherPassFile": "/etc/onesync/backup-cipher.pass",
+  "archiveTimeoutSeconds": 60,
+  "fullRetention": 4,
+  "repos": [
+    { "type": "s3", "bucket": "onesync-backups", "endpoint": "backup.example.in", "region": "ap-south-1", "keyFile": "/etc/onesync/repo1-s3.key", "secretFile": "/etc/onesync/repo1-s3.secret", "path": "/clients" },
+    { "type": "s3", "bucket": "onesync-backups-b", "endpoint": "s3.other-provider.example", "region": "ap-south-1", "keyFile": "/etc/onesync/repo2-s3.key", "secretFile": "/etc/onesync/repo2-s3.secret", "path": "/clients" },
+    { "type": "posix", "path": "/var/lib/onesync/backup-repo" }
+  ]
+}

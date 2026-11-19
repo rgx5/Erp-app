@@ -1,0 +1,7 @@
+[Unit]
+Description=OneSyncERP nightly backup
+After=docker.service
+Requires=docker.service
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/onesync-backup now nightly

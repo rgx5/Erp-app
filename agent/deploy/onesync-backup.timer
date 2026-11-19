@@ -1,0 +1,8 @@
+[Unit]
+Description=OneSyncERP nightly backup (incremental; the first run and every Sunday is a full backup)
+[Timer]
+OnCalendar=*-*-* 01:30:00
+RandomizedDelaySec=900
+Persistent=true
+[Install]
+WantedBy=timers.target

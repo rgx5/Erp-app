@@ -3,13 +3,19 @@
 name: onesync
 services:
   postgres:
-    image: postgres:16
+    image: ${POSTGRES_IMAGE:-onesync/postgres:16}   # PostgreSQL with pgBackRest (see postgres/Dockerfile)
     restart: unless-stopped
     env_file: /etc/onesync/postgres.env
     environment:
       POSTGRES_DB: erp
+    # Every finished log segment is shipped, and one is forced every minute, which bounds how much recent work could be lost.
+    command: >
+      postgres -c wal_level=replica -c archive_mode=on -c archive_timeout=60 -c max_wal_senders=4
+      -c archive_command='pgbackrest --config=/etc/pgbackrest/pgbackrest.conf --stanza=onesync archive-push %p'
     volumes:
       - /var/lib/onesync/pgdata:/var/lib/postgresql/data
+      - /etc/onesync/pgbackrest.conf:/etc/pgbackrest/pgbackrest.conf:ro   # holds the backup key: owned by the database user, mode 0600
+      - /var/lib/onesync/backup-repo:/var/lib/onesync/backup-repo         # the local third copy
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d erp"]
       interval: 5s

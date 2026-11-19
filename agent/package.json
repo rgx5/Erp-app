@@ -6,6 +6,7 @@
   "description": "The fleet agent that runs on every OneSyncERP site server: heartbeat, signed updates with backup and rollback, licence sync, approved support access.",
   "scripts": {
     "start": "tsx src/main.ts",
+    "build": "tsc -p tsconfig.build.json",
     "typecheck": "tsc --noEmit -p tsconfig.json",
     "lint": "oxlint src test",
     "test": "vitest run"

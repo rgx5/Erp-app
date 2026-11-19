@@ -1,0 +1,8 @@
+[Unit]
+Description=OneSyncERP weekly full backup
+[Timer]
+OnCalendar=Sun *-*-* 00:30:00
+RandomizedDelaySec=900
+Persistent=true
+[Install]
+WantedBy=timers.target
