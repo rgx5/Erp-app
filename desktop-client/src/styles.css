@@ -72,9 +72,11 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
 .filterbar label { white-space: nowrap; font-size: 11.5px; color: var(--color-muted); }
 .filterbar input:not([type="checkbox"]), .filterbar select { height: 28px !important; font-size: 12.5px; }
 
-/* a screen settling into place: short, no bounce */
-@keyframes settle { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-.settle { animation: settle .16s ease-out both; }
+/* a screen settling into place: a short fade only. Never animate `transform` here: an element with a transform animation (even one that has
+   finished and is held by fill-mode) becomes the containing block for `position: fixed` children, which shrinks every drawer and overlay inside it
+   to the height of the page content. */
+@keyframes settle { from { opacity: 0; } to { opacity: 1; } }
+.settle { animation: settle .14s ease-out backwards; }
 @keyframes shimmer { 0% { background-position: -240px 0; } 100% { background-position: 240px 0; } }
 .skeleton { background: linear-gradient(90deg, #ebe9e2 0%, #f6f5f1 50%, #ebe9e2 100%); background-size: 480px 100%; animation: shimmer 1.2s linear infinite; border-radius: 3px; }
 @keyframes toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
