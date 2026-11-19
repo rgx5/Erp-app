@@ -65,6 +65,11 @@ Nothing in these files publishes a host port. Dokploy's Traefik terminates TLS a
    It takes a few seconds and answers with the steps it did and the login: a business with code `demo` (owner `owner@demo.example.com`, password `demo-passphrase-2026`), items, customers, suppliers, about 45 invoices and receipts. Calling it again adds nothing. To pick another business code or login, send JSON: `{"slug":"acme","email":"o@acme.in","password":"a-long-password","name":"Acme"}`. Without `DEMO_SEED_ENABLED=true` the endpoint answers 404, and it always needs the platform token. Turn the flag off again when the demo is set up. The same seeder also runs in the `api` container's terminal: `node scripts/seed-demo.mjs`.
 7. Clients' desktop apps: server address `https://app.yourdomain.in`; owners can open `https://app.yourdomain.in/owner` in a browser.
 
+## Troubleshooting a cell that will not start
+
+- **`api` never starts, `migrate` says `password authentication failed for user "erp_migrator"`**: the database's first-start script did not create its roles (fixed in the current code). The database folder now exists without them, and PostgreSQL only runs the script on an empty folder, so after updating you must delete the database volume once: Dokploy → the cell service → stop it → Volumes → delete `cell-pgdata` (or on the server `docker volume rm onesync-cell_cell-pgdata`), then deploy again. Demo data is lost with it; on a server with real data never delete the volume, ask first.
+- **502 Bad Gateway on the cell's address**: nothing answers behind the domain. Check the cell's `api`, `edge` and `migrate` logs, and that the domain points to service `edge`, port `8080`.
+
 ## 4. Backups (do this before the first client)
 
 - **Control plane database** (fleet state, sealed backup keys): Dokploy → the service's volume `cp-db-data` → **Volume Backups** to an S3 destination (a second provider, not Hostinger). Run a restore into a scratch service once to prove it.
