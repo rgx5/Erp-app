@@ -12,6 +12,7 @@ import { useWorkspace } from '@/features/organization/workspace'
 import { emptyLine, isBlank, LineGrid, type Line } from '@/features/sales/LineGrid'
 import { useFlash } from '@/ui/flash'
 import { Alert, Button, Card, SelectField, Spinner, TextField } from '@/ui/primitives'
+import { takePoDraft } from './poDraft'
 import { usePostOrder, type PurchaseOrderInput } from './queries'
 
 const qtyOk = (v: string): boolean => /^\d{1,12}(\.\d{1,6})?$/.test(v) && Number(v) > 0
@@ -41,7 +42,7 @@ export function PurchaseOrderEditorPage() {
   const [warehouseId, setWarehouseId] = useState('')
   const [reference, setReference] = useState('')
   const [notes, setNotes] = useState('')
-  const [lines, setLines] = useState<Line[]>([emptyLine()])
+  const [lines, setLines] = useState<Line[]>(() => takePoDraft() ?? [emptyLine()])
   const [error, setError] = useState<unknown>(null)
   const regId = registrationId || ws.registrations[0]?.id || ''
   const whId = warehouseId || ws.warehouses[0]?.id || ''

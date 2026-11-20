@@ -22,6 +22,10 @@ export class ReportsController {
   /** The end-of-day summary for the counters. */
   @RequiresModule('pos') @RequirePermissions('pos:read') @Get('day-end')
   dayEnd(@TenantId() t: string, @Query({ schema: dayQuery }) q: z.infer<typeof dayQuery>) { return this.reports.dayEnd(t, q); }
+
+  /** Stocked items at or below their reorder level, with a suggested quantity to buy. */
+  @RequiresModule('inventory') @RequirePermissions('stock:read') @Get('low-stock')
+  lowStock(@TenantId() t: string, @Query({ schema: z.object({ companyId: z.uuid() }) }) q: { companyId: string }) { return this.reports.lowStock(t, q); }
 }
 
 @Module({ controllers: [ReportsController], providers: [ReportsService] })

@@ -57,6 +57,7 @@ export const NAV: NavItem[] = [
   { to: '/admin/audit', label: 'Audit log', icon: ScrollText, needs: ['audit:read'], section: 'Administration', advanced: true },
   { to: '/account', label: 'My account', icon: UserCog, section: 'Administration' },
   { to: '/inventory/stock', label: 'Stock on hand', icon: WarehouseIcon, needs: ['stock:read'], section: 'Inventory' },
+  { to: '/inventory/reorder', label: 'Reorder list', icon: ListChecks, needs: ['stock:read'], section: 'Inventory' },
   { to: '/inventory/movements', label: 'Movements', icon: ListChecks, needs: ['stock:read'], section: 'Inventory' },
   { to: '/inventory/transfers', label: 'Transfers', icon: ArrowLeftRight, needs: ['stock:read'], section: 'Inventory', advanced: true },
   { to: '/inventory/counts', label: 'Stock counts', icon: ClipboardCheck, needs: ['stock:read'], section: 'Inventory' },

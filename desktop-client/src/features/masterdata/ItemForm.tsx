@@ -24,6 +24,7 @@ const schema = z.object({
   name: z.string().trim().min(1, 'Required').max(300), description: z.string().max(2000).optional(), itemType: z.string(), baseUomId: z.string().min(1, 'Choose a unit'),
   hsnSacCode: z.string().optional(), taxCodeId: z.string().optional(), tracking: z.string(), isStocked: z.boolean(), isPurchasable: z.boolean(), isSellable: z.boolean(), isManufactured: z.boolean(), costingMethod: z.string(), status: z.string(),
   categoryId: z.string().optional(), brand: z.string().trim().max(100).optional(), mrp: z.string().trim().regex(/^(\d{1,14}(\.\d{1,4})?)?$/, 'An amount such as 120 or 120.50').optional(),
+  reorderLevel: z.string().trim().regex(/^(\d{1,12}(\.\d{1,6})?)?$/, 'A quantity such as 10 or 2.5').optional(), reorderQty: z.string().trim().regex(/^(\d{1,12}(\.\d{1,6})?)?$/, 'A quantity such as 10 or 2.5').optional(),
 }).superRefine((v, ctx) => {
   const problem = hsnProblem(v.itemType, (v.hsnSacCode ?? '').trim())
   if (problem) ctx.addIssue({ code: 'custom', path: ['hsnSacCode'], message: problem })
@@ -44,13 +45,13 @@ export function ItemForm({ item, canWrite, onDone }: { item?: Item | undefined; 
       code: item?.code ?? '', name: item?.name ?? '', description: item?.description ?? '', itemType: item?.itemType ?? 'finished_good', baseUomId: item?.baseUomId ?? '',
       hsnSacCode: item?.hsnSacCode ?? '', taxCodeId: item?.taxCodeId ?? '', tracking: item?.tracking ?? 'none', isStocked: item?.isStocked ?? true, isPurchasable: item?.isPurchasable ?? true,
       isSellable: item?.isSellable ?? true, isManufactured: item?.isManufactured ?? false, costingMethod: item?.costingMethod ?? 'weighted_average', status: item?.status ?? 'active',
-      categoryId: item?.categoryId ?? '', brand: item?.brand ?? '', mrp: item?.mrp ? String(Number(item.mrp)) : '',
+      categoryId: item?.categoryId ?? '', brand: item?.brand ?? '', mrp: item?.mrp ? String(Number(item.mrp)) : '', reorderLevel: item?.reorderLevel ? String(Number(item.reorderLevel)) : '', reorderQty: item?.reorderQty ? String(Number(item.reorderQty)) : '',
     },
   })
   const [message, setMessage] = useState<string | null>(null)
   const type = watch('itemType')
   const service = type === 'service'
-  const fields = ['code', 'name', 'description', 'itemType', 'baseUomId', 'hsnSacCode', 'taxCodeId', 'tracking', 'isStocked', 'isPurchasable', 'isSellable', 'isManufactured', 'costingMethod', 'status', 'categoryId', 'brand', 'mrp']
+  const fields = ['code', 'name', 'description', 'itemType', 'baseUomId', 'hsnSacCode', 'taxCodeId', 'tracking', 'isStocked', 'isPurchasable', 'isSellable', 'isManufactured', 'costingMethod', 'status', 'categoryId', 'brand', 'mrp', 'reorderLevel', 'reorderQty']
   const readOnly = !canWrite
 
   return (
@@ -59,11 +60,11 @@ export function ItemForm({ item, canWrite, onDone }: { item?: Item | undefined; 
       const hsn = (v.hsnSacCode ?? '').trim()
       try {
         if (item) {
-          await update.mutateAsync({ id: item.id, version: item.version, body: { name: v.name.trim(), description: v.description?.trim() || null, hsnSacCode: hsn || null, taxCodeId: v.taxCodeId || null, categoryId: v.categoryId || null, brand: v.brand?.trim() || null, mrp: v.mrp?.trim() || null, isPurchasable: v.isPurchasable, isSellable: v.isSellable, ...(service ? {} : { costingMethod: v.costingMethod as 'fifo' }), status: v.status as 'active' } })
+          await update.mutateAsync({ id: item.id, version: item.version, body: { name: v.name.trim(), description: v.description?.trim() || null, hsnSacCode: hsn || null, taxCodeId: v.taxCodeId || null, categoryId: v.categoryId || null, brand: v.brand?.trim() || null, mrp: v.mrp?.trim() || null, reorderLevel: v.reorderLevel?.trim() || null, reorderQty: v.reorderQty?.trim() || null, isPurchasable: v.isPurchasable, isSellable: v.isSellable, ...(service ? {} : { costingMethod: v.costingMethod as 'fifo' }), status: v.status as 'active' } })
         } else {
           await create.mutateAsync({
             code: v.code.trim(), name: v.name.trim(), ...(v.description?.trim() ? { description: v.description.trim() } : {}), itemType: v.itemType as 'service', baseUomId: v.baseUomId,
-            ...(hsn ? { hsnSacCode: hsn } : {}), ...(v.taxCodeId ? { taxCodeId: v.taxCodeId } : {}), ...(v.categoryId ? { categoryId: v.categoryId } : {}), ...(v.brand?.trim() ? { brand: v.brand.trim() } : {}), ...(v.mrp?.trim() ? { mrp: v.mrp.trim() } : {}), tracking: v.tracking as 'none', isStocked: service ? false : v.isStocked,
+            ...(hsn ? { hsnSacCode: hsn } : {}), ...(v.taxCodeId ? { taxCodeId: v.taxCodeId } : {}), ...(v.categoryId ? { categoryId: v.categoryId } : {}), ...(v.brand?.trim() ? { brand: v.brand.trim() } : {}), ...(v.mrp?.trim() ? { mrp: v.mrp.trim() } : {}), ...(v.reorderLevel?.trim() ? { reorderLevel: v.reorderLevel.trim() } : {}), ...(v.reorderQty?.trim() ? { reorderQty: v.reorderQty.trim() } : {}), tracking: v.tracking as 'none', isStocked: service ? false : v.isStocked,
             isPurchasable: v.isPurchasable, isSellable: v.isSellable, isManufactured: v.isManufactured, ...(service ? {} : { costingMethod: v.costingMethod as 'fifo' }),
           })
         }
@@ -86,6 +87,8 @@ export function ItemForm({ item, canWrite, onDone }: { item?: Item | undefined; 
         <SelectField label="Category" disabled={readOnly} options={[{ value: '', label: 'None' }, ...(categories.data ?? []).filter((c) => c.status === 'active').map((c) => ({ value: c.id, label: c.name }))]} {...register('categoryId')} />
         <TextField label="Brand (optional)" disabled={readOnly} {...register('brand')} />
         <TextField label="MRP (optional)" inputMode="decimal" error={errors.mrp?.message} disabled={readOnly} {...register('mrp')} hint="Printed retail price, tax included" />
+        <TextField label="Reorder level (optional)" inputMode="decimal" error={errors.reorderLevel?.message} disabled={readOnly} {...register('reorderLevel')} hint="Flag this item when stock falls to this quantity" />
+        <TextField label="Reorder quantity (optional)" inputMode="decimal" error={errors.reorderQty?.message} disabled={readOnly} {...register('reorderQty')} hint="How much to buy when it does" />
       </div>
       {!service ? (
         <div className="grid grid-cols-2 gap-4">

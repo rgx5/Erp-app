@@ -37,3 +37,8 @@ export const useDayEnd = (companyId: string | undefined, date: string, terminalI
       return api.call(api.raw.GET('/v1/reports/day-end', { params: { query: { companyId: companyId as string, date, ...(terminalId ? { terminalId } : {}) } } }), dayEndReport)
     },
   })
+
+export const lowStockReport = z.object({ rows: z.array(z.object({ itemId: z.string(), code: z.string(), name: z.string(), onHand: z.string(), reorderLevel: z.string(), onOrder: z.string(), suggestedQty: z.string(), lastCost: z.string().nullable() })) })
+export type LowStockRow = z.infer<typeof lowStockReport>['rows'][number]
+export const useLowStock = (companyId: string | undefined) =>
+  useQuery({ queryKey: ['reports', 'low-stock', companyId], refetchOnMount: 'always', enabled: Boolean(companyId), queryFn: () => { const api = currentApi(); return api.call(api.raw.GET('/v1/reports/low-stock', { params: { query: { companyId: companyId as string } } }), lowStockReport) } })

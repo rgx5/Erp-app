@@ -4406,6 +4406,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/reports/low-stock": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Stocked items at or below their reorder level, with a suggested quantity to buy. */
+        get: operations["ReportsController_lowStock"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -6143,6 +6160,8 @@ export interface operations {
                     categoryId?: string;
                     brand?: string;
                     mrp?: string;
+                    reorderLevel?: string;
+                    reorderQty?: string;
                 };
             };
         };
@@ -6218,6 +6237,8 @@ export interface operations {
                     mrp?: string | null;
                     /** @enum {string} */
                     status?: "active" | "inactive";
+                    reorderLevel?: string | null;
+                    reorderQty?: string | null;
                 };
             };
         };
@@ -13426,6 +13447,27 @@ export interface operations {
                 companyId: string;
                 date: string;
                 terminalId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    ReportsController_lowStock: {
+        parameters: {
+            query: {
+                companyId: string;
             };
             header?: never;
             path?: never;

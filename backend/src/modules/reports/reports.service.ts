@@ -102,4 +102,28 @@ export class ReportsService {
       };
     });
   }
+
+  /** Items at or below their reorder level across the company's warehouses, with how much to buy and what is already on order. */
+  async lowStock(tenantId: string, q: { companyId: string }) {
+    const rows = await this.uow.inTenant(tenantId, async (tx) => (await tx.execute<{ itemId: string; code: string; name: string; reorderLevel: string; reorderQty: string | null; onHand: string; onOrder: string; lastCost: string | null; supplierId: string | null }>(sql`
+      SELECT it.id AS "itemId", it.code, it.name, it.reorder_level::text AS "reorderLevel", it.reorder_qty::text AS "reorderQty",
+             COALESCE(b.qty, 0)::text AS "onHand", COALESCE(o.qty, 0)::text AS "onOrder", b.last_cost::text AS "lastCost", NULL::text AS "supplierId"
+        FROM erp.items it
+        LEFT JOIN LATERAL (SELECT SUM(quantity) AS qty, MAX(last_cost) AS last_cost FROM erp.stock_balances sb
+                            WHERE sb.tenant_id = it.tenant_id AND sb.company_id = ${q.companyId}::uuid AND sb.item_id = it.id) b ON true
+        LEFT JOIN LATERAL (SELECT SUM(GREATEST(pl.quantity - pl.quantity_received, 0)) AS qty FROM erp.purchase_order_lines pl
+                             JOIN erp.purchase_orders po ON po.tenant_id = pl.tenant_id AND po.id = pl.order_id
+                            WHERE pl.tenant_id = it.tenant_id AND pl.item_id = it.id AND po.company_id = ${q.companyId}::uuid AND po.status IN ('open', 'partially_received')) o ON true
+       WHERE it.tenant_id = ${tenantId}::uuid AND it.status = 'active' AND it.is_stocked AND it.reorder_level IS NOT NULL
+         AND COALESCE(b.qty, 0) <= it.reorder_level
+       ORDER BY (COALESCE(b.qty, 0) - it.reorder_level) ASC, it.code
+       LIMIT 1000`)).rows);
+    return {
+      rows: rows.map((r) => {
+        const target = r.reorderQty && Number(r.reorderQty) > 0 ? Number(r.reorderQty) : Math.max(Number(r.reorderLevel) - Number(r.onHand), 0);
+        const suggested = Math.max(target - Number(r.onOrder), 0);
+        return { itemId: r.itemId, code: r.code, name: r.name, onHand: r.onHand, reorderLevel: r.reorderLevel, onOrder: r.onOrder, suggestedQty: String(suggested), lastCost: r.lastCost };
+      }),
+    };
+  }
 }

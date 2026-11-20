@@ -83,7 +83,7 @@ export type TaxRate = z.infer<typeof taxRate>
 
 export const item = z.object({
   id: z.string(), code: z.string(), name: z.string(), description: z.string().nullable(), itemType: z.string(), baseUomId: z.string(), hsnSacCode: z.string().nullable(), taxCodeId: z.string().nullable(),
-  tracking: z.string(), isStocked: z.boolean(), isPurchasable: z.boolean(), isSellable: z.boolean(), isManufactured: z.boolean(), costingMethod: z.string().nullable().optional(), categoryId: z.string().nullable().optional(), brand: z.string().nullable().optional(), mrp: z.string().nullable().optional(), status: z.string(), ...stamps,
+  tracking: z.string(), isStocked: z.boolean(), isPurchasable: z.boolean(), isSellable: z.boolean(), isManufactured: z.boolean(), costingMethod: z.string().nullable().optional(), categoryId: z.string().nullable().optional(), brand: z.string().nullable().optional(), mrp: z.string().nullable().optional(), reorderLevel: z.string().nullable().optional(), reorderQty: z.string().nullable().optional(), status: z.string(), ...stamps,
 })
 export type Item = z.infer<typeof item>
 export const itemCategory = z.object({ id: z.string(), code: z.string(), name: z.string(), parentId: z.string().nullable(), noDiscount: z.boolean(), status: z.string(), version: z.number() })

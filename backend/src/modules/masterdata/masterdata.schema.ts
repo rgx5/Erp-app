@@ -85,6 +85,8 @@ export const items = erp.table('items', {
   categoryId: uuid('category_id'),
   brand: text('brand'),
   mrp: numeric('mrp', { precision: 18, scale: 4 }),
+  reorderLevel: numeric('reorder_level', { precision: 18, scale: 6 }),
+  reorderQty: numeric('reorder_qty', { precision: 18, scale: 6 }),
   status: text('status').notNull().default('active'),
   ...meta,
 });

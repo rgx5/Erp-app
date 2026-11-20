@@ -55,4 +55,20 @@ describe('sales analysis and day-end reports', () => {
     expect(r.rows).toHaveLength(0);
     expect((await call(server, 'GET', `/v1/reports/sales?companyId=${a.companyId}&from=2025-04-01&to=2025-04-30`, { tenant: b.tenant })).json.rows).toHaveLength(0);
   });
+
+  it('lists items at or below their reorder level with a suggested quantity, net of what is on order', async () => {
+    const c = await kit.shop('Reorder Co');
+    const widget = { id: c.item.widget };
+    const none = (await call(server, 'GET', `/v1/reports/low-stock?companyId=${c.companyId}`, { tenant: c.tenant })).json;
+    expect(none.rows).toHaveLength(0); // no reorder level set yet
+    const upd = await call(server, 'PATCH', `/v1/items/${widget.id}`, { tenant: c.tenant, headers: { 'if-match': '1' }, body: { reorderLevel: '100000', reorderQty: '50' } });
+    ok(upd, 200);
+    expect(upd.json).toMatchObject({ reorderLevel: '100000.000000', reorderQty: '50.000000' });
+    const r = (await call(server, 'GET', `/v1/reports/low-stock?companyId=${c.companyId}`, { tenant: c.tenant })).json;
+    expect(r.rows).toHaveLength(1);
+    expect(r.rows[0]).toMatchObject({ code: expect.stringMatching(/^WIDGET/), suggestedQty: '50', onOrder: '0' });
+    expect((await call(server, 'PATCH', `/v1/items/${widget.id}`, { tenant: c.tenant, headers: { 'if-match': '2' }, body: { reorderLevel: '-1' } })).status).toBe(422);
+    const other = await kit.shop('Reorder Other');
+    expect((await call(server, 'GET', `/v1/reports/low-stock?companyId=${other.companyId}`, { tenant: other.tenant })).json.rows).toHaveLength(0);
+  });
 });

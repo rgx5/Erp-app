@@ -58,6 +58,9 @@ export const createItemSchema = z
     brand: text(100).optional(),
     /** Maximum retail price, tax included, as printed on the pack. */
     mrp: decimal(4).optional(),
+    /** Buy again when the stock falls to this quantity or below; and how much to buy. */
+    reorderLevel: decimal(6).optional(),
+    reorderQty: decimal(6).optional(),
   })
   .superRefine((v, ctx) => {
     const service = v.itemType === 'service';
@@ -89,6 +92,8 @@ export const updateItemSchema = z
     categoryId: z.uuid().nullable().optional(),
     brand: text(100).nullable().optional(),
     mrp: decimal(4).nullable().optional(),
+    reorderLevel: decimal(6).nullable().optional(),
+    reorderQty: decimal(6).nullable().optional(),
     status: z.enum(['active', 'inactive']).optional(),
   })
   .refine(atLeastOne, NOTHING);

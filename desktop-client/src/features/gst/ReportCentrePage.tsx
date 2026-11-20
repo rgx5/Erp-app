@@ -23,6 +23,7 @@ const GROUPS: { title: string; reports: Report[] }[] = [
     { to: '/purchasing/payables', name: 'Payables ageing and supplier statements', what: 'What you owe, by supplier and age. CSV.', needs: 'purchasing:read' },
   ] },
   { title: 'Stock', reports: [
+    { to: '/inventory/reorder', name: 'Reorder list', what: 'Items at or below their reorder level, with a suggested quantity and a one-click purchase order. CSV.', needs: 'stock:read' },
     { to: '/inventory/stock', name: 'Stock on hand and stock card', what: 'Quantity and value by warehouse; each item’s history. CSV.', needs: 'stock:read' },
     { to: '/inventory/valuation', name: 'Valuation', what: 'Stock value checked against the inventory accounts. CSV.', needs: 'stock:read' },
     { to: '/inventory/movements', name: 'Stock movements', what: 'Every receipt, issue, transfer and adjustment.', needs: 'stock:read' },

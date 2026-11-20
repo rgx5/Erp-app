@@ -3245,6 +3245,14 @@
                   "mrp": {
                     "type": "string",
                     "pattern": "^[0-9]{1,14}(\\.[0-9]{1,4})?$"
+                  },
+                  "reorderLevel": {
+                    "type": "string",
+                    "pattern": "^[0-9]{1,14}(\\.[0-9]{1,4})?$"
+                  },
+                  "reorderQty": {
+                    "type": "string",
+                    "pattern": "^[0-9]{1,14}(\\.[0-9]{1,4})?$"
                   }
                 },
                 "required": [
@@ -3415,6 +3423,16 @@
                       "active",
                       "inactive"
                     ]
+                  },
+                  "reorderLevel": {
+                    "nullable": true,
+                    "type": "string",
+                    "pattern": "^[0-9]{1,14}(\\.[0-9]{1,4})?$"
+                  },
+                  "reorderQty": {
+                    "nullable": true,
+                    "type": "string",
+                    "pattern": "^[0-9]{1,14}(\\.[0-9]{1,4})?$"
                   }
                 },
                 "additionalProperties": false
@@ -17338,6 +17356,43 @@
           {
             "name": "terminalId",
             "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "reports"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
+    },
+    "/v1/reports/low-stock": {
+      "get": {
+        "operationId": "ReportsController_lowStock",
+        "summary": "Stocked items at or below their reorder level, with a suggested quantity to buy.",
+        "parameters": [
+          {
+            "name": "companyId",
+            "required": true,
             "in": "query",
             "schema": {
               "type": "string",
