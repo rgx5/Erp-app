@@ -53,11 +53,11 @@ describe('gift cards', () => {
     const c = await till('Gift Co');
     expect((await call(server, 'POST', '/v1/pos/gift-cards', { tenant: c.tenant, headers: { 'idempotency-key': crypto.randomUUID() }, body: { shiftId: c.shift, amount: '500', method: 'cash', date: '2025-04-10' } })).json.code).toBe('pos_not_configured');
     ok(await put(c, 'payment-accounts', { method: 'gift_card', accountId: c.acc['4100'] }), 422); // income is not a liability
-    ok(await put(c, 'payment-accounts', { method: 'gift_card', accountId: c.acc['2150'] }), 200);
+    ok(await put(c, 'payment-accounts', { method: 'gift_card', accountId: c.acc['2145'] }), 200);
     const card = ok(await call(server, 'POST', '/v1/pos/gift-cards', { tenant: c.tenant, headers: { 'idempotency-key': crypto.randomUUID() }, body: { shiftId: c.shift, amount: '500', method: 'cash', date: '2025-04-10', holderName: 'Asha' } }));
     expect(card).toMatchObject({ balance: '500.0000', initialAmount: '500.0000', holderName: 'Asha' });
     expect(card.code).toMatch(/^GC-[A-Z2-9]{4}-[A-Z2-9]{4}-[A-Z2-9]{4}$/);
-    const tb = async () => (await call(server, 'GET', `/v1/accounting/trial-balance?companyId=${c.companyId}&from=2025-04-01&to=2026-03-31`, { tenant: c.tenant })).json.rows.find((r: { code: string }) => r.code === '2150');
+    const tb = async () => (await call(server, 'GET', `/v1/accounting/trial-balance?companyId=${c.companyId}&from=2025-04-01&to=2026-03-31`, { tenant: c.tenant })).json.rows.find((r: { code: string }) => r.code === '2145');
     expect(await tb()).toMatchObject({ closingCredit: '500.0000' }); // owed to the holder, not income
     expect((await call(server, 'GET', `/v1/pos/shifts/${c.shift}`, { tenant: c.tenant })).json.summary.expectedCash).toBe('1000.0000'); // 500 opening + 500 cash for the card
 
