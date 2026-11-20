@@ -10,7 +10,8 @@ import { PosModule } from './modules/pos/pos.controller.js';
 import { RateLimitModule } from './platform/http/rate-limit.guard.js';
 import { ApprovalsModule } from './modules/approvals/approvals.controller.js';
 import { BankingModule } from './modules/banking/banking.controller.js';
-import { DashboardModule } from './modules/dashboard/dashboard.controller.js';
+import { DashboardModule } from './modules/dashboard/dashboard.controller.js'
+import { ReportsModule } from './modules/reports/reports.controller.js';
 import { DemoModule } from './modules/demo/demo.controller.js';
 import { SetupModule } from './modules/setup/setup.controller.js';
 import { GstModule } from './modules/gst/gst.controller.js';
@@ -48,6 +49,6 @@ export class CoreModule {
 @Module({})
 export class AppModule {
   static forRoot(env: Env): DynamicModule {
-    return { module: AppModule, imports: [CoreModule.forRoot(env), RateLimitModule, DatabaseModule, PlatformServicesModule, HealthModule, IdentityModule, OrganizationModule, AuditModule, NumberingModule, MasterDataModule, AccountingModule, InventoryModule, SalesModule, PosModule, PurchasingModule, ManufacturingModule, GstModule, PayrollModule, ApprovalsModule, BankingModule, DashboardModule, DemoModule, SetupModule, RetailModule] };
+    return { module: AppModule, imports: [CoreModule.forRoot(env), RateLimitModule, DatabaseModule, PlatformServicesModule, HealthModule, IdentityModule, OrganizationModule, AuditModule, NumberingModule, MasterDataModule, AccountingModule, InventoryModule, SalesModule, PosModule, PurchasingModule, ManufacturingModule, GstModule, PayrollModule, ApprovalsModule, BankingModule, DashboardModule, ReportsModule, DemoModule, SetupModule, RetailModule] };
   }
 }

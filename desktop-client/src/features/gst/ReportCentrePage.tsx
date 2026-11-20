@@ -17,6 +17,8 @@ const GROUPS: { title: string; reports: Report[] }[] = [
     { to: '/gst', name: 'CMP-08', what: 'Quarterly statement for composition dealers. GSTN JSON.', needs: 'gst:read' },
   ] },
   { title: 'Sales and purchases', reports: [
+    { to: '/sales/analysis', name: 'Sales analysis and profit', what: 'Sales by item, category, brand, day, cashier or customer, with profit. CSV.', needs: 'sales:read' },
+    { to: '/pos/day-end', name: 'Day-end report', what: 'Bills, returns, takings by payment mode and each shift’s cash, printable on a till roll.', needs: 'pos:read' },
     { to: '/sales/receivables', name: 'Receivables ageing and customer statements', what: 'Who owes you, how overdue, and statements to send. CSV.', needs: 'sales:read' },
     { to: '/purchasing/payables', name: 'Payables ageing and supplier statements', what: 'What you owe, by supplier and age. CSV.', needs: 'purchasing:read' },
   ] },

@@ -29,7 +29,7 @@ test('barcodes: generate one for an item, and print labels for many items at onc
   await expect(page.getByText(/1 new barcode created/)).toBeVisible()
   const items = (await s.call('GET', '/v1/items?limit=50')).items as { id: string; code: string }[]
   for (const it of items.filter((i) => ['WIDGET', 'TOY'].includes(i.code))) {
-    const b = (await s.call('GET', `/v1/items/${it.id}/barcodes`)).items as { barcode: string }[]
+    const b = (await s.call('GET', `/v1/items/${it.id}/barcodes`)).items as unknown as { barcode: string }[]
     expect(b).toHaveLength(1); expect(b[0]?.barcode).toMatch(/^2\d{12}$/)
   }
 })
