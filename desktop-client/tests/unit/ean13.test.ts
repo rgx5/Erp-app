@@ -11,3 +11,11 @@ describe('in-store barcodes', () => {
     expect(isEan13('ABC-123')).toBe(false)
   })
 })
+
+import { paperCss } from '@/features/pos/paper'
+describe('receipt paper', () => {
+  it('lays out for the chosen roll', () => {
+    expect(paperCss('58')).toContain('size:58mm')
+    expect(paperCss('80')).toContain('size:80mm')
+  })
+})

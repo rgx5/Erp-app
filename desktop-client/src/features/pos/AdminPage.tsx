@@ -14,6 +14,7 @@ import { useParty } from '@/features/masterdata/queries'
 import { useWorkspace } from '@/features/organization/workspace'
 import { DataTable } from '@/ui/DataTable'
 import { Drawer } from '@/ui/Drawer'
+import { getPaper, setPaper, type Paper } from './paper'
 import { useFlash } from '@/ui/flash'
 import { SimpleForm } from '@/ui/SimpleForm'
 import { Alert, Button, CheckField, Card, SelectField, Spinner, TextField } from '@/ui/primitives'
@@ -64,15 +65,17 @@ function ReceiptPrinter() {
   const [printers, setPrinters] = useState<{ name: string; isDefault: boolean }[]>([])
   const [chosen, setChosen] = useState('')
   const [auto, setAuto] = useState(false)
+  const [paper, setPaperState] = useState<Paper>(getPaper())
   const flash = useFlash()
   useEffect(() => { void bridge.printer.list().then(setPrinters); void bridge.settings.get().then((s) => { setChosen(s.receiptPrinter ?? ''); setAuto(s.autoPrintReceipts === true) }) }, [])
-  if (!isDesktop()) return <Card title="Receipt printer"><p className="text-sm text-muted">Printing without a dialog is available in the desktop app. In a browser, receipts open the print dialog.</p></Card>
+  if (!isDesktop()) return <Card title="Receipt printer"><div className="flex max-w-xl flex-col gap-3"><SelectField label="Paper roll" value={paper} onChange={(e) => { const v = e.target.value === '58' ? '58' : '80'; setPaperState(v); setPaper(v) }} options={[{ value: '80', label: '80 mm roll (most common)' }, { value: '58', label: '58 mm roll' }]} /><p className="text-sm text-muted">Printing without a dialog is available in the desktop app. In a browser, receipts open the print dialog.</p></div></Card>
   return (
     <Card title="Receipt printer (this computer)">
       <div className="flex max-w-xl flex-col gap-3">
+        <SelectField label="Paper roll" value={paper} onChange={(e) => { const v = e.target.value === '58' ? '58' : '80'; setPaperState(v); setPaper(v) }} options={[{ value: '80', label: '80 mm roll (most common)' }, { value: '58', label: '58 mm roll' }]} />
         <SelectField label="Print receipts to" value={chosen} onChange={(e) => setChosen(e.target.value)} options={[{ value: '', label: 'Ask each time (save as PDF)' }, ...printers.map((p) => ({ value: p.name, label: `${p.name}${p.isDefault ? ' (default)' : ''}` }))]} />
         <CheckField label="Print the receipt by itself after each sale" checked={auto} disabled={!chosen} onChange={(e) => setAuto(e.target.checked)} />
-        <p className="text-xs text-muted">Receipts are laid out for an 80 mm roll. To open a cash drawer wired to the printer, switch on its &ldquo;open drawer&rdquo; option in the printer's driver settings.</p>
+        <p className="text-xs text-muted">Receipts are laid out for the roll chosen above. To open a cash drawer wired to the printer, switch on its &ldquo;open drawer&rdquo; option in the printer's driver settings.</p>
         <Button className="self-start" variant="secondary" onClick={async () => { await bridge.settings.set({ receiptPrinter: chosen || null, autoPrintReceipts: chosen ? auto : null }); flash.show('Receipt printer saved.') }}>Save printer</Button>
       </div>
     </Card>
