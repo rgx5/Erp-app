@@ -2,7 +2,7 @@
   "name": "onesync-desktop-client",
   "version": "0.1.0",
   "private": true,
-  "description": "OneSyncERP desktop client (Windows, macOS, Linux) for the OneSyncERP backend.",
+  "description": "OneSyncERP desktop app: billing counter, sales, purchasing, stock, accounts, GST and payroll.",
   "main": "out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
@@ -61,7 +61,9 @@
     "zod": "^4.6.7",
     "zustand": "^5.0.15"
   },
-  "author": "OneSyncERP",
+  "author": {
+    "name": "OneSyncERP"
+  },
   "homepage": "https://onesync.example",
   "build": {
     "appId": "com.onesync.erp.client",
@@ -84,16 +86,38 @@
     ],
     "win": {
       "target": "nsis",
-      "icon": "build/icon.ico"
+      "icon": "build/icon.ico",
+      "legalTrademarks": "OneSyncERP"
     },
     "nsis": {
       "oneClick": false,
-      "allowToChangeInstallationDirectory": true
+      "allowToChangeInstallationDirectory": true,
+      "allowElevation": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "OneSyncERP",
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false,
+      "displayLanguageSelector": false,
+      "installerLanguages": [
+        "en_US"
+      ],
+      "language": "1033",
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "installerSidebar": "build/installerSidebar.bmp",
+      "uninstallerSidebar": "build/installerSidebar.bmp",
+      "installerHeader": "build/installerHeader.bmp",
+      "uninstallDisplayName": "OneSyncERP",
+      "include": "build/installer.nsh"
     },
     "mac": {
       "target": "dmg",
       "icon": "build/icon.icns",
-      "category": "public.app-category.business"
+      "category": "public.app-category.business",
+      "darkModeSupport": false
     },
     "linux": {
       "target": [
@@ -102,7 +126,44 @@
       ],
       "icon": "build/icon.png",
       "category": "Office",
-      "maintainer": "OneSyncERP"
+      "maintainer": "OneSyncERP",
+      "synopsis": "Business software for Indian shops and companies",
+      "description": "Billing counter, sales, purchasing, stock, accounts, GST and payroll.",
+      "desktop": {
+        "entry": {
+          "StartupWMClass": "OneSyncERP",
+          "Keywords": "erp;billing;pos;gst;accounting;"
+        }
+      }
+    },
+    "copyright": "Copyright © OneSyncERP",
+    "extraResources": [
+      {
+        "from": "build/icon.png",
+        "to": "icon.png"
+      }
+    ],
+    "dmg": {
+      "title": "OneSyncERP ${version}",
+      "background": "build/dmg-background.png",
+      "iconSize": 96,
+      "window": {
+        "width": 660,
+        "height": 400
+      },
+      "contents": [
+        {
+          "x": 180,
+          "y": 190,
+          "type": "file"
+        },
+        {
+          "x": 480,
+          "y": 190,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
     }
   },
   "repository": {

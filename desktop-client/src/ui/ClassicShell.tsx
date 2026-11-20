@@ -1,5 +1,5 @@
 import { Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
-import { BadgeCheck, BookOpen, Boxes, Building2, ChevronDown, ChevronRight, Database, Factory, FileText, LogOut, PanelLeftClose, PanelLeftOpen, ScanBarcode, Search, Settings2, ShoppingCart, UserCog, Users2, type LucideIcon } from 'lucide-react'
+import { BadgeCheck, BookOpen, Boxes, Building2, ChevronDown, ChevronRight, Database, Download, FolderOpen, Info, Factory, FileText, LogOut, PanelLeftClose, PanelLeftOpen, ScanBarcode, Search, Settings2, ShoppingCart, UserCog, Users2, type LucideIcon } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { isStarter } from '@/auth/edition'
 import { can } from '@/auth/permissions'
@@ -104,6 +104,12 @@ function UserMenu() {
         <div role="menu" className="settle absolute right-0 top-9 z-40 w-64 rounded-lg border border-line bg-surface p-1.5 shadow-pop">
           <div className="border-b border-line px-2.5 pb-2 pt-1.5"><p className="truncate text-[13px] font-medium">{me?.user?.displayName}</p><p className="truncate text-xs text-muted">{me?.user?.email}</p><p className="mt-1 truncate text-[11px] text-faint" title={server?.url}>{server?.url}</p></div>
           <button role="menuitem" type="button" onClick={() => { setOpen(false); void go({ to: '/account' as never }) }} className="mt-1 flex h-8 w-full items-center gap-2 rounded px-2.5 text-[13px] hover:bg-sunken"><UserCog className="size-4 text-muted" aria-hidden />My account and layout</button>
+          {window.onesync ? (
+            <div className="my-1 border-y border-line py-1">
+              <button role="menuitem" type="button" onClick={() => { setOpen(false); void window.onesync?.app.about() }} className="flex h-8 w-full items-center gap-2 rounded px-2.5 text-[13px] hover:bg-sunken"><Info className="size-4 text-muted" aria-hidden />About OneSyncERP</button>
+              <button role="menuitem" type="button" onClick={() => { setOpen(false); void window.onesync?.app.checkForUpdates() }} className="flex h-8 w-full items-center gap-2 rounded px-2.5 text-[13px] hover:bg-sunken"><Download className="size-4 text-muted" aria-hidden />Check for updates</button>
+              <button role="menuitem" type="button" onClick={() => { setOpen(false); void window.onesync?.app.openLogs() }} className="flex h-8 w-full items-center gap-2 rounded px-2.5 text-[13px] hover:bg-sunken"><FolderOpen className="size-4 text-muted" aria-hidden />Open log folder</button>
+            </div>) : null}
           <button role="menuitem" type="button" onClick={() => void logout()} className="flex h-8 w-full items-center gap-2 rounded px-2.5 text-[13px] text-bad hover:bg-bad-soft"><LogOut className="size-4" aria-hidden />Sign out</button>
         </div>
       ) : null}
@@ -135,7 +141,7 @@ export function ClassicShell() {
   return (
     <div className={cn('grid h-full transition-[grid-template-columns] duration-150', rail ? 'grid-cols-[56px_1fr]' : 'grid-cols-[224px_1fr]')}>
       <aside className="flex min-h-0 flex-col border-r border-line bg-surface">
-        <div className={cn('flex h-12 shrink-0 items-center gap-2.5', rail ? 'justify-center' : 'px-4')}>
+        <div className={cn('app-drag titlebar-left flex h-12 shrink-0 items-center gap-2.5', rail ? 'justify-center' : 'px-4')}>
           <Logo className="size-8" />
           {rail ? null : <span className="text-[14px] font-semibold tracking-tight">OneSyncERP</span>}
         </div>
@@ -145,7 +151,7 @@ export function ClassicShell() {
         </button>
       </aside>
       <div className="flex min-h-0 min-w-0 flex-col">
-        <header className="flex h-12 shrink-0 items-center gap-3 border-b border-line bg-surface px-5">
+        <header className="app-drag titlebar-right flex h-12 shrink-0 items-center gap-3 border-b border-line bg-surface px-5">
           <nav aria-label="Where you are" className="flex min-w-0 shrink-0 items-center gap-1.5 whitespace-nowrap text-[13px]">
             {here?.section ? <><span className="text-muted">{here.section}</span><ChevronRight className="size-3.5 text-faint" aria-hidden /></> : null}
             <span className="truncate font-medium">{here?.label ?? 'OneSyncERP'}</span>

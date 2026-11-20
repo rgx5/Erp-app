@@ -3,6 +3,13 @@ import type { DesktopBridge } from '../bridge-types'
 
 const bridge: DesktopBridge = {
   desktop: true,
+  platform: process.platform,
+  app: {
+    about: () => ipcRenderer.invoke('app:about'),
+    openLogs: () => ipcRenderer.invoke('app:openLogs'),
+    checkForUpdates: () => ipcRenderer.invoke('app:checkForUpdates'),
+    zoom: (change) => ipcRenderer.invoke('app:zoom', change),
+  },
   info: () => ipcRenderer.invoke('app:info'),
   settings: {
     get: () => ipcRenderer.invoke('settings:get'),

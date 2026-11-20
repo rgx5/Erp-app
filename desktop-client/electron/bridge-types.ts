@@ -14,6 +14,10 @@ export interface DesktopSettings {
 export interface DesktopBridge {
   /** True when the app runs inside the desktop shell (false in a plain browser). */
   readonly desktop: true
+  /** 'win32', 'darwin' or 'linux': the screens use it to leave room for the window buttons. */
+  readonly platform: string
+  /** The shell's own commands, also in the native menu. */
+  app: { about(): Promise<void>; openLogs(): Promise<void>; checkForUpdates(): Promise<void>; zoom(change: 'in' | 'out' | 'reset'): Promise<void> }
   info(): Promise<{ version: string; platform: string; secureStorage: boolean }>
   settings: {
     get(): Promise<DesktopSettings>

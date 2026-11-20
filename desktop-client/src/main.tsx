@@ -14,6 +14,9 @@ const queryClient = new QueryClient({
   defaultOptions: { queries: { staleTime: 15_000, networkMode: 'always', retry: (count, e) => !(e instanceof ApiError) && count < 2, refetchOnWindowFocus: true } },
 })
 
+// Inside the desktop shell the screens leave room for the window buttons; the platform decides where.
+if (window.onesync) document.documentElement.dataset['shell'] = window.onesync.platform
+
 // The session is resolved before the first screen, so the app never flashes the sign-in page at someone who is already in.
 void useSession.getState().restore().then(() => {
   startOfflineCache(queryClient)

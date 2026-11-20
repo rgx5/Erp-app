@@ -3,7 +3,7 @@ import { useState, type FormEvent } from 'react'
 import { ApiError } from '@/api/errors'
 import { useSession } from '@/auth/session'
 import { Alert, Button, Card, TextField } from '@/ui/primitives'
-import { Logo } from '@/ui/Logo'
+import { AuthLayout } from '@/ui/AuthLayout'
 
 export function LoginPage() {
   const { login, server, tenant: savedTenant, email: savedEmail } = useSession()
@@ -33,9 +33,8 @@ export function LoginPage() {
   }
 
   return (
-    <main className="flex h-full flex-col items-center justify-center p-6">
-      <div className="mb-5 flex flex-col items-center gap-2"><Logo className="size-14 drop-shadow-sm" /><h1 className="text-lg font-semibold tracking-tight">OneSyncERP</h1></div>
-      <Card className="w-full max-w-md" title="Sign in">
+    <AuthLayout>
+      <Card className="w-full" title="Sign in">
         <form onSubmit={submit} className="flex flex-col gap-4">
           <p className="text-xs text-muted">Server: {server?.url} · <button type="button" className="underline" onClick={() => void navigate({ to: '/connect' })}>change</button></p>
           <TextField label="Business code" value={tenant} onChange={(e) => setTenant(e.target.value)} autoFocus={!savedTenant} required autoCapitalize="off" hint="The short name of your business on this server." />
@@ -48,6 +47,6 @@ export function LoginPage() {
           <Button type="submit" busy={busy}>Sign in</Button>
         </form>
       </Card>
-    </main>
+    </AuthLayout>
   )
 }

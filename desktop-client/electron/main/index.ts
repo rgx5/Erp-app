@@ -1,8 +1,12 @@
 import { join } from 'node:path'
 import { writeFile } from 'node:fs/promises'
-import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, protocol, safeStorage, shell, type IpcMainInvokeEvent } from 'electron'
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, protocol, safeStorage, screen, shell, type IpcMainInvokeEvent } from 'electron'
 import type { DesktopSettings } from '../bridge-types'
 import { JsonFile } from './store'
+import { log } from './log'
+import { buildMenu, checkForUpdates, iconPath, openLogs, showAbout } from './menu'
+import { loadErrorHtml, splashHtml } from './splash'
+import { fitState, type WindowState } from './windowState'
 import { APP_HOST, APP_ORIGIN, APP_SCHEME, readAppFile, resolveAppFile } from './serve'
 
 // The app is served from its own fixed origin, so what it stores (and what a server's CORS list names) is the same on every launch.
@@ -64,6 +68,10 @@ function registerIpc(): void {
     if (!known.some((p) => p.name === printerName)) throw new Error('That printer is not available on this computer')
     await printSilently(html, printerName)
   }))
+  ipcMain.handle('app:about', guard(() => showAbout(win)))
+  ipcMain.handle('app:openLogs', guard(async () => { await openLogs() }))
+  ipcMain.handle('app:checkForUpdates', guard(() => checkForUpdates()))
+  ipcMain.handle('app:zoom', guard((change: 'in' | 'out' | 'reset') => { if (change === 'in' || change === 'out' || change === 'reset') zoomBy(change === 'in' ? 0.5 : change === 'out' ? -0.5 : 'reset') }))
   ipcMain.handle('app:info', guard(() => ({ version: app.getVersion(), platform: process.platform, secureStorage: safeStorage.isEncryptionAvailable() })))
   ipcMain.handle('settings:get', guard(() => settings().read()))
   ipcMain.handle('settings:set', guard((patch: Record<string, unknown>) => {
@@ -100,28 +108,95 @@ function registerIpc(): void {
   }))
 }
 
-function createWindow(): void {
+const stateFile = () => new JsonFile<Partial<WindowState>>(join(app.getPath('userData'), 'window-state.json'), {})
+let state: WindowState = fitState({}, [])
+
+/** Zoom in steps of half a level, remembered with the window so a counter keeps its larger text after a restart. */
+function zoomBy(delta: number | 'reset'): void {
+  if (!win) return
+  const next = delta === 'reset' ? 0 : Math.max(-3, Math.min(5, win.webContents.getZoomLevel() + delta))
+  win.webContents.setZoomLevel(next); state.zoom = next; saveState()
+}
+function saveState(): void {
+  if (!win || win.isDestroyed()) return
+  const maximized = win.isMaximized() || win.isFullScreen()
+  const b: Partial<WindowState> = maximized ? {} : win.getBounds() // when maximised, keep the earlier un-maximised size to come back to
+  state = { ...state, ...b, maximized }
+  try { stateFile().write(state) } catch (e) { log('warn', 'could not save window state', e) }
+}
+
+/** A small branded window shown the moment the app starts, so nobody stares at nothing while the real window loads. */
+function showSplash(): BrowserWindow {
+  const splash = new BrowserWindow({
+    width: 480, height: 300, frame: false, resizable: false, movable: true, minimizable: false, maximizable: false, fullscreenable: false, skipTaskbar: true,
+    show: false, center: true, alwaysOnTop: true, backgroundColor: '#ffffff', webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, javascript: false, devTools: false },
+  })
+  splash.webContents.on('will-navigate', (e) => e.preventDefault())
+  splash.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+  splash.once('ready-to-show', () => splash.show())
+  void splash.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(splashHtml(app.getVersion()))}`)
+  return splash
+}
+
+function createWindow(splash?: BrowserWindow): void {
   nativeTheme.themeSource = 'light' // always light, whatever the operating system is set to
+  const shownAt = Date.now()
+  state = fitState(stateFile().read(), screen.getAllDisplays().map((d) => d.workArea))
+  const icon = iconPath()
+  // The window's own title bar is replaced by the app's top bar; the system's minimise, maximise and close buttons stay (Windows, Linux) or
+  // sit at the left edge (macOS), so it still behaves like every other program on the computer.
+  const frame: Partial<Electron.BrowserWindowConstructorOptions> = process.platform === 'darwin'
+    ? { titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 16, y: 16 } }
+    : { titleBarStyle: 'hidden', titleBarOverlay: { color: '#ffffff', symbolColor: '#1d2433', height: 48 } }
   win = new BrowserWindow({
-    width: 1360, height: 860, minWidth: 1000, minHeight: 640, show: false, backgroundColor: '#f3f5f9', autoHideMenuBar: true,
+    width: state.width, height: state.height, ...(state.x !== undefined && state.y !== undefined ? { x: state.x, y: state.y } : {}), minWidth: 1000, minHeight: 640,
+    show: false, backgroundColor: '#f3f5f9', title: 'OneSyncERP', ...(icon ? { icon } : {}), ...frame,
     webPreferences: { preload: join(__dirname, '../preload/index.js'), contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false, devTools: !app.isPackaged },
   })
+  if (state.maximized) win.maximize()
   // The app asks for nothing from the browser (no camera, location, notifications, clipboard reads...): refuse every permission prompt, and never allow <webview>.
   win.webContents.session.setPermissionRequestHandler((_wc, _permission, callback) => callback(false))
   win.webContents.session.setPermissionCheckHandler(() => false)
   win.webContents.on('will-attach-webview', (event) => event.preventDefault())
-  win.once('ready-to-show', () => win?.show())
+  win.webContents.on('did-finish-load', () => { if (state.zoom) win?.webContents.setZoomLevel(state.zoom) })
+  win.once('ready-to-show', () => {
+    // keep the splash up for at least a moment so it is seen rather than flashed
+    setTimeout(() => { win?.show(); if (splash && !splash.isDestroyed()) splash.close() }, Math.max(0, 900 - (Date.now() - shownAt)))
+  })
+  win.on('resize', saveStateSoon); win.on('move', saveStateSoon); win.on('close', saveState)
   win.on('closed', () => { win = null })
+  // Things going wrong are met with a plain choice, not a blank window: a crashed page offers to reload, a page that cannot load shows a retry screen.
+  win.webContents.on('render-process-gone', (_e, details) => {
+    log('error', 'renderer gone', details)
+    if (details.reason === 'clean-exit') return
+    void dialog.showMessageBox(win as BrowserWindow, { type: 'error', title: 'OneSyncERP', message: 'OneSyncERP stopped unexpectedly.', detail: 'Your work on the server is safe. Sales taken offline are kept on this computer and will upload after you reopen the app.', buttons: ['Reload', 'Close'], defaultId: 0, cancelId: 1 })
+      .then((r) => { if (r.response === 0) win?.webContents.reload(); else win?.close() })
+  })
+  win.on('unresponsive', () => {
+    log('warn', 'window unresponsive')
+    void dialog.showMessageBox(win as BrowserWindow, { type: 'warning', title: 'OneSyncERP', message: 'OneSyncERP is not responding.', buttons: ['Wait', 'Reload'], defaultId: 0, cancelId: 0 }).then((r) => { if (r.response === 1) win?.webContents.reload() })
+  })
+  win.webContents.on('did-fail-load', (_e, code, desc, url, isMainFrame) => {
+    if (!isMainFrame || code === -3 /* aborted: a normal navigation change */ || url.startsWith('data:')) return
+    log('error', 'page failed to load', `${code} ${desc} ${url}`)
+    void win?.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(loadErrorHtml(`${desc} (${code})`))}`)
+  })
   // Links to the outside world open in the real browser; the app never navigates away from its own origin.
   win.webContents.setWindowOpenHandler(({ url }) => {
     if (url.startsWith('https://')) void shell.openExternal(url)
     return { action: 'deny' }
   })
   win.webContents.on('will-navigate', (event, url) => {
-    if (!url.startsWith(`${APP_ORIGIN}/`) && !(DEV_URL && url.startsWith(DEV_URL))) event.preventDefault()
+    if (url === 'app://retry') { event.preventDefault(); void win?.loadURL(DEV_URL ?? `${APP_ORIGIN}/`); return }
+    if (!url.startsWith(`${APP_ORIGIN}/`) && !(DEV_URL && url.startsWith(DEV_URL)) && !url.startsWith('data:')) event.preventDefault()
   })
   void win.loadURL(DEV_URL ?? `${APP_ORIGIN}/`)
 }
+let saveTimer: ReturnType<typeof setTimeout> | undefined
+function saveStateSoon(): void { clearTimeout(saveTimer); saveTimer = setTimeout(saveState, 400) }
+
+process.on('uncaughtException', (e) => log('error', 'uncaught exception', e))
+process.on('unhandledRejection', (e) => log('error', 'unhandled rejection', e instanceof Error ? e : String(e)))
 
 app.whenReady().then(() => {
   protocol.handle(APP_SCHEME, async (request) => {
@@ -130,8 +205,10 @@ app.whenReady().then(() => {
     return file ? readAppFile(file) : new Response('Forbidden', { status: 403 })
   })
   registerIpc()
-  Menu.setApplicationMenu(null)
-  createWindow()
+  log('info', `start ${app.getVersion()} ${process.platform}`)
+  const splash = showSplash()
+  Menu.setApplicationMenu(buildMenu(() => win, zoomBy))
+  createWindow(splash)
   app.on('activate', () => { if (BrowserWindow.getAllWindows().length === 0) createWindow() })
 }).catch((e: unknown) => { console.error(e); app.quit() })
 

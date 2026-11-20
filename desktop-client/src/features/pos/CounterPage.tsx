@@ -81,6 +81,7 @@ export function CounterPage() {
   const [deviceId, setDeviceId] = useState(saved.deviceId ?? '')
   // The item list lives on this computer: finding an item never waits for the server, and the counter keeps working with no connection.
   const cat = useLocalCatalogue(tenant, deviceId || undefined)
+  const catReady = useRef(cat.ready); catReady.current = cat.ready
 
   const terminal: PosTerminal | undefined = terminals.data?.find((t) => t.id === terminalId) ?? terminals.data?.find((t) => t.status === 'active')
   const shift: PosShift | undefined = openShifts.rows.find((s) => s.terminalId === terminal?.id)
@@ -129,6 +130,8 @@ export function CounterPage() {
     const text = scan.trim()
     if (!text) return
     setScan(''); setProblem(null); setFound([]) // cleared at once so a fast scanner can send the next code
+    // the list on this computer is read a moment after the counter opens: wait for it rather than treating it as empty
+    for (let waited = 0; !catReady.current && deviceId && waited < 5000; waited += 100) await new Promise((r) => setTimeout(r, 100))
     // 1. this computer's own list: instant, no server
     const local = cat.ready && cat.count > 0 ? searchItems(cat.index, text) : null
     if (local) {
@@ -402,7 +405,7 @@ export function CounterPage() {
           </div>
         </Card>
         <Button className="h-12 text-base" disabled={!ready} busy={busy} onClick={() => void charge()}>Charge {formatInr(total)} (F9)</Button>
-        <span className="text-xs text-muted" aria-label="Item list status">{deviceId ? `${cat.count.toLocaleString('en-IN')} items on this counter${cat.lastSyncAt ? ` · updated ${new Date(cat.lastSyncAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}${cat.syncing ? ' · updating…' : ''}` : 'Ask a manager to register this counter so it can sell offline'}</span>{deviceId ? <Button variant="ghost" busy={cat.syncing} onClick={async () => { const n = await cat.syncNow(true); if (n !== null) flash.show(`${n.toLocaleString('en-IN')} items updated.`); else setProblem('Could not reach the server: the counter keeps working with the items it has.') }}>Refresh items</Button> : null}
+        <span className="text-xs text-muted" aria-label="Item list status">{deviceId && !cat.ready ? 'Loading this counter’s items…' : deviceId ? `${cat.count.toLocaleString('en-IN')} items on this counter${cat.lastSyncAt ? ` · updated ${new Date(cat.lastSyncAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}${cat.syncing ? ' · updating…' : ''}` : 'Ask a manager to register this counter so it can sell offline'}</span>{deviceId ? <Button variant="ghost" busy={cat.syncing} onClick={async () => { const n = await cat.syncNow(true); if (n !== null) flash.show(`${n.toLocaleString('en-IN')} items updated.`); else setProblem('Could not reach the server: the counter keeps working with the items it has.') }}>Refresh items</Button> : null}
       </div>
       {panel === 'giftcard' && shift ? <GiftCardDrawer shiftId={shift.id} onClose={() => setPanel(null)} /> : null}
       {panel === 'return' ? <ReturnDrawer shift={shift} onClose={() => setPanel(null)} /> : null}

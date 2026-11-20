@@ -85,3 +85,12 @@ select { appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmln
 
 /* keyboard hints */
 kbd { font: 500 10.5px/1 var(--font-sans); padding: 2px 5px; border: 1px solid var(--color-line-strong); border-bottom-width: 2px; border-radius: 3px; background: var(--color-surface); color: var(--color-muted); }
+
+/* ---- inside the desktop shell: the app's own top bar doubles as the window's title bar ---- */
+html[data-shell] .app-drag { -webkit-app-region: drag; }
+html[data-shell] .app-drag button, html[data-shell] .app-drag a, html[data-shell] .app-drag input, html[data-shell] .app-drag select, html[data-shell] .app-drag [role="menu"] { -webkit-app-region: no-drag; }
+/* the system's minimise / maximise / close buttons sit over the right end of the bar (Windows, Linux) ... */
+html[data-shell="win32"] .titlebar-right, html[data-shell="linux"] .titlebar-right { padding-right: 148px; }
+/* ... and the traffic lights over the left end on a Mac */
+html[data-shell="darwin"] .titlebar-left { padding-left: 84px; }
+html[data-shell] .window-drag-strip { position: fixed; inset: 0 0 auto 0; height: 40px; -webkit-app-region: drag; z-index: 0; }
