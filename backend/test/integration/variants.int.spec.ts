@@ -24,3 +24,14 @@ describe('item variants', () => {
     expect((await call(server, 'GET', '/v1/items?q=POLO', { tenant: other.tenant })).json.items).toHaveLength(0);
   });
 });
+
+describe('UPI address', () => {
+  it('is saved on the retail settings and refuses a malformed one', async () => {
+    const s = await kit.shop('Upi Co');
+    const put = (body: object) => call(server, 'PUT', `/v1/retail/settings?companyId=${s.companyId}`, { tenant: s.tenant, body });
+    expect((await put({ upiId: 'not a upi id' })).status).toBe(422);
+    expect(ok(await put({ upiId: 'sunrise.store@okaxis' }), 200).upiId).toBe('sunrise.store@okaxis');
+    expect((await call(server, 'GET', `/v1/retail/settings?companyId=${s.companyId}`, { tenant: s.tenant })).json.upiId).toBe('sunrise.store@okaxis');
+    expect(ok(await put({ upiId: null }), 200).upiId).toBeNull();
+  });
+});

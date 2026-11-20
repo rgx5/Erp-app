@@ -14,6 +14,7 @@ import { useParty } from '@/features/masterdata/queries'
 import { useWorkspace } from '@/features/organization/workspace'
 import { DataTable } from '@/ui/DataTable'
 import { Drawer } from '@/ui/Drawer'
+import { useRetailSettings, useSaveRetailSettings } from '@/features/retail/queries'
 import { getPaper, setPaper, type Paper } from './paper'
 import { useFlash } from '@/ui/flash'
 import { SimpleForm } from '@/ui/SimpleForm'
@@ -55,6 +56,24 @@ function Settings({ companyId }: { companyId: string }) {
             {canManage ? <Button variant="secondary" disabled={!picked[m]} aria-label={`Save ${METHOD[m]}`} onClick={() => void run(() => map.mutateAsync({ method: m, accountId: (picked[m] as LedgerAccount).id }), `${METHOD[m]} account saved.`)}>Save</Button> : null}</div>))}
         {problem ? <Alert>{problem}</Alert> : null}
         <p className="text-xs text-muted">Which account takes cash, UPI or card money is for your accountant to confirm.</p>
+      </div>
+    </Card>
+  )
+}
+
+/** The business's UPI address: invoices carry a pay-by-scanning QR code for the amount. */
+function UpiCard({ companyId }: { companyId: string }) {
+  const canManage = can(useSession((s) => s.me?.permissions ?? []), 'retail:manage')
+  const settings = useRetailSettings(companyId); const save = useSaveRetailSettings(companyId); const flash = useFlash()
+  const [upi, setUpi] = useState<string | null>(null); const [problem, setProblem] = useState<string | null>(null)
+  const value = upi ?? settings.data?.upiId ?? ''
+  const ok = value === '' || /^[A-Za-z0-9._-]{2,64}@[A-Za-z][A-Za-z0-9]{1,30}$/.test(value)
+  return (
+    <Card title="UPI payments">
+      <div className="flex max-w-xl flex-col gap-3">
+        <TextField label="UPI address" placeholder="yourshop@okbank" value={value} disabled={!canManage} error={ok ? undefined : 'A UPI address such as shop@okbank'} onChange={(e) => setUpi(e.target.value.trim())} hint="Printed as a QR code on invoices so customers can pay by scanning" />
+        {problem ? <Alert>{problem}</Alert> : null}
+        {canManage ? <Button className="self-start" variant="secondary" disabled={!ok || upi === null} onClick={async () => { setProblem(null); try { await save.mutateAsync({ upiId: value || null }); setUpi(null); flash.show('UPI address saved.') } catch (e) { setProblem(e instanceof Error ? e.message : 'Could not save.') } }}>Save</Button> : null}
       </div>
     </Card>
   )
@@ -135,7 +154,7 @@ export function PosAdminPage() {
     <div className="flex flex-col gap-4">
       <h1 className="page-title">Point of sale</h1>
       <div role="tablist" className="flex gap-1 border-b border-line">{([['shifts', 'Shifts'], ['setup', 'Setup']] as [Tab, string][]).map(([id, label]) => <button key={id} role="tab" aria-selected={tab === id} className={`-mb-px border-b-2 px-3 py-2 text-sm ${tab === id ? 'border-brand font-medium text-brand' : 'border-transparent text-muted hover:text-ink'}`} onClick={() => setTab(id)}>{label}</button>)}</div>
-      {tab === 'setup' ? <div className="flex flex-col gap-4"><Settings companyId={ws.company.id} /><ReceiptPrinter /><Terminals companyId={ws.company.id} /></div> : (
+      {tab === 'setup' ? <div className="flex flex-col gap-4"><Settings companyId={ws.company.id} /><UpiCard companyId={ws.company.id} /><ReceiptPrinter /><Terminals companyId={ws.company.id} /></div> : (
         <>{shifts.error ? <Alert>{shifts.error.message}</Alert> : null}{shifts.isPending ? <Spinner /> : <DataTable columns={columns} rows={shifts.rows} rowKey={(s) => s.id} onOpen={(s) => setOpen(s.id)} empty="No shifts yet." height={480} />}</>)}
       {open ? <ShiftDetail id={open} onClose={() => setOpen(null)} /> : null}
     </div>

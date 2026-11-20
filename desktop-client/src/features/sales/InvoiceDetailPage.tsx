@@ -14,6 +14,7 @@ import { useFlash } from '@/ui/flash'
 import { SimpleForm } from '@/ui/SimpleForm'
 import { Alert, Button, Card, CheckField, Spinner, TextField } from '@/ui/primitives'
 import { z } from 'zod'
+import { useRetailSettings } from '@/features/retail/queries'
 import { invoiceHtml, type Seller } from './invoiceHtml'
 import { DOC_LABEL } from './InvoicesPage'
 import { useCancelInvoice, useInvoice, usePostNote } from './queries'
@@ -91,13 +92,14 @@ function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
   const [panel, setPanel] = useState<'cancel' | 'credit' | 'debit' | null>(null)
   const [printError, setPrintError] = useState<string | null>(null)
 
+  const retail = useRetailSettings(ws.company?.id)
   const seller: Seller | null = useMemo(() => {
     const inv = q.data
     if (!inv || !ws.company) return null
     const reg = ws.registrations.find((r) => r.id === inv.gstRegistrationId)
     const loc = ws.locations.find((l) => l.gstRegistrationId === inv.gstRegistrationId && l.isPrincipalPlace) ?? ws.locations.find((l) => l.gstRegistrationId === inv.gstRegistrationId)
-    return { name: reg?.legalName ?? ws.company.legalName, tradeName: reg?.tradeName ?? ws.company.tradeName, gstin: reg?.gstin ?? '', stateCode: reg?.stateCode ?? '', address: loc ? [loc.address.line1, loc.address.line2 ?? '', loc.address.city, stateName(loc.address.stateCode), loc.address.pincode].filter(Boolean) : [] }
-  }, [q.data, ws.company, ws.registrations, ws.locations])
+    return { name: reg?.legalName ?? ws.company.legalName, tradeName: reg?.tradeName ?? ws.company.tradeName, gstin: reg?.gstin ?? '', stateCode: reg?.stateCode ?? '', address: loc ? [loc.address.line1, loc.address.line2 ?? '', loc.address.city, stateName(loc.address.stateCode), loc.address.pincode].filter(Boolean) : [], upiId: retail.data?.upiId ?? null }
+  }, [q.data, ws.company, ws.registrations, ws.locations, retail.data?.upiId])
 
   if (q.isPending) return <Spinner />
   if (q.error || !q.data) return <Alert>{q.error?.message ?? 'Not found.'}</Alert>

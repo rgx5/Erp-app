@@ -2,13 +2,14 @@ import type { Address, Invoice } from '@/api/schemas'
 import { formatDate, formatInr } from '@/domain/format'
 import { STATES } from '@/domain/india'
 import { rupeesInWords } from '@/domain/words'
+import { qrSvg, upiLink } from '@/features/retail/upiQr'
 
 const esc = (v: unknown): string => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string)
 const stateName = (code: string): string => (code === '96' ? 'Other country' : STATES.find((s) => s.code === code)?.name ?? code)
 const pct = (v: string): string => `${Number(v)}%`
 const TITLES: Record<string, string> = { tax_invoice: 'Tax Invoice', bill_of_supply: 'Bill of Supply', credit_note: 'Credit Note', debit_note: 'Debit Note' }
 
-export interface Seller { name: string; tradeName?: string | null; gstin: string; address: string[]; stateCode: string }
+export interface Seller { name: string; tradeName?: string | null; gstin: string; address: string[]; stateCode: string; /** When set, tax invoices and bills of supply carry a pay-by-scanning QR for the amount. */ upiId?: string | null }
 
 /**
  * A4 GST invoice as one self-contained HTML page (no scripts, no external files). Every value is escaped; amounts come exactly as the
@@ -55,6 +56,7 @@ ${inv.reason ? `<div class="box" style="margin-top:6px"><span class="muted">Reas
   ${total('Taxable value', inv.taxableTotal)}${intra ? total('CGST', inv.cgstTotal) + total('SGST', inv.sgstTotal) : total('IGST', inv.igstTotal)}${total('Cess', inv.cessTotal)}${total('Round off', inv.roundOff)}
   <tr><td>Grand total</td><td class="r">${formatInr(inv.grandTotal)}</td></tr></tbody></table>
 <div class="box" style="margin-top:6px"><span class="muted">Amount in words:</span> <b>${esc(rupeesInWords(inv.grandTotal))}</b></div>
+${seller.upiId && (inv.documentType === 'tax_invoice' || inv.documentType === 'bill_of_supply') && Number(inv.grandTotal) > 0 ? `<div class="box" style="margin-top:6px;display:flex;gap:10px;align-items:center">${qrSvg(upiLink(seller.upiId, seller.tradeName || seller.name, inv.grandTotal, inv.invoiceNo))}<div><b>Pay by UPI</b><br><span class="muted">Scan with any UPI app to pay ${esc(formatInr(inv.grandTotal))}<br>${esc(seller.upiId)}</span></div></div>` : ''}
 <div class="row" style="margin-top:14px"><div class="muted">This is a computer generated document.</div><div class="r" style="margin-top:28px">For ${esc(seller.name)}<br><br>Authorised signatory</div></div>
 </body></html>`
 }

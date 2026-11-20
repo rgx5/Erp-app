@@ -38,12 +38,12 @@ export class WalletService {
   getSettings(tenantId: string, companyId: string) {
     return this.uow.inTenant(tenantId, async (tx) => {
       const [s] = await tx.select().from(retailSettings).where(and(eq(retailSettings.tenantId, tenantId), eq(retailSettings.companyId, companyId)));
-      return s ?? { companyId, loyaltyPointsPerHundred: '0.0000', loyaltyRupeesPerPoint: '0.0000', maxDiscountWithoutApproval: null, version: 0 };
+      return s ?? { companyId, loyaltyPointsPerHundred: '0.0000', loyaltyRupeesPerPoint: '0.0000', maxDiscountWithoutApproval: null, upiId: null, version: 0 };
     }, { readOnly: true });
   }
-  putSettings(tenantId: string, companyId: string, input: { loyaltyPointsPerHundred?: string | undefined; loyaltyRupeesPerPoint?: string | undefined; maxDiscountWithoutApproval?: string | null | undefined }) {
+  putSettings(tenantId: string, companyId: string, input: { loyaltyPointsPerHundred?: string | undefined; loyaltyRupeesPerPoint?: string | undefined; maxDiscountWithoutApproval?: string | null | undefined; upiId?: string | null | undefined }) {
     return this.uow.inTenant(tenantId, async (tx) => {
-      const set = { ...(input.loyaltyPointsPerHundred !== undefined ? { loyaltyPointsPerHundred: input.loyaltyPointsPerHundred } : {}), ...(input.loyaltyRupeesPerPoint !== undefined ? { loyaltyRupeesPerPoint: input.loyaltyRupeesPerPoint } : {}), ...(input.maxDiscountWithoutApproval !== undefined ? { maxDiscountWithoutApproval: input.maxDiscountWithoutApproval } : {}), updatedAt: new Date() };
+      const set = { ...(input.loyaltyPointsPerHundred !== undefined ? { loyaltyPointsPerHundred: input.loyaltyPointsPerHundred } : {}), ...(input.loyaltyRupeesPerPoint !== undefined ? { loyaltyRupeesPerPoint: input.loyaltyRupeesPerPoint } : {}), ...(input.maxDiscountWithoutApproval !== undefined ? { maxDiscountWithoutApproval: input.maxDiscountWithoutApproval } : {}), ...(input.upiId !== undefined ? { upiId: input.upiId } : {}), updatedAt: new Date() };
       const row = first(await tx.insert(retailSettings).values({ tenantId, companyId, ...set }).onConflictDoUpdate({ target: [retailSettings.tenantId, retailSettings.companyId], set: { ...set, version: sql`${retailSettings.version} + 1` } }).returning(), 'Retail settings');
       await this.recorder.record(tx, tenantId, 'retail_settings', 'updated', { id: companyId }, { fields: Object.keys(input) });
       return row;

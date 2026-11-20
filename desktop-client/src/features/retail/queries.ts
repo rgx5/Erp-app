@@ -16,7 +16,7 @@ function useWrite<I, O>(fn: (input: I) => Promise<O>) {
 }
 
 export const useRetailSettings = (companyId: string | undefined) => useQuery({ queryKey: ['retail', 'settings', companyId], enabled: Boolean(companyId), queryFn: (): Promise<RetailSettings> => get(`${R}/settings`, { query: query({ companyId: companyId as string }) }, retailSettings) })
-export const useSaveRetailSettings = (companyId: string) => useWrite((b: { loyaltyPointsPerHundred?: string; loyaltyRupeesPerPoint?: string; maxDiscountWithoutApproval?: string | null }) => send('PUT', `${R}/settings?companyId=${companyId}`, b, retailSettings))
+export const useSaveRetailSettings = (companyId: string) => useWrite((b: { loyaltyPointsPerHundred?: string; loyaltyRupeesPerPoint?: string; maxDiscountWithoutApproval?: string | null; upiId?: string | null }) => send('PUT', `${R}/settings?companyId=${companyId}`, b, retailSettings))
 export const useCoupons = (companyId: string | undefined) => {
   const q = useInfiniteQuery({ queryKey: ['retail', 'coupons', companyId], enabled: Boolean(companyId), initialPageParam: undefined as string | undefined, queryFn: ({ pageParam }) => get(`${R}/coupons`, { query: query({ companyId: companyId as string, limit: 100, cursor: pageParam }) }, page(coupon)), getNextPageParam: (l) => l.nextCursor ?? undefined })
   return { ...q, rows: q.data?.pages.flatMap((p) => p.items) ?? ([] as Coupon[]) }

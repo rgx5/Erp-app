@@ -45,6 +45,7 @@ export const retailSettings = erp.table('retail_settings', {
   loyaltyPointsPerHundred: numeric('loyalty_points_per_hundred', { precision: 10, scale: 4 }).notNull().default('0'),
   loyaltyRupeesPerPoint: numeric('loyalty_rupees_per_point', { precision: 10, scale: 4 }).notNull().default('0'),
   maxDiscountWithoutApproval: numeric('max_discount_without_approval', { precision: 7, scale: 4 }),
+  upiId: text('upi_id'),
   version: integer('version').notNull().default(1),
   createdAt: ts('created_at').notNull().defaultNow(),
   updatedAt: ts('updated_at').notNull().defaultNow(),

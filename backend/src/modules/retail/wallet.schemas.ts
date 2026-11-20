@@ -7,7 +7,7 @@ const positive = money.refine((v) => Number(v) > 0, 'Must be greater than zero')
 const rate = z.string().regex(/^[0-9]{1,6}(\.[0-9]{1,4})?$/, 'A non-negative decimal with at most 4 places, as a string');
 const page = { limit: z.coerce.number().int().min(1).max(200).default(50), cursor: z.string().max(100).optional() };
 
-export const retailSettingsSchema = z.strictObject({ loyaltyPointsPerHundred: rate.optional(), loyaltyRupeesPerPoint: rate.optional(), maxDiscountWithoutApproval: z.string().regex(/^(100(\.0{1,4})?|[0-9]{1,2}(\.[0-9]{1,4})?)$/, 'A percentage from 0 to 100').nullable().optional() }).refine((v) => Object.keys(v).length > 0, 'Send at least one field');
+export const retailSettingsSchema = z.strictObject({ loyaltyPointsPerHundred: rate.optional(), loyaltyRupeesPerPoint: rate.optional(), upiId: z.string().trim().regex(/^[A-Za-z0-9._-]{2,64}@[A-Za-z][A-Za-z0-9]{1,30}$/, 'A UPI address such as shop@okbank').nullable().optional(), maxDiscountWithoutApproval: z.string().regex(/^(100(\.0{1,4})?|[0-9]{1,2}(\.[0-9]{1,4})?)$/, 'A percentage from 0 to 100').nullable().optional() }).refine((v) => Object.keys(v).length > 0, 'Send at least one field');
 export const companyQuery = z.object({ companyId: z.uuid() });
 export const walletQuery = z.object({ companyId: z.uuid() });
 export const adjustPointsSchema = z.strictObject({ companyId: z.uuid(), customerId: z.uuid(), points: z.string().regex(/^-?[0-9]{1,10}(\.[0-9]{1,2})?$/, 'Points, up to 2 decimals, may be negative').refine((v) => Number(v) !== 0, 'Cannot be zero'), note: text(300) });
