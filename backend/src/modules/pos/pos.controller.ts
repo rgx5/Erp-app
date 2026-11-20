@@ -11,6 +11,7 @@ import { Recorder } from '../masterdata/helpers.js';
 import { SalesModule, presentInvoice } from '../sales/sales.controller.js';
 import * as s from './pos.schemas.js';
 import { PosSyncService } from './pos-sync.service.js';
+import { GiftCardService } from './gift-card.service.js';
 import { PosService } from './pos.service.js';
 import { RequiresModule } from '../identity/entitlements.js';
 
@@ -25,7 +26,7 @@ const strip = <T extends object>(row: T): Omit<T, 'tenantId'> => {
 @RequiresModule('pos')
 @Controller('v1/pos')
 export class PosController {
-  constructor(@Inject(PosService) private readonly pos: PosService, @Inject(StaffService) private readonly staff: StaffService) {}
+  constructor(@Inject(PosService) private readonly pos: PosService, @Inject(StaffService) private readonly staff: StaffService, @Inject(GiftCardService) private readonly giftCards: GiftCardService) {}
 
   /** Sets the signed-in user's own counter PIN (4 to 8 digits). */
   @RequirePermissions('pos:sell') @Put('me/pin') @ApiZodBody(s.setPinSchema)
@@ -35,6 +36,16 @@ export class PosController {
   /** Checks a manager's PIN before the sale (a wrong PIN counts toward a lock). */
   @RequirePermissions('pos:sell') @Post('approvals/verify') @HttpCode(200) @ApiZodBody(s.verifyApprovalSchema)
   verify(@TenantId() t: string, @Body({ schema: s.verifyApprovalSchema }) b: { userId: string; pin: string }) { return this.staff.verify(t, b); }
+
+  /** Sells a gift card at the counter. */
+  @RequirePermissions('pos:sell') @Idempotent() @Post('gift-cards') @ApiZodBody(s.issueGiftCardSchema)
+  async issueGiftCard(@CurrentPrincipal() a: Principal, @Body({ schema: s.issueGiftCardSchema }) b: s.IssueGiftCardInput) { return strip(await this.giftCards.issue(a.tenantId, a.userId, b)); }
+  /** The balance on a card, by its code. */
+  @RequirePermissions('pos:sell') @Get('gift-cards/:code')
+  async giftCard(@TenantId() t: string, @Param('code') code: string, @Query({ schema: s.giftCardCodeQuery }) q: { companyId: string }) { return strip(await this.giftCards.lookup(t, q.companyId, code)); }
+  /** Gift cards sold, with the value still owed to holders. */
+  @RequirePermissions('pos:read') @Get('gift-cards')
+  async giftCardList(@TenantId() t: string, @Query({ schema: s.listGiftCardsQuery }) q: { companyId: string; limit: number }) { const r = await this.giftCards.list(t, q.companyId, q.limit); return { items: r.items.map(strip), outstanding: r.outstanding }; }
 
   @RequirePermissions('pos:read') @Get('settings')
   async getSettings(@TenantId() t: string, @Query({ schema: s.companyQuery }) q: { companyId: string }) { const r = await this.pos.getSettings(t, q.companyId); return { settings: r.settings ? strip(r.settings) : null, paymentAccounts: r.paymentAccounts.map(strip) }; }
@@ -99,5 +110,5 @@ export class PosSyncController {
   catalogue(@TenantId() t: string, @Query({ schema: s.catalogueQuery }) q: { deviceId: string; updatedSince?: string | undefined }) { return this.sync.catalogue(t, q.deviceId, q.updatedSince); }
 }
 
-@Module({ imports: [SalesModule, AccountingModule, RetailModule], controllers: [PosController, PosSyncController], providers: [Recorder, PosService, PosSyncService], exports: [PosService, PosSyncService] })
+@Module({ imports: [SalesModule, AccountingModule, RetailModule], controllers: [PosController, PosSyncController], providers: [Recorder, PosService, PosSyncService, GiftCardService], exports: [PosService, PosSyncService] })
 export class PosModule {}

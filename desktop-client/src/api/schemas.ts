@@ -451,6 +451,8 @@ export const payrollSeed = z.object({ effectiveFrom: z.string(), rates: z.number
 
 // ---- point of sale --------------------------------------------------------------------------------------------------------
 export const POS_METHODS = ['cash', 'upi', 'card', 'bank_transfer', 'cheque', 'other'] as const
+export const giftCard = z.object({ id: z.string(), code: z.string(), companyId: z.string(), initialAmount: z.string(), balance: z.string(), holderName: z.string().nullable(), expiresOn: z.string().nullable(), status: z.string() })
+export type GiftCard = z.infer<typeof giftCard>
 export const posSettings = z.object({
   settings: z.object({ companyId: z.string(), walkInCustomerId: z.string().nullable().optional(), cashVarianceAccountId: z.string().nullable().optional() }).nullable(),
   paymentAccounts: z.array(z.object({ method: z.string(), accountId: z.string() })),

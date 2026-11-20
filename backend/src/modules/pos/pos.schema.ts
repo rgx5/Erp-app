@@ -1,7 +1,8 @@
-import { integer, numeric, pgSchema, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { date, integer, numeric, pgSchema, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 /** Mirrors db/migrations/0012_pos.sql (the SQL is the source of truth; a test compares the columns). */
 const erp = pgSchema('erp');
+const day = (name: string) => date(name, { mode: 'string' });
 const ts = (name: string) => timestamp(name, { withTimezone: true, mode: 'date' });
 const money = (name: string) => numeric(name, { precision: 18, scale: 4 });
 const meta = { version: integer('version').notNull().default(1), createdAt: ts('created_at').notNull().defaultNow(), updatedAt: ts('updated_at').notNull().defaultNow() };
@@ -102,4 +103,30 @@ export const posSyncItems = erp.table('pos_sync_items', {
   attempts: integer('attempts').notNull().default(1),
   receivedAt: ts('received_at').notNull().defaultNow(),
   processedAt: ts('processed_at').notNull().defaultNow(),
+});
+
+export const giftCards = erp.table('gift_cards', {
+  tenantId: uuid('tenant_id').notNull(),
+  id: uuid('id').notNull(),
+  companyId: uuid('company_id').notNull(),
+  code: text('code').notNull(),
+  initialAmount: money('initial_amount').notNull(),
+  balance: money('balance').notNull(),
+  holderName: text('holder_name'),
+  expiresOn: day('expires_on'),
+  status: text('status').notNull().default('active'),
+  ...meta,
+});
+export const giftCardEntries = erp.table('gift_card_entries', {
+  tenantId: uuid('tenant_id').notNull(),
+  id: uuid('id').notNull(),
+  cardId: uuid('card_id').notNull(),
+  kind: text('kind').notNull(),
+  amount: money('amount').notNull(),
+  method: text('method'),
+  posSaleId: uuid('pos_sale_id'),
+  shiftId: uuid('shift_id'),
+  journalEntryId: uuid('journal_entry_id'),
+  createdBy: uuid('created_by'),
+  createdAt: ts('created_at').notNull().defaultNow(),
 });

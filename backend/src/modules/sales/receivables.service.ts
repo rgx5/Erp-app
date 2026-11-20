@@ -39,12 +39,12 @@ export class ReceivablesService {
   ) {}
 
   // ---- receipts ---------------------------------------------------------------------------------------------------
-  createReceipt(tenantId: string, actorId: string, input: CreateReceiptInput) {
+  createReceipt(tenantId: string, actorId: string, input: Omit<CreateReceiptInput, 'method'> & { method: CreateReceiptInput['method'] | 'gift_card' }) {
     return this.uow.inTenant(tenantId, async (tx) => {
       const customer = first(await tx.select().from(parties).where(and(eq(parties.tenantId, tenantId), eq(parties.id, input.customerId))), 'Customer');
       if (!customer.isCustomer) throw new AppError(422, 'not_a_customer', `${customer.code} is not a customer`);
       const [deposit] = await tx.select().from(accounts).where(and(eq(accounts.tenantId, tenantId), eq(accounts.companyId, input.companyId), eq(accounts.id, input.depositAccountId)));
-      if (!deposit || deposit.type !== 'asset' || deposit.isGroup || deposit.status !== 'active' || deposit.controlKind) throw validationFailed([{ path: 'depositAccountId', message: 'Must be an active cash or bank (non-control asset) account of this company' }]);
+      if (!deposit || deposit.type !== (input.method === 'gift_card' ? 'liability' : 'asset') || deposit.isGroup || deposit.status !== 'active' || deposit.controlKind) throw validationFailed([{ path: 'depositAccountId', message: 'Must be an active cash or bank (non-control asset) account of this company' }]);
       const settings = await this.settings.require(tx, tenantId, input.companyId, ['receivableAccountId']);
       const receiptNo = await nextDocNumber(tx, tenantId, input.companyId, input.receiptDate, 'RCT');
       const id = uuidv7();

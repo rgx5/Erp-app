@@ -41,6 +41,7 @@ export const MANUFACTURING_INDIA_TEMPLATE: readonly TemplateAccount[] = [
   { code: '2120', name: 'Goods received not invoiced', type: 'liability', parent: '2100', control: 'inventory' },
   { code: '2130', name: 'Advances from customers', type: 'liability', parent: '2100' },
   { code: '2140', name: 'Accrued expenses', type: 'liability', parent: '2100' },
+  { code: '2150', name: 'Gift card balances', type: 'liability', parent: '2100' },
   { code: '2200', name: 'Duties and taxes payable', type: 'liability', group: true, parent: '2000' },
   { code: '2210', name: 'Output CGST', type: 'liability', parent: '2200', control: 'tax' },
   { code: '2220', name: 'Output SGST', type: 'liability', parent: '2200', control: 'tax' },

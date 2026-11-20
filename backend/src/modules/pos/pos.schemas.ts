@@ -11,7 +11,9 @@ const page = { limit: z.coerce.number().int().min(1).max(200).default(50), curso
 const METHODS = ['cash', 'bank_transfer', 'upi', 'card', 'cheque', 'other'] as const;
 
 export const posSettingsSchema = z.strictObject({ walkInCustomerId: z.uuid().nullable().optional(), cashVarianceAccountId: z.uuid().nullable().optional() }).refine((v) => Object.keys(v).length > 0, 'Send at least one field');
-export const paymentAccountSchema = z.strictObject({ method: z.enum(METHODS), accountId: z.uuid() });
+/** What can be paid with at the counter: the usual methods and a gift card (its reference is the card code). */
+const PAY_METHODS = [...METHODS, 'gift_card'] as const;
+export const paymentAccountSchema = z.strictObject({ method: z.enum(PAY_METHODS), accountId: z.uuid() });
 export const createTerminalSchema = z.strictObject({
   companyId: z.uuid(),
   code: z.string().trim().toUpperCase().regex(/^[A-Z0-9][A-Z0-9_-]{0,19}$/, 'Letters, digits, - _ (max 20)'),
@@ -49,7 +51,7 @@ export const posSaleSchema = z.strictObject({
     .min(1)
     .max(200),
   /** Must add up to the invoice total exactly, less any store credit used. Cash may be tendered above the amount; the difference is change. */
-  payments: z.array(z.strictObject({ method: z.enum(METHODS), amount: positive, tendered: money.optional(), reference: text(100).optional() })).max(10),
+  payments: z.array(z.strictObject({ method: z.enum(PAY_METHODS), amount: positive, tendered: money.optional(), reference: text(100).optional() })).max(10),
   /** A coupon the customer presented; the till applies its discount, the server checks the right to it and records the use. */
   couponCode: text(30).optional(),
   /** Loyalty points redeemed; the till applies their value as a discount. Needs a named customer. */
@@ -99,3 +101,11 @@ export const syncBatchSchema = z.strictObject({
 export const syncItemsQuery = z.object({ ...page, deviceId: z.uuid(), status: z.enum(['applied', 'rejected']).optional() });
 export const catalogueQuery = z.object({ deviceId: z.uuid(), updatedSince: z.iso.datetime({ offset: true }).optional() });
 export type SyncBatchInput = z.infer<typeof syncBatchSchema>;
+
+export const issueGiftCardSchema = z.strictObject({
+  shiftId: z.uuid(), amount: positive, method: z.enum(['cash', 'bank_transfer', 'upi', 'card', 'cheque', 'other']), holderName: text(100).optional(),
+  expiresOn: z.iso.date().optional(), date: z.iso.date().optional(),
+});
+export const giftCardCodeQuery = z.object({ companyId: z.uuid() });
+export const listGiftCardsQuery = z.object({ companyId: z.uuid(), limit: z.coerce.number().int().min(1).max(200).default(50) });
+export type IssueGiftCardInput = z.infer<typeof issueGiftCardSchema>;

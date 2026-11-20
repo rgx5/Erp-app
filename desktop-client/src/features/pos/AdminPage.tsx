@@ -24,7 +24,7 @@ import { useCreateTerminal, useDevices, useMapPayment, usePosSettings, useRegist
 import { ShiftSummary } from './ShiftDrawers'
 import { useShift } from './queries'
 
-const METHOD: Record<string, string> = { cash: 'Cash', upi: 'UPI', card: 'Card', bank_transfer: 'Bank transfer', cheque: 'Cheque', other: 'Other' }
+const METHOD: Record<string, string> = { cash: 'Cash', upi: 'UPI', card: 'Card', bank_transfer: 'Bank transfer', cheque: 'Cheque', other: 'Other', gift_card: 'Gift card (liability account)' }
 type Tab = 'setup' | 'shifts'
 
 function Settings({ companyId }: { companyId: string }) {
@@ -51,8 +51,8 @@ function Settings({ companyId }: { companyId: string }) {
         <div><AccountPicker label="Cash over and short" groups value={curVariance} filter={(a) => a.type === 'expense' && a.controlKind === null} onPick={setVariance} /><p className="mt-0.5 text-xs text-muted">Where a difference found at cash-up is posted.</p></div>
         {canManage ? <Button className="self-start" busy={save.isPending} disabled={!curCustomer || !curVariance} onClick={() => void run(() => save.mutateAsync({ walkInCustomerId: curCustomer?.id ?? null, cashVarianceAccountId: curVariance?.id ?? null }), 'Counter settings saved.')}>Save settings</Button> : null}
         <h3 className="mt-2 text-sm font-semibold">Where each way of paying lands</h3>
-        {POS_METHODS.map((m) => (
-          <div key={m} className="flex items-end gap-3"><div className="flex-1"><AccountPicker label={METHOD[m] ?? m} value={mapped(m)} filter={(a) => a.type === 'asset'} onPick={(a) => setPicked({ ...picked, [m]: a })} /></div>
+        {[...POS_METHODS, 'gift_card' as const].map((m) => (
+          <div key={m} className="flex items-end gap-3"><div className="flex-1"><AccountPicker label={METHOD[m] ?? m} value={mapped(m)} filter={(a) => a.type === (m === 'gift_card' ? 'liability' : 'asset') && a.controlKind === null} onPick={(a) => setPicked({ ...picked, [m]: a })} /></div>
             {canManage ? <Button variant="secondary" disabled={!picked[m]} aria-label={`Save ${METHOD[m]}`} onClick={() => void run(() => map.mutateAsync({ method: m, accountId: (picked[m] as LedgerAccount).id }), `${METHOD[m]} account saved.`)}>Save</Button> : null}</div>))}
         {problem ? <Alert>{problem}</Alert> : null}
         <p className="text-xs text-muted">Which account takes cash, UPI or card money is for your accountant to confirm.</p>

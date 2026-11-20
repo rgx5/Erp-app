@@ -2,6 +2,7 @@ import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tansta
 import { z } from 'zod'
 import { query } from '@/api/client'
 import {
+  giftCard, type GiftCard,
   page, posCatalogue, posDevice, posSaleDetail, posSaleHeader, posSaleResult, posSettings, posShift, posTerminal, syncResult,
   type PosCatalogue, type PosDevice, type PosSaleDetail, type PosSaleResult, type PosSettings, type PosShift, type PosTerminal, type SyncResult,
 } from '@/api/schemas'
@@ -46,3 +47,6 @@ export const useSaleDetail = (id: string | undefined) => useQuery({ queryKey: ['
 /** `updatedSince` asks only for items changed after that moment (the counter's regular refresh); without it, everything. */
 export const fetchCatalogue = (deviceId: string, updatedSince?: string): Promise<PosCatalogue> => get(`${P}/sync/catalogue`, { query: query({ deviceId, ...(updatedSince ? { updatedSince } : {}) }) }, posCatalogue)
 export const uploadBatch = (body: unknown): Promise<SyncResult> => send('POST', `${P}/sync/batches`, body, syncResult)
+
+export const useIssueGiftCard = () => useWrite(({ body, key }: { body: { shiftId: string; amount: string; method: string; holderName?: string; expiresOn?: string }; key: string }) => send('POST', `${P}/gift-cards`, body, giftCard, key))
+export const lookupGiftCard = (companyId: string, code: string): Promise<GiftCard> => get(`${P}/gift-cards/${encodeURIComponent(code.trim())}`, { query: query({ companyId }) }, giftCard)

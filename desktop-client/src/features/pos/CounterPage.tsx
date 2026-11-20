@@ -24,6 +24,7 @@ import { receiptText, whatsappUrl } from './share'
 import { counterState, loadQueue, saveCounterState, saveQueue, type QueuedSale } from './counterStore'
 import { searchItems, type LocalItem } from './catalogueSearch'
 import { useLocalCatalogue } from './useLocalCatalogue'
+import { GiftCardDrawer } from './GiftCardDrawer'
 import { ReturnDrawer } from './ReturnDrawer'
 import { CloseShiftDrawer } from './ShiftDrawers'
 import { useUsers } from '@/features/admin/queries'
@@ -38,8 +39,8 @@ import { useBatches } from '@/features/inventory/trackingQueries'
 
 /** An item offered under the scan box: from this computer's own list, or (rarely) from the server. */
 interface Suggest { id: string; code: string; name: string; taxCodeId: string | null; tracking?: string; mrp?: string | null | undefined; noDiscount?: boolean | undefined }
-interface Tender { key: string; method: string; amount: string; tendered: string }
-const METHOD: Record<string, string> = { cash: 'Cash', upi: 'UPI', card: 'Card', bank_transfer: 'Bank transfer', cheque: 'Cheque', other: 'Other' }
+interface Tender { key: string; method: string; amount: string; tendered: string; /** For a gift card: its code. */ code?: string }
+const METHOD: Record<string, string> = { cash: 'Cash', upi: 'UPI', card: 'Card', bank_transfer: 'Bank transfer', cheque: 'Cheque', other: 'Other', gift_card: 'Gift card' }
 let n = 0
 const newTender = (method = 'cash'): Tender => ({ key: `t${++n}`, method, amount: '', tendered: '' })
 const msg = (e: unknown, f: string): string => (e instanceof ApiError ? `${e.message}${e.requestId ? ` (reference ${e.requestId})` : ''}` : e instanceof Error ? e.message : f)
@@ -93,7 +94,7 @@ export function CounterPage() {
   const [busy, setBusy] = useState(false)
   const [last, setLast] = useState<PosSaleResult | null>(null)
   const [queue, setQueue] = useState<QueuedSale[]>(() => loadQueue(tenant))
-  const [panel, setPanel] = useState<null | 'return'>(null)
+  const [panel, setPanel] = useState<null | 'return' | 'giftcard'>(null)
   const [closing, setClosing] = useState<PosShift | null>(null)
   const [syncing, setSyncing] = useState(false)
   const scanRef = useRef<HTMLInputElement>(null)
@@ -233,7 +234,7 @@ export function CounterPage() {
   async function charge(approval?: { userId: string; pin: string }) {
     if (!ready || !shift || busy) return
     setBusy(true); setProblem(null)
-    const payments = compare(due, '0') === 0 ? [] : tenders.map((t) => ({ method: t.method, amount: amountOf(t), ...(t.method === 'cash' && isValid(t.tendered) && t.tendered !== '' ? { tendered: t.tendered } : {}) }))
+    const payments = compare(due, '0') === 0 ? [] : tenders.map((t) => ({ method: t.method, amount: amountOf(t), ...(t.method === 'gift_card' ? { reference: (t.code ?? '').trim() } : {}), ...(t.method === 'cash' && isValid(t.tendered) && t.tendered !== '' ? { tendered: t.tendered } : {}) }))
     const lines = effLines.map((l) => ({ itemId: l.itemId, quantity: l.quantity, unitPrice: l.unitPrice, discountPercent: l.discountPercent || '0', taxInclusive: l.taxInclusive, warehouseId: terminal?.warehouseId, ...(l.tracking === 'batch' ? { batchId: l.batchId } : {}), ...(l.tracking === 'serial' ? { serialNos: serialList(l.serials) } : {}), ...(l.salespersonId ? { salespersonId: l.salespersonId } : {}) }))
     const clientId = crypto.randomUUID()
     try {
@@ -244,6 +245,7 @@ export function CounterPage() {
     } catch (e) {
       const deviceId = counterState(tenant).deviceId
       if (e instanceof NetworkError && walletInUse(wallet)) setProblem('No connection. A sale that uses store credit, points or a coupon has to be recorded online: take the wallet off to sell offline.')
+      else if (e instanceof NetworkError && tenders.some((t) => t.method === 'gift_card')) setProblem('No connection. A gift card can only be spent online, so its balance cannot be spent twice: pay another way to sell offline.')
       else if (e instanceof NetworkError && deviceId) {
         const item: QueuedSale = { clientId, shiftId: shift.id, occurredAt: new Date().toISOString(), payload: { lines: lines.map(({ warehouseId: _w, ...r }) => r), payments }, label: cart.map((l) => `${l.code} x${l.quantity}`).join(', '), total }
         const next = [...queue, item]
@@ -325,6 +327,7 @@ export function CounterPage() {
             <Button variant="secondary" disabled={cart.length === 0} onClick={hold}>Hold bill</Button>
             <Button variant="secondary" onClick={() => setShowParked(!showParked)}>Held bills ({parked.length})</Button>
             <Button variant="secondary" onClick={() => setPanel('return')}>Return</Button>
+            {shift && can(perms, 'pos:sell') ? <Button variant="secondary" disabled={offline} onClick={() => setPanel('giftcard')}>Sell gift card</Button> : null}
             <Button variant="secondary" onClick={() => setClosing(shift)}>Close shift</Button>
           </div>
         </div>
@@ -388,9 +391,10 @@ export function CounterPage() {
           <div className="flex flex-col gap-2">
             {tenders.map((t) => (
               <div key={t.key} className="grid items-end gap-2" style={{ gridTemplateColumns: '1fr 1fr 24px' }}>
-                <SelectField label="Method" value={t.method} onChange={(e) => setTenders(tenders.map((x) => (x.key === t.key ? { ...x, method: e.target.value } : x)))} options={POS_METHODS.map((m) => ({ value: m, label: METHOD[m] ?? m }))} />
+                <SelectField label="Method" value={t.method} onChange={(e) => setTenders(tenders.map((x) => (x.key === t.key ? { ...x, method: e.target.value } : x)))} options={[...POS_METHODS, 'gift_card' as const].map((m) => ({ value: m, label: METHOD[m] ?? m }))} />
                 <TextField label="Amount" inputMode="decimal" value={t.amount !== '' ? t.amount : tenders.length === 1 ? (due === '0' ? '' : due) : ''} onChange={(e) => setTenders(tenders.map((x) => (x.key === t.key ? { ...x, amount: e.target.value } : x)))} />
                 {tenders.length > 1 ? <button type="button" aria-label="Remove payment" className="mb-2 text-muted hover:text-bad" onClick={() => setTenders(tenders.filter((x) => x.key !== t.key))}>×</button> : <span />}
+                {t.method === 'gift_card' ? <div className="col-span-2"><TextField label="Gift card code" value={t.code ?? ''} hint={offline ? 'Gift cards need a connection' : undefined} onChange={(e) => setTenders(tenders.map((x) => (x.key === t.key ? { ...x, code: e.target.value } : x)))} /></div> : null}
                 {t.method === 'cash' ? <div className="col-span-2"><TextField label="Cash given" inputMode="decimal" value={t.tendered} onChange={(e) => setTenders(tenders.map((x) => (x.key === t.key ? { ...x, tendered: e.target.value } : x)))} /></div> : null}
               </div>))}
             <Button variant="ghost" className="self-start" onClick={() => setTenders([...tenders, newTender('upi')])}>+ Split payment</Button>
@@ -400,6 +404,7 @@ export function CounterPage() {
         <Button className="h-12 text-base" disabled={!ready} busy={busy} onClick={() => void charge()}>Charge {formatInr(total)} (F9)</Button>
         <span className="text-xs text-muted" aria-label="Item list status">{deviceId ? `${cat.count.toLocaleString('en-IN')} items on this counter${cat.lastSyncAt ? ` · updated ${new Date(cat.lastSyncAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}${cat.syncing ? ' · updating…' : ''}` : 'Ask a manager to register this counter so it can sell offline'}</span>{deviceId ? <Button variant="ghost" busy={cat.syncing} onClick={async () => { const n = await cat.syncNow(true); if (n !== null) flash.show(`${n.toLocaleString('en-IN')} items updated.`); else setProblem('Could not reach the server: the counter keeps working with the items it has.') }}>Refresh items</Button> : null}
       </div>
+      {panel === 'giftcard' && shift ? <GiftCardDrawer shiftId={shift.id} onClose={() => setPanel(null)} /> : null}
       {panel === 'return' ? <ReturnDrawer shift={shift} onClose={() => setPanel(null)} /> : null}
       {closing ? <CloseShiftDrawer shift={closing} onClose={() => setClosing(null)} /> : null}
     </div>

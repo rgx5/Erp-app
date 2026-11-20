@@ -20,11 +20,12 @@ import { StaffService } from '../retail/staff.service.js';
 import { retailSettings } from '../retail/retail.schema.js';
 import { posPaymentAccounts, posPayments, posSales, posSettings, posShifts, posTerminals } from './pos.schema.js';
 import type { PosReturnInput, PosSaleInput } from './pos.schemas.js';
+import { GiftCardService } from './gift-card.service.js';
 import { assertWithinLimit } from '../identity/entitlements.js';
 
 export type TerminalRow = typeof posTerminals.$inferSelect;
 export type ShiftRow = typeof posShifts.$inferSelect;
-type Method = 'cash' | 'bank_transfer' | 'upi' | 'card' | 'cheque' | 'other';
+type Method = 'cash' | 'bank_transfer' | 'upi' | 'card' | 'cheque' | 'other' | 'gift_card';
 
 const today = (): string => new Date().toISOString().slice(0, 10);
 
@@ -43,6 +44,7 @@ export class PosService {
     @Inject(Recorder) private readonly recorder: Recorder,
     @Inject(StaffService) private readonly staff: StaffService,
     @Inject(WalletService) private readonly wallet: WalletService,
+    @Inject(GiftCardService) private readonly giftCards: GiftCardService,
   ) {}
 
   // ---- configuration --------------------------------------------------------------------------------------------------
@@ -71,7 +73,8 @@ export class PosService {
 
   mapPayment(tenantId: string, companyId: string, method: Method, accountId: string) {
     return this.uow.inTenant(tenantId, async (tx) => {
-      await this.requireAccount(tx, tenantId, companyId, accountId, ['asset'], 'accountId', 'an active cash or bank (non-control asset) account');
+      if (method === 'gift_card') await this.requireAccount(tx, tenantId, companyId, accountId, ['liability'], 'accountId', 'an active liability (non-control) account for gift card balances');
+      else await this.requireAccount(tx, tenantId, companyId, accountId, ['asset'], 'accountId', 'an active cash or bank (non-control asset) account');
       const row = first(await tx.insert(posPaymentAccounts).values({ tenantId, id: uuidv7(), companyId, method, accountId }).onConflictDoUpdate({ target: [posPaymentAccounts.tenantId, posPaymentAccounts.companyId, posPaymentAccounts.method], set: { accountId } }).returning(), 'Payment account');
       return this.recorder.record(tx, tenantId, 'pos_payment_account', 'mapped', row, { companyId, method, accountId });
     });
@@ -179,6 +182,7 @@ export class PosService {
         if (p.method !== 'cash' && tendered !== toUnits(p.amount)) throw validationFailed([{ path: 'payments', message: 'Only cash can be tendered above the amount (and change given)' }]);
         const account = accountsByMethod.get(p.method);
         if (!account) throw new AppError(409, 'pos_not_configured', `Map the ${p.method} payment method to an account in the POS settings first`);
+        if (p.method === 'gift_card') await this.giftCards.redeem(tx, tenantId, actorId, { companyId: shift.companyId, code: p.reference ?? '', amount: p.amount, date, saleId: sale.id, shiftId: shift.id });
         const r = await this.receivables.createReceipt(tenantId, actorId, { companyId: shift.companyId, customerId, receiptDate: date, amount: p.amount, method: p.method, depositAccountId: account, reference: p.reference, allocations: [{ invoiceId: posted.invoice.id, amount: p.amount }] });
         const changeGiven = tendered - toUnits(p.amount);
         change += changeGiven;
@@ -288,7 +292,8 @@ export class PosService {
     const byMethod = (kind: string) => Object.fromEntries(rows.rows.filter((r) => r.kind === kind).map((r) => [r.method, r.amount]));
     const sum = (kind: string, method?: string) => rows.rows.filter((r) => r.kind === kind && (!method || r.method === method)).reduce((s, r) => s + toUnits(r.amount), 0n);
     const doc = (kind: string) => docs.rows.find((d) => d.kind === kind);
-    const expected = toUnits(shift.openingCash) + sum('sale', 'cash') - sum('return', 'cash');
+    const issued = await tx.execute<{ amount: string }>(sql`SELECT COALESCE(SUM(amount), 0)::text AS amount FROM erp.gift_card_entries WHERE tenant_id = ${tenantId}::uuid AND shift_id = ${shift.id}::uuid AND kind = 'issue' AND method = 'cash'`);
+    const expected = toUnits(shift.openingCash) + sum('sale', 'cash') - sum('return', 'cash') + toUnits(issued.rows[0]?.amount ?? '0');
     return {
       salesCount: Number(doc('sale')?.n ?? 0), salesTotal: doc('sale')?.total ?? '0', returnsCount: Number(doc('return')?.n ?? 0), returnsTotal: doc('return')?.total ?? '0',
       paymentsReceived: byMethod('sale'), refundsPaid: byMethod('return'), expectedCash: fromUnits(expected), openingCash: shift.openingCash,
