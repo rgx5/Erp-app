@@ -72,3 +72,23 @@ describe('sales analysis and day-end reports', () => {
     expect((await call(server, 'GET', `/v1/reports/low-stock?companyId=${other.companyId}`, { tenant: other.tenant })).json.rows).toHaveLength(0);
   });
 });
+
+describe('data export', () => {
+  it('gives the owner a copy of their own records, without credentials or anyone else’s data', async () => {
+    const a = await counter('Export A'); const b = await counter('Export B');
+    ok(await call(server, 'POST', '/v1/pos/sales', { tenant: a.tenant, body: { shiftId: a.shift, date: '2025-04-10', lines: [{ itemId: a.item.widget, quantity: '1', unitPrice: '118' }], payments: [{ method: 'cash', amount: '118', tendered: '118' }] } }));
+    const r = await call(server, 'GET', '/v1/reports/export', { tenant: a.tenant });
+    expect(r.status).toBe(200);
+    expect(r.json.format).toBe('onesync-export-v1');
+    expect(r.json.tables.sales_invoices).toHaveLength(1);
+    expect(r.json.tables.items.length).toBeGreaterThan(0);
+    const text = JSON.stringify(r.json);
+    expect(text).not.toContain('password_hash'); expect(text).not.toContain('mfa_secret');
+    expect(Object.keys(r.json.tables).some((t) => /session|token|api_key/.test(t))).toBe(false);
+    expect(r.json.tables.users[0]).not.toHaveProperty('password_hash');
+    const other = await call(server, 'GET', '/v1/reports/export', { tenant: b.tenant });
+    expect(other.json.tables.sales_invoices ?? []).toHaveLength(0);
+    expect(JSON.stringify(other.json)).not.toContain(a.item.widget);
+    expect((await call(server, 'GET', '/v1/reports/export')).status).toBe(401);
+  });
+});

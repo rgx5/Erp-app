@@ -1,6 +1,6 @@
 import { licensed } from '@/auth/permissions'
 import { isStarter } from '@/auth/edition'
-import { Printer, ArrowLeftRight, BadgeCheck, Calculator, ListChecks, Warehouse as WarehouseIcon, Boxes, ClipboardList, PackageCheck, ShoppingCart, Wallet, FileText, Landmark, Receipt as ReceiptIcon, Building2, ClipboardCheck, Clock, LayoutDashboard, Percent, Ruler, Tags, Truck, Users, BookOpen, Layers, Users2, ShieldCheck, KeyRound, ScrollText, UserCog, ScanBarcode, Store, UserRound, Banknote, Settings2, Scale, Factory, Cog, Gauge, Handshake, FileSpreadsheet, FolderOpen, CalendarCheck, LineChart, ListTree, type LucideIcon } from 'lucide-react'
+import { Download, Printer, ArrowLeftRight, BadgeCheck, Calculator, ListChecks, Warehouse as WarehouseIcon, Boxes, ClipboardList, PackageCheck, ShoppingCart, Wallet, FileText, Landmark, Receipt as ReceiptIcon, Building2, ClipboardCheck, Clock, LayoutDashboard, Percent, Ruler, Tags, Truck, Users, BookOpen, Layers, Users2, ShieldCheck, KeyRound, ScrollText, UserCog, ScanBarcode, Store, UserRound, Banknote, Settings2, Scale, Factory, Cog, Gauge, Handshake, FileSpreadsheet, FolderOpen, CalendarCheck, LineChart, ListTree, type LucideIcon } from 'lucide-react'
 
 /** `advanced`: left out of the small-business (Starter) menu; the page itself still works if someone opens it. */
 export interface NavItem { to: string; label: string; icon: LucideIcon; needs?: string[]; section?: string; advanced?: boolean }
@@ -54,6 +54,7 @@ export const NAV: NavItem[] = [
   { to: '/admin/users', label: 'Users', icon: Users2, needs: ['users:read'], section: 'Administration' },
   { to: '/admin/roles', label: 'Roles', icon: ShieldCheck, needs: ['roles:read'], section: 'Administration' },
   { to: '/admin/api-keys', label: 'API keys', icon: KeyRound, needs: ['api_keys:manage'], section: 'Administration', advanced: true },
+  { to: '/admin/export', label: 'Data export', icon: Download, needs: ['organization:write'], section: 'Administration' },
   { to: '/admin/audit', label: 'Audit log', icon: ScrollText, needs: ['audit:read'], section: 'Administration', advanced: true },
   { to: '/account', label: 'My account', icon: UserCog, section: 'Administration' },
   { to: '/inventory/stock', label: 'Stock on hand', icon: WarehouseIcon, needs: ['stock:read'], section: 'Inventory' },

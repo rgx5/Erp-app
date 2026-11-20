@@ -3,6 +3,8 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { RequiresModule } from '../identity/entitlements.js';
 import { RequirePermissions, TenantId } from '../identity/principal.js';
+import { Recorder } from '../masterdata/helpers.js';
+import { ExportService } from './export.service.js';
 import { GROUPS, ReportsService } from './reports.service.js';
 
 const salesQuery = z.object({ companyId: z.uuid(), from: z.iso.date(), to: z.iso.date(), groupBy: z.enum(GROUPS).default('item'), categoryId: z.uuid().optional(), limit: z.coerce.number().int().min(1).max(1000).default(200) })
@@ -13,7 +15,7 @@ const dayQuery = z.object({ companyId: z.uuid(), date: z.iso.date(), terminalId:
 @ApiBearerAuth()
 @Controller('v1/reports')
 export class ReportsController {
-  constructor(@Inject(ReportsService) private readonly reports: ReportsService) {}
+  constructor(@Inject(ReportsService) private readonly reports: ReportsService, @Inject(ExportService) private readonly exporter: ExportService) {}
 
   /** Sales (and profit) by item, category, brand, day, month, cashier or customer for a period. */
   @RequiresModule('sales') @RequirePermissions('sales:read') @Get('sales')
@@ -23,10 +25,14 @@ export class ReportsController {
   @RequiresModule('pos') @RequirePermissions('pos:read') @Get('day-end')
   dayEnd(@TenantId() t: string, @Query({ schema: dayQuery }) q: z.infer<typeof dayQuery>) { return this.reports.dayEnd(t, q); }
 
+  /** A copy of everything the business has recorded, as one JSON file. Owner-level only. */
+  @RequirePermissions('organization:write') @Get('export')
+  everything(@TenantId() t: string) { return this.exporter.everything(t); }
+
   /** Stocked items at or below their reorder level, with a suggested quantity to buy. */
   @RequiresModule('inventory') @RequirePermissions('stock:read') @Get('low-stock')
   lowStock(@TenantId() t: string, @Query({ schema: z.object({ companyId: z.uuid() }) }) q: { companyId: string }) { return this.reports.lowStock(t, q); }
 }
 
-@Module({ controllers: [ReportsController], providers: [ReportsService] })
+@Module({ controllers: [ReportsController], providers: [ReportsService, ExportService, Recorder] })
 export class ReportsModule {}

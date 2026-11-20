@@ -17454,6 +17454,33 @@
           }
         ]
       }
+    },
+    "/v1/reports/export": {
+      "get": {
+        "operationId": "ReportsController_everything",
+        "summary": "A copy of everything the business has recorded, as one JSON file. Owner-level only.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          }
+        },
+        "tags": [
+          "reports"
+        ],
+        "security": [
+          {
+            "bearer": []
+          }
+        ]
+      }
     }
   },
   "info": {
