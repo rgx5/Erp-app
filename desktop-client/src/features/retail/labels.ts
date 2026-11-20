@@ -11,10 +11,20 @@ export const LABEL_SIZES: LabelSize[] = [
   { id: 'a4-3x8', name: 'A4 sheet, 3 × 8 (64 × 34 mm)', widthMm: 64, heightMm: 34, perRow: 3 },
 ]
 
-/** A Code 128 barcode as an SVG string (Code 128 reads any letters and digits, so item codes work as well as EAN numbers). */
+/** The check digit that completes the first 12 digits of an EAN-13. */
+const ean13Check = (d12: string): number => (10 - (d12.split('').reduce((sum, ch, i) => sum + Number(ch) * (i % 2 === 0 ? 1 : 3), 0) % 10)) % 10
+export const isEan13 = (v: string): boolean => /^\d{13}$/.test(v) && ean13Check(v.slice(0, 12)) === Number(v[12])
+/** A new in-store barcode: a valid EAN-13 starting with 2, the range reserved worldwide for numbers a shop makes itself, so it can never clash with a manufacturer's code. */
+export function generateEan13(): string {
+  const r = crypto.getRandomValues(new Uint32Array(2))
+  const body = `2${String((r[0] ?? 0) % 100000).padStart(5, '0')}${String((r[1] ?? 0) % 1000000).padStart(6, '0')}`
+  return body + ean13Check(body)
+}
+
+/** A barcode as an SVG string (Code 128 reads any letters and digits, so item codes work as well as EAN numbers). */
 export function barcodeSvg(value: string, heightPx = 34): string {
   const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
-  JsBarcode(svg, value, { format: 'CODE128', displayValue: false, height: heightPx, margin: 0, width: 1.4, background: 'transparent' })
+  JsBarcode(svg, value, { format: isEan13(value) ? 'EAN13' : 'CODE128', displayValue: false, height: heightPx, margin: 0, width: 1.4, background: 'transparent' })
   svg.setAttribute('style', 'max-width:100%;height:auto')
   return svg.outerHTML
 }

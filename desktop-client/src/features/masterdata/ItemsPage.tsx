@@ -1,5 +1,6 @@
 import type { ColumnDef } from '@tanstack/react-table'
-import { Download, Plus, Upload } from 'lucide-react'
+import { Download, Plus, Printer, Upload } from 'lucide-react'
+import { useNavigate } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
 import { query } from '@/api/client'
 import { ApiError } from '@/api/errors'
@@ -23,6 +24,7 @@ const yes = (v: string, fallback: boolean): boolean => (v === '' ? fallback : /^
 export function ItemsPage() {
   const granted = useSession((s) => s.me?.permissions ?? [])
   const canWrite = can(granted, 'masterdata:write')
+  const navigate = useNavigate()
   const [search, setSearch] = useState('')
   const [type, setType] = useState('')
   const [status, setStatus] = useState('active')
@@ -102,6 +104,7 @@ export function ItemsPage() {
         <h1 className="page-title">Items</h1>
         <div className="flex gap-2">
           <Button variant="secondary" onClick={() => void exportAll()}><Download className="size-4" aria-hidden /> Export</Button>
+          <Button variant="secondary" onClick={() => void navigate({ to: '/masterdata/labels' })}><Printer className="size-4" aria-hidden /> Print labels</Button>
           {canWrite ? <Button variant="secondary" onClick={() => setImporting(true)}><Upload className="size-4" aria-hidden /> Import</Button> : null}
           {canWrite ? <Button onClick={() => setEditing('new')}><Plus className="size-4" aria-hidden /> New item</Button> : null}
         </div>

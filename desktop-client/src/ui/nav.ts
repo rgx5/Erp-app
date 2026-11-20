@@ -1,6 +1,6 @@
 import { licensed } from '@/auth/permissions'
 import { isStarter } from '@/auth/edition'
-import { ArrowLeftRight, BadgeCheck, Calculator, ListChecks, Warehouse as WarehouseIcon, Boxes, ClipboardList, PackageCheck, ShoppingCart, Wallet, FileText, Landmark, Receipt as ReceiptIcon, Building2, ClipboardCheck, Clock, LayoutDashboard, Percent, Ruler, Tags, Truck, Users, BookOpen, Layers, Users2, ShieldCheck, KeyRound, ScrollText, UserCog, ScanBarcode, Store, UserRound, Banknote, Settings2, Scale, Factory, Cog, Gauge, Handshake, FileSpreadsheet, FolderOpen, CalendarCheck, LineChart, ListTree, type LucideIcon } from 'lucide-react'
+import { Printer, ArrowLeftRight, BadgeCheck, Calculator, ListChecks, Warehouse as WarehouseIcon, Boxes, ClipboardList, PackageCheck, ShoppingCart, Wallet, FileText, Landmark, Receipt as ReceiptIcon, Building2, ClipboardCheck, Clock, LayoutDashboard, Percent, Ruler, Tags, Truck, Users, BookOpen, Layers, Users2, ShieldCheck, KeyRound, ScrollText, UserCog, ScanBarcode, Store, UserRound, Banknote, Settings2, Scale, Factory, Cog, Gauge, Handshake, FileSpreadsheet, FolderOpen, CalendarCheck, LineChart, ListTree, type LucideIcon } from 'lucide-react'
 
 /** `advanced`: left out of the small-business (Starter) menu; the page itself still works if someone opens it. */
 export interface NavItem { to: string; label: string; icon: LucideIcon; needs?: string[]; section?: string; advanced?: boolean }
@@ -72,6 +72,7 @@ export const NAV: NavItem[] = [
   { to: '/masterdata/customers', label: 'Customers', icon: Users, needs: ['masterdata:read'], section: 'Master data' },
   { to: '/masterdata/suppliers', label: 'Suppliers', icon: Truck, needs: ['masterdata:read'], section: 'Master data' },
   { to: '/masterdata/categories', label: 'Categories', icon: FolderOpen, needs: ['masterdata:read'], section: 'Master data' },
+  { to: '/masterdata/labels', label: 'Print labels', icon: Printer, needs: ['masterdata:read'], section: 'Master data' },
   { to: '/masterdata/price-lists', label: 'Price lists', icon: Tags, needs: ['masterdata:read'], section: 'Master data' },
   { to: '/masterdata/tax-codes', label: 'Tax codes', icon: Percent, needs: ['masterdata:read'], section: 'Master data', advanced: true },
   { to: '/masterdata/units', label: 'Units', icon: Ruler, needs: ['masterdata:read'], section: 'Master data', advanced: true },

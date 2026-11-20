@@ -8,6 +8,8 @@ import { useAddBarcode, useBarcodes, useBarcodeStatus } from '@/features/masterd
 import { useWorkspace } from '@/features/organization/workspace'
 import { useFlash } from '@/ui/flash'
 import { Alert, Button, SelectField, TextField } from '@/ui/primitives'
+import { useQueryClient } from '@tanstack/react-query'
+import { generateBarcode } from './barcodeGen'
 import { LABEL_SIZES, labelsHtml } from './labels'
 
 /** The barcodes of one item and its price label. A barcode is only ever switched on or off, never edited. */
@@ -18,6 +20,8 @@ export function ItemBarcodes({ item }: { item: Item }) {
   const add = useAddBarcode(item.id); const status = useBarcodeStatus()
   const flash = useFlash()
   const [code, setCode] = useState('')
+  const qc = useQueryClient()
+  const [making, setMaking] = useState(false)
   const [copies, setCopies] = useState('1')
   const [size, setSize] = useState(LABEL_SIZES[0]?.id ?? '')
   const [problem, setProblem] = useState<string | null>(null)
@@ -40,6 +44,7 @@ export function ItemBarcodes({ item }: { item: Item }) {
         <div className="flex items-end gap-2"><div className="flex-1"><TextField label="Add a barcode" value={code} onChange={(e) => setCode(e.target.value)} hint="Scan it here, or type it" onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); document.getElementById('add-barcode')?.click() } }} /></div>
           <Button id="add-barcode" variant="secondary" disabled={code.trim().length < 4} busy={add.isPending} onClick={async () => { setProblem(null); try { await add.mutateAsync(code.trim()); flash.show(`Barcode ${code.trim()} added.`); setCode('') } catch (e) { setProblem(e instanceof ApiError ? (e.code === 'barcode_in_use' ? 'That barcode already belongs to another item.' : e.message) : 'Could not add it.') } }}>Add</Button></div>
       ) : null}
+      {canWrite ? <Button variant="secondary" className="self-start" busy={making} onClick={async () => { setProblem(null); setMaking(true); try { const b = await generateBarcode(item.id); await qc.invalidateQueries({ queryKey: ['barcodes'] }); flash.show(`Barcode ${b} created.`) } catch (e) { setProblem(e instanceof Error ? e.message : 'Could not create a barcode.') } finally { setMaking(false) } }}>Generate a barcode</Button> : null}
       {problem ? <Alert>{problem}</Alert> : null}
       <div className="grid grid-cols-[1fr_90px_auto] items-end gap-2">
         <SelectField label="Label size" value={size} onChange={(e) => setSize(e.target.value)} options={LABEL_SIZES.map((x) => ({ value: x.id, label: x.name }))} />
