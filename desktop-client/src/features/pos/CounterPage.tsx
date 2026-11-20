@@ -299,8 +299,13 @@ export function CounterPage() {
   if (!terminal) return <Alert tone="info">No counter yet. <Link to="/pos/admin" className="underline">Create a terminal in POS setup</Link>.</Alert>
   if (!can(perms, 'pos:sell')) return <Alert tone="info">You do not have the right to sell at the counter.</Alert>
 
+  // One close-shift drawer for the whole screen, in the same place whether or not a shift is open: when the shift closes the screen switches to
+  // "open a shift", and a drawer that moved would be torn down before the cash-up result could be read.
+  const closeDrawer = closing ? <CloseShiftDrawer shift={closing} onClose={() => setClosing(null)} /> : null
+
   if (!shift) {
     return (
+      <>
       <div className="mx-auto flex max-w-lg flex-col gap-4">
         <h1 className="page-title">Counter</h1>
         <Card title="Open a shift">
@@ -313,13 +318,15 @@ export function CounterPage() {
           </div>
         </Card>
         {queue.length ? <Alert>{queue.length} offline sale(s) from an earlier shift are waiting to upload. They upload against the shift they were made in.</Alert> : null}
-        {closing ? <CloseShiftDrawer shift={closing} onClose={() => setClosing(null)} /> : null}
       </div>
+      {closeDrawer}
+      </>
     )
   }
 
   const cell = 'h-8 rounded border border-line bg-surface px-2 text-right text-sm'
   return (
+    <>
     <div className="grid h-full grid-cols-[minmax(0,1fr)_340px] gap-4">
       <div className="flex min-w-0 flex-col gap-3">
         <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
@@ -409,8 +416,9 @@ export function CounterPage() {
       </div>
       {panel === 'giftcard' && shift ? <GiftCardDrawer shiftId={shift.id} onClose={() => setPanel(null)} /> : null}
       {panel === 'return' ? <ReturnDrawer shift={shift} onClose={() => setPanel(null)} /> : null}
-      {closing ? <CloseShiftDrawer shift={closing} onClose={() => setClosing(null)} /> : null}
     </div>
+    {closeDrawer}
+    </>
   )
 }
 
