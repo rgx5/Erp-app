@@ -13,6 +13,7 @@ import { useDebounced } from '@/ui/hooks'
 import { Alert, Button, SelectField, Spinner, TextField, Toolbar } from '@/ui/primitives'
 import { download, toCsv } from './csv'
 import { ImportDialog, type ImportSpec } from './ImportDialog'
+import { VariantsDrawer } from './VariantsDrawer'
 import { ItemBarcodes } from '@/features/retail/ItemBarcodes'
 import { hsnProblem, ITEM_TYPES, itemTypeLabel, ItemForm } from './ItemForm'
 import { formatInr } from '@/domain/format'
@@ -36,6 +37,7 @@ export function ItemsPage() {
   const taxes = useTaxCodes()
   const [editing, setEditing] = useState<Item | 'new' | null>(null)
   const [importing, setImporting] = useState(false)
+  const [variants, setVariants] = useState(false)
 
   const unitCode = useMemo(() => new Map((units.data ?? []).map((u) => [u.id, u.code])), [units.data])
   const taxCode = useMemo(() => new Map((taxes.data ?? []).map((t) => [t.id, t.code])), [taxes.data])
@@ -51,6 +53,8 @@ export function ItemsPage() {
     { header: 'GST', accessorFn: (i) => (i.taxCodeId ? taxCode.get(i.taxCodeId) ?? '' : ''), size: 90 },
     { header: 'Category', accessorFn: (i) => (i.categoryId ? catName.get(i.categoryId) ?? '' : ''), size: 130 },
     { header: 'Brand', accessorFn: (i) => i.brand ?? '', size: 100 },
+    { header: 'Size', accessorFn: (i) => i.size ?? '', size: 70 },
+    { header: 'Colour', accessorFn: (i) => i.colour ?? '', size: 90 },
     { header: 'MRP', accessorFn: (i) => (i.mrp ? formatInr(i.mrp, { symbol: false }) : ''), size: 90, meta: { align: 'right' } },
     { header: 'Unit', accessorFn: (i) => unitCode.get(i.baseUomId) ?? '', size: 70 },
     { header: 'Status', accessorKey: 'status', size: 90 },
@@ -106,6 +110,7 @@ export function ItemsPage() {
           <Button variant="secondary" onClick={() => void exportAll()}><Download className="size-4" aria-hidden /> Export</Button>
           <Button variant="secondary" onClick={() => void navigate({ to: '/masterdata/labels' })}><Printer className="size-4" aria-hidden /> Print labels</Button>
           {canWrite ? <Button variant="secondary" onClick={() => setImporting(true)}><Upload className="size-4" aria-hidden /> Import</Button> : null}
+          {canWrite ? <Button variant="secondary" onClick={() => setVariants(true)}>New variants</Button> : null}
           {canWrite ? <Button onClick={() => setEditing('new')}><Plus className="size-4" aria-hidden /> New item</Button> : null}
         </div>
       </div>
@@ -119,6 +124,7 @@ export function ItemsPage() {
       {list.isPending ? <Spinner /> : <DataTable columns={columns} rows={rows} rowKey={(i) => i.id} onOpen={(i) => setEditing(i)} empty={q ? 'No item matches that search.' : 'No items yet.'} height={560} />}
       {list.hasNextPage ? <Button variant="secondary" className="self-start" busy={list.isFetchingNextPage} onClick={() => void list.fetchNextPage()}>Load more</Button> : list.rows.length > 0 ? <p className="text-xs text-muted">{list.rows.length} item{list.rows.length === 1 ? '' : 's'}</p> : null}
       {editing ? <Drawer title={editing === 'new' ? 'New item' : editing.name} onClose={() => setEditing(null)}><ItemForm item={editing === 'new' ? undefined : editing} canWrite={canWrite} onDone={() => setEditing(null)} />{editing === 'new' ? null : <ItemBarcodes item={editing} />}</Drawer> : null}
+      {variants ? <VariantsDrawer onClose={() => setVariants(false)} /> : null}
       {importing ? <ImportDialog spec={spec} onClose={() => setImporting(false)} /> : null}
     </div>
   )

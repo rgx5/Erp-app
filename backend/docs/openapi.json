@@ -3253,6 +3253,21 @@
                   "reorderQty": {
                     "type": "string",
                     "pattern": "^[0-9]{1,14}(\\.[0-9]{1,4})?$"
+                  },
+                  "styleCode": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "size": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "colour": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
                   }
                 },
                 "required": [
@@ -3433,6 +3448,24 @@
                     "nullable": true,
                     "type": "string",
                     "pattern": "^[0-9]{1,14}(\\.[0-9]{1,4})?$"
+                  },
+                  "styleCode": {
+                    "nullable": true,
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "size": {
+                    "nullable": true,
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
+                  },
+                  "colour": {
+                    "nullable": true,
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 100
                   }
                 },
                 "additionalProperties": false

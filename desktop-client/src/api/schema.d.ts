@@ -6162,6 +6162,9 @@ export interface operations {
                     mrp?: string;
                     reorderLevel?: string;
                     reorderQty?: string;
+                    styleCode?: string;
+                    size?: string;
+                    colour?: string;
                 };
             };
         };
@@ -6239,6 +6242,9 @@ export interface operations {
                     status?: "active" | "inactive";
                     reorderLevel?: string | null;
                     reorderQty?: string | null;
+                    styleCode?: string | null;
+                    size?: string | null;
+                    colour?: string | null;
                 };
             };
         };

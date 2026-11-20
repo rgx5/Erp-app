@@ -34,7 +34,7 @@ export class ItemsService {
     return this.uow.inTenant(
       tenantId,
       (tx) =>
-        pageOf<ItemRow>(tx, items, tenantId, q.limit, q.cursor, q.itemType ? eq(items.itemType, q.itemType) : undefined, q.status ? eq(items.status, q.status) : undefined, q.q ? or(ilike(items.code, likePrefix(q.q)), ilike(items.name, likeContains(q.q))) : undefined),
+        pageOf<ItemRow>(tx, items, tenantId, q.limit, q.cursor, q.itemType ? eq(items.itemType, q.itemType) : undefined, q.status ? eq(items.status, q.status) : undefined, q.q ? or(ilike(items.code, likePrefix(q.q)), ilike(items.name, likeContains(q.q)), ilike(items.styleCode, likePrefix(q.q))) : undefined),
       { readOnly: true },
     );
   }

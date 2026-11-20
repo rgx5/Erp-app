@@ -58,6 +58,10 @@ export const createItemSchema = z
     brand: text(100).optional(),
     /** Maximum retail price, tax included, as printed on the pack. */
     mrp: decimal(4).optional(),
+    /** Variants: the style these are sizes or colours of, and which size and colour this one is. */
+    styleCode: text(40).optional(),
+    size: text(40).optional(),
+    colour: text(40).optional(),
     /** Buy again when the stock falls to this quantity or below; and how much to buy. */
     reorderLevel: decimal(6).optional(),
     reorderQty: decimal(6).optional(),
@@ -92,6 +96,9 @@ export const updateItemSchema = z
     categoryId: z.uuid().nullable().optional(),
     brand: text(100).nullable().optional(),
     mrp: decimal(4).nullable().optional(),
+    styleCode: text(40).nullable().optional(),
+    size: text(40).nullable().optional(),
+    colour: text(40).nullable().optional(),
     reorderLevel: decimal(6).nullable().optional(),
     reorderQty: decimal(6).nullable().optional(),
     status: z.enum(['active', 'inactive']).optional(),
