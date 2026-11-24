@@ -1,6 +1,7 @@
 /** Gujarati. Keys are the English text shown on screen. */
 export const gu: Record<string, string> = {
   Dashboard: 'ડેશબોર્ડ', Setup: 'સેટઅપ', Quotes: 'ક્વોટેશન', 'Sales orders': 'વેચાણ ઓર્ડર', Invoices: 'ઇન્વૉઇસ', Receipts: 'રસીદો', 'Payment reminders': 'ચુકવણી રિમાઇન્ડર',
+  'E-invoicing': 'ઈ-ઇનવોઇસિંગ', 'E-invoice': 'ઈ-ઇનવોઇસ',
   'Recurring invoices': 'પુનરાવર્તિત ઇન્વૉઇસ', 'Delivery challans': 'ડિલિવરી ચલણ', 'Sales analysis': 'વેચાણ વિશ્લેષણ', Receivables: 'લેણાં', 'Journal entries': 'જર્નલ એન્ટ્રીઓ',
   Expenses: 'ખર્ચ', 'Chart of accounts': 'ખાતાનો ચાર્ટ', 'Financial reports': 'નાણાકીય અહેવાલ', 'Bank reconciliation': 'બેંક મેળવણી', 'Periods and year-end': 'સમયગાળો અને વર્ષાંત', 'Report centre': 'રિપોર્ટ કેન્દ્ર',
   'GST returns': 'જીએસટી રિટર્ન', 'Work orders': 'વર્ક ઓર્ડર', 'Bills of material': 'સામગ્રી સૂચિ', 'Work centres': 'વર્ક સેન્ટર', 'Job work': 'જોબ વર્ક', 'Production costing': 'ઉત્પાદન ખર્ચ',

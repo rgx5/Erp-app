@@ -343,6 +343,8 @@ export class SalesInvoiceService {
       const [note] = await tx.select({ no: salesInvoices.invoiceNo }).from(salesInvoices).where(and(eq(salesInvoices.tenantId, tenantId), eq(salesInvoices.originalInvoiceId, id), eq(salesInvoices.status, 'posted'))).limit(1);
       if (note) throw new AppError(409, 'has_notes', `Credit/debit note ${note.no} exists against this invoice`);
       await this.assertNoSettlements(tx, tenantId, id);
+      const irn = await tx.execute(sql`SELECT 1 FROM erp.einvoice_records WHERE tenant_id = ${tenantId}::uuid AND invoice_id = ${id}::uuid AND status = 'active'`);
+      if (irn.rows.length > 0) throw new AppError(409, 'einvoice_active', 'This invoice has an IRN. Cancel the IRN on the e-invoice portal (within 24 hours of issue), record that here under E-invoice, then cancel the invoice.');
 
       let cancelJournalId: string | null = null;
       if (invoice.journalEntryId) {

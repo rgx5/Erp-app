@@ -103,6 +103,7 @@ footer{margin-top:24pt;color:var(--mut);font-size:9pt;border-top:1px solid var(-
 <li><b>Customer receipts</b> – record payments, allocate across invoices, part payments and advances.</li>
 <li><b>Receivables and ageing</b> – who owes what and for how long (current, 30, 60, 90+ days).</li>
 <li><b>Tax handled automatically</b> – CGST/SGST or IGST by place of supply, tax-inclusive or tax-exclusive pricing, SEZ and exports treatment.</li>
+<li><b>E-invoice (IRN) and e-way bill, file based</b> – the software checks each invoice and prepares the government's own upload file (e-invoice and e-way bill bulk JSON). You upload it on the portal, then load the portal's reply back: the IRN, acknowledgement and signed QR code are stored and print on the invoice, and the e-way bill number is recorded. An invoice with a live IRN cannot be cancelled until the IRN is cancelled on the portal and recorded here. No portal login or provider account is used, and nothing is sent to the government from the software.</li>
 <li><b>Printable, branded documents</b> – invoice layout with your name, GSTIN, bank details and terms.</li>
 </ul>
 
@@ -229,7 +230,7 @@ footer{margin-top:24pt;color:var(--mut);font-size:9pt;border-top:1px solid var(-
 <h2>16. What is not included today</h2>
 <p>To set honest expectations, the following are not in the current version:</p>
 <ul>
-<li>E-invoicing (IRN/QR) and e-way bill generation inside the software</li>
+<li>Sending e-invoices and e-way bills to the government portals directly from the software (today you upload the prepared file yourself; e-way bills for delivery challans are not prepared)</li>
 <li>Direct filing to the GST portal and GSTR-2B auto-reconciliation (GSTR-9 annual return)</li>
 <li>Automatic bank feeds or bank statement import</li>
 <li>Multiple currencies</li>

@@ -1,6 +1,7 @@
 /** Marathi. Keys are the English text shown on screen. */
 export const mr: Record<string, string> = {
   Dashboard: 'डॅशबोर्ड', Setup: 'सेटअप', Quotes: 'कोटेशन', 'Sales orders': 'विक्री ऑर्डर', Invoices: 'इनव्हॉइस', Receipts: 'पावत्या', 'Payment reminders': 'पेमेंट स्मरणपत्रे',
+  'E-invoicing': 'ई-इनव्हॉइसिंग', 'E-invoice': 'ई-इनव्हॉइस',
   'Recurring invoices': 'आवर्ती इनव्हॉइस', 'Delivery challans': 'डिलिव्हरी चलन', 'Sales analysis': 'विक्री विश्लेषण', Receivables: 'येणे रक्कम', 'Journal entries': 'जर्नल नोंदी',
   Expenses: 'खर्च', 'Chart of accounts': 'खाते तक्ता', 'Financial reports': 'आर्थिक अहवाल', 'Bank reconciliation': 'बँक जुळवणी', 'Periods and year-end': 'कालावधी आणि वर्षअखेर', 'Report centre': 'अहवाल केंद्र',
   'GST returns': 'जीएसटी विवरणपत्रे', 'Work orders': 'कार्य आदेश', 'Bills of material': 'साहित्य सूची', 'Work centres': 'कार्य केंद्रे', 'Job work': 'जॉब वर्क', 'Production costing': 'उत्पादन खर्च',

@@ -1,4 +1,6 @@
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
+import { EInvoicePanel } from '@/features/einvoice/EInvoicePanel'
+import { useEInvoiceStatus } from '@/features/einvoice/api'
 import { AttachmentsPanel } from '@/features/attachments/AttachmentsPanel'
 import { useMemo, useState } from 'react'
 import { ApiError } from '@/api/errors'
@@ -94,6 +96,7 @@ function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
   const [printError, setPrintError] = useState<string | null>(null)
 
   const retail = useRetailSettings(ws.company?.id)
+  const einv = useEInvoiceStatus(invoiceId)
   const seller: Seller | null = useMemo(() => {
     const inv = q.data
     if (!inv || !ws.company) return null
@@ -113,7 +116,9 @@ function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
   async function savePdf() {
     setPrintError(null)
     if (!seller) return
-    try { await bridge.document.savePdf(invoiceHtml(inv, seller, billTo), inv.invoiceNo.replaceAll('/', '-')) } catch (e) { setPrintError(e instanceof Error ? e.message : 'Could not create the PDF.') }
+    try { const record = einv.data?.record?.status === 'active' ? einv.data.record : null
+      const bill = einv.data?.eway.find((e) => e.status === 'active')
+      await bridge.document.savePdf(invoiceHtml(inv, seller, billTo, { einvoice: record, ewayBillNo: bill?.billNo ?? null }), inv.invoiceNo.replaceAll('/', '-')) } catch (e) { setPrintError(e instanceof Error ? e.message : 'Could not create the PDF.') }
   }
 
   return (
@@ -159,6 +164,7 @@ function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
           <div className="mt-1 flex justify-between border-t border-line pt-2 text-base font-semibold"><dt>Grand total</dt><dd className="num">{formatInr(inv.grandTotal)}</dd></div>
         </dl>
       </Card>
+      <EInvoicePanel invoiceId={inv.id} documentType={inv.documentType} posted={posted} />
       <Card><AttachmentsPanel entityType="sales_invoice" entityId={inv.id} canWrite={can(useSession.getState().me?.permissions ?? [], 'sales:post')} /></Card>
       {panel === 'cancel' ? <CancelDrawer invoice={inv} onClose={() => setPanel(null)} /> : null}
       {panel === 'credit' || panel === 'debit' ? <NoteDrawer invoice={inv} kind={panel} onClose={() => setPanel(null)} /> : null}

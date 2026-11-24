@@ -17,7 +17,7 @@ export interface Seller { name: string; tradeName?: string | null; gstin: string
  * server returned them and are only formatted, never recalculated.
  */
 /** Lets the same layout serve the documents that are not tax invoices (quotation, proforma, sales order, delivery challan). */
-export interface DocOptions { title?: string; numberLabel?: string; note?: string; noQr?: boolean; hidePrices?: boolean; hideTotals?: boolean; extraTop?: string }
+export interface DocOptions { title?: string; numberLabel?: string; note?: string; noQr?: boolean; hidePrices?: boolean; hideTotals?: boolean; extraTop?: string; /** What the e-invoice portal returned: printed with its QR code. */ einvoice?: { irn: string; ackNo: string; ackDate: string; signedQr: string } | null; ewayBillNo?: string | null }
 
 export function invoiceHtml(inv: Invoice, seller: Seller, billTo: Address | undefined, opts: DocOptions = {}): string {
   const intra = inv.taxRegime === 'intra'
@@ -62,6 +62,8 @@ ${inv.reason ? `<div class="box" style="margin-top:6px"><span class="muted">Reas
   ${total(bilingual('Taxable value'), inv.taxableTotal)}${intra ? total('CGST', inv.cgstTotal) + total('SGST', inv.sgstTotal) : total('IGST', inv.igstTotal)}${total('Cess', inv.cessTotal)}${total(bilingual('Round off'), inv.roundOff)}
   <tr><td>${esc(bilingual('Grand total'))}</td><td class="r">${formatInr(inv.grandTotal)}</td></tr></tbody></table>
 <div class="box" style="margin-top:6px"><span class="muted">${esc(bilingual('Amount in words'))}:</span> <b>${esc(rupeesInWords(inv.grandTotal))}</b></div>
+${opts.einvoice ? `<div class="box" style="margin-top:6px;display:flex;gap:10px;align-items:center">${qrSvg(opts.einvoice.signedQr, 32)}<div style="font-size:9px;word-break:break-all"><b>${esc(bilingual('E-invoice'))}</b><br>IRN: ${esc(opts.einvoice.irn)}<br>Ack No: ${esc(opts.einvoice.ackNo)} &nbsp; Ack Date: ${esc(new Date(opts.einvoice.ackDate).toLocaleDateString('en-IN', { timeZone: 'Asia/Kolkata' }))}</div></div>` : ''}
+${opts.ewayBillNo ? `<div class="box" style="margin-top:6px"><span class="muted">E-way bill no.:</span> <b>${esc(opts.ewayBillNo)}</b></div>` : ''}
 ${seller.upiId && !opts.noQr && (inv.documentType === 'tax_invoice' || inv.documentType === 'bill_of_supply') && Number(inv.grandTotal) > 0 ? `<div class="box" style="margin-top:6px;display:flex;gap:10px;align-items:center">${qrSvg(upiLink(seller.upiId, seller.tradeName || seller.name, inv.grandTotal, inv.invoiceNo))}<div><b>${esc(bilingual('Pay by UPI'))}</b><br><span class="muted">Scan with any UPI app to pay ${esc(formatInr(inv.grandTotal))}<br>${esc(seller.upiId)}</span></div></div>` : ''}
 <div class="row" style="margin-top:14px"><div class="muted">${esc(bilingual('This is a computer generated document.'))}</div><div class="r" style="margin-top:28px">For ${esc(seller.name)}<br><br>${esc(bilingual('Authorised signatory'))}</div></div>
 </body></html>`

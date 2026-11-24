@@ -2,6 +2,7 @@
 export const hi: Record<string, string> = {
   // menu
   Dashboard: 'डैशबोर्ड', Setup: 'सेटअप', Quotes: 'कोटेशन', 'Sales orders': 'बिक्री आदेश', Invoices: 'इनवॉइस', Receipts: 'रसीदें', 'Payment reminders': 'भुगतान अनुस्मारक',
+  'E-invoicing': 'ई-इनवॉइसिंग', 'E-invoice': 'ई-इनवॉइस',
   'Recurring invoices': 'आवर्ती इनवॉइस', 'Delivery challans': 'डिलीवरी चालान', 'Sales analysis': 'बिक्री विश्लेषण', Receivables: 'प्राप्य (बकाया)', 'Journal entries': 'जर्नल प्रविष्टियाँ',
   Expenses: 'खर्च', 'Chart of accounts': 'खाता सूची', 'Financial reports': 'वित्तीय रिपोर्ट', 'Bank reconciliation': 'बैंक मिलान', 'Periods and year-end': 'अवधि और वर्षांत', 'Report centre': 'रिपोर्ट केंद्र',
   'GST returns': 'जीएसटी रिटर्न', 'Work orders': 'कार्य आदेश', 'Bills of material': 'सामग्री सूची', 'Work centres': 'कार्य केंद्र', 'Job work': 'जॉब वर्क', 'Production costing': 'उत्पादन लागत',
