@@ -14,13 +14,35 @@ import { DataTable } from '@/ui/DataTable'
 import { Drawer } from '@/ui/Drawer'
 import { useFlash } from '@/ui/flash'
 import { Alert, Button, CheckField, SelectField, Spinner, TextField, Toolbar } from '@/ui/primitives'
+import { usePartyAddresses } from '@/features/masterdata/queries'
+import { printSalesDoc, type DocSource, type PrintKind } from './salesDocPrint'
+import { useSeller } from './useSeller'
 import { useConvertQuote, useInvoiceOrder, useOrder, useOrderAction, useOrders, useQuote, useQuotes, useRejectQuote } from './orderQueries'
 
 const QSTATUS: Record<string, string> = { open: 'Open', rejected: 'Rejected', converted: 'Became an order' }
 const OSTATUS: Record<string, string> = { open: 'Open', partially_invoiced: 'Partly invoiced', invoiced: 'Invoiced', closed: 'Closed', cancelled: 'Cancelled' }
 const msg = (e: unknown, f: string): string => (e instanceof ApiError ? `${e.message}${e.requestId ? ` (reference ${e.requestId})` : ''}` : f)
 
+
+/** Print buttons for a quotation, a sales order or the proforma invoice made from either. Needs the right to post sales: the figures come from the server's pricing. */
+function PrintBar({ kinds, source }: { kinds: { kind: PrintKind; label: string }[]; source: DocSource | null }) {
+  const perms = useSession((s) => s.me?.permissions ?? [])
+  const seller = useSeller(source?.gstRegistrationId)
+  const addresses = usePartyAddresses(source?.customerId)
+  const billTo = (addresses.data ?? []).find((a) => a.kind === 'billing' && a.isDefault) ?? (addresses.data ?? []).find((a) => a.kind === 'billing')
+  const [busy, setBusy] = useState<PrintKind | null>(null); const [problem, setProblem] = useState<string | null>(null)
+  if (!source || !can(perms, 'sales:post')) return null
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex flex-wrap gap-2">{kinds.map((k) => (
+        <Button key={k.kind} variant="secondary" busy={busy === k.kind} disabled={!seller} onClick={async () => { setProblem(null); setBusy(k.kind); try { await printSalesDoc(k.kind, source, seller as NonNullable<typeof seller>, billTo) } catch (e) { setProblem(msg(e, 'Could not make the document.')) } finally { setBusy(null) } }}>{window.onesync ? `${k.label} (PDF)` : k.label}</Button>))}</div>
+      {problem ? <Alert>{problem}</Alert> : null}
+    </div>
+  )
+}
+
 function QuoteDetail({ id, onClose }: { id: string; onClose: () => void }) {
+  const ws = useWorkspace()
   const q = useQuote(id)
   const quote = q.data
   const perms = useSession((s) => s.me?.permissions ?? [])
@@ -41,6 +63,7 @@ function QuoteDetail({ id, onClose }: { id: string; onClose: () => void }) {
             <tbody>{quote.lines.map((l) => <tr key={l.id} className="border-t border-line/60"><td className="py-1.5">{items.data?.get(l.itemId)?.code ?? ''} {l.description ?? ''}</td><td className="num py-1.5 text-right">{showQty(l.quantity)}</td><td className="num py-1.5 text-right">{formatInr(l.unitPrice, { symbol: false })}</td><td className="num py-1.5 text-right">{formatInr(l.estimatedTotal, { symbol: false })}</td></tr>)}
               <tr className="border-t border-line font-semibold"><td className="py-1.5" colSpan={3}>Estimated total (tax {formatInr(quote.estimatedTax)})</td><td className="num py-1.5 text-right">{formatInr(quote.estimatedTotal)}</td></tr></tbody></table>
           {quote.notes ? <p className="text-sm">{quote.notes}</p> : null}
+          <PrintBar kinds={[{ kind: 'quotation', label: 'Print quotation' }, { kind: 'proforma', label: 'Print proforma invoice' }]} source={{ no: quote.quoteNo, date: quote.quoteDate, companyId: ws.company?.id ?? '', gstRegistrationId: quote.gstRegistrationId, customerId: quote.customerId, validUntil: quote.validUntil, notes: quote.notes, lines: quote.lines.map((l) => ({ itemId: l.itemId, description: l.description, quantity: l.quantity, unitPrice: l.unitPrice, discountPercent: l.discountPercent, taxInclusive: false })) }} />
           <p className="text-xs text-muted">A quote is an offer, not a posting: nothing reaches the books or the stock until it becomes an order and is invoiced. Tax and total are estimates until then.</p>
           {problem ? <Alert>{problem}</Alert> : null}
           {quote.status === 'open' && can(perms, 'sales:post') ? (
@@ -81,6 +104,7 @@ export function QuotesPage() {
 }
 
 function OrderDetail({ id, onClose }: { id: string; onClose: () => void }) {
+  const ws = useWorkspace()
   const q = useOrder(id)
   const order = q.data
   const perms = useSession((s) => s.me?.permissions ?? [])
@@ -102,6 +126,7 @@ function OrderDetail({ id, onClose }: { id: string; onClose: () => void }) {
           <table className="w-full text-sm" aria-label="Order lines"><thead><tr className="text-left text-xs text-muted"><th className="py-1">Item</th><th className="py-1 text-right">Ordered</th><th className="py-1 text-right">Invoiced</th><th className="py-1 text-right">Price</th>{live ? <th className="w-28 py-1 text-right">Invoice now</th> : null}</tr></thead>
             <tbody>{order.lines.map((l) => <tr key={l.id} className="border-t border-line/60"><td className="py-1.5">{items.data?.get(l.itemId)?.code ?? ''} {l.description ?? ''}</td><td className="num py-1.5 text-right">{showQty(l.quantity)}</td><td className="num py-1.5 text-right">{showQty(l.quantityInvoiced)}</td><td className="num py-1.5 text-right">{formatInr(l.unitPrice, { symbol: false })}</td>
               {live ? <td className="py-1"><input aria-label={`Invoice ${items.data?.get(l.itemId)?.code ?? l.lineNo}`} inputMode="decimal" className="h-8 w-full rounded border border-line bg-surface px-2 text-right text-sm" placeholder={showQty(left(l))} value={qty[l.id] ?? ''} onChange={(e) => setQty({ ...qty, [l.id]: e.target.value })} /></td> : null}</tr>)}</tbody></table>
+          <PrintBar kinds={[{ kind: 'order', label: 'Print order' }, { kind: 'proforma', label: 'Print proforma invoice' }]} source={{ no: order.orderNo, date: order.orderDate, companyId: ws.company?.id ?? '', gstRegistrationId: order.gstRegistrationId, customerId: order.customerId, reference: order.customerReference, lines: order.lines.map((l) => ({ itemId: l.itemId, description: l.description, quantity: l.quantity, unitPrice: l.unitPrice, discountPercent: l.discountPercent, taxInclusive: l.taxInclusive })) }} />
           {order.invoices?.length ? <p className="text-sm">Invoices: {order.invoices.map((i) => `${i.invoiceNo} (${formatInr(i.grandTotal)})`).join(', ')}</p> : null}
           {problem ? <Alert>{problem}</Alert> : null}
           {live && can(perms, 'sales:post') ? (
