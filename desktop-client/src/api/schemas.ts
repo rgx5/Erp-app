@@ -496,7 +496,7 @@ export const quoteHeader = z.object({ id: z.string(), quoteNo: z.string(), custo
 export type QuoteHeader = z.infer<typeof quoteHeader>
 export const quote = quoteHeader.extend({ lines: z.array(z.object({ id: z.string(), lineNo: z.number(), itemId: z.string(), description: z.string().nullable(), quantity: z.string(), unitPrice: z.string(), discountPercent: z.string(), estimatedTaxable: z.string(), estimatedTotal: z.string() })) })
 export type Quote = z.infer<typeof quote>
-export const orderHeader = z.object({ id: z.string(), orderNo: z.string(), customerId: z.string(), orderDate: z.string(), customerReference: z.string().nullable(), reserveStock: z.boolean(), quoteId: z.string().nullable(), status: z.string(), gstRegistrationId: z.string() })
+export const orderHeader = z.object({ kind: z.string().optional(), vehicleNo: z.string().nullable().optional(), transporter: z.string().nullable().optional(), id: z.string(), orderNo: z.string(), customerId: z.string(), orderDate: z.string(), customerReference: z.string().nullable(), reserveStock: z.boolean(), quoteId: z.string().nullable(), status: z.string(), gstRegistrationId: z.string() })
 export type OrderHeader = z.infer<typeof orderHeader>
 export const salesOrder = orderHeader.extend({
   lines: z.array(z.object({ id: z.string(), lineNo: z.number(), itemId: z.string(), description: z.string().nullable(), quantity: z.string(), quantityInvoiced: z.string(), unitPrice: z.string(), discountPercent: z.string(), taxInclusive: z.boolean() })),

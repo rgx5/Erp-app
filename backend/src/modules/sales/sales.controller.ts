@@ -83,6 +83,12 @@ export class SalesOrdersController {
   async createOrder(@CurrentPrincipal() a: Principal, @Body({ schema: s.createOrderSchema }) b: s.CreateOrderInput) { return presentOrder(await this.orders.createOrder(a.tenantId, a.userId, b)); }
   @RequirePermissions('sales:read') @Get('orders')
   async listOrders(@TenantId() t: string, @Query({ schema: s.listOrdersQuery }) q: z.infer<typeof s.listOrdersQuery>) { const p = await this.orders.listOrders(t, q); return { items: p.items.map(strip), nextCursor: p.nextCursor }; }
+  /** Delivery challans: goods delivered before they are invoiced. They are invoiced like orders (see `orders/:id/invoice`), which is when stock leaves and tax is charged. */
+  @RequirePermissions('sales:post') @Idempotent() @Post('delivery-challans') @ApiZodBody(s.createChallanSchema)
+  async createChallan(@CurrentPrincipal() a: Principal, @Body({ schema: s.createChallanSchema }) b: s.CreateChallanInput) { return presentOrder(await this.orders.createChallan(a.tenantId, a.userId, b)); }
+  @RequirePermissions('sales:read') @Get('delivery-challans')
+  async listChallans(@TenantId() t: string, @Query({ schema: s.listOrdersQuery }) q: z.infer<typeof s.listOrdersQuery>) { const p = await this.orders.listOrders(t, { ...q, kind: 'challan' }); return { items: p.items.map(strip), nextCursor: p.nextCursor }; }
+
   @RequirePermissions('sales:read') @Get('orders/:id')
   async getOrder(@TenantId() t: string, @Param('id', { schema: id }) i: string) { return presentOrder(await this.orders.getOrder(t, i)); }
   /** Invoices what is still outstanding (or the lines given), consuming the stock reserved for the order. */

@@ -13,7 +13,7 @@ import { items } from '../masterdata/masterdata.schema.js';
 import { nextDocNumber } from './doc-number.js';
 import { paiseToMoney } from './gst.js';
 import { salesInvoices, salesOrderLines, salesOrders, salesQuoteLines, salesQuotes } from './sales.schema.js';
-import type { CreateInvoiceInput, CreateOrderInput, CreateQuoteInput } from './sales.schemas.js';
+import type { CreateChallanInput, CreateInvoiceInput, CreateOrderInput, CreateQuoteInput } from './sales.schemas.js';
 import { SalesInvoiceService, type Posted } from './sales-invoice.service.js';
 
 export type QuoteRow = typeof salesQuotes.$inferSelect;
@@ -103,17 +103,23 @@ export class SalesOrdersService {
     return this.uow.inTenant(tenantId, (tx) => this.placeOrder(tx, tenantId, actorId, input, null));
   }
 
-  private async placeOrder(tx: Tx, tenantId: string, actorId: string, input: CreateOrderInput, quoteId: string | null) {
+  /** A delivery challan: goods sent before the invoice. Same lines and the same invoicing as an order, its own number series, no stock held. */
+  createChallan(tenantId: string, actorId: string, input: CreateChallanInput) {
+    const { challanDate, vehicleNo, transporter, ...rest } = input;
+    return this.uow.inTenant(tenantId, (tx) => this.placeOrder(tx, tenantId, actorId, { ...rest, orderDate: challanDate, reserveStock: false, documentType: 'tax_invoice' }, null, { vehicleNo: vehicleNo ?? null, transporter: transporter ?? null }));
+  }
+
+  private async placeOrder(tx: Tx, tenantId: string, actorId: string, input: CreateOrderInput, quoteId: string | null, challan?: { vehicleNo: string | null; transporter: string | null }) {
     // Validates registration, customer, items, tax codes and the place of supply now, so an order is never un-invoiceable on day one.
     await this.invoices.priceDocument(tx, tenantId, this.asInvoice(input, input.orderDate), { requireWarehouse: input.reserveStock });
-    const orderNo = await nextDocNumber(tx, tenantId, input.companyId, input.orderDate, 'ORD');
+    const orderNo = await nextDocNumber(tx, tenantId, input.companyId, input.orderDate, challan ? 'DLV' : 'ORD');
     const order = first(
       await tx
         .insert(salesOrders)
         .values({
           tenantId, id: uuidv7(), companyId: input.companyId, orderNo, gstRegistrationId: input.gstRegistrationId, businessLocationId: input.businessLocationId ?? null, customerId: input.customerId, orderDate: input.orderDate,
           customerReference: input.customerReference ?? null, billToAddressId: input.billToAddressId ?? null, shipToAddressId: input.shipToAddressId ?? null, placeOfSupplyState: input.placeOfSupplyState ?? null,
-          reverseCharge: input.reverseCharge, taxPayment: input.taxPayment ?? null, documentType: input.documentType, reserveStock: input.reserveStock, quoteId, createdBy: actorId,
+          reverseCharge: input.reverseCharge, taxPayment: input.taxPayment ?? null, documentType: input.documentType, reserveStock: input.reserveStock, quoteId, createdBy: actorId, ...(challan ? { kind: 'challan', vehicleNo: challan.vehicleNo, transporter: challan.transporter } : {}),
         })
         .returning(),
       'Sales order',
@@ -130,7 +136,7 @@ export class SalesOrdersService {
       }
       lines.push(first(await tx.insert(salesOrderLines).values({ tenantId, id: uuidv7(), orderId: order.id, lineNo: i + 1, itemId: l.itemId, description: l.description ?? item?.name ?? '', quantity: l.quantity, unitPrice: l.unitPrice, discountPercent: l.discountPercent, taxInclusive: l.taxInclusive, taxCodeId: l.taxCodeId ?? null, warehouseId: l.warehouseId ?? null, batchId: l.batchId ?? null, reservationId }).returning(), 'Order line'));
     }
-    await this.recorder.record(tx, tenantId, 'sales_order', 'created', order, { orderNo, customerId: input.customerId, reserved: input.reserveStock });
+    await this.recorder.record(tx, tenantId, challan ? 'delivery_challan' : 'sales_order', 'created', order, { orderNo, customerId: input.customerId, reserved: input.reserveStock });
     return { order, lines };
   }
 
@@ -235,10 +241,10 @@ export class SalesOrdersService {
       return { items: page, nextCursor: rows.length > q.limit && last ? encodeCursor(last.id) : null };
     }, { readOnly: true });
   }
-  listOrders(tenantId: string, q: { companyId: string; limit: number; cursor?: string | undefined; customerId?: string | undefined; status?: string | undefined }) {
+  listOrders(tenantId: string, q: { companyId: string; limit: number; cursor?: string | undefined; customerId?: string | undefined; status?: string | undefined; kind?: 'order' | 'challan' | undefined }) {
     const before = decodeCursor(q.cursor);
     return this.uow.inTenant(tenantId, async (tx) => {
-      const rows = await tx.select().from(salesOrders).where(and(eq(salesOrders.tenantId, tenantId), eq(salesOrders.companyId, q.companyId), before ? lt(salesOrders.id, before) : undefined, q.customerId ? eq(salesOrders.customerId, q.customerId) : undefined, q.status ? eq(salesOrders.status, q.status) : undefined)).orderBy(desc(salesOrders.id)).limit(q.limit + 1);
+      const rows = await tx.select().from(salesOrders).where(and(eq(salesOrders.tenantId, tenantId), eq(salesOrders.companyId, q.companyId), eq(salesOrders.kind, q.kind ?? 'order'), before ? lt(salesOrders.id, before) : undefined, q.customerId ? eq(salesOrders.customerId, q.customerId) : undefined, q.status ? eq(salesOrders.status, q.status) : undefined)).orderBy(desc(salesOrders.id)).limit(q.limit + 1);
       const page = rows.slice(0, q.limit);
       const last = page.at(-1);
       return { items: page, nextCursor: rows.length > q.limit && last ? encodeCursor(last.id) : null };

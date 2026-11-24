@@ -54,6 +54,7 @@ ${cancelled ? '<div class="watermark">CANCELLED</div>' : ''}
   ${billTo ? `<div>${esc([billTo.line1, billTo.line2, billTo.city, stateName(billTo.stateCode), billTo.pincode].filter(Boolean).join(', '))}</div>` : ''}
   ${inv.customerGstin ? `<div>GSTIN: <b>${esc(inv.customerGstin)}</b></div>` : ''}</div>
 ${opts.note ? `<div class="box" style="margin-top:6px"><b>${esc(opts.note)}</b></div>` : ''}
+${opts.extraTop ?? ''}
 ${inv.reason ? `<div class="box" style="margin-top:6px"><span class="muted">Reason:</span> ${esc(inv.reason)}</div>` : ''}
 <table style="margin-top:6px"><thead><tr><th>#</th><th>Description</th><th>HSN/SAC</th><th>Qty</th><th>Rate</th><th>Disc.</th><th>Taxable</th>${taxHeads.map((h) => `<th>${h}</th>`).join('')}<th>Total</th></tr></thead><tbody>${rows}</tbody></table>
 <table class="totals" style="margin-top:6px"><tbody>

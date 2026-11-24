@@ -29,3 +29,6 @@ export const useOrder = (id: string | undefined) => useQuery({ queryKey: ['sales
 export const useCreateOrder = () => useWrite(({ body, key }: { body: unknown; key: string }) => post('/v1/sales/orders', body, salesOrder, key))
 export const useInvoiceOrder = () => useWrite(({ id, body, key }: { id: string; body: { invoiceDate: string; lines?: { orderLineId: string; quantity: string }[] }; key: string }): Promise<Invoice> => post(`/v1/sales/orders/${id}/invoice`, body, invoice, key))
 export const useOrderAction = () => useWrite(({ id, action }: { id: string; action: 'cancel' | 'close' }) => post(`/v1/sales/orders/${id}/${action}`, {}, salesOrder))
+
+export const useChallans = (companyId: string | undefined, status?: string) => useList<OrderHeader>(['challans', companyId, status], Boolean(companyId), (cursor) => get('/v1/sales/delivery-challans', { query: query({ companyId: companyId as string, limit: 100, cursor, ...(status ? { status } : {}) }) }, page(orderHeader)))
+export const useCreateChallan = () => useWrite(({ body, key }: { body: unknown; key: string }) => post('/v1/sales/delivery-challans', body, salesOrder, key))

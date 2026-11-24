@@ -5,7 +5,7 @@ import { bridge } from '@/bridge'
 import { formatDate } from '@/domain/format'
 import { invoiceHtml, type DocOptions, type Seller } from './invoiceHtml'
 
-export type PrintKind = 'quotation' | 'proforma' | 'order'
+export type PrintKind = 'quotation' | 'proforma' | 'order' | 'challan'
 export interface DocSource {
   /** The document's own number (quote or order number). */
   no: string
@@ -17,14 +17,17 @@ export interface DocSource {
   validUntil?: string | null | undefined
   notes?: string | null | undefined
   reference?: string | null | undefined
+  vehicleNo?: string | null | undefined
+  transporter?: string | null | undefined
 }
 
-const TITLE: Record<PrintKind, string> = { quotation: 'Quotation', proforma: 'Proforma Invoice', order: 'Sales Order' }
-const NUMBER_LABEL: Record<PrintKind, string> = { quotation: 'Quotation no.', proforma: 'Proforma no.', order: 'Order no.' }
+const TITLE: Record<PrintKind, string> = { quotation: 'Quotation', proforma: 'Proforma Invoice', order: 'Sales Order', challan: 'Delivery Challan' }
+const NUMBER_LABEL: Record<PrintKind, string> = { quotation: 'Quotation no.', proforma: 'Proforma no.', order: 'Order no.', challan: 'Challan no.' }
 const NOTE: Record<PrintKind, (s: DocSource) => string> = {
   quotation: (s) => `This is a quotation, not a tax invoice. Prices and tax are estimates${s.validUntil ? `; valid until ${formatDate(s.validUntil)}` : ''}.`,
   proforma: (s) => `This is a proforma invoice for ${s.no}. It is not a tax invoice and cannot be used to claim input tax credit. A tax invoice will follow on supply.`,
   order: () => 'This is a sales order confirmation, not a tax invoice.',
+  challan: () => 'Goods delivered against this challan. A tax invoice will follow; this is not a tax invoice.',
 }
 
 /** The same figures the tax invoice would carry, worked out by the server's own pricing code, laid out as a non-tax document. */
@@ -51,6 +54,10 @@ export async function printSalesDoc(kind: PrintKind, source: DocSource, seller: 
       lines: source.lines.map((l) => ({ itemId: l.itemId, ...(l.description ? { description: l.description } : {}), quantity: l.quantity, unitPrice: l.unitPrice, discountPercent: l.discountPercent, taxInclusive: l.taxInclusive })),
     } as never,
   }), calculation)
-  const opts: DocOptions = { title: TITLE[kind], numberLabel: NUMBER_LABEL[kind], note: NOTE[kind](source), noQr: kind !== 'proforma' }
+  const esc = (v: string): string => v.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string)
+  const transport = kind === 'challan' && (source.vehicleNo || source.transporter || source.reference)
+    ? `<div class="box" style="margin-top:6px;display:flex;gap:24px">${source.vehicleNo ? `<div><span class="muted">Vehicle no.</span><br><b>${esc(source.vehicleNo)}</b></div>` : ''}${source.transporter ? `<div><span class="muted">Transporter</span><br><b>${esc(source.transporter)}</b></div>` : ''}${source.reference ? `<div><span class="muted">Your reference</span><br><b>${esc(source.reference)}</b></div>` : ''}</div>`
+    : ''
+  const opts: DocOptions = { title: TITLE[kind], numberLabel: NUMBER_LABEL[kind], note: NOTE[kind](source), noQr: kind !== 'proforma', ...(transport ? { extraTop: transport } : {}) }
   await bridge.document.savePdf(invoiceHtml(docFromCalculation(calc, source), seller, billTo, opts), `${TITLE[kind].replaceAll(' ', '-')}-${source.no.replaceAll('/', '-')}`)
 }

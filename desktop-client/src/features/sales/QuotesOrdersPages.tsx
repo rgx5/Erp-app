@@ -103,7 +103,7 @@ export function QuotesPage() {
   )
 }
 
-function OrderDetail({ id, onClose }: { id: string; onClose: () => void }) {
+export function OrderDetail({ id, onClose, challan = false }: { id: string; onClose: () => void; challan?: boolean }) {
   const ws = useWorkspace()
   const q = useOrder(id)
   const order = q.data
@@ -119,14 +119,14 @@ function OrderDetail({ id, onClose }: { id: string; onClose: () => void }) {
   const left = (l: { quantity: string; quantityInvoiced: string }): string => subQty(l.quantity, l.quantityInvoiced)
   const live = order?.status === 'open' || order?.status === 'partially_invoiced'
   return (
-    <Drawer title={order?.orderNo ?? 'Sales order'} onClose={onClose} width={720}>
+    <Drawer title={order?.orderNo ?? (challan ? 'Delivery challan' : 'Sales order')} onClose={onClose} width={720}>
       {q.isPending ? <Spinner /> : !order ? <Alert>{q.error?.message ?? 'Not found.'}</Alert> : (
         <div className="flex flex-col gap-4">
           <p className="text-sm text-muted">{customers.data?.get(order.customerId)?.legalName ?? ''} · {formatDate(order.orderDate)}{order.customerReference ? ` · your ref ${order.customerReference}` : ''} · {OSTATUS[order.status] ?? order.status}{order.reserveStock ? ' · stock held' : ''}</p>
           <table className="w-full text-sm" aria-label="Order lines"><thead><tr className="text-left text-xs text-muted"><th className="py-1">Item</th><th className="py-1 text-right">Ordered</th><th className="py-1 text-right">Invoiced</th><th className="py-1 text-right">Price</th>{live ? <th className="w-28 py-1 text-right">Invoice now</th> : null}</tr></thead>
             <tbody>{order.lines.map((l) => <tr key={l.id} className="border-t border-line/60"><td className="py-1.5">{items.data?.get(l.itemId)?.code ?? ''} {l.description ?? ''}</td><td className="num py-1.5 text-right">{showQty(l.quantity)}</td><td className="num py-1.5 text-right">{showQty(l.quantityInvoiced)}</td><td className="num py-1.5 text-right">{formatInr(l.unitPrice, { symbol: false })}</td>
               {live ? <td className="py-1"><input aria-label={`Invoice ${items.data?.get(l.itemId)?.code ?? l.lineNo}`} inputMode="decimal" className="h-8 w-full rounded border border-line bg-surface px-2 text-right text-sm" placeholder={showQty(left(l))} value={qty[l.id] ?? ''} onChange={(e) => setQty({ ...qty, [l.id]: e.target.value })} /></td> : null}</tr>)}</tbody></table>
-          <PrintBar kinds={[{ kind: 'order', label: 'Print order' }, { kind: 'proforma', label: 'Print proforma invoice' }]} source={{ no: order.orderNo, date: order.orderDate, companyId: ws.company?.id ?? '', gstRegistrationId: order.gstRegistrationId, customerId: order.customerId, reference: order.customerReference, lines: order.lines.map((l) => ({ itemId: l.itemId, description: l.description, quantity: l.quantity, unitPrice: l.unitPrice, discountPercent: l.discountPercent, taxInclusive: l.taxInclusive })) }} />
+          <PrintBar kinds={challan ? [{ kind: 'challan', label: 'Print delivery challan' }] : [{ kind: 'order', label: 'Print order' }, { kind: 'proforma', label: 'Print proforma invoice' }]} source={{ vehicleNo: order.vehicleNo, transporter: order.transporter, no: order.orderNo, date: order.orderDate, companyId: ws.company?.id ?? '', gstRegistrationId: order.gstRegistrationId, customerId: order.customerId, reference: order.customerReference, lines: order.lines.map((l) => ({ itemId: l.itemId, description: l.description, quantity: l.quantity, unitPrice: l.unitPrice, discountPercent: l.discountPercent, taxInclusive: l.taxInclusive })) }} />
           {order.invoices?.length ? <p className="text-sm">Invoices: {order.invoices.map((i) => `${i.invoiceNo} (${formatInr(i.grandTotal)})`).join(', ')}</p> : null}
           {problem ? <Alert>{problem}</Alert> : null}
           {live && can(perms, 'sales:post') ? (

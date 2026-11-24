@@ -117,6 +117,15 @@ export const invoiceOrderSchema = z.strictObject({
   lines: z.array(z.strictObject({ orderLineId: z.uuid(), quantity, serialNos: serials.optional() })).min(1).optional(),
 });
 export const listQuotesQuery = z.object({ ...page, companyId: z.uuid(), customerId: z.uuid().optional(), status: z.enum(['open', 'rejected', 'converted']).optional() });
+export const createChallanSchema = z.strictObject({
+  ...docHeader,
+  challanDate: isoDate,
+  customerReference: text(100).optional(),
+  vehicleNo: text(20).optional(),
+  transporter: text(100).optional(),
+  lines: z.array(docLine.omit({ batchId: true })).min(1).max(500),
+});
+export type CreateChallanInput = z.infer<typeof createChallanSchema>;
 export const listOrdersQuery = z.object({ ...page, companyId: z.uuid(), customerId: z.uuid().optional(), status: z.enum(['open', 'partially_invoiced', 'invoiced', 'closed', 'cancelled']).optional() });
 export type CreateQuoteInput = z.infer<typeof createQuoteSchema>;
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;

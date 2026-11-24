@@ -28,6 +28,7 @@ export const NAV: NavItem[] = [
   { to: '/sales/orders', label: 'Sales orders', icon: ClipboardList, needs: ['sales:read'], section: 'Sales' },
   { to: '/sales/invoices', label: 'Invoices', icon: FileText, needs: ['sales:read'], section: 'Sales' },
   { to: '/sales/receipts', label: 'Receipts', icon: ReceiptIcon, needs: ['receivables:read'], section: 'Sales' },
+  { to: '/sales/challans', label: 'Delivery challans', icon: Truck, needs: ['sales:read'], section: 'Sales' },
   { to: '/sales/analysis', label: 'Sales analysis', icon: Gauge, needs: ['sales:read'], section: 'Sales' },
   { to: '/sales/receivables', label: 'Receivables', icon: Landmark, needs: ['receivables:read'], section: 'Sales' },
   { to: '/accounting/journals', label: 'Journal entries', icon: BookOpen, needs: ['accounting:read'], section: 'Accounting' },

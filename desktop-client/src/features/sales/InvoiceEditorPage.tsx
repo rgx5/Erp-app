@@ -11,7 +11,7 @@ import { useFlash } from '@/ui/flash'
 import { useDebounced } from '@/ui/hooks'
 import { Alert, Button, Card, CheckField, PageHeader, SelectField, Spinner, TextField } from '@/ui/primitives'
 import { emptyLine, isBlank, LineGrid, serialsOf, trackingIssue, type Line } from './LineGrid'
-import { useCreateOrder, useCreateQuote } from './orderQueries'
+import { useCreateChallan, useCreateOrder, useCreateQuote } from './orderQueries'
 import { useCalculation, usePostInvoice, type InvoiceInput } from './queries'
 
 const REGISTERED_SPECIAL = new Set(['sez', 'overseas', 'deemed_export'])
@@ -31,13 +31,14 @@ export function buildInvoiceBody(h: { companyId: string; registrationId: string;
   }
 }
 
-export type DocKind = 'invoice' | 'quote' | 'order'
+export type DocKind = 'invoice' | 'quote' | 'order' | 'challan'
 const addDays = (iso: string, n: number): string => { const d = new Date(`${iso}T00:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10) }
-const WORDS: Record<DocKind, { title: string; date: string; action: string }> = { invoice: { title: 'New invoice', date: 'Invoice date', action: 'Post invoice' }, quote: { title: 'New quote', date: 'Quote date', action: 'Save quote' }, order: { title: 'New sales order', date: 'Order date', action: 'Save order' } }
+const WORDS: Record<DocKind, { title: string; date: string; action: string }> = { challan: { title: 'New delivery challan', date: 'Challan date', action: 'Save challan' }, invoice: { title: 'New invoice', date: 'Invoice date', action: 'Post invoice' }, quote: { title: 'New quote', date: 'Quote date', action: 'Save quote' }, order: { title: 'New sales order', date: 'Order date', action: 'Save order' } }
 
 export const InvoiceEditorPage = () => <SalesDocEditor kind="invoice" />
 export const QuoteEditorPage = () => <SalesDocEditor kind="quote" />
 export const OrderEditorPage = () => <SalesDocEditor kind="order" />
+export const ChallanEditorPage = () => <SalesDocEditor kind="challan" />
 
 function SalesDocEditor({ kind }: { kind: DocKind }) {
   const ws = useWorkspace()
@@ -55,11 +56,13 @@ function SalesDocEditor({ kind }: { kind: DocKind }) {
   const [lines, setLines] = useState<Line[]>([emptyLine()])
   const [problem, setProblem] = useState<string | null>(null)
   const post = usePostInvoice()
-  const createQuote = useCreateQuote(); const createOrder = useCreateOrder()
+  const createQuote = useCreateQuote(); const createOrder = useCreateOrder(); const createChallan = useCreateChallan()
   const [validUntil, setValidUntil] = useState(addDays(todayIso(), 30))
   const [notes, setNotes] = useState('')
   const [reference, setReference] = useState('')
   const [reserve, setReserve] = useState(false)
+  const [vehicleNo, setVehicleNo] = useState('')
+  const [transporter, setTransporter] = useState('')
   const words = WORDS[kind]
 
   const regId = registrationId || ws.registrations[0]?.id || ''
@@ -94,6 +97,10 @@ function SalesDocEditor({ kind }: { kind: DocKind }) {
         const q = await createQuote.mutateAsync({ key, body: { ...rest, quoteDate: invoiceDate, validUntil, ...(notes.trim() ? { notes: notes.trim() } : {}), lines: (rest.lines as { batchId?: string }[]).map(({ batchId: _b, ...l }) => l) } })
         flash.show(`${q.quoteNo} saved for ${formatInr(q.estimatedTotal)}.`)
         await navigate({ to: '/sales/quotes' })
+      } else if (kind === 'challan') {
+        const c = await createChallan.mutateAsync({ key, body: { ...rest, challanDate: invoiceDate, ...(reference.trim() ? { customerReference: reference.trim() } : {}), ...(vehicleNo.trim() ? { vehicleNo: vehicleNo.trim() } : {}), ...(transporter.trim() ? { transporter: transporter.trim() } : {}), lines: (rest.lines as { batchId?: string }[]).map(({ batchId: _b, ...l }) => l) } })
+        flash.show(`${c.orderNo} saved.`)
+        await navigate({ to: '/sales/challans' })
       } else {
         const o = await createOrder.mutateAsync({ key, body: { ...rest, orderDate: invoiceDate, reserveStock: reserve, ...(reference.trim() ? { customerReference: reference.trim() } : {}) } })
         flash.show(`${o.orderNo} saved.`)
@@ -122,6 +129,9 @@ function SalesDocEditor({ kind }: { kind: DocKind }) {
           <TextField label={words.date} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           {kind === 'invoice' ? <SelectField label="Document" value={documentType} onChange={(e) => setDocumentType(e.target.value)} options={[{ value: 'tax_invoice', label: 'Tax invoice' }, { value: 'bill_of_supply', label: 'Bill of supply' }]} /> : null}
           {kind === 'quote' ? <TextField label="Valid until" type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} /> : null}
+          {kind === 'challan' ? <TextField label="Customer reference (optional)" value={reference} onChange={(e) => setReference(e.target.value)} /> : null}
+          {kind === 'challan' ? <TextField label="Vehicle number (optional)" value={vehicleNo} onChange={(e) => setVehicleNo(e.target.value)} /> : null}
+          {kind === 'challan' ? <TextField label="Transporter (optional)" value={transporter} onChange={(e) => setTransporter(e.target.value)} /> : null}
           {kind === 'order' ? <TextField label="Customer reference (optional)" value={reference} onChange={(e) => setReference(e.target.value)} /> : null}
           {kind === 'order' ? <div className="flex items-end"><CheckField label="Hold the stock" hint="Reserve it for this order" checked={reserve} onChange={(e) => setReserve(e.target.checked)} /></div> : null}
           {kind === 'quote' ? <div className="col-span-2"><TextField label="Notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} /></div> : null}
