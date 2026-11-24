@@ -47,7 +47,7 @@ import { CounterPage } from '@/features/pos/CounterPage'
 import { AccountPage } from '@/features/admin/AccountPage'
 import { ApiKeysPage, AuditPage } from '@/features/admin/ApiKeysAuditPages'
 import { RolesPage, UsersPage } from '@/features/admin/UsersRolesPages'
-import { ChallanEditorPage, OrderEditorPage, QuoteEditorPage } from '@/features/sales/InvoiceEditorPage'
+import { RecurringEditorPage, ChallanEditorPage, OrderEditorPage, QuoteEditorPage } from '@/features/sales/InvoiceEditorPage'
 import { OrdersPage, QuotesPage } from '@/features/sales/QuotesOrdersPages'
 import { LandedCostPage } from '@/features/purchasing/LandedCostPage'
 import { TrackingPage } from '@/features/inventory/TrackingPage'
@@ -58,6 +58,7 @@ import { LowStockPage } from '@/features/reports/LowStockPage'
 import { ExportPage } from '@/features/admin/ExportPage'
 import { DayEndPage } from '@/features/reports/DayEndPage'
 import { ChallansPage } from '@/features/sales/ChallansPage'
+import { RecurringPage } from '@/features/sales/RecurringPage'
 import { LabelsPage } from '@/features/retail/LabelsPage'
 import { ExpensesPage } from '@/features/expenses/ExpensesPage'
 import { CountsPage } from '@/features/inventory/CountsPage'
@@ -172,8 +173,10 @@ const lowStockRoute = createRoute({ getParentRoute: () => app, path: '/inventory
 const exportRoute = createRoute({ getParentRoute: () => app, path: '/admin/export', component: ExportPage })
 const challansRoute = createRoute({ getParentRoute: () => app, path: '/sales/challans', component: ChallansPage })
 const newChallanRoute = createRoute({ getParentRoute: () => app, path: '/sales/challans/new', component: ChallanEditorPage })
+const recurringRoute = createRoute({ getParentRoute: () => app, path: '/sales/recurring', component: RecurringPage })
+const newRecurringRoute = createRoute({ getParentRoute: () => app, path: '/sales/recurring/new', component: RecurringEditorPage })
 const expensesRoute = createRoute({ getParentRoute: () => app, path: '/accounting/expenses', component: ExpensesPage })
-const tree = root.addChildren([connect, login, app.addChildren([challansRoute, newChallanRoute, exportRoute, lowStockRoute, salesAnalysisRoute, dayEndRoute, labelsRoute, loyaltyRoute, expensesRoute, categoriesRoute, trackingRoute, landedRoute, quotesRoute, newQuoteRoute, salesOrdersRoute, newSalesOrderRoute, usersRoute, rolesRoute, apiKeysRoute, auditRoute, accountRoute, counterRoute, posAdminRoute, payrollSetupRoute, peopleRoute, payrollRunsRoute, duesRoute, workCentresRoute, bomsRoute, woRoute, woDetailRoute, jobWorkRoute, costingRoute, reportCentreRoute, gstRoute, chartRoute, journalsRoute, newJournalRoute, periodsRoute, reportsRoute, bankRoute, stock, movements, transfers, counts, valuationRoute, orders, newOrder, orderDetail, goodsReceipts, bills, newBill, billDetail, payments, payables, approvals, invoices, newInvoice, invoiceDetail, receipts, receivables, dashboard, setup, companies, items, customers, suppliers, taxCodes, units, paymentTerms, priceLists])])
+const tree = root.addChildren([connect, login, app.addChildren([recurringRoute, newRecurringRoute, challansRoute, newChallanRoute, exportRoute, lowStockRoute, salesAnalysisRoute, dayEndRoute, labelsRoute, loyaltyRoute, expensesRoute, categoriesRoute, trackingRoute, landedRoute, quotesRoute, newQuoteRoute, salesOrdersRoute, newSalesOrderRoute, usersRoute, rolesRoute, apiKeysRoute, auditRoute, accountRoute, counterRoute, posAdminRoute, payrollSetupRoute, peopleRoute, payrollRunsRoute, duesRoute, workCentresRoute, bomsRoute, woRoute, woDetailRoute, jobWorkRoute, costingRoute, reportCentreRoute, gstRoute, chartRoute, journalsRoute, newJournalRoute, periodsRoute, reportsRoute, bankRoute, stock, movements, transfers, counts, valuationRoute, orders, newOrder, orderDetail, goodsReceipts, bills, newBill, billDetail, payments, payables, approvals, invoices, newInvoice, invoiceDetail, receipts, receivables, dashboard, setup, companies, items, customers, suppliers, taxCodes, units, paymentTerms, priceLists])])
 
 // A hash history works the same on a custom app:// origin and in a browser, with no server-side route fallback to configure.
 import { createHashHistory } from '@tanstack/react-router'

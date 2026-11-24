@@ -13,6 +13,7 @@ import * as s from './sales.schemas.js';
 import { SalesInvoiceService, type InvoiceLineRow, type InvoiceRow } from './sales-invoice.service.js';
 import { ReceivablesService } from './receivables.service.js';
 import { SalesOrdersService, type OrderLineRow, type OrderRow, type QuoteRow } from './sales-orders.service.js';
+import { RecurringInvoicesService } from './recurring.service.js';
 import { SalesSettingsService } from './sales-settings.service.js';
 import { RequiresModule } from '../identity/entitlements.js';
 
@@ -140,10 +141,35 @@ export class ReceivablesController {
   reconciliation(@TenantId() t: string, @Query({ schema: s.asOfQuery }) q: { companyId: string; asOf: string }) { return this.receivables.reconciliation(t, q.companyId, q.asOf); }
 }
 
+@ApiTags('recurring invoices')
+@ApiBearerAuth()
+@RequiresModule('sales')
+@Controller('v1/sales/recurring-invoices')
+export class RecurringInvoicesController {
+  constructor(@Inject(RecurringInvoicesService) private readonly recurring: RecurringInvoicesService) {}
+
+  /** A schedule that raises the same invoice every week, month, quarter, half year or year. */
+  @RequirePermissions('sales:post') @Idempotent() @Post() @ApiZodBody(s.createRecurringSchema)
+  async create(@CurrentPrincipal() a: Principal, @Body({ schema: s.createRecurringSchema }) b: s.CreateRecurringInput) { return strip(await this.recurring.create(a.tenantId, a.userId, b)); }
+  @RequirePermissions('sales:read') @Get()
+  async list(@TenantId() t: string, @Query({ schema: s.listRecurringQuery }) q: z.infer<typeof s.listRecurringQuery>) { return { items: (await this.recurring.list(t, q)).map(strip) }; }
+  /** Posts every occurrence that is due now. The desktop app asks for this when it opens. */
+  @RequirePermissions('sales:post') @Post('run-due') @HttpCode(200) @ApiZodBody(s.runDueSchema)
+  runDue(@CurrentPrincipal() a: Principal, @Body({ schema: s.runDueSchema }) b: z.infer<typeof s.runDueSchema>) { return this.recurring.runDue(a.tenantId, a.userId, b); }
+  @RequirePermissions('sales:read') @Get(':id')
+  async get(@TenantId() t: string, @Param('id', { schema: id }) i: string) { const r = await this.recurring.get(t, i); return { ...strip(r.recurring), runs: r.runs }; }
+  @RequirePermissions('sales:post') @Post(':id/pause') @HttpCode(200)
+  async pause(@TenantId() t: string, @Param('id', { schema: id }) i: string) { return strip(await this.recurring.setStatus(t, i, 'paused')); }
+  @RequirePermissions('sales:post') @Post(':id/resume') @HttpCode(200)
+  async resume(@TenantId() t: string, @Param('id', { schema: id }) i: string) { return strip(await this.recurring.setStatus(t, i, 'active')); }
+  @RequirePermissions('sales:post') @Post(':id/end') @HttpCode(200)
+  async end(@TenantId() t: string, @Param('id', { schema: id }) i: string) { return strip(await this.recurring.setStatus(t, i, 'ended')); }
+}
+
 @Module({
   imports: [AccountingModule, InventoryModule, NumberingModule, MasterDataModule],
-  controllers: [SalesController, SalesOrdersController, ReceivablesController],
-  providers: [Recorder, SalesSettingsService, SalesInvoiceService, SalesOrdersService, ReceivablesService],
+  controllers: [SalesController, SalesOrdersController, ReceivablesController, RecurringInvoicesController],
+  providers: [Recorder, SalesSettingsService, SalesInvoiceService, SalesOrdersService, ReceivablesService, RecurringInvoicesService],
   exports: [SalesSettingsService, SalesInvoiceService, SalesOrdersService, ReceivablesService],
 })
 export class SalesModule {}

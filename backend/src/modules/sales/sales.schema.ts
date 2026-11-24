@@ -1,4 +1,4 @@
-import { boolean, char, date, integer, numeric, pgSchema, text, timestamp, uuid } from 'drizzle-orm/pg-core';
+import { boolean, char, date, integer, jsonb, numeric, pgSchema, text, timestamp, uuid } from 'drizzle-orm/pg-core';
 
 /** Mirrors db/migrations/0009_sales_invoicing.sql (the SQL is the source of truth; a test compares the columns). */
 const erp = pgSchema('erp');
@@ -245,5 +245,42 @@ export const customerRefunds = erp.table('customer_refunds', {
   reference: text('reference'),
   journalEntryId: uuid('journal_entry_id').notNull(),
   createdBy: uuid('created_by'),
+  createdAt: ts('created_at').notNull().defaultNow(),
+});
+
+export const recurringInvoices = erp.table('recurring_invoices', {
+  tenantId: uuid('tenant_id').notNull(),
+  id: uuid('id').notNull(),
+  companyId: uuid('company_id').notNull(),
+  name: text('name').notNull(),
+  gstRegistrationId: uuid('gst_registration_id').notNull(),
+  businessLocationId: uuid('business_location_id'),
+  customerId: uuid('customer_id').notNull(),
+  documentType: text('document_type').notNull().default('tax_invoice'),
+  frequency: text('frequency').notNull(),
+  anchorDay: integer('anchor_day').notNull(),
+  startDate: day('start_date').notNull(),
+  endDate: day('end_date'),
+  nextRunDate: day('next_run_date').notNull(),
+  lastRunDate: day('last_run_date'),
+  runCount: integer('run_count').notNull().default(0),
+  status: text('status').notNull().default('active'),
+  lastError: text('last_error'),
+  notes: text('notes'),
+  lines: jsonb('lines').$type<RecurringLine[]>().notNull(),
+  version: integer('version').notNull().default(1),
+  createdBy: uuid('created_by'),
+  createdAt: ts('created_at').notNull().defaultNow(),
+  updatedAt: ts('updated_at').notNull().defaultNow(),
+});
+export interface RecurringLine { itemId: string; description?: string | undefined; quantity: string; unitPrice: string; discountPercent: string; taxInclusive: boolean; taxCodeId?: string | undefined; warehouseId?: string | undefined }
+export const recurringInvoiceRuns = erp.table('recurring_invoice_runs', {
+  tenantId: uuid('tenant_id').notNull(),
+  id: uuid('id').notNull(),
+  recurringId: uuid('recurring_id').notNull(),
+  scheduledDate: day('scheduled_date').notNull(),
+  status: text('status').notNull(),
+  invoiceId: uuid('invoice_id'),
+  error: text('error'),
   createdAt: ts('created_at').notNull().defaultNow(),
 });

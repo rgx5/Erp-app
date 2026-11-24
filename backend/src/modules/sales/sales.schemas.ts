@@ -172,3 +172,28 @@ export const refundSchema = z
     paidFromAccountId: z.uuid(),
     reference: text(100).optional(),
   });
+
+// ---- recurring invoices ----------------------------------------------------------------------------------------------
+export const RECURRING_FREQUENCIES = ['weekly', 'monthly', 'quarterly', 'half_yearly', 'yearly'] as const;
+const recurringLine = z.strictObject({
+  itemId: z.uuid(),
+  description: text(500).optional(),
+  quantity,
+  unitPrice: money,
+  discountPercent: percent.default('0'),
+  taxInclusive: z.boolean().default(false),
+  taxCodeId: z.uuid().optional(),
+  warehouseId: z.uuid().optional(),
+});
+export const createRecurringSchema = z
+  .strictObject({
+    companyId: z.uuid(), gstRegistrationId: z.uuid(), businessLocationId: z.uuid().optional(), customerId: z.uuid(),
+    name: text(100), documentType: z.enum(['tax_invoice', 'bill_of_supply']).default('tax_invoice'),
+    frequency: z.enum(RECURRING_FREQUENCIES), startDate: isoDate, endDate: isoDate.optional(), notes: text(1000).optional(),
+    lines: z.array(recurringLine).min(1).max(50),
+  })
+  .refine((v) => !v.endDate || v.endDate >= v.startDate, { path: ['endDate'], message: 'Must not be before the start date' });
+export const recurringActionSchema = z.strictObject({ endDate: isoDate.nullable().optional() });
+export const listRecurringQuery = z.object({ companyId: z.uuid(), status: z.enum(['active', 'paused', 'ended']).optional(), limit: z.coerce.number().int().min(1).max(200).default(100) });
+export const runDueSchema = z.strictObject({ companyId: z.uuid(), asOf: isoDate.optional() });
+export type CreateRecurringInput = z.infer<typeof createRecurringSchema>;

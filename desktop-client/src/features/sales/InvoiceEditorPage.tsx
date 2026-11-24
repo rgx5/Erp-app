@@ -3,7 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { ApiError } from '@/api/errors'
 import type { Party } from '@/api/schemas'
 import { isValid } from '@/domain/money'
-import { formatInr, todayIso } from '@/domain/format'
+import { formatDate, formatInr, todayIso } from '@/domain/format'
 import { stateName } from '@/domain/india'
 import { PartyPicker } from '@/features/masterdata/PartyPicker'
 import { useWorkspace } from '@/features/organization/workspace'
@@ -11,6 +11,7 @@ import { useFlash } from '@/ui/flash'
 import { useDebounced } from '@/ui/hooks'
 import { Alert, Button, Card, CheckField, PageHeader, SelectField, Spinner, TextField } from '@/ui/primitives'
 import { emptyLine, isBlank, LineGrid, serialsOf, trackingIssue, type Line } from './LineGrid'
+import { FREQUENCIES, useCreateRecurring } from './recurringQueries'
 import { useCreateChallan, useCreateOrder, useCreateQuote } from './orderQueries'
 import { useCalculation, usePostInvoice, type InvoiceInput } from './queries'
 
@@ -31,14 +32,15 @@ export function buildInvoiceBody(h: { companyId: string; registrationId: string;
   }
 }
 
-export type DocKind = 'invoice' | 'quote' | 'order' | 'challan'
+export type DocKind = 'invoice' | 'quote' | 'order' | 'challan' | 'recurring'
 const addDays = (iso: string, n: number): string => { const d = new Date(`${iso}T00:00:00Z`); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10) }
-const WORDS: Record<DocKind, { title: string; date: string; action: string }> = { challan: { title: 'New delivery challan', date: 'Challan date', action: 'Save challan' }, invoice: { title: 'New invoice', date: 'Invoice date', action: 'Post invoice' }, quote: { title: 'New quote', date: 'Quote date', action: 'Save quote' }, order: { title: 'New sales order', date: 'Order date', action: 'Save order' } }
+const WORDS: Record<DocKind, { title: string; date: string; action: string }> = { recurring: { title: 'New recurring invoice', date: 'First invoice date', action: 'Save schedule' }, challan: { title: 'New delivery challan', date: 'Challan date', action: 'Save challan' }, invoice: { title: 'New invoice', date: 'Invoice date', action: 'Post invoice' }, quote: { title: 'New quote', date: 'Quote date', action: 'Save quote' }, order: { title: 'New sales order', date: 'Order date', action: 'Save order' } }
 
 export const InvoiceEditorPage = () => <SalesDocEditor kind="invoice" />
 export const QuoteEditorPage = () => <SalesDocEditor kind="quote" />
 export const OrderEditorPage = () => <SalesDocEditor kind="order" />
 export const ChallanEditorPage = () => <SalesDocEditor kind="challan" />
+export const RecurringEditorPage = () => <SalesDocEditor kind="recurring" />
 
 function SalesDocEditor({ kind }: { kind: DocKind }) {
   const ws = useWorkspace()
@@ -56,12 +58,15 @@ function SalesDocEditor({ kind }: { kind: DocKind }) {
   const [lines, setLines] = useState<Line[]>([emptyLine()])
   const [problem, setProblem] = useState<string | null>(null)
   const post = usePostInvoice()
-  const createQuote = useCreateQuote(); const createOrder = useCreateOrder(); const createChallan = useCreateChallan()
+  const createQuote = useCreateQuote(); const createOrder = useCreateOrder(); const createChallan = useCreateChallan(); const createRecurring = useCreateRecurring()
   const [validUntil, setValidUntil] = useState(addDays(todayIso(), 30))
   const [notes, setNotes] = useState('')
   const [reference, setReference] = useState('')
   const [reserve, setReserve] = useState(false)
   const [vehicleNo, setVehicleNo] = useState('')
+  const [scheduleName, setScheduleName] = useState('')
+  const [frequency, setFrequency] = useState('monthly')
+  const [endDate, setEndDate] = useState('')
   const [transporter, setTransporter] = useState('')
   const words = WORDS[kind]
 
@@ -97,6 +102,10 @@ function SalesDocEditor({ kind }: { kind: DocKind }) {
         const q = await createQuote.mutateAsync({ key, body: { ...rest, quoteDate: invoiceDate, validUntil, ...(notes.trim() ? { notes: notes.trim() } : {}), lines: (rest.lines as { batchId?: string }[]).map(({ batchId: _b, ...l }) => l) } })
         flash.show(`${q.quoteNo} saved for ${formatInr(q.estimatedTotal)}.`)
         await navigate({ to: '/sales/quotes' })
+      } else if (kind === 'recurring') {
+        const r = await createRecurring.mutateAsync({ key, body: { companyId: rest.companyId, gstRegistrationId: rest.gstRegistrationId, ...(rest.businessLocationId ? { businessLocationId: rest.businessLocationId } : {}), documentType: rest.documentType, customerId: rest.customerId, name: scheduleName.trim(), frequency, startDate: invoiceDate, ...(endDate ? { endDate } : {}), lines: (rest.lines as { batchId?: string; serialNos?: string[] }[]).map(({ batchId: _b, serialNos: _s, ...l }) => l) } })
+        flash.show(`${r.name} saved: the first invoice is due ${formatDate(r.nextRunDate)}.`)
+        await navigate({ to: '/sales/recurring' })
       } else if (kind === 'challan') {
         const c = await createChallan.mutateAsync({ key, body: { ...rest, challanDate: invoiceDate, ...(reference.trim() ? { customerReference: reference.trim() } : {}), ...(vehicleNo.trim() ? { vehicleNo: vehicleNo.trim() } : {}), ...(transporter.trim() ? { transporter: transporter.trim() } : {}), lines: (rest.lines as { batchId?: string }[]).map(({ batchId: _b, ...l }) => l) } })
         flash.show(`${c.orderNo} saved.`)
@@ -129,6 +138,9 @@ function SalesDocEditor({ kind }: { kind: DocKind }) {
           <TextField label={words.date} type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           {kind === 'invoice' ? <SelectField label="Document" value={documentType} onChange={(e) => setDocumentType(e.target.value)} options={[{ value: 'tax_invoice', label: 'Tax invoice' }, { value: 'bill_of_supply', label: 'Bill of supply' }]} /> : null}
           {kind === 'quote' ? <TextField label="Valid until" type="date" value={validUntil} onChange={(e) => setValidUntil(e.target.value)} /> : null}
+          {kind === 'recurring' ? <TextField label="Name of this schedule" placeholder="Shop rent" value={scheduleName} onChange={(e) => setScheduleName(e.target.value)} /> : null}
+          {kind === 'recurring' ? <SelectField label="Repeats" value={frequency} onChange={(e) => setFrequency(e.target.value)} options={FREQUENCIES} /> : null}
+          {kind === 'recurring' ? <TextField label="Stop after (optional)" type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} /> : null}
           {kind === 'challan' ? <TextField label="Customer reference (optional)" value={reference} onChange={(e) => setReference(e.target.value)} /> : null}
           {kind === 'challan' ? <TextField label="Vehicle number (optional)" value={vehicleNo} onChange={(e) => setVehicleNo(e.target.value)} /> : null}
           {kind === 'challan' ? <TextField label="Transporter (optional)" value={transporter} onChange={(e) => setTransporter(e.target.value)} /> : null}
