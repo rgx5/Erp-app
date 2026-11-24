@@ -197,3 +197,7 @@ export const recurringActionSchema = z.strictObject({ endDate: isoDate.nullable(
 export const listRecurringQuery = z.object({ companyId: z.uuid(), status: z.enum(['active', 'paused', 'ended']).optional(), limit: z.coerce.number().int().min(1).max(200).default(100) });
 export const runDueSchema = z.strictObject({ companyId: z.uuid(), asOf: isoDate.optional() });
 export type CreateRecurringInput = z.infer<typeof createRecurringSchema>;
+
+// ---- payment reminders -----------------------------------------------------------------------------------------------
+export const recordReminderSchema = z.strictObject({ companyId: z.uuid(), customerId: z.uuid(), channel: z.enum(['whatsapp', 'sms', 'email', 'call', 'copied']), amountDue: positive, message: text(2000) });
+export const listRemindersQuery = z.object({ companyId: z.uuid() });

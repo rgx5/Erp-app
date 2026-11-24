@@ -1,6 +1,6 @@
 import { licensed } from '@/auth/permissions'
 import { isStarter } from '@/auth/edition'
-import { Repeat, Download, Printer, ArrowLeftRight, BadgeCheck, Calculator, ListChecks, Warehouse as WarehouseIcon, Boxes, ClipboardList, PackageCheck, ShoppingCart, Wallet, FileText, Landmark, Receipt as ReceiptIcon, Building2, ClipboardCheck, Clock, LayoutDashboard, Percent, Ruler, Tags, Truck, Users, BookOpen, Layers, Users2, ShieldCheck, KeyRound, ScrollText, UserCog, ScanBarcode, Store, UserRound, Banknote, Settings2, Scale, Factory, Cog, Gauge, Handshake, FileSpreadsheet, FolderOpen, CalendarCheck, LineChart, ListTree, type LucideIcon } from 'lucide-react'
+import { BellRing, Repeat, Download, Printer, ArrowLeftRight, BadgeCheck, Calculator, ListChecks, Warehouse as WarehouseIcon, Boxes, ClipboardList, PackageCheck, ShoppingCart, Wallet, FileText, Landmark, Receipt as ReceiptIcon, Building2, ClipboardCheck, Clock, LayoutDashboard, Percent, Ruler, Tags, Truck, Users, BookOpen, Layers, Users2, ShieldCheck, KeyRound, ScrollText, UserCog, ScanBarcode, Store, UserRound, Banknote, Settings2, Scale, Factory, Cog, Gauge, Handshake, FileSpreadsheet, FolderOpen, CalendarCheck, LineChart, ListTree, type LucideIcon } from 'lucide-react'
 
 /** `advanced`: left out of the small-business (Starter) menu; the page itself still works if someone opens it. */
 export interface NavItem { to: string; label: string; icon: LucideIcon; needs?: string[]; section?: string; advanced?: boolean }
@@ -28,6 +28,7 @@ export const NAV: NavItem[] = [
   { to: '/sales/orders', label: 'Sales orders', icon: ClipboardList, needs: ['sales:read'], section: 'Sales' },
   { to: '/sales/invoices', label: 'Invoices', icon: FileText, needs: ['sales:read'], section: 'Sales' },
   { to: '/sales/receipts', label: 'Receipts', icon: ReceiptIcon, needs: ['receivables:read'], section: 'Sales' },
+  { to: '/sales/reminders', label: 'Payment reminders', icon: BellRing, needs: ['receivables:read'], section: 'Sales' },
   { to: '/sales/recurring', label: 'Recurring invoices', icon: Repeat, needs: ['sales:read'], section: 'Sales' },
   { to: '/sales/challans', label: 'Delivery challans', icon: Truck, needs: ['sales:read'], section: 'Sales' },
   { to: '/sales/analysis', label: 'Sales analysis', icon: Gauge, needs: ['sales:read'], section: 'Sales' },

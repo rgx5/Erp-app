@@ -6568,6 +6568,8 @@ export interface operations {
                     /** Format: uuid */
                     paymentTermsId?: string;
                     creditLimit?: string;
+                    phone?: string;
+                    email?: string;
                 };
             };
         };
@@ -6618,6 +6620,8 @@ export interface operations {
                     creditLimit?: string | null;
                     /** @enum {string} */
                     status?: "active" | "inactive" | "blocked";
+                    phone?: string | null;
+                    email?: string | null;
                 };
             };
         };

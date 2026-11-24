@@ -13,6 +13,7 @@ import * as s from './sales.schemas.js';
 import { SalesInvoiceService, type InvoiceLineRow, type InvoiceRow } from './sales-invoice.service.js';
 import { ReceivablesService } from './receivables.service.js';
 import { SalesOrdersService, type OrderLineRow, type OrderRow, type QuoteRow } from './sales-orders.service.js';
+import { RemindersService } from './reminders.service.js';
 import { RecurringInvoicesService } from './recurring.service.js';
 import { SalesSettingsService } from './sales-settings.service.js';
 import { RequiresModule } from '../identity/entitlements.js';
@@ -166,10 +167,25 @@ export class RecurringInvoicesController {
   async end(@TenantId() t: string, @Param('id', { schema: id }) i: string) { return strip(await this.recurring.setStatus(t, i, 'ended')); }
 }
 
+@ApiTags('payment reminders')
+@ApiBearerAuth()
+@RequiresModule('sales')
+@Controller('v1/sales/reminders')
+export class RemindersController {
+  constructor(@Inject(RemindersService) private readonly reminders: RemindersService) {}
+
+  /** Records that a customer was reminded (the message itself is sent from the person's own WhatsApp, phone or email). */
+  @RequirePermissions('receivables:post') @Idempotent() @Post() @ApiZodBody(s.recordReminderSchema)
+  record(@CurrentPrincipal() a: Principal, @Body({ schema: s.recordReminderSchema }) b: z.infer<typeof s.recordReminderSchema>) { return this.reminders.record(a.tenantId, a.userId, b); }
+  /** The latest reminder for each customer. */
+  @RequirePermissions('receivables:read') @Get()
+  async latest(@TenantId() t: string, @Query({ schema: s.listRemindersQuery }) q: { companyId: string }) { return { items: await this.reminders.latest(t, q.companyId) }; }
+}
+
 @Module({
   imports: [AccountingModule, InventoryModule, NumberingModule, MasterDataModule],
-  controllers: [SalesController, SalesOrdersController, ReceivablesController, RecurringInvoicesController],
-  providers: [Recorder, SalesSettingsService, SalesInvoiceService, SalesOrdersService, ReceivablesService, RecurringInvoicesService],
+  controllers: [SalesController, SalesOrdersController, ReceivablesController, RecurringInvoicesController, RemindersController],
+  providers: [Recorder, SalesSettingsService, SalesInvoiceService, SalesOrdersService, ReceivablesService, RecurringInvoicesService, RemindersService],
   exports: [SalesSettingsService, SalesInvoiceService, SalesOrdersService, ReceivablesService],
 })
 export class SalesModule {}

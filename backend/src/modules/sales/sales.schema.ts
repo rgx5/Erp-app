@@ -284,3 +284,15 @@ export const recurringInvoiceRuns = erp.table('recurring_invoice_runs', {
   error: text('error'),
   createdAt: ts('created_at').notNull().defaultNow(),
 });
+
+export const paymentReminders = erp.table('payment_reminders', {
+  tenantId: uuid('tenant_id').notNull(),
+  id: uuid('id').notNull(),
+  companyId: uuid('company_id').notNull(),
+  customerId: uuid('customer_id').notNull(),
+  channel: text('channel').notNull(),
+  amountDue: money('amount_due').notNull(),
+  message: text('message').notNull(),
+  createdBy: uuid('created_by'),
+  createdAt: ts('created_at').notNull().defaultNow(),
+});

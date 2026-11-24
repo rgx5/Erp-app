@@ -22,6 +22,7 @@ const schema = z.object({
   legalName: z.string().trim().min(1, 'Required').max(300), tradeName: z.string().max(300).optional(),
   isCustomer: z.boolean(), isSupplier: z.boolean(), isSubcontractor: z.boolean(), gstTreatment: z.string(), gstin: z.string().optional(), pan: z.string().optional(),
   paymentTermsId: z.string().optional(), creditLimit: z.string().optional(), status: z.string(),
+  phone: z.string().trim().regex(/^([0-9+() -]{6,20})?$/, 'Digits, spaces, + ( ) and - only').optional(), email: z.string().trim().regex(/^([^@\s]+@[^@\s]+\.[^@\s]+)?$/, 'An email address such as name@example.com').optional(),
 }).superRefine((v, ctx) => {
   if (!v.isCustomer && !v.isSupplier && !v.isSubcontractor) ctx.addIssue({ code: 'custom', path: ['isCustomer'], message: 'Choose at least one role' })
   const g = normalizeGstin(v.gstin ?? '')
@@ -45,7 +46,7 @@ export function PartyForm({ party, canWrite, defaultRole, onDone }: { party?: Pa
     defaultValues: {
       code: party?.code ?? '', legalName: party?.legalName ?? '', tradeName: party?.tradeName ?? '', isCustomer: party?.isCustomer ?? defaultRole !== 'supplier', isSupplier: party?.isSupplier ?? defaultRole === 'supplier',
       isSubcontractor: party?.isSubcontractor ?? false, gstTreatment: party?.gstTreatment ?? 'registered_regular', gstin: party?.gstin ?? '', pan: party?.pan ?? '', paymentTermsId: party?.paymentTermsId ?? '',
-      creditLimit: party?.creditLimit && party.creditLimit !== '0.0000' ? party.creditLimit : '', status: party?.status ?? 'active',
+      creditLimit: party?.creditLimit && party.creditLimit !== '0.0000' ? party.creditLimit : '', status: party?.status ?? 'active', phone: party?.phone ?? '', email: party?.email ?? '',
     },
   })
   const [message, setMessage] = useState<string | null>(null)
@@ -53,7 +54,7 @@ export function PartyForm({ party, canWrite, defaultRole, onDone }: { party?: Pa
   const gstin = normalizeGstin(watch('gstin') ?? '')
   const registered = REGISTERED.has(treatment)
   const readOnly = !canWrite
-  const fields = ['code', 'legalName', 'tradeName', 'isCustomer', 'gstTreatment', 'gstin', 'pan', 'paymentTermsId', 'creditLimit', 'status']
+  const fields = ['code', 'legalName', 'tradeName', 'isCustomer', 'gstTreatment', 'gstin', 'pan', 'paymentTermsId', 'creditLimit', 'status', 'phone', 'email']
 
   return (
     <div className="flex flex-col gap-6">
@@ -61,7 +62,7 @@ export function PartyForm({ party, canWrite, defaultRole, onDone }: { party?: Pa
         setMessage(null)
         try {
           if (party) {
-            await update.mutateAsync({ id: party.id, version: party.version, body: { legalName: v.legalName.trim(), tradeName: v.tradeName?.trim() || null, paymentTermsId: v.paymentTermsId || null, creditLimit: v.creditLimit?.trim() || null, status: v.status as 'active' } })
+            await update.mutateAsync({ id: party.id, version: party.version, body: { legalName: v.legalName.trim(), tradeName: v.tradeName?.trim() || null, paymentTermsId: v.paymentTermsId || null, creditLimit: v.creditLimit?.trim() || null, phone: v.phone?.trim() || null, email: v.email?.trim() || null, status: v.status as 'active' } })
           } else {
             await create.mutateAsync({
               code: v.code.trim(), legalName: v.legalName.trim(), ...(v.tradeName?.trim() ? { tradeName: v.tradeName.trim() } : {}), isCustomer: v.isCustomer, isSupplier: v.isSupplier, isSubcontractor: v.isSubcontractor,
@@ -78,6 +79,7 @@ export function PartyForm({ party, canWrite, defaultRole, onDone }: { party?: Pa
         </div>
         <TextField label="Legal name" error={errors.legalName?.message} disabled={readOnly} {...register('legalName')} />
         <TextField label="Trade name (optional)" disabled={readOnly} {...register('tradeName')} />
+        <div className="grid grid-cols-2 gap-4"><TextField label="Mobile / phone (optional)" inputMode="tel" error={errors.phone?.message} disabled={readOnly} {...register('phone')} hint="Used for WhatsApp reminders" /><TextField label="Email (optional)" type="email" error={errors.email?.message} disabled={readOnly} {...register('email')} /></div>
         {registered || (editing && party?.gstin) ? <TextField label="GSTIN" maxLength={15} autoCapitalize="characters" error={errors.gstin?.message} disabled={editing || readOnly} {...register('gstin')} hint={gstin.length >= 12 ? `State ${STATES.find((s) => s.code === stateOfGstin(gstin))?.name ?? '?'} · PAN ${panOfGstin(gstin)}` : undefined} /> : null}
         <div className="flex flex-wrap gap-5">
           <CheckField label="Customer" disabled={editing || readOnly} {...register('isCustomer')} />

@@ -3965,6 +3965,16 @@
                   "creditLimit": {
                     "type": "string",
                     "pattern": "^[0-9]{1,14}(\\.[0-9]{1,4})?$"
+                  },
+                  "phone": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 300
+                  },
+                  "email": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 300
                   }
                 },
                 "required": [
@@ -4086,6 +4096,18 @@
                       "inactive",
                       "blocked"
                     ]
+                  },
+                  "phone": {
+                    "nullable": true,
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 300
+                  },
+                  "email": {
+                    "nullable": true,
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 300
                   }
                 },
                 "additionalProperties": false

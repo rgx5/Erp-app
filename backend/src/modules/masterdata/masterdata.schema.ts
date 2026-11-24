@@ -148,6 +148,8 @@ export const parties = erp.table('parties', {
   currency: char('currency', { length: 3 }).notNull().default('INR'),
   paymentTermsId: uuid('payment_terms_id'),
   creditLimit: numeric('credit_limit', { precision: 18, scale: 4 }),
+  phone: text('phone'),
+  email: text('email'),
   status: text('status').notNull().default('active'),
   ...meta,
 });

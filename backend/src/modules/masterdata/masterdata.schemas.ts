@@ -123,6 +123,8 @@ export const createPartySchema = z
     currency: code(/^[A-Z]{3}$/, 'Use a 3-letter code').default('INR'),
     paymentTermsId: z.uuid().optional(),
     creditLimit: decimal(4).optional(),
+    phone: z.string().trim().regex(/^[0-9+() -]{6,20}$/, 'Digits, spaces, + ( ) and - only').optional(),
+    email: z.string().trim().max(200).pipe(z.email()).optional(),
   })
   .superRefine((v, ctx) => {
     if (!v.isCustomer && !v.isSupplier && !v.isSubcontractor) ctx.addIssue({ code: 'custom', path: ['isCustomer'], message: 'Choose at least one role: customer, supplier or subcontractor' });
@@ -132,7 +134,7 @@ export const createPartySchema = z
   })
   .transform((v) => ({ ...v, pan: v.pan ?? (v.gstin ? v.gstin.slice(2, 12) : undefined) }));
 export const updatePartySchema = z
-  .strictObject({ legalName: text(300).optional(), tradeName: text(300).nullable().optional(), paymentTermsId: z.uuid().nullable().optional(), creditLimit: decimal(4).nullable().optional(), status: z.enum(['active', 'inactive', 'blocked']).optional() })
+  .strictObject({ legalName: text(300).optional(), tradeName: text(300).nullable().optional(), paymentTermsId: z.uuid().nullable().optional(), phone: z.string().trim().regex(/^[0-9+() -]{6,20}$/, 'Digits, spaces, + ( ) and - only').nullable().optional(), email: z.string().trim().max(200).pipe(z.email()).nullable().optional(), creditLimit: decimal(4).nullable().optional(), status: z.enum(['active', 'inactive', 'blocked']).optional() })
   .refine(atLeastOne, NOTHING);
 export const listPartiesQuery = z.object({ ...page, role: z.enum(['customer', 'supplier', 'subcontractor']).optional(), status: z.enum(['active', 'inactive', 'blocked']).optional(), q: z.string().trim().min(1).max(60).optional() });
 export const createAddressSchema = z
