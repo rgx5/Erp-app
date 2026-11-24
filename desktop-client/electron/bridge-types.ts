@@ -28,12 +28,14 @@ export interface DesktopBridge {
     /** A value of null removes that setting. */
     set(patch: { [K in keyof DesktopSettings]?: DesktopSettings[K] | null }): Promise<DesktopSettings>
   }
-  /** Turns generated invoice HTML into a PDF and asks where to save it. Resolves to the saved path, or null when the person cancelled. */
+  /** Turns generated HTML into a PDF, keeps it in Documents/OneSync Documents and opens it in the computer's own PDF viewer. Resolves to the saved path. */
   document: { savePdf(html: string, filename: string): Promise<string | null> }
   /** Printers known to this computer, and silent printing of a receipt (no dialog) to one of them. */
   printer: {
     list(): Promise<{ name: string; isDefault: boolean }[]>
     printReceipt(html: string, printerName: string): Promise<void>
+    /** A page of generated HTML (labels). With a printer name it prints straight away; without, the system print window opens. Page size in mm. */
+    printDocument(html: string, options: { printerName?: string | undefined; widthMm?: number | undefined; heightMm?: number | undefined; copies?: number | undefined }): Promise<void>
   }
   /** OS-keychain backed storage for the refresh token. `set` resolves false when the OS offers no secure storage. */
   secure: {

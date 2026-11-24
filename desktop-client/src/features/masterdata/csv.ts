@@ -1,5 +1,5 @@
 /** A small CSV reader and writer (RFC 4180 quoting): enough for import and export of master data without a library. */
-export function parseCsv(text: string): string[][] {
+export function parseCsv(text: string, delimiter = ','): string[][] {
   const rows: string[][] = []
   let row: string[] = []
   let field = ''
@@ -10,7 +10,7 @@ export function parseCsv(text: string): string[][] {
     if (quoted) {
       if (ch === '"') { if (src[i + 1] === '"') { field += '"'; i++ } else quoted = false } else field += ch
     } else if (ch === '"') quoted = true
-    else if (ch === ',') { row.push(field); field = '' }
+    else if (ch === delimiter) { row.push(field); field = '' }
     else if (ch === '\n' || ch === '\r') {
       if (ch === '\r' && src[i + 1] === '\n') i++
       row.push(field); field = ''

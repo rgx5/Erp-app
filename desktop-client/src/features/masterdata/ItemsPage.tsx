@@ -18,6 +18,7 @@ import { VariantsDrawer } from './VariantsDrawer'
 import { ItemBarcodes } from '@/features/retail/ItemBarcodes'
 import { hsnProblem, ITEM_TYPES, itemTypeLabel, ItemForm } from './ItemForm'
 import { formatInr } from '@/domain/format'
+import { resolveByCodeOrName, resolveItemType, resolveTax, resolveUnit } from '@/features/import/resolvers'
 import { createItemRequest, useCategories, useItems, useTaxCodes, useUnits } from './queries'
 
 type ItemInput = Parameters<typeof createItemRequest>[0]
@@ -64,10 +65,19 @@ export function ItemsPage() {
   const spec: ImportSpec<ItemInput> = useMemo(() => {
     const unitByCode = new Map((units.data ?? []).map((u) => [u.code.toLowerCase(), u.id]))
     const taxByCode = new Map((taxes.data ?? []).map((t) => [t.code.toLowerCase(), t.id]))
+    const unitList = units.data ?? []; const taxList = taxes.data ?? []; const catList = categories.data ?? []
     return {
       title: 'Import items',
       template: { filename: 'items-template.csv', header: ['Code', 'Name', 'Type', 'Unit', 'HSN/SAC', 'GST code', 'Sellable', 'Purchasable', 'Category code', 'Brand', 'MRP'], example: ['SHIRT-M', 'Cotton shirt (M)', 'finished_good', 'NOS', '6205', 'GST12', 'yes', 'yes', 'MEN-SHIRTS', 'Acme', '1299'] },
       invalidate: ['items'],
+      nameKey: 'name',
+      hints: ['item', 'product', 'stock', 'goods', 'inventory', 'material'],
+      values: [
+        { key: 'type', label: 'Type', options: ITEM_TYPES.map((t) => ({ value: t.value, label: t.label })), resolve: (raw) => (ITEM_TYPES.some((t) => t.value === raw.toLowerCase().replaceAll(' ', '_')) ? raw.toLowerCase().replaceAll(' ', '_') : resolveItemType(raw)) },
+        { key: 'unit', label: 'Unit', options: unitList.map((u) => ({ value: u.code, label: `${u.code} · ${u.name}` })), resolve: (raw) => resolveUnit(unitList, raw) },
+        { key: 'gstcode', label: 'GST', options: taxList.map((t) => ({ value: t.code, label: `${t.code} · ${t.name}` })), resolve: (raw) => resolveTax(taxList, raw) },
+        { key: 'categorycode', label: 'Category', options: catList.map((c) => ({ value: c.code, label: `${c.code} · ${c.name}` })), resolve: (raw) => resolveByCodeOrName(catList, raw) },
+      ],
       describe: (i) => `${i.code} · ${i.name}`,
       create: (input, key) => createItemRequest(input, key),
       parse: (r) => {
@@ -77,20 +87,21 @@ export function ItemsPage() {
         if (!/^[A-Za-z0-9][A-Za-z0-9_./-]{0,39}$/.test(r['code'])) return { error: 'Code may contain letters, digits and . _ / - only' }
         const uom = unitByCode.get((r['unit'] || 'NOS').toLowerCase())
         if (!uom) return { error: `Unknown unit "${r['unit']}"` }
-        const hsn = r['hsnsac'] ?? ''
+        const hsn = (r['hsnsac'] ?? '').replace(/[\s.-]/g, '')
         const problem = hsnProblem(itemType, hsn)
         if (problem) return { error: problem }
         const tax = r['gstcode'] ? taxByCode.get(r['gstcode'].toLowerCase()) : undefined
         if (r['gstcode'] && !tax) return { error: `Unknown GST code "${r['gstcode']}"` }
         const category = r['categorycode'] ? catByCode.get(r['categorycode'].toLowerCase()) : undefined
         if (r['categorycode'] && !category) return { error: `Unknown category code "${r['categorycode']}"` }
-        if (r['mrp'] && !/^\d{1,14}(\.\d{1,4})?$/.test(r['mrp'])) return { error: 'MRP must be an amount such as 1299' }
+        const mrp = (r['mrp'] ?? '').replace(/[₹,\s]/g, '')
+        if (mrp && !/^\d{1,14}(\.\d{1,4})?$/.test(mrp)) return { error: 'MRP must be an amount such as 1299' }
         if ((r['brand'] ?? '').length > 100) return { error: 'Brand is too long' }
         const service = itemType === 'service'
-        return { input: { code: r['code'], name: r['name'], itemType: itemType as 'service', baseUomId: uom, ...(hsn ? { hsnSacCode: hsn } : {}), ...(tax ? { taxCodeId: tax } : {}), isStocked: !service, isSellable: yes(r['sellable'] ?? '', true), isPurchasable: yes(r['purchasable'] ?? '', true), ...(category ? { categoryId: category } : {}), ...(r['brand'] ? { brand: r['brand'] } : {}), ...(r['mrp'] ? { mrp: r['mrp'] } : {}) } }
+        return { input: { code: r['code'], name: r['name'].slice(0, 300), itemType: itemType as 'service', baseUomId: uom, ...(hsn ? { hsnSacCode: hsn } : {}), ...(tax ? { taxCodeId: tax } : {}), isStocked: !service, isSellable: yes(r['sellable'] ?? '', true), isPurchasable: yes(r['purchasable'] ?? '', true), ...(category ? { categoryId: category } : {}), ...(r['brand'] ? { brand: r['brand'] } : {}), ...(mrp && Number(mrp) > 0 ? { mrp } : {}) } }
       },
     }
-  }, [units.data, taxes.data, catByCode])
+  }, [units.data, taxes.data, categories.data, catByCode])
 
   async function exportAll() {
     const all: Item[] = []

@@ -14,6 +14,7 @@ import { Alert, Button, SelectField, Spinner, TextField, Toolbar } from '@/ui/pr
 import { download, toCsv } from './csv'
 import { ImportDialog, type ImportSpec } from './ImportDialog'
 import { GST_TREATMENTS, PartyForm, roleLabel, treatmentLabel } from './PartyForm'
+import { resolveRole, resolveTreatment } from '@/features/import/resolvers'
 import { createPartyRequest, useParties } from './queries'
 
 type PartyInput = Parameters<typeof createPartyRequest>[0]
@@ -41,22 +42,31 @@ export function PartiesPage({ role }: { role?: 'customer' | 'supplier' }) {
 
   const spec: ImportSpec<PartyInput> = useMemo(() => ({
     title: `Import ${noun.toLowerCase()}`,
-    template: { filename: 'parties-template.csv', header: ['Code', 'Legal name', 'Trade name', 'Role', 'GST treatment', 'GSTIN', 'PAN'], example: ['CUST-001', 'Asha Traders', 'Asha', 'customer', 'registered_regular', '27ABCDE1234F1Z5', ''] },
+    template: { filename: 'parties-template.csv', header: ['Code', 'Legal name', 'Trade name', 'Role', 'GST treatment', 'GSTIN', 'PAN', 'Phone', 'Email'], example: ['CUST-001', 'Asha Traders', 'Asha', 'customer', 'registered_regular', '27ABCDE1234F1Z5', '', '9876543210', 'asha@example.com'] },
     invalidate: ['parties'],
+    nameKey: 'legalname',
+    hints: ['name', 'party', 'parties', 'customer', 'supplier', 'vendor', 'ledger', 'contact', 'account'],
+    values: [
+      { key: 'role', label: 'Role', options: [{ value: 'customer', label: 'Customer' }, { value: 'supplier', label: 'Supplier' }, { value: 'both', label: 'Customer and supplier' }, { value: 'subcontractor', label: 'Subcontractor' }], resolve: (raw) => (['customer', 'supplier', 'subcontractor', 'both'].includes(raw.toLowerCase()) ? raw.toLowerCase() : resolveRole(raw)) },
+      { key: 'gsttreatment', label: 'GST treatment', options: GST_TREATMENTS.map((t) => ({ value: t.value, label: t.label })), resolve: (raw) => (GST_TREATMENTS.some((t) => t.value === raw.toLowerCase()) ? raw.toLowerCase() : resolveTreatment(raw)) },
+    ],
     describe: (i) => `${i.code} · ${i.legalName}`,
     create: (input, key) => createPartyRequest(input, key),
     parse: (r) => {
       const asked = (r['role'] || role || 'customer').toLowerCase()
       if (!['customer', 'supplier', 'subcontractor', 'both'].includes(asked)) return { error: 'Role must be customer, supplier, subcontractor or both' }
-      const treatment = (r['gsttreatment'] || 'consumer').toLowerCase()
+      const gstin = normalizeGstin(r['gstin'] ?? '')
+      const treatment = (r['gsttreatment'] || (gstin ? 'registered_regular' : 'consumer')).toLowerCase()
       if (!GST_TREATMENTS.some((t) => t.value === treatment)) return { error: `GST treatment must be one of ${GST_TREATMENTS.map((t) => t.value).join(', ')}` }
       if (!r['code'] || !r['legalname']) return { error: 'Code and legal name are required' }
       if (!/^[A-Za-z0-9][A-Za-z0-9_./-]{0,39}$/.test(r['code'])) return { error: 'Code may contain letters, digits and . _ / - only' }
-      const gstin = normalizeGstin(r['gstin'] ?? '')
       if (REGISTERED.has(treatment) !== (gstin !== '')) return { error: REGISTERED.has(treatment) ? 'A registered party needs a GSTIN' : 'This GST treatment has no GSTIN' }
       if (gstin && !isValidGstin(gstin)) return { error: 'This GSTIN is not valid' }
       const pan = (r['pan'] ?? '').toUpperCase()
-      return { input: { code: r['code'], legalName: r['legalname'], ...(r['tradename'] ? { tradeName: r['tradename'] } : {}), isCustomer: asked === 'customer' || asked === 'both', isSupplier: asked === 'supplier' || asked === 'both', isSubcontractor: asked === 'subcontractor', gstTreatment: treatment as 'consumer', ...(gstin ? { gstin } : {}), ...(pan ? { pan } : {}) } }
+      const phone = (r['phone'] ?? '').trim(); const email = (r['email'] ?? '').trim()
+      if (phone && !/^[0-9+() -]{6,20}$/.test(phone)) return { error: 'Phone: digits, spaces, + ( ) and - only' }
+      if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return { error: 'Email is not valid' }
+      return { input: { code: r['code'], legalName: r['legalname'].slice(0, 300), ...(r['tradename'] ? { tradeName: r['tradename'] } : {}), isCustomer: asked === 'customer' || asked === 'both', isSupplier: asked === 'supplier' || asked === 'both', isSubcontractor: asked === 'subcontractor', gstTreatment: treatment as 'consumer', ...(gstin ? { gstin } : {}), ...(pan ? { pan } : {}), ...(phone ? { phone } : {}), ...(email ? { email } : {}) } }
     },
   }), [noun, role])
 

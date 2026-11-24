@@ -64,7 +64,7 @@ test('master data: items, customers, tax rates and price lists from the app', as
   // import: one good row and one bad row
   await page.getByRole('button', { name: 'Import' }).click()
   const csv = 'Code,Name,Type,Unit,HSN/SAC,GST code,Sellable,Purchasable\nTROUSER-32,Cotton trouser,finished_good,NOS,6203,GST12,yes,yes\nBAD-1,Broken row,finished_good,NOS,12,GST12,yes,yes\n'
-  await page.getByLabel('CSV file').setInputFiles({ name: 'items.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) })
+  await page.getByLabel('Data file').setInputFiles({ name: 'items.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) })
   await expect(page.getByRole('status').filter({ hasText: '2 rows' })).toContainText('1 ready')
   await expect(page.getByText('An HSN is 4, 6 or 8 digits').last()).toBeVisible()
   await page.getByRole('button', { name: 'Import 1 rows' }).click()

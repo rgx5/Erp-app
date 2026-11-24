@@ -30,6 +30,7 @@ const web: Omit<DesktopBridge, 'desktop' | 'platform' | 'app' | 'hardware'> = {
     /** A browser cannot list printers or print without its dialog. */
     async list() { return [] },
     async printReceipt(html) { await web.document.savePdf(html, 'receipt') },
+    async printDocument(html) { await web.document.savePdf(html, 'document') },
   },
   secure: {
     async get(key) { return sessionStorage.getItem(`onesync.secure.${key}`) },

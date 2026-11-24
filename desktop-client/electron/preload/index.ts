@@ -24,6 +24,7 @@ const bridge: DesktopBridge = {
   printer: {
     list: () => ipcRenderer.invoke('printer:list'),
     printReceipt: (html, printerName) => ipcRenderer.invoke('printer:printReceipt', html, printerName),
+    printDocument: (html, options) => ipcRenderer.invoke('printer:printDocument', html, options),
   },
   secure: {
     get: (key) => ipcRenderer.invoke('secure:get', key),

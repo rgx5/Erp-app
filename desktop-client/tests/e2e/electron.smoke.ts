@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, statSync } from 'node:fs'
+import { mkdtempSync, readFileSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { _electron as electron, expect, test, type ElectronApplication } from '@playwright/test'
@@ -56,13 +56,14 @@ test('inside the desktop shell the app can sign in to the real backend (CORS all
   await app.close()
 })
 
-test('inside the desktop shell an invoice can be saved as an A4 PDF', async () => {
+test('inside the desktop shell an invoice PDF is kept in Documents and opened in the default viewer', async () => {
   const s = await seedBusiness(process.env['E2E_BACKEND_URL'] as string, process.env['E2E_PLATFORM_TOKEN'] as string, { prefix: 'pdf' })
   const inv = await s.call('POST', '/v1/sales/invoices', { companyId: s.company.id, gstRegistrationId: s.registration.id, invoiceDate: new Date().toISOString().slice(0, 10), customerId: s.customer.id, lines: [{ itemId: s.widget.id, quantity: '2', unitPrice: '1000', warehouseId: s.warehouse.id }] })
-  const target = join(mkdtempSync(join(tmpdir(), 'onesync-pdf-')), 'invoice.pdf')
+  const docs = mkdtempSync(join(tmpdir(), 'onesync-pdf-'))
+  process.env['ONESYNC_DOCUMENTS_DIR'] = docs
   const app = await launch(mkdtempSync(join(tmpdir(), 'onesync-ud-')))
-  // answer the "save as" dialog without a person: the real dialog is exercised by hand
-  await app.evaluate(({ dialog }, path) => { dialog.showSaveDialog = (async () => ({ canceled: false, filePath: path })) as never }, target)
+  // the computer's PDF viewer is not started in a test: record what would be opened
+  await app.evaluate(({ shell }) => { (globalThis as { opened?: string[] }).opened = []; shell.openPath = (async (p: string) => { (globalThis as { opened?: string[] }).opened?.push(p); return '' }) as never })
   const page = await appWindow(app)
   await page.getByLabel('Server address').fill(s.base)
   await page.getByRole('button', { name: 'Continue' }).click()
@@ -74,9 +75,12 @@ test('inside the desktop shell an invoice can be saved as an A4 PDF', async () =
   await page.evaluate((id) => { location.hash = `#/sales/invoices/${id}` }, inv.id)
   await expect(page.getByRole('heading', { name: /Tax invoice INV/ })).toBeVisible()
   await page.getByRole('button', { name: 'Save as PDF' }).click()
-  await expect.poll(() => existsSync(target), { timeout: 20_000 }).toBe(true)
+  await expect.poll(async () => (await app.evaluate(() => (globalThis as { opened?: string[] }).opened ?? [])).length, { timeout: 20_000 }).toBe(1)
+  const target = (await app.evaluate(() => (globalThis as { opened?: string[] }).opened ?? []))[0] as string
+  expect(target.startsWith(docs)).toBe(true); expect(target.endsWith('.pdf')).toBe(true) // kept where the person can find it, and opened
   expect(readFileSync(target).subarray(0, 5).toString()).toBe('%PDF-')
   expect(statSync(target).size).toBeGreaterThan(2_000)
+  delete process.env['ONESYNC_DOCUMENTS_DIR']
   await app.close()
 })
 

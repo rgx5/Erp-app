@@ -25,7 +25,10 @@ test('barcodes: generate one for an item, and print labels for many items at onc
   await expect(page.getByText(/2 items · 2 labels/)).toBeVisible()
   await page.getByLabel('Copies of Plastic toy').fill('3')
   await expect(page.getByText(/2 items · 4 labels/)).toBeVisible()
-  await page.getByRole('button', { name: 'Print labels' }).click()
+  await page.getByRole('button', { name: 'Preview and print' }).click()
+  await expect(page.getByRole('dialog', { name: 'Label preview' })).toBeVisible() // seen before anything is printed
+  await expect(page.frameLocator('iframe[title="Label preview"]').getByText('Plastic toy').first()).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Print', exact: true })).toBeVisible()
   await expect(page.getByText(/1 new barcode created/)).toBeVisible()
   const items = (await s.call('GET', '/v1/items?limit=50')).items as { id: string; code: string }[]
   for (const it of items.filter((i) => ['WIDGET', 'TOY'].includes(i.code))) {

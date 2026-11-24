@@ -1,5 +1,5 @@
 import { join } from 'node:path'
-import { writeFile } from 'node:fs/promises'
+import { mkdir, writeFile } from 'node:fs/promises'
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, protocol, safeStorage, screen, shell, type IpcMainInvokeEvent } from 'electron'
 import type { DesktopSettings } from '../bridge-types'
 import { JsonFile } from './store'
@@ -124,14 +124,38 @@ function registerIpc(): void {
     file.write(next as DesktopSettings)
     return next as DesktopSettings
   }))
+  /** Makes the PDF, keeps it in Documents/OneSync Documents and opens it in the computer's own PDF viewer (which can print or save a copy). */
   ipcMain.handle('document:savePdf', guard(async (html: string, filename: string) => {
     if (typeof html !== 'string' || html.length > 5_000_000) throw new Error('Document too large')
     const pdf = await renderPdf(html)
-    const name = `${String(filename).replace(/[^A-Za-z0-9._-]+/g, '_').slice(0, 80) || 'document'}.pdf`
-    const choice = await dialog.showSaveDialog(win ?? BrowserWindow.getAllWindows()[0] as BrowserWindow, { defaultPath: name, filters: [{ name: 'PDF', extensions: ['pdf'] }] })
-    if (choice.canceled || !choice.filePath) return null
-    await writeFile(choice.filePath, pdf)
-    return choice.filePath
+    const dir = process.env['ONESYNC_DOCUMENTS_DIR'] || join(app.getPath('documents'), 'OneSync Documents')
+    await mkdir(dir, { recursive: true })
+    const stamp = new Date().toISOString().replace(/[-:]/g, '').replace('T', '-').slice(0, 15)
+    const file = join(dir, `${String(filename).replace(/[^A-Za-z0-9._-]+/g, '_').slice(0, 80) || 'document'}-${stamp}.pdf`)
+    await writeFile(file, pdf)
+    const failed = await shell.openPath(file)
+    if (failed) { log('warn', `Could not open ${file}: ${failed}`); shell.showItemInFolder(file) }
+    return file
+  }))
+  /** Prints a page of our own HTML (labels, sheets) to a chosen printer without asking, or through the system print window when no printer is named. */
+  ipcMain.handle('printer:printDocument', guard(async (html: string, o: { printerName?: string | undefined; widthMm?: number | undefined; heightMm?: number | undefined; copies?: number | undefined }) => {
+    if (typeof html !== 'string' || html.length > 8_000_000) throw new Error('Nothing to print')
+    const printerName = typeof o?.printerName === 'string' && o.printerName ? o.printerName : ''
+    if (printerName) {
+      const known = await (win ?? BrowserWindow.getAllWindows()[0] as BrowserWindow).webContents.getPrintersAsync()
+      if (!known.some((p) => p.name === printerName)) throw new Error('That printer is not available on this computer')
+    }
+    const mm = (v: unknown): number | null => (typeof v === 'number' && v >= 10 && v <= 1000 ? Math.round(v * 1000) : null)
+    const w = mm(o?.widthMm); const h = mm(o?.heightMm)
+    const printer = new BrowserWindow({ show: false, webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, javascript: false } })
+    try {
+      printer.webContents.on('will-navigate', (e) => e.preventDefault())
+      printer.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+      await printer.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`)
+      await new Promise<void>((resolve, reject) => {
+        printer.webContents.print({ silent: printerName !== '', ...(printerName ? { deviceName: printerName } : {}), printBackground: true, margins: { marginType: 'none' }, ...(w && h ? { pageSize: { width: w, height: h } } : { pageSize: 'A4' }), copies: Math.max(1, Math.min(99, Math.floor(o?.copies ?? 1))) }, (ok, why) => (ok || why === 'cancelled' ? resolve() : reject(new Error(why || 'The printer did not accept the page'))))
+      })
+    } finally { printer.destroy() }
   }))
   ipcMain.handle('secure:get', guard((key: string) => {
     const stored = secrets().read()[key]

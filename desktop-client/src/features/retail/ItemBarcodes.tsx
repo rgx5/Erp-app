@@ -3,14 +3,14 @@ import { ApiError } from '@/api/errors'
 import type { Item } from '@/api/schemas'
 import { can } from '@/auth/permissions'
 import { useSession } from '@/auth/session'
-import { bridge } from '@/bridge'
 import { useAddBarcode, useBarcodes, useBarcodeStatus } from '@/features/masterdata/queries'
 import { useWorkspace } from '@/features/organization/workspace'
 import { useFlash } from '@/ui/flash'
 import { Alert, Button, SelectField, TextField } from '@/ui/primitives'
 import { useQueryClient } from '@tanstack/react-query'
 import { generateBarcode } from './barcodeGen'
-import { LABEL_SIZES, labelsHtml } from './labels'
+import { LabelPreview } from './LabelPreview'
+import { LABEL_SIZES, labelsHtml, type LabelSize } from './labels'
 
 /** The barcodes of one item and its price label. A barcode is only ever switched on or off, never edited. */
 export function ItemBarcodes({ item }: { item: Item }) {
@@ -25,11 +25,13 @@ export function ItemBarcodes({ item }: { item: Item }) {
   const [copies, setCopies] = useState('1')
   const [size, setSize] = useState(LABEL_SIZES[0]?.id ?? '')
   const [problem, setProblem] = useState<string | null>(null)
+  const [preview, setPreview] = useState<{ html: string; size: LabelSize; count: number } | null>(null)
   const active = (list.data ?? []).filter((b) => b.status === 'active')
   const printable = active[0]?.barcode ?? item.code
-  async function print() {
-    const sz = LABEL_SIZES.find((x) => x.id === size) ?? (LABEL_SIZES[0] as (typeof LABEL_SIZES)[number])
-    try { await bridge.document.savePdf(labelsHtml([{ code: item.code, name: item.name, barcode: printable, price: item.mrp ?? null, copies: Math.max(1, Math.min(500, Number(copies) || 1)) }], sz, ws.company?.legalName ?? ''), `labels-${item.code}`) } catch (e) { setProblem(e instanceof Error ? e.message : 'Could not make the labels.') }
+  function print() {
+    const sz = LABEL_SIZES.find((x) => x.id === size) ?? (LABEL_SIZES[0] as LabelSize)
+    const n = Math.max(1, Math.min(500, Number(copies) || 1))
+    try { setPreview({ html: labelsHtml([{ code: item.code, name: item.name, barcode: printable, price: item.mrp ?? null, copies: n }], sz, ws.company?.legalName ?? ''), size: sz, count: n }) } catch (e) { setProblem(e instanceof Error ? e.message : 'Could not make the labels.') }
   }
   return (
     <section className="mt-6 flex flex-col gap-3 border-t border-line pt-4" aria-label="Barcodes">
@@ -49,9 +51,10 @@ export function ItemBarcodes({ item }: { item: Item }) {
       <div className="grid grid-cols-[1fr_90px_auto] items-end gap-2">
         <SelectField label="Label size" value={size} onChange={(e) => setSize(e.target.value)} options={LABEL_SIZES.map((x) => ({ value: x.id, label: x.name }))} />
         <TextField label="Copies" inputMode="numeric" value={copies} onChange={(e) => setCopies(e.target.value)} />
-        <Button variant="secondary" onClick={() => void print()}>{window.onesync ? 'Save labels as PDF' : 'Print labels'}</Button>
+        <Button variant="secondary" onClick={print}>Preview and print</Button>
       </div>
       <p className="text-xs text-muted">The label shows the name, the MRP{item.mrp ? '' : ' (none set yet)'} and the barcode {printable}.</p>
+      {preview ? <LabelPreview html={preview.html} size={preview.size} count={preview.count} onClose={() => setPreview(null)} /> : null}
     </section>
   )
 }

@@ -3,7 +3,6 @@ import { Printer } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { ApiError } from '@/api/errors'
 import type { Item } from '@/api/schemas'
-import { bridge } from '@/bridge'
 import { useCategories, useItems } from '@/features/masterdata/queries'
 import { useWorkspace } from '@/features/organization/workspace'
 import { can } from '@/auth/permissions'
@@ -12,7 +11,8 @@ import { useDebounced } from '@/ui/hooks'
 import { useFlash } from '@/ui/flash'
 import { Alert, Button, SelectField, Spinner, TextField, Toolbar } from '@/ui/primitives'
 import { barcodeForLabel } from './barcodeGen'
-import { LABEL_SIZES, labelsHtml, type LabelItem } from './labels'
+import { LabelPreview } from './LabelPreview'
+import { LABEL_SIZES, labelsHtml, type LabelItem, type LabelSize } from './labels'
 
 const MAX_LABELS = 5000
 const clampCopies = (v: string | undefined, fallback: number): number => Math.max(1, Math.min(500, Math.floor(Number(v ?? fallback)) || fallback))
@@ -31,6 +31,7 @@ export function LabelsPage() {
   const [every, setEvery] = useState('1')
   const [size, setSize] = useState(LABEL_SIZES[0]?.id ?? '')
   const [generate, setGenerate] = useState(true)
+  const [preview, setPreview] = useState<{ html: string; size: LabelSize; count: number } | null>(null)
   const [busy, setBusy] = useState(false); const [problem, setProblem] = useState<string | null>(null)
 
   const toggle = (i: Item) => setPicked((m) => { const n = new Map(m); if (n.has(i.id)) n.delete(i.id); else n.set(i.id, i); return n })
@@ -52,7 +53,7 @@ export function LabelsPage() {
         for (const { i, r } of part) { if (r.made) made++; out.push({ code: i.code, name: i.name, barcode: r.barcode ?? i.code, price: i.mrp ?? null, copies: copiesOf(i) }) }
       }
       const sz = LABEL_SIZES.find((x) => x.id === size) ?? (LABEL_SIZES[0] as (typeof LABEL_SIZES)[number])
-      await bridge.document.savePdf(labelsHtml(out, sz, ws.company?.legalName ?? ''), 'labels')
+      setPreview({ html: labelsHtml(out, sz, ws.company?.legalName ?? ''), size: sz, count: total })
       if (made > 0) { void qc.invalidateQueries({ queryKey: ['barcodes'] }); flash.show(`${made} new barcode${made === 1 ? '' : 's'} created.`) }
     } catch (e) { setProblem(e instanceof ApiError || e instanceof Error ? e.message : 'Could not make the labels.') } finally { setBusy(false) }
   }
@@ -85,10 +86,11 @@ export function LabelsPage() {
         </div>)}
       {list.hasNextPage ? <Button variant="secondary" className="self-start" busy={list.isFetchingNextPage} onClick={() => void list.fetchNextPage()}>Load more items</Button> : null}
       <div className="flex items-center gap-3">
-        <Button busy={busy} disabled={chosen.length === 0} onClick={() => void print()}><Printer className="size-4" aria-hidden /> {window.onesync ? 'Save labels as PDF' : 'Print labels'}</Button>
+        <Button busy={busy} disabled={chosen.length === 0} onClick={() => void print()}><Printer className="size-4" aria-hidden /> Preview and print</Button>
         <span className="text-sm text-muted">{chosen.length} item{chosen.length === 1 ? '' : 's'} · {total.toLocaleString('en-IN')} label{total === 1 ? '' : 's'}</span>
         {chosen.length ? <Button variant="ghost" onClick={() => setPicked(new Map())}>Clear</Button> : null}
       </div>
+      {preview ? <LabelPreview html={preview.html} size={preview.size} count={preview.count} onClose={() => setPreview(null)} /> : null}
     </div>
   )
 }
