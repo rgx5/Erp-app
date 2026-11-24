@@ -25,6 +25,7 @@ import { counterState, loadQueue, saveCounterState, saveQueue, type QueuedSale }
 import { searchItems, type LocalItem } from './catalogueSearch'
 import { useLocalCatalogue } from './useLocalCatalogue'
 import { listenDisplay, publishDisplay } from './customerDisplay'
+import { useT } from '@/i18n'
 import { scaleSupported, weighOnce } from './scale'
 import { GiftCardDrawer } from './GiftCardDrawer'
 import { ReturnDrawer } from './ReturnDrawer'
@@ -95,6 +96,7 @@ export function CounterPage() {
   const [scan, setScan] = useState('')
   const [found, setFound] = useState<Suggest[]>([])
   const [busy, setBusy] = useState(false)
+  const L = useT()
   const [last, setLast] = useState<PosSaleResult | null>(null)
   const [queue, setQueue] = useState<QueuedSale[]>(() => loadQueue(tenant))
   const [panel, setPanel] = useState<null | 'return' | 'giftcard'>(null)
@@ -343,13 +345,13 @@ export function CounterPage() {
           <div className="flex flex-wrap items-center gap-2">
             <span className={`rounded px-2 py-0.5 text-xs ${offline ? 'bg-bad-soft text-bad' : 'bg-good-soft text-good'}`}>{offline ? 'Offline' : 'Online'}</span>
             {queue.length ? <Button variant="secondary" busy={syncing} onClick={() => void sync()}>Upload {queue.length} offline sale{queue.length === 1 ? '' : 's'}</Button> : null}
-            <Button variant="secondary" disabled={cart.length === 0} onClick={hold}>Hold bill</Button>
-            <Button variant="secondary" onClick={() => setShowParked(!showParked)}>Held bills ({parked.length})</Button>
-            <Button variant="secondary" onClick={() => setPanel('return')}>Return</Button>
-            <Button variant="ghost" onClick={() => { if (window.onesync) void window.onesync.hardware.openCustomerDisplay(); else window.open('#/customer-display', 'onesync-customer-display', 'popup,width=900,height=600') }}>Customer display</Button>
-            {window.onesync ? <Button variant="ghost" onClick={async () => { try { await window.onesync?.hardware.openCashDrawer() } catch (e) { setProblem(e instanceof Error ? e.message : 'Could not open the drawer.') } }}>Open drawer</Button> : null}
-            {shift && can(perms, 'pos:sell') ? <Button variant="secondary" disabled={offline} onClick={() => setPanel('giftcard')}>Sell gift card</Button> : null}
-            <Button variant="secondary" onClick={() => setClosing(shift)}>Close shift</Button>
+            <Button variant="secondary" disabled={cart.length === 0} onClick={hold}>{L('Hold bill')}</Button>
+            <Button variant="secondary" onClick={() => setShowParked(!showParked)}>{L('Held bills')} ({parked.length})</Button>
+            <Button variant="secondary" onClick={() => setPanel('return')}>{L('Return')}</Button>
+            <Button variant="ghost" onClick={() => { if (window.onesync) void window.onesync.hardware.openCustomerDisplay(); else window.open('#/customer-display', 'onesync-customer-display', 'popup,width=900,height=600') }}>{L('Customer display')}</Button>
+            {window.onesync ? <Button variant="ghost" onClick={async () => { try { await window.onesync?.hardware.openCashDrawer() } catch (e) { setProblem(e instanceof Error ? e.message : 'Could not open the drawer.') } }}>{L('Open drawer')}</Button> : null}
+            {shift && can(perms, 'pos:sell') ? <Button variant="secondary" disabled={offline} onClick={() => setPanel('giftcard')}>{L('Sell gift card')}</Button> : null}
+            <Button variant="secondary" onClick={() => setClosing(shift)}>{L('Close shift')}</Button>
           </div>
         </div>
         <div className="relative">
@@ -376,9 +378,9 @@ export function CounterPage() {
         ) : null}
         <div className="min-h-0 flex-1 overflow-auto rounded-lg border border-line bg-surface">
           <table className="w-full text-sm" aria-label="Cart">
-            <thead><tr className="bg-canvas text-left text-xs text-muted"><th className="p-2">Item</th><th className="w-20 p-2 text-right">Qty</th><th className="w-28 p-2 text-right">Price</th><th className="w-20 p-2 text-right">Disc %</th><th className="w-28 p-2 text-right">Amount</th><th className="w-8"><span className="sr-only">Actions</span></th></tr></thead>
+            <thead><tr className="bg-canvas text-left text-xs text-muted"><th className="p-2">{L('Item')}</th><th className="w-20 p-2 text-right">{L('Qty')}</th><th className="w-28 p-2 text-right">{L('Price')}</th><th className="w-20 p-2 text-right">{L('Disc %')}</th><th className="w-28 p-2 text-right">{L('Amount')}</th><th className="w-8"><span className="sr-only">Actions</span></th></tr></thead>
             <tbody>
-              {cart.length === 0 ? <tr><td colSpan={6} className="p-6 text-center text-muted">Scan an item to begin.</td></tr> : cart.map((l) => {
+              {cart.length === 0 ? <tr><td colSpan={6} className="p-6 text-center text-muted">{L('Scan an item to begin.')}</td></tr> : cart.map((l) => {
                 const set = (p: Partial<CartLine>): void => setCart(cart.map((x) => (x.key === l.key ? { ...x, ...p } : x)))
                 const row = calc.data && !offline ? calc.data.lines[cart.indexOf(l)] : undefined
                 return (
@@ -412,17 +414,17 @@ export function CounterPage() {
           <div className="flex flex-col gap-2">
             {tenders.map((t) => (
               <div key={t.key} className="grid items-end gap-2" style={{ gridTemplateColumns: '1fr 1fr 24px' }}>
-                <SelectField label="Method" value={t.method} onChange={(e) => setTenders(tenders.map((x) => (x.key === t.key ? { ...x, method: e.target.value } : x)))} options={[...POS_METHODS, 'gift_card' as const].map((m) => ({ value: m, label: METHOD[m] ?? m }))} />
+                <SelectField label={L('Method')} value={t.method} onChange={(e) => setTenders(tenders.map((x) => (x.key === t.key ? { ...x, method: e.target.value } : x)))} options={[...POS_METHODS, 'gift_card' as const].map((m) => ({ value: m, label: METHOD[m] ?? m }))} />
                 <TextField label="Amount" inputMode="decimal" value={t.amount !== '' ? t.amount : tenders.length === 1 ? (due === '0' ? '' : due) : ''} onChange={(e) => setTenders(tenders.map((x) => (x.key === t.key ? { ...x, amount: e.target.value } : x)))} />
                 {tenders.length > 1 ? <button type="button" aria-label="Remove payment" className="mb-2 text-muted hover:text-bad" onClick={() => setTenders(tenders.filter((x) => x.key !== t.key))}>×</button> : <span />}
                 {t.method === 'gift_card' ? <div className="col-span-2"><TextField label="Gift card code" value={t.code ?? ''} hint={offline ? 'Gift cards need a connection' : undefined} onChange={(e) => setTenders(tenders.map((x) => (x.key === t.key ? { ...x, code: e.target.value } : x)))} /></div> : null}
-                {t.method === 'cash' ? <div className="col-span-2"><TextField label="Cash given" inputMode="decimal" value={t.tendered} onChange={(e) => setTenders(tenders.map((x) => (x.key === t.key ? { ...x, tendered: e.target.value } : x)))} /></div> : null}
+                {t.method === 'cash' ? <div className="col-span-2"><TextField label={L('Cash given')} inputMode="decimal" value={t.tendered} onChange={(e) => setTenders(tenders.map((x) => (x.key === t.key ? { ...x, tendered: e.target.value } : x)))} /></div> : null}
               </div>))}
-            <Button variant="ghost" className="self-start" onClick={() => setTenders([...tenders, newTender('upi')])}>+ Split payment</Button>
+            <Button variant="ghost" className="self-start" onClick={() => setTenders([...tenders, newTender('upi')])}>{L('+ Split payment')}</Button>
             <dl className="text-sm">{Number(credit) > 0 ? <div className="flex justify-between"><dt className="text-muted">Store credit used</dt><dd className="num" aria-label="Store credit used">{formatInr(credit)}</dd></div> : null}<div className="flex justify-between"><dt className="text-muted">Still to pay</dt><dd className="num">{formatInr(remaining)}</dd></div>{Number(change) > 0 ? <div className="flex justify-between font-semibold"><dt>Change</dt><dd className="num" aria-label="Change due">{formatInr(change)}</dd></div> : null}</dl>
           </div>
         </Card>
-        <Button className="h-12 text-base" disabled={!ready} busy={busy} onClick={() => void charge()}>Charge {formatInr(total)} (F9)</Button>
+        <Button className="h-12 text-base" disabled={!ready} busy={busy} onClick={() => void charge()}>{L('Charge')} {formatInr(total)} (F9)</Button>
         <span className="text-xs text-muted" aria-label="Item list status">{deviceId && !cat.ready ? 'Loading this counter’s items…' : deviceId ? `${cat.count.toLocaleString('en-IN')} items on this counter${cat.lastSyncAt ? ` · updated ${new Date(cat.lastSyncAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : ''}${cat.syncing ? ' · updating…' : ''}` : 'Ask a manager to register this counter so it can sell offline'}</span>{deviceId ? <Button variant="ghost" busy={cat.syncing} onClick={async () => { const n = await cat.syncNow(true); if (n !== null) flash.show(`${n.toLocaleString('en-IN')} items updated.`); else setProblem('Could not reach the server: the counter keeps working with the items it has.') }}>Refresh items</Button> : null}
       </div>
       {panel === 'giftcard' && shift ? <GiftCardDrawer shiftId={shift.id} onClose={() => setPanel(null)} /> : null}

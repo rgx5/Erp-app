@@ -1,0 +1,22 @@
+/** Marathi. Keys are the English text shown on screen. */
+export const mr: Record<string, string> = {
+  Dashboard: 'डॅशबोर्ड', Setup: 'सेटअप', Quotes: 'कोटेशन', 'Sales orders': 'विक्री ऑर्डर', Invoices: 'इनव्हॉइस', Receipts: 'पावत्या', 'Payment reminders': 'पेमेंट स्मरणपत्रे',
+  'Recurring invoices': 'आवर्ती इनव्हॉइस', 'Delivery challans': 'डिलिव्हरी चलन', 'Sales analysis': 'विक्री विश्लेषण', Receivables: 'येणे रक्कम', 'Journal entries': 'जर्नल नोंदी',
+  Expenses: 'खर्च', 'Chart of accounts': 'खाते तक्ता', 'Financial reports': 'आर्थिक अहवाल', 'Bank reconciliation': 'बँक जुळवणी', 'Periods and year-end': 'कालावधी आणि वर्षअखेर', 'Report centre': 'अहवाल केंद्र',
+  'GST returns': 'जीएसटी विवरणपत्रे', 'Work orders': 'कार्य आदेश', 'Bills of material': 'साहित्य सूची', 'Work centres': 'कार्य केंद्रे', 'Job work': 'जॉब वर्क', 'Production costing': 'उत्पादन खर्च',
+  'Payroll runs': 'पगार प्रक्रिया', People: 'कर्मचारी', 'Statutory dues': 'वैधानिक देणी', 'Payroll setup': 'पगार सेटअप', Counter: 'काउंटर', 'Loyalty and coupons': 'लॉयल्टी आणि कूपन', 'Day-end report': 'दिवसअखेर अहवाल',
+  'Shifts and setup': 'शिफ्ट आणि सेटअप', Users: 'वापरकर्ते', Roles: 'भूमिका', 'API keys': 'एपीआय की', 'Data export': 'डेटा निर्यात', 'Audit log': 'ऑडिट लॉग', 'My account': 'माझे खाते',
+  'Stock on hand': 'हातातील साठा', 'Reorder list': 'पुनर्मागणी यादी', Movements: 'साठा हालचाल', Transfers: 'हस्तांतरण', 'Stock counts': 'साठा मोजणी', 'Batches and serials': 'बॅच आणि सिरीयल', Valuation: 'मूल्यांकन',
+  'Purchase orders': 'खरेदी ऑर्डर', 'Goods receipts': 'माल पावती', 'Supplier bills': 'पुरवठादार बिले', Payments: 'देयके', Payables: 'देणे रक्कम', 'Landed costs': 'लँडेड कॉस्ट', Approvals: 'मंजुरी',
+  Companies: 'कंपन्या', Items: 'वस्तू', Customers: 'ग्राहक', Suppliers: 'पुरवठादार', Categories: 'श्रेणी', 'Print labels': 'लेबल प्रिंट', 'Price lists': 'किंमत यादी', 'Tax codes': 'कर कोड',
+  Units: 'एकके', 'Payment terms': 'पेमेंट अटी', Home: 'मुख्यपृष्ठ', Sales: 'विक्री', Buy: 'खरेदी', Stock: 'साठा', Books: 'हिशोब', POS: 'पीओएस', Make: 'उत्पादन', Payroll: 'पगार', Admin: 'प्रशासन',
+  Accounting: 'लेखा', Administration: 'प्रशासन', Inventory: 'माल साठा', Manufacturing: 'उत्पादन', 'Master data': 'मास्टर डेटा', 'Point of sale': 'विक्री केंद्र', Purchasing: 'खरेदी',
+  Item: 'वस्तू', Qty: 'प्रमाण', Price: 'किंमत', 'Disc %': 'सवलत %', Amount: 'रक्कम', 'Scan an item to begin.': 'सुरू करण्यासाठी वस्तू स्कॅन करा.', 'Hold bill': 'बिल होल्ड करा', 'Held bills': 'होल्ड केलेली बिले', Return: 'परतावा',
+  'Close shift': 'शिफ्ट बंद करा', 'Customer display': 'ग्राहक डिस्प्ले', 'Open drawer': 'ड्रॉवर उघडा', 'Sell gift card': 'गिफ्ट कार्ड विका', Method: 'पद्धत', 'Cash given': 'दिलेली रोख', 'Change due': 'परत द्यायची रक्कम',
+  '+ Split payment': '+ पेमेंट विभागा', Charge: 'पैसे घ्या', 'Refresh items': 'वस्तू अद्ययावत करा', Cash: 'रोख', Card: 'कार्ड', UPI: 'यूपीआय', Total: 'एकूण',
+  Language: 'भाषा', 'Account menu': 'खाते मेनू', 'Sign out': 'साइन आउट', Search: 'शोधा', Save: 'जतन करा', Cancel: 'रद्द करा', Print: 'प्रिंट', Close: 'बंद करा',
+  'Tax Invoice': 'टॅक्स इनव्हॉइस', 'Bill of Supply': 'पुरवठा बिल', 'Credit Note': 'क्रेडिट नोट', 'Debit Note': 'डेबिट नोट', Quotation: 'कोटेशन', 'Proforma Invoice': 'प्रोफॉर्मा इनव्हॉइस', 'Sales Order': 'विक्री ऑर्डर', 'Delivery Challan': 'डिलिव्हरी चलन',
+  'Invoice no.': 'इनव्हॉइस क्र.', 'Quotation no.': 'कोटेशन क्र.', 'Proforma no.': 'प्रोफॉर्मा क्र.', 'Order no.': 'ऑर्डर क्र.', 'Challan no.': 'चलन क्र.', Date: 'दिनांक', 'Place of supply': 'पुरवठ्याचे ठिकाण', 'Bill to': 'बिल प्राप्तकर्ता',
+  Description: 'तपशील', 'HSN/SAC': 'एचएसएन/एसएसी', Rate: 'दर', 'Disc.': 'सवलत', Taxable: 'करपात्र', 'Taxable value': 'करपात्र मूल्य', 'Grand total': 'एकूण रक्कम', 'Round off': 'पूर्णांकन', 'Amount in words': 'अक्षरी रक्कम',
+  'Authorised signatory': 'अधिकृत स्वाक्षरीकर्ता', 'This is a computer generated document.': 'हा संगणकाद्वारे तयार केलेला दस्तऐवज आहे.', 'Pay by UPI': 'यूपीआयने पैसे द्या', 'Thank you': 'धन्यवाद', TOTAL: 'एकूण', Change: 'उरलेले पैसे',
+}

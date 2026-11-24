@@ -1,6 +1,7 @@
 import type { Address, Invoice } from '@/api/schemas'
 import { formatDate, formatInr } from '@/domain/format'
 import { STATES } from '@/domain/india'
+import { bilingual } from '@/i18n'
 import { rupeesInWords } from '@/domain/words'
 import { qrSvg, upiLink } from '@/features/retail/upiQr'
 
@@ -43,25 +44,25 @@ export function invoiceHtml(inv: Invoice, seller: Seller, billTo: Address | unde
   .totals { width: 55%; margin-left: auto; } .totals td { border: 0; padding: 2px 5px; } .totals tr:last-child td { border-top: 1px solid #444; font-weight: bold; font-size: 13px; }
 </style></head><body>
 ${cancelled ? '<div class="watermark">CANCELLED</div>' : ''}
-<h1>${esc(opts.title ?? TITLES[inv.documentType] ?? inv.documentType)}</h1>
+<h1>${esc(bilingual(opts.title ?? TITLES[inv.documentType] ?? inv.documentType))}</h1>
 <div class="box" style="margin-top:6px"><div class="big">${esc(seller.name)}</div>${seller.tradeName ? `<div>(${esc(seller.tradeName)})</div>` : ''}
   <div>${seller.address.map(esc).join(', ')}</div><div>GSTIN: <b>${esc(seller.gstin)}</b> · State: ${esc(stateName(seller.stateCode))} (${esc(seller.stateCode)})</div></div>
 <div class="row" style="margin-top:6px">
-  <div class="box"><div class="muted">${esc(opts.numberLabel ?? 'Invoice no.')}</div><div class="big">${esc(inv.invoiceNo)}</div><div class="muted" style="margin-top:4px">Date</div><div>${esc(formatDate(inv.invoiceDate))}</div>${inv.dueDate ? `<div class="muted" style="margin-top:4px">Due date</div><div>${esc(formatDate(inv.dueDate))}</div>` : ''}</div>
-  <div class="box"><div class="muted">Place of supply</div><div>${esc(stateName(inv.placeOfSupply))} (${esc(inv.placeOfSupply)})</div>${inv.reverseCharge ? '<div class="muted" style="margin-top:4px">Reverse charge</div><div>Yes: tax is payable by the recipient</div>' : ''}${inv.taxPayment === 'without_payment' ? '<div class="muted" style="margin-top:4px">Supply</div><div>Without payment of tax (under LUT / bond)</div>' : ''}</div>
+  <div class="box"><div class="muted">${esc(bilingual(opts.numberLabel ?? 'Invoice no.'))}</div><div class="big">${esc(inv.invoiceNo)}</div><div class="muted" style="margin-top:4px">${esc(bilingual('Date'))}</div><div>${esc(formatDate(inv.invoiceDate))}</div>${inv.dueDate ? `<div class="muted" style="margin-top:4px">Due date</div><div>${esc(formatDate(inv.dueDate))}</div>` : ''}</div>
+  <div class="box"><div class="muted">${esc(bilingual('Place of supply'))}</div><div>${esc(stateName(inv.placeOfSupply))} (${esc(inv.placeOfSupply)})</div>${inv.reverseCharge ? '<div class="muted" style="margin-top:4px">Reverse charge</div><div>Yes: tax is payable by the recipient</div>' : ''}${inv.taxPayment === 'without_payment' ? '<div class="muted" style="margin-top:4px">Supply</div><div>Without payment of tax (under LUT / bond)</div>' : ''}</div>
 </div>
-<div class="box" style="margin-top:6px"><div class="muted">Bill to</div><div class="big">${esc(inv.customerName)}</div>
+<div class="box" style="margin-top:6px"><div class="muted">${esc(bilingual('Bill to'))}</div><div class="big">${esc(inv.customerName)}</div>
   ${billTo ? `<div>${esc([billTo.line1, billTo.line2, billTo.city, stateName(billTo.stateCode), billTo.pincode].filter(Boolean).join(', '))}</div>` : ''}
   ${inv.customerGstin ? `<div>GSTIN: <b>${esc(inv.customerGstin)}</b></div>` : ''}</div>
 ${opts.note ? `<div class="box" style="margin-top:6px"><b>${esc(opts.note)}</b></div>` : ''}
 ${opts.extraTop ?? ''}
 ${inv.reason ? `<div class="box" style="margin-top:6px"><span class="muted">Reason:</span> ${esc(inv.reason)}</div>` : ''}
-<table style="margin-top:6px"><thead><tr><th>#</th><th>Description</th><th>HSN/SAC</th><th>Qty</th><th>Rate</th><th>Disc.</th><th>Taxable</th>${taxHeads.map((h) => `<th>${h}</th>`).join('')}<th>Total</th></tr></thead><tbody>${rows}</tbody></table>
+<table style="margin-top:6px"><thead><tr><th>#</th><th>${esc(bilingual('Description'))}</th><th>${esc(bilingual('HSN/SAC'))}</th><th>${esc(bilingual('Qty'))}</th><th>${esc(bilingual('Rate'))}</th><th>${esc(bilingual('Disc.'))}</th><th>${esc(bilingual('Taxable'))}</th>${taxHeads.map((h) => `<th>${h}</th>`).join('')}<th>${esc(bilingual('Total'))}</th></tr></thead><tbody>${rows}</tbody></table>
 <table class="totals" style="margin-top:6px"><tbody>
-  ${total('Taxable value', inv.taxableTotal)}${intra ? total('CGST', inv.cgstTotal) + total('SGST', inv.sgstTotal) : total('IGST', inv.igstTotal)}${total('Cess', inv.cessTotal)}${total('Round off', inv.roundOff)}
-  <tr><td>Grand total</td><td class="r">${formatInr(inv.grandTotal)}</td></tr></tbody></table>
-<div class="box" style="margin-top:6px"><span class="muted">Amount in words:</span> <b>${esc(rupeesInWords(inv.grandTotal))}</b></div>
-${seller.upiId && !opts.noQr && (inv.documentType === 'tax_invoice' || inv.documentType === 'bill_of_supply') && Number(inv.grandTotal) > 0 ? `<div class="box" style="margin-top:6px;display:flex;gap:10px;align-items:center">${qrSvg(upiLink(seller.upiId, seller.tradeName || seller.name, inv.grandTotal, inv.invoiceNo))}<div><b>Pay by UPI</b><br><span class="muted">Scan with any UPI app to pay ${esc(formatInr(inv.grandTotal))}<br>${esc(seller.upiId)}</span></div></div>` : ''}
-<div class="row" style="margin-top:14px"><div class="muted">This is a computer generated document.</div><div class="r" style="margin-top:28px">For ${esc(seller.name)}<br><br>Authorised signatory</div></div>
+  ${total(bilingual('Taxable value'), inv.taxableTotal)}${intra ? total('CGST', inv.cgstTotal) + total('SGST', inv.sgstTotal) : total('IGST', inv.igstTotal)}${total('Cess', inv.cessTotal)}${total(bilingual('Round off'), inv.roundOff)}
+  <tr><td>${esc(bilingual('Grand total'))}</td><td class="r">${formatInr(inv.grandTotal)}</td></tr></tbody></table>
+<div class="box" style="margin-top:6px"><span class="muted">${esc(bilingual('Amount in words'))}:</span> <b>${esc(rupeesInWords(inv.grandTotal))}</b></div>
+${seller.upiId && !opts.noQr && (inv.documentType === 'tax_invoice' || inv.documentType === 'bill_of_supply') && Number(inv.grandTotal) > 0 ? `<div class="box" style="margin-top:6px;display:flex;gap:10px;align-items:center">${qrSvg(upiLink(seller.upiId, seller.tradeName || seller.name, inv.grandTotal, inv.invoiceNo))}<div><b>${esc(bilingual('Pay by UPI'))}</b><br><span class="muted">Scan with any UPI app to pay ${esc(formatInr(inv.grandTotal))}<br>${esc(seller.upiId)}</span></div></div>` : ''}
+<div class="row" style="margin-top:14px"><div class="muted">${esc(bilingual('This is a computer generated document.'))}</div><div class="r" style="margin-top:28px">For ${esc(seller.name)}<br><br>${esc(bilingual('Authorised signatory'))}</div></div>
 </body></html>`
 }

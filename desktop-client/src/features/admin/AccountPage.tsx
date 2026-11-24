@@ -3,9 +3,10 @@ import { z } from 'zod'
 import { ApiError } from '@/api/errors'
 import { useSession } from '@/auth/session'
 import { useFlash } from '@/ui/flash'
+import { LANGS, useLang, type Lang } from '@/i18n'
 import { useLayout, type Layout } from '@/ui/layout'
 import { SimpleForm } from '@/ui/SimpleForm'
-import { Alert, Button, Card, TextField } from '@/ui/primitives'
+import { Alert, Button, Card, SelectField, TextField } from '@/ui/primitives'
 import { setMyPin } from '@/features/pos/queries'
 import { can } from '@/auth/permissions'
 import { changePassword, mfaActivate, mfaDisable, mfaEnroll } from './queries'
@@ -17,6 +18,7 @@ export function AccountPage() {
   const refresh = useSession((s) => s.refreshMe)
   const flash = useFlash()
   const [pin, setPin] = useState('')
+  const lang = useLang((l) => l.lang); const setLang = useLang((l) => l.set)
   const layout = useLayout((l) => l.layout)
   const setLayout = useLayout((l) => l.set)
   const [enrol, setEnrol] = useState<{ secret: string; otpauthUri: string } | null>(null)
@@ -30,6 +32,12 @@ export function AccountPage() {
     <div className="mx-auto flex max-w-xl flex-col gap-4">
       <h1 className="page-title">My account</h1>
       <p className="text-sm text-muted">{me?.user?.displayName} · {me?.user?.email}</p>
+      <Card title="Language">
+        <div className="flex max-w-sm flex-col gap-1">
+          <SelectField label="Language (kept on this computer)" value={lang} onChange={(e) => setLang(e.target.value as Lang)} options={LANGS.map((l) => ({ value: l.code, label: l.name }))} />
+          <p className="text-xs text-muted">Changes the menus, the counter and the headings printed on invoices and receipts. Printed documents show both languages. Anything not yet translated stays in English.</p>
+        </div>
+      </Card>
       <Card title="Appearance">
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-1 text-xs font-medium text-muted">Layout (kept on this computer)</legend>

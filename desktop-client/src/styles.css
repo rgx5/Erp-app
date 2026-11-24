@@ -6,7 +6,7 @@
  * one orange marker. The app does not follow the OS dark setting: it is meant for a bright office.
  */
 @theme {
-  --font-sans: "Inter Variable", Inter, "Segoe UI", system-ui, -apple-system, "Helvetica Neue", sans-serif;
+  --font-sans: "Inter Variable", Inter, "Segoe UI", "Nirmala UI", "Noto Sans Devanagari", "Noto Sans Gujarati", "Kohinoor Devanagari", "Kohinoor Gujarati", system-ui, -apple-system, "Helvetica Neue", sans-serif;
   --color-canvas: #f4f3ef;
   --color-surface: #ffffff;
   --color-sunken: #f9f8f5;

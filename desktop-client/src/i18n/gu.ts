@@ -1,0 +1,22 @@
+/** Gujarati. Keys are the English text shown on screen. */
+export const gu: Record<string, string> = {
+  Dashboard: 'ડેશબોર્ડ', Setup: 'સેટઅપ', Quotes: 'ક્વોટેશન', 'Sales orders': 'વેચાણ ઓર્ડર', Invoices: 'ઇન્વૉઇસ', Receipts: 'રસીદો', 'Payment reminders': 'ચુકવણી રિમાઇન્ડર',
+  'Recurring invoices': 'પુનરાવર્તિત ઇન્વૉઇસ', 'Delivery challans': 'ડિલિવરી ચલણ', 'Sales analysis': 'વેચાણ વિશ્લેષણ', Receivables: 'લેણાં', 'Journal entries': 'જર્નલ એન્ટ્રીઓ',
+  Expenses: 'ખર્ચ', 'Chart of accounts': 'ખાતાનો ચાર્ટ', 'Financial reports': 'નાણાકીય અહેવાલ', 'Bank reconciliation': 'બેંક મેળવણી', 'Periods and year-end': 'સમયગાળો અને વર્ષાંત', 'Report centre': 'રિપોર્ટ કેન્દ્ર',
+  'GST returns': 'જીએસટી રિટર્ન', 'Work orders': 'વર્ક ઓર્ડર', 'Bills of material': 'સામગ્રી સૂચિ', 'Work centres': 'વર્ક સેન્ટર', 'Job work': 'જોબ વર્ક', 'Production costing': 'ઉત્પાદન ખર્ચ',
+  'Payroll runs': 'પગાર રન', People: 'કર્મચારીઓ', 'Statutory dues': 'કાનૂની લેણાં', 'Payroll setup': 'પગાર સેટઅપ', Counter: 'કાઉન્ટર', 'Loyalty and coupons': 'લોયલ્ટી અને કૂપન', 'Day-end report': 'દિવસ-અંત રિપોર્ટ',
+  'Shifts and setup': 'શિફ્ટ અને સેટઅપ', Users: 'વપરાશકર્તાઓ', Roles: 'ભૂમિકાઓ', 'API keys': 'API કી', 'Data export': 'ડેટા નિકાસ', 'Audit log': 'ઓડિટ લોગ', 'My account': 'મારું ખાતું',
+  'Stock on hand': 'હાથ પરનો સ્ટોક', 'Reorder list': 'ફરી ઓર્ડર યાદી', Movements: 'સ્ટોક હિલચાલ', Transfers: 'ટ્રાન્સફર', 'Stock counts': 'સ્ટોક ગણતરી', 'Batches and serials': 'બેચ અને સીરિયલ', Valuation: 'મૂલ્યાંકન',
+  'Purchase orders': 'ખરીદી ઓર્ડર', 'Goods receipts': 'માલ પ્રાપ્તિ', 'Supplier bills': 'સપ્લાયર બિલ', Payments: 'ચુકવણીઓ', Payables: 'દેવાં', 'Landed costs': 'લેન્ડેડ કોસ્ટ', Approvals: 'મંજૂરીઓ',
+  Companies: 'કંપનીઓ', Items: 'વસ્તુઓ', Customers: 'ગ્રાહકો', Suppliers: 'સપ્લાયર્સ', Categories: 'શ્રેણીઓ', 'Print labels': 'લેબલ પ્રિન્ટ', 'Price lists': 'ભાવ યાદી', 'Tax codes': 'કર કોડ',
+  Units: 'એકમો', 'Payment terms': 'ચુકવણીની શરતો', Home: 'હોમ', Sales: 'વેચાણ', Buy: 'ખરીદી', Stock: 'સ્ટોક', Books: 'હિસાબ', POS: 'પીઓએસ', Make: 'ઉત્પાદન', Payroll: 'પગાર', Admin: 'વહીવટ',
+  Accounting: 'હિસાબી', Administration: 'વહીવટ', Inventory: 'ઇન્વેન્ટરી', Manufacturing: 'ઉત્પાદન', 'Master data': 'માસ્ટર ડેટા', 'Point of sale': 'વેચાણ કેન્દ્ર', Purchasing: 'ખરીદી',
+  Item: 'વસ્તુ', Qty: 'જથ્થો', Price: 'કિંમત', 'Disc %': 'છૂટ %', Amount: 'રકમ', 'Scan an item to begin.': 'શરૂ કરવા માટે વસ્તુ સ્કેન કરો.', 'Hold bill': 'બિલ હોલ્ડ કરો', 'Held bills': 'હોલ્ડ કરેલા બિલ', Return: 'પરત',
+  'Close shift': 'શિફ્ટ બંધ કરો', 'Customer display': 'ગ્રાહક ડિસ્પ્લે', 'Open drawer': 'ડ્રોઅર ખોલો', 'Sell gift card': 'ગિફ્ટ કાર્ડ વેચો', Method: 'પદ્ધતિ', 'Cash given': 'આપેલ રોકડ', 'Change due': 'પરત આપવાની રકમ',
+  '+ Split payment': '+ ચુકવણી વિભાજિત કરો', Charge: 'ચુકવણી લો', 'Refresh items': 'વસ્તુઓ અપડેટ કરો', Cash: 'રોકડ', Card: 'કાર્ડ', UPI: 'યુપીઆઈ', Total: 'કુલ',
+  Language: 'ભાષા', 'Account menu': 'ખાતા મેનૂ', 'Sign out': 'સાઇન આઉટ', Search: 'શોધો', Save: 'સાચવો', Cancel: 'રદ કરો', Print: 'પ્રિન્ટ', Close: 'બંધ કરો',
+  'Tax Invoice': 'ટેક્સ ઇન્વૉઇસ', 'Bill of Supply': 'સપ્લાય બિલ', 'Credit Note': 'ક્રેડિટ નોટ', 'Debit Note': 'ડેબિટ નોટ', Quotation: 'ક્વોટેશન', 'Proforma Invoice': 'પ્રોફોર્મા ઇન્વૉઇસ', 'Sales Order': 'વેચાણ ઓર્ડર', 'Delivery Challan': 'ડિલિવરી ચલણ',
+  'Invoice no.': 'ઇન્વૉઇસ નં.', 'Quotation no.': 'ક્વોટેશન નં.', 'Proforma no.': 'પ્રોફોર્મા નં.', 'Order no.': 'ઓર્ડર નં.', 'Challan no.': 'ચલણ નં.', Date: 'તારીખ', 'Place of supply': 'સપ્લાયનું સ્થળ', 'Bill to': 'બિલ મેળવનાર',
+  Description: 'વિગત', 'HSN/SAC': 'એચએસએન/એસએસી', Rate: 'દર', 'Disc.': 'છૂટ', Taxable: 'કરપાત્ર', 'Taxable value': 'કરપાત્ર મૂલ્ય', 'Grand total': 'કુલ રકમ', 'Round off': 'રાઉન્ડ ઓફ', 'Amount in words': 'શબ્દોમાં રકમ',
+  'Authorised signatory': 'અધિકૃત સહી કરનાર', 'This is a computer generated document.': 'આ કમ્પ્યુટર દ્વારા બનાવેલ દસ્તાવેજ છે.', 'Pay by UPI': 'યુપીઆઈથી ચૂકવો', 'Thank you': 'આભાર', TOTAL: 'કુલ', Change: 'પરત',
+}

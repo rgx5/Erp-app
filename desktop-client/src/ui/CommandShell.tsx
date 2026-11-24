@@ -1,3 +1,4 @@
+import { useT } from '@/i18n'
 import { NotificationsBell } from './NotificationsBell'
 import { Link, Outlet, useRouterState } from '@tanstack/react-router'
 import { LogOut, Search } from 'lucide-react'
@@ -17,6 +18,7 @@ import { Toasts } from './Toasts'
  * docked pane beside it for the record being edited, and a status bar. Menu entries are hidden when the person lacks the permission.
  */
 export function CommandShell() {
+  const t = useT()
   const { me, logout, server } = useSession()
   const path = useRouterState({ select: (s) => s.location.pathname })
   const granted = me?.permissions ?? []
@@ -46,8 +48,8 @@ export function CommandShell() {
             const target = first(m)
             const on = m === area
             return target ? (
-              <Link key={m.id} to={target.to as never} aria-label={m.label} title={m.label} className={cn('grid h-12 w-12 place-items-center rounded-xl text-[10px] font-medium leading-tight transition-colors', on ? 'bg-hero text-brand-ink shadow-[inset_3px_0_0_var(--color-accent)]' : 'text-muted hover:bg-canvas hover:text-ink')}>
-                <span className="flex flex-col items-center gap-0.5"><m.icon className="size-[18px]" aria-hidden />{m.label}</span>
+              <Link key={m.id} to={target.to as never} aria-label={t(m.label)} title={t(m.label)} className={cn('grid h-12 w-12 place-items-center rounded-xl text-[10px] font-medium leading-tight transition-colors', on ? 'bg-hero text-brand-ink shadow-[inset_3px_0_0_var(--color-accent)]' : 'text-muted hover:bg-canvas hover:text-ink')}>
+                <span className="flex flex-col items-center gap-0.5"><m.icon className="size-[18px]" aria-hidden />{t(m.label)}</span>
               </Link>) : null
           })}
         </nav>
@@ -56,7 +58,7 @@ export function CommandShell() {
       </aside>
 
       <header className="col-start-2 flex items-center gap-4 border-b border-line bg-surface px-5">
-        <span className="text-[15px] font-semibold tracking-tight">{area.label}</span>
+        <span className="text-[15px] font-semibold tracking-tight">{t(area.label)}</span>
         <button type="button" onClick={() => setPalette(true)} aria-label="Open the command palette" className="flex h-8 w-full max-w-[460px] items-center justify-between rounded-lg border border-line bg-canvas px-3 text-[13px] text-muted hover:border-line-strong">
           <span className="flex items-center gap-2"><Search className="size-3.5" aria-hidden />Search or run a command…</span><kbd className="rounded border border-line bg-surface px-1.5 text-[11px]">Ctrl K</kbd>
         </button>
@@ -65,9 +67,9 @@ export function CommandShell() {
         <span className="text-xs text-muted" title={me?.user?.email}>{me?.user?.displayName ?? ''}</span>
       </header>
 
-      <nav className="col-start-2 flex items-end gap-0.5 overflow-x-auto border-b border-line bg-surface px-4" aria-label={`${area.label} pages`}>
+      <nav className="col-start-2 flex items-end gap-0.5 overflow-x-auto border-b border-line bg-surface px-4" aria-label={`${t(area.label)} pages`}>
         {tabs.map((n) => (
-          <Link key={n.to} to={n.to as never} activeOptions={{ exact: n.to === '/' }} className={cn('whitespace-nowrap border-b-2 px-3 pb-2 pt-2.5 text-[13px] transition-colors', here === n ? 'border-brand font-semibold text-ink' : 'border-transparent text-muted hover:text-ink')}>{n.label}</Link>
+          <Link key={n.to} to={n.to as never} activeOptions={{ exact: n.to === '/' }} className={cn('whitespace-nowrap border-b-2 px-3 pb-2 pt-2.5 text-[13px] transition-colors', here === n ? 'border-brand font-semibold text-ink' : 'border-transparent text-muted hover:text-ink')}>{t(n.label)}</Link>
         ))}
       </nav>
 

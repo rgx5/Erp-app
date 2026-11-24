@@ -53,6 +53,10 @@ footer{margin-top:24pt;color:var(--mut);font-size:9pt;border-top:1px solid var(-
 <li><b>Hold and resume bills</b> – park a bill while the customer fetches another item and bring it back.</li>
 <li><b>Returns and exchanges</b> – return against the original bill with refund or store credit.</li>
 <li><b>Gift cards</b> – sell a card at the counter (held as money owed to the holder, not income), print its slip, and spend it as a payment method; a balance can never be overspent.</li>
+<li><b>Weighing scale</b> – read the weight of loose goods straight from a serial scale.</li>
+<li><b>Customer-facing display</b> – a second screen that shows the customer their bill and total as it is rung up.</li>
+<li><b>Cash drawer</b> – open the drawer from the counter (printer-connected drawers).</li>
+<li><b>Refunds onto gift cards</b> – a return can be refunded as a new gift card.</li>
 <li><b>Day-end report</b> – bills, returns, takings by payment mode, best sellers and each shift’s cash result, printable on the till roll.</li>
 <li><b>Receipt printers</b> – 80 mm and 58 mm rolls.</li>
 <li><b>Shift management</b> – open and close shifts with opening cash, closing count and difference reporting, per-terminal.</li>
@@ -76,6 +80,7 @@ footer{margin-top:24pt;color:var(--mut);font-size:9pt;border-top:1px solid var(-
 <li><b>Item master</b> – codes, names, categories, brands, units of measure, HSN/SAC, GST rate, MRP, selling and purchase price, minimum stock, active/inactive.</li>
 <li><b>Tracking options</b> – plain items, batch-tracked (with expiry) or serial-numbered items.</li>
 <li><b>Item categories and brands</b>, retail presets for common trades (grocery, apparel, pharmacy and others).</li>
+<li><b>Item photos</b> – one photo per item.</li>
 <li><b>Variants</b> – create every size and colour of a style in one step, each with its own stock, price and barcode.</li>
 <li><b>Price lists</b> – retail, wholesale, dealer or any custom list, with effective dates.</li>
 <li><b>Customers and suppliers</b> – contact details, GSTIN, GST treatment, credit terms, addresses, one record for a party that is both buyer and seller.</li>
@@ -90,6 +95,9 @@ footer{margin-top:24pt;color:var(--mut);font-size:9pt;border-top:1px solid var(-
 <li><b>Quotations and sales orders</b> – printable, priced with the same GST as the final invoice; convert a quote to an order and an order to an invoice without re-entry.</li>
 <li><b>Proforma invoices</b> – a clearly marked “not a tax invoice” document made from any quote or order, with an optional UPI QR so the customer can pay in advance. Nothing is posted to the books.</li>
 <li><b>Delivery challans</b> – record goods sent out before billing, with vehicle number and transporter; print the challan, then invoice it in full or in parts. Stock leaves and GST is charged when you invoice.</li>
+<li><b>Recurring invoices</b> – rent, subscriptions and maintenance contracts raised automatically on their due dates (weekly to yearly), with a history and a clear message if one cannot be raised.</li>
+<li><b>Payment reminders</b> – a list of overdue customers with ready-written WhatsApp messages (opened from your own WhatsApp), editable wording, and a record of who was chased and when.</li>
+<li><b>Attachments</b> – attach scanned bills, signed delivery copies or purchase order copies to invoices, orders, quotes, bills and purchase orders.</li>
 <li><b>Pay by scanning</b> – invoices can carry a UPI QR code for the exact amount.</li>
 <li><b>Sales analysis</b> – sales and profit by item, category, brand, day, cashier or customer, with returns netted off.</li>
 <li><b>Customer receipts</b> – record payments, allocate across invoices, part payments and advances.</li>
@@ -168,7 +176,9 @@ footer{margin-top:24pt;color:var(--mut);font-size:9pt;border-top:1px solid var(-
 <ul>
 <li><b>Users and roles</b> – define who can see and do what, down to individual actions; ready-made roles for owner, accountant, cashier, store keeper.</li>
 <li><b>Approvals</b> – high-value or sensitive documents wait for a manager's OK (Enterprise and above).</li>
-<li><b>Your data is yours</b> – download a complete copy of all your records in one file at any time (owner-level, audited).</li>
+<li><b>Your data is yours</b> – download a complete copy of all your records in one file at any time (owner-level, audited), check later that a saved file is whole and unchanged, and have it restored into a new business by your administrator.</li>
+<li><b>Notifications</b> – a bell shows approvals waiting, low stock, overdue customers, shifts left open, recurring invoices and an expiring licence.</li>
+<li><b>Languages</b> – menus, the counter and the headings on invoices and receipts in Hindi, Marathi or Gujarati (printed documents show both languages).</li>
 <li><b>Audit log</b> – who did what and when, for every change; cannot be edited.</li>
 <li><b>Two-step sign-in (MFA)</b> and automatic lock-out after repeated wrong passwords.</li>
 <li><b>Tenant isolation</b> – each client's data is separated at the database level; one business can never see another's.</li>
@@ -227,6 +237,8 @@ footer{margin-top:24pt;color:var(--mut);font-size:9pt;border-top:1px solid var(-
 <li>Automatic TDS/TCS handling</li>
 <li>Batch/serial-tracked items can only be sold while online at the counter</li>
 <li>Offline returns at the counter</li>
+<li>Sending reminders by SMS or email from inside the software (WhatsApp opens from your own phone number)</li>
+<li>Translated screens beyond the menus, the counter and printed headings; amounts in words stay in English</li>
 <li>Two-way sync between several offline sites (planned)</li>
 <li>Mobile app for staff (the owner dashboard works in a phone browser)</li>
 </ul>

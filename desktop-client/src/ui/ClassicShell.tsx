@@ -7,6 +7,7 @@ import { useSession } from '@/auth/session'
 import { useChosenCompany, useCompanies } from '@/features/organization/queries'
 import { LicenceBanner } from './LicenceBanner'
 import { Logo } from './Logo'
+import { useT } from '@/i18n'
 import { NotificationsBell } from './NotificationsBell'
 import { cn } from './cn'
 import { CommandPalette } from './CommandPalette'
@@ -24,8 +25,9 @@ const GROUP_ICON: Record<string, LucideIcon> = { Sales: FileText, Purchasing: Sh
  */
 function Sidebar({ items, rail }: { items: NavItem[]; rail: boolean }) {
   const starter = isStarter(useSession((s) => s.me))
+  const t = useT()
   /** A small shop's "Accounting" holds only expenses, so it is called that. */
-  const nameOf = (g: string): string => (starter && g === 'Accounting' ? 'Expenses' : g)
+  const nameOf = (g: string): string => t(starter && g === 'Accounting' ? 'Expenses' : g)
   const path = useRouterState({ select: (s) => s.location.pathname })
   const groups = useMemo(() => [...new Set(items.filter((n) => n.section).map((n) => n.section as string))], [items])
   const here = currentNav(items, path)
@@ -43,10 +45,10 @@ function Sidebar({ items, rail }: { items: NavItem[]; rail: boolean }) {
   const link = (n: NavItem, nested: boolean) => {
     const active = isHere(n, path) && here?.to === n.to
     return (
-      <Link key={n.to} to={n.to} title={rail && !nested ? n.label : undefined} className={cn('group relative flex h-8 shrink-0 items-center gap-2.5 rounded-md text-[13px] transition-colors', rail && !nested ? 'justify-center px-0' : nested ? 'pl-9 pr-2' : 'px-2.5', active ? 'bg-brand-soft font-medium text-brand' : 'text-muted hover:bg-canvas hover:text-ink')}>
+      <Link key={n.to} to={n.to} title={rail && !nested ? t(n.label) : undefined} className={cn('group relative flex h-8 shrink-0 items-center gap-2.5 rounded-md text-[13px] transition-colors', rail && !nested ? 'justify-center px-0' : nested ? 'pl-9 pr-2' : 'px-2.5', active ? 'bg-brand-soft font-medium text-brand' : 'text-muted hover:bg-canvas hover:text-ink')}>
         {active ? <span className="absolute inset-y-1.5 left-0 w-[3px] rounded-r bg-accent" aria-hidden /> : null}
         {nested && !rail ? null : <n.icon className={cn('size-4 shrink-0', active ? 'text-brand' : 'opacity-80')} aria-hidden />}
-        {rail && !nested ? <span className="sr-only">{n.label}</span> : <span className="truncate">{n.label}</span>}
+        {rail && !nested ? <span className="sr-only">{t(n.label)}</span> : <span className="truncate">{t(n.label)}</span>}
       </Link>
     )
   }
@@ -70,8 +72,8 @@ function Sidebar({ items, rail }: { items: NavItem[]; rail: boolean }) {
             {isOpen ? <div className="relative mb-1 mt-0.5 flex flex-col gap-0.5"><span className="absolute bottom-1 left-[17px] top-1 w-px bg-line" aria-hidden />{rows.map((n) => link(n, true))}</div> : null}
             {rail && fly === g ? (
               <div className="settle fixed left-[60px] z-40 mt-[-32px] w-52 rounded-lg border border-line bg-surface p-1.5 shadow-pop" role="menu" aria-label={g}>
-                <p className="eyebrow px-2 pb-1 pt-0.5">{g}</p>
-                {rows.map((n) => <Link key={n.to} to={n.to} role="menuitem" className={cn('flex h-8 items-center gap-2 rounded px-2 text-[13px]', here?.to === n.to ? 'bg-brand-soft font-medium text-brand' : 'text-muted hover:bg-canvas hover:text-ink')}><n.icon className="size-4 opacity-80" aria-hidden />{n.label}</Link>)}
+                <p className="eyebrow px-2 pb-1 pt-0.5">{nameOf(g)}</p>
+                {rows.map((n) => <Link key={n.to} to={n.to} role="menuitem" className={cn('flex h-8 items-center gap-2 rounded px-2 text-[13px]', here?.to === n.to ? 'bg-brand-soft font-medium text-brand' : 'text-muted hover:bg-canvas hover:text-ink')}><n.icon className="size-4 opacity-80" aria-hidden />{t(n.label)}</Link>)}
               </div>
             ) : null}
           </div>
@@ -119,6 +121,7 @@ function UserMenu() {
 }
 
 export function ClassicShell() {
+  const t = useT()
   const { me } = useSession()
   const path = useRouterState({ select: (s) => s.location.pathname })
   const granted = me?.permissions ?? []
@@ -154,8 +157,8 @@ export function ClassicShell() {
       <div className="flex min-h-0 min-w-0 flex-col">
         <header className="app-drag titlebar-right flex h-12 shrink-0 items-center gap-3 border-b border-line bg-surface px-5">
           <nav aria-label="Where you are" className="flex min-w-0 shrink-0 items-center gap-1.5 whitespace-nowrap text-[13px]">
-            {here?.section ? <><span className="text-muted">{here.section}</span><ChevronRight className="size-3.5 text-faint" aria-hidden /></> : null}
-            <span className="truncate font-medium">{here?.label ?? 'OneSyncERP'}</span>
+            {here?.section ? <><span className="text-muted">{t(here.section)}</span><ChevronRight className="size-3.5 text-faint" aria-hidden /></> : null}
+            <span className="truncate font-medium">{here ? t(here.label) : 'OneSyncERP'}</span>
           </nav>
           <button type="button" onClick={() => setPaletteOpen(true)} className="mx-auto flex h-8 w-full min-w-0 max-w-md items-center gap-2 rounded-md border border-line bg-sunken px-3 text-[13px] text-faint hover:border-line-strong">
             <Search className="size-3.5" aria-hidden /><span className="min-w-0 flex-1 truncate text-left">Search pages or start something…</span><kbd className="hidden lg:inline">Ctrl</kbd><kbd className="hidden lg:inline">K</kbd>
