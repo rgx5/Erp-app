@@ -4,6 +4,11 @@ import type { DesktopBridge } from '../bridge-types'
 const bridge: DesktopBridge = {
   desktop: true,
   platform: process.platform,
+  hardware: {
+    openCustomerDisplay: () => ipcRenderer.invoke('hardware:openDisplay'),
+    closeCustomerDisplay: () => ipcRenderer.invoke('hardware:closeDisplay'),
+    openCashDrawer: () => ipcRenderer.invoke('hardware:openDrawer'),
+  },
   app: {
     about: () => ipcRenderer.invoke('app:about'),
     openLogs: () => ipcRenderer.invoke('app:openLogs'),

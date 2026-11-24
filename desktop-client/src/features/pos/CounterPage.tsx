@@ -1,4 +1,4 @@
-import { Trash2 } from 'lucide-react'
+import { Scale, Trash2 } from 'lucide-react'
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { useQueryClient } from '@tanstack/react-query'
@@ -24,6 +24,8 @@ import { receiptText, whatsappUrl } from './share'
 import { counterState, loadQueue, saveCounterState, saveQueue, type QueuedSale } from './counterStore'
 import { searchItems, type LocalItem } from './catalogueSearch'
 import { useLocalCatalogue } from './useLocalCatalogue'
+import { listenDisplay, publishDisplay } from './customerDisplay'
+import { scaleSupported, weighOnce } from './scale'
 import { GiftCardDrawer } from './GiftCardDrawer'
 import { ReturnDrawer } from './ReturnDrawer'
 import { CloseShiftDrawer } from './ShiftDrawers'
@@ -192,6 +194,12 @@ export function CounterPage() {
   // ---- tenders ----
   const credit = wallet.useCredit && walletQ.data && !offline ? (compare(walletQ.data.storeCredit, total) < 0 ? walletQ.data.storeCredit : total) : '0'
   const due = sub(total, credit)
+  // what the customer's display shows: the bill as rung up, then a thank-you
+  const shopName = ws.company?.tradeName || ws.company?.legalName || ''
+  const display = useMemo(() => ({ type: 'cart' as const, shop: shopName, total, lines: cart.map((l, i) => ({ name: l.name, qty: l.quantity, amount: (calc.data && !offline ? calc.data.lines[i]?.lineTotal : undefined) ?? '0' })) }), [cart, total, shopName, calc.data, offline])
+  const displayRef = useRef(display); displayRef.current = display
+  useEffect(() => { publishDisplay(display.lines.length ? display : { type: 'idle', shop: shopName }) }, [display, shopName])
+  useEffect(() => listenDisplay((m) => { if (m.type === 'hello') publishDisplay(displayRef.current.lines.length ? displayRef.current : { type: 'idle', shop: shopName }) }), [shopName])
   const amountOf = (t: Tender): string => (t.amount !== '' ? t.amount : tenders.length === 1 ? due : '0')
   const paid = sum(tenders.map((t) => { const a = amountOf(t); return isValid(a) ? a : '0' }))
   const remaining = compare(due, '0') === 0 ? '0' : sub(due, paid)
@@ -243,6 +251,7 @@ export function CounterPage() {
     try {
       const res = await postSale({ shiftId: shift.id, lines, payments, ...(wallet.customerId ? { customerId: wallet.customerId } : {}), ...(wallet.coupon ? { couponCode: wallet.coupon.code } : {}), ...(ptsDisc > 0n ? { loyaltyPoints: wallet.points } : {}), ...(Number(credit) > 0 ? { storeCredit: credit } : {}), ...(approval ? { approval } : {}) }, clientId)
       void bridge.settings.get().then((st) => { if (st.autoPrintReceipts && st.receiptPrinter) void print(res) })
+      publishDisplay({ type: 'done', shop: shopName, total: res.invoice?.grandTotal ?? total, change: res.changeDue ?? '0' })
       setLast(res); setCart([]); setTenders([newTender()]); setWallet(noWallet()); setNeed(null); setPin(''); scanRef.current?.focus()
       void qc.invalidateQueries({ queryKey: ['pos'] }); void qc.invalidateQueries({ queryKey: ['retail'] })
     } catch (e) {
@@ -337,6 +346,8 @@ export function CounterPage() {
             <Button variant="secondary" disabled={cart.length === 0} onClick={hold}>Hold bill</Button>
             <Button variant="secondary" onClick={() => setShowParked(!showParked)}>Held bills ({parked.length})</Button>
             <Button variant="secondary" onClick={() => setPanel('return')}>Return</Button>
+            <Button variant="ghost" onClick={() => { if (window.onesync) void window.onesync.hardware.openCustomerDisplay(); else window.open('#/customer-display', 'onesync-customer-display', 'popup,width=900,height=600') }}>Customer display</Button>
+            {window.onesync ? <Button variant="ghost" onClick={async () => { try { await window.onesync?.hardware.openCashDrawer() } catch (e) { setProblem(e instanceof Error ? e.message : 'Could not open the drawer.') } }}>Open drawer</Button> : null}
             {shift && can(perms, 'pos:sell') ? <Button variant="secondary" disabled={offline} onClick={() => setPanel('giftcard')}>Sell gift card</Button> : null}
             <Button variant="secondary" onClick={() => setClosing(shift)}>Close shift</Button>
           </div>
@@ -374,7 +385,7 @@ export function CounterPage() {
                   <Fragment key={l.key}>
                   <tr className="border-t border-line/60">
                     <td className="p-2">{l.code} · {l.name}{staff.length > 0 ? <select aria-label={`Sold by ${l.code}`} className="ml-2 h-6 rounded border border-line bg-surface px-1 text-xs text-muted" value={l.salespersonId ?? ''} onChange={(e) => set(e.target.value ? { salespersonId: e.target.value } : { salespersonId: undefined as never })}><option value="">No salesperson</option>{staff.map((u) => <option key={u.id} value={u.id}>{u.displayName}</option>)}</select> : null}</td>
-                    <td className="p-1 text-right"><input aria-label={`Quantity of ${l.code}`} inputMode="decimal" className={`${cell} w-20`} value={l.quantity} onChange={(e) => set({ quantity: e.target.value })} /></td>
+                    <td className="p-1 text-right"><div className="flex items-center justify-end gap-1">{scaleSupported() && window.onesync ? <button type="button" aria-label={`Weigh ${l.code}`} title="Read the weight from the scale" className="grid size-8 place-items-center rounded border border-line text-muted hover:bg-canvas hover:text-ink" onClick={async () => { setProblem(null); try { set({ quantity: String(await weighOnce()) }) } catch (e) { setProblem(e instanceof Error ? e.message : 'Could not read the scale.') } }}><Scale className="size-4" aria-hidden /></button> : null}<input aria-label={`Quantity of ${l.code}`} inputMode="decimal" className={`${cell} w-20`} value={l.quantity} onChange={(e) => set({ quantity: e.target.value })} /></div></td>
                     <td className="p-1 text-right"><input aria-label={`Price of ${l.code}`} inputMode="decimal" className={`${cell} w-28 ${l.unitPrice === '' ? 'border-bad' : ''}`} value={l.unitPrice} placeholder="price" onChange={(e) => set({ unitPrice: e.target.value })} /></td>
                     <td className="p-1 text-right"><input aria-label={`Discount of ${l.code}`} inputMode="decimal" disabled={l.noDiscount === true} title={l.noDiscount ? 'No discount is allowed on this item' : undefined} className={`${cell} w-20 disabled:opacity-50`} value={l.discountPercent} onChange={(e) => set({ discountPercent: e.target.value })} /></td>
                     <td className="num p-2 text-right">{row ? formatInr(row.lineTotal, { symbol: false }) : ''}</td>

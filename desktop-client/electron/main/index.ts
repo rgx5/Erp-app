@@ -60,7 +60,50 @@ async function printSilently(html: string, deviceName: string): Promise<void> {
   }
 }
 
+/** Which serial port is the scale: the one chosen before, the only one there is, or ask. Returns the port's id, or '' for none. */
+async function chooseScalePort(all: { portId: string; displayName?: string | undefined }[]): Promise<string> {
+  const ports = all.map((p) => ({ portId: p.portId, displayName: p.displayName ?? '' }))
+  if (ports.length === 0) return ''
+  const saved = settings().read().scalePortName
+  const known = saved ? ports.find((p) => p.displayName === saved) : undefined
+  if (known) return known.portId
+  if (ports.length === 1) { settings().write({ ...settings().read(), scalePortName: (ports[0] as { displayName: string }).displayName }); return (ports[0] as { portId: string }).portId }
+  const r = await dialog.showMessageBox(win as BrowserWindow, { type: 'question', title: 'OneSyncERP', message: 'Which one is the scale?', buttons: [...ports.map((p) => p.displayName || p.portId), 'Cancel'], cancelId: ports.length, defaultId: 0 })
+  const picked = ports[r.response]
+  if (!picked) return ''
+  settings().write({ ...settings().read(), scalePortName: picked.displayName })
+  return picked.portId
+}
+
+let customerDisplay: BrowserWindow | null = null
+/** A window for the customer's side of the counter: on a second screen when there is one, otherwise a small window. */
+function openCustomerDisplay(): boolean {
+  if (customerDisplay && !customerDisplay.isDestroyed()) { customerDisplay.focus(); return true }
+  const displays = screen.getAllDisplays(); const main = win ? screen.getDisplayMatching(win.getBounds()) : displays[0]
+  const other = displays.find((d) => d.id !== main?.id)
+  customerDisplay = new BrowserWindow({
+    ...(other ? { x: other.bounds.x, y: other.bounds.y, width: other.bounds.width, height: other.bounds.height, fullscreen: true } : { width: 720, height: 520, x: (main?.bounds.x ?? 0) + 60, y: (main?.bounds.y ?? 0) + 60 }),
+    title: 'OneSyncERP: customer display', backgroundColor: '#ffffff', autoHideMenuBar: true, show: false,
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, spellcheck: false, devTools: !app.isPackaged },
+  })
+  customerDisplay.setMenu(null)
+  customerDisplay.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
+  customerDisplay.webContents.on('will-navigate', (e) => e.preventDefault())
+  customerDisplay.once('ready-to-show', () => customerDisplay?.show())
+  customerDisplay.on('closed', () => { customerDisplay = null })
+  void customerDisplay.loadURL(`${DEV_URL ?? `${APP_ORIGIN}/`}#/customer-display`)
+  return Boolean(other)
+}
+
 function registerIpc(): void {
+  ipcMain.handle('hardware:openDisplay', guard(() => openCustomerDisplay()))
+  ipcMain.handle('hardware:closeDisplay', guard(() => { if (customerDisplay && !customerDisplay.isDestroyed()) customerDisplay.close() }))
+  // The drawer opens when its printer prints: send a blank slip and the printer's own "open the drawer on each print" setting does the rest.
+  ipcMain.handle('hardware:openDrawer', guard(async () => {
+    const name = settings().read().receiptPrinter
+    if (!name) throw new Error('Choose the receipt printer first (Shifts and setup).')
+    await printSilently('<!doctype html><html><body style="margin:0"><div style="font-size:1px">.</div></body></html>', name)
+  }))
   ipcMain.handle('printer:list', guard(async () => (await (win ?? BrowserWindow.getAllWindows()[0] as BrowserWindow).webContents.getPrintersAsync()).map((p) => ({ name: p.name, isDefault: (p as { isDefault?: boolean }).isDefault === true }))))
   ipcMain.handle('printer:printReceipt', guard(async (html: string, printerName: string) => {
     if (typeof html !== 'string' || html.length > 1_000_000 || typeof printerName !== 'string' || !printerName) throw new Error('Nothing to print')
@@ -155,8 +198,12 @@ function createWindow(splash?: BrowserWindow): void {
   })
   if (state.maximized) win.maximize()
   // The app asks for nothing from the browser (no camera, location, notifications, clipboard reads...): refuse every permission prompt, and never allow <webview>.
-  win.webContents.session.setPermissionRequestHandler((_wc, _permission, callback) => callback(false))
-  win.webContents.session.setPermissionCheckHandler(() => false)
+  // (the one exception is a scale on a serial port, and only for the app's own pages)
+  const ses = win.webContents.session
+  ses.setPermissionRequestHandler((wc, permission, callback) => callback(permission === 'serial' && wc.getURL().startsWith(`${APP_ORIGIN}/`)))
+  ses.setPermissionCheckHandler((_wc, permission, origin) => permission === 'serial' && origin.startsWith(APP_ORIGIN))
+  ses.setDevicePermissionHandler((d) => d.deviceType === 'serial' && d.origin.startsWith(APP_ORIGIN))
+  ses.on('select-serial-port', (event, ports, _wc, callback) => { event.preventDefault(); void chooseScalePort(ports).then(callback) })
   win.webContents.on('will-attach-webview', (event) => event.preventDefault())
   win.webContents.on('did-finish-load', () => { if (state.zoom) win?.webContents.setZoomLevel(state.zoom) })
   win.once('ready-to-show', () => {

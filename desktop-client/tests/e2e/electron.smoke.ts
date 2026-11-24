@@ -167,3 +167,40 @@ test('the shell is a complete desktop app: splash closes, window size is remembe
   expect(existsSync(join(userData, 'logs', 'main.log'))).toBe(true)
   await app.close()
 })
+
+test('counter hardware: the weight comes from the scale, and the customer display shows the bill', async () => {
+  const s = await seedBusiness(process.env['E2E_BACKEND_URL'] as string, process.env['E2E_PLATFORM_TOKEN'] as string, { prefix: 'hw' })
+  const c = s.company.id
+  const accts = (await s.call('GET', `/v1/accounts?companyId=${c}&limit=200`)).items as { id: string; code: string }[]
+  const a = (code: string) => (accts.find((x) => x.code === code) as { id: string }).id
+  await s.call('PUT', `/v1/pos/settings?companyId=${c}`, { walkInCustomerId: s.walkIn.id, cashVarianceAccountId: a('5900') })
+  for (const [m, code] of [['cash', '1110'], ['upi', '1120'], ['card', '1120']] as [string, string][]) await s.call('PUT', `/v1/pos/payment-accounts?companyId=${c}`, { method: m, accountId: a(code) })
+  const term = await s.call('POST', '/v1/pos/terminals', { companyId: c, code: 'T1', name: 'Counter 1', gstRegistrationId: s.registration.id, businessLocationId: s.location.id, warehouseId: s.warehouse.id })
+  await s.call('POST', '/v1/pos/shifts', { terminalId: term.id, openingCash: '500' })
+  const rice = await s.call('POST', '/v1/items', { code: 'RICE', name: 'Basmati rice', baseUomId: s.widget.baseUomId, itemType: 'trading_good', taxCodeId: s.cheap.taxCodeId, hsnSacCode: '1006', mrp: '100' })
+  await s.call('POST', '/v1/stock/movements', { companyId: c, movementType: 'opening', postingDate: `${s.year}-04-01`, description: 'Opening', lines: [{ warehouseId: s.warehouse.id, itemId: rice.id, quantity: '50', unitCost: '60' }] })
+  const app = await launch(mkdtempSync(join(tmpdir(), 'onesync-ud-')))
+  const page = await appWindow(app)
+  await page.getByLabel('Server address').fill(s.base); await page.getByRole('button', { name: 'Continue' }).click()
+  await page.getByLabel('Business code').fill(s.slug); await page.getByLabel('Email').fill(s.email); await page.getByLabel('Password').fill(s.password)
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
+  // a scale on the serial port, as a cable would deliver it: an unsettled reading first, then two steady ones
+  await page.evaluate(() => {
+    Object.defineProperty(navigator, 'serial', { configurable: true, value: { requestPort: async () => ({ open: async () => undefined, close: async () => undefined, get readable() { return new ReadableStream({ start(ctl) { const enc = new TextEncoder(); ctl.enqueue(enc.encode('US,GS,  0.700kg\r\nST,GS,  0.750kg\r\n')); ctl.enqueue(enc.encode('ST,GS,  0.750kg\r\n')) } }) } }) } })
+  })
+  await page.keyboard.press('Control+k'); await page.getByLabel('Search or run a command').last().fill('Counter'); await page.getByLabel('Search or run a command').last().press('Enter')
+  await page.getByLabel(/Scan or type item/).fill('RICE'); await page.keyboard.press('Enter')
+  await expect(page.getByRole('table', { name: 'Cart' })).toContainText('Basmati rice')
+  await page.getByRole('button', { name: 'Weigh RICE' }).click()
+  await expect(page.getByLabel('Quantity of RICE')).toHaveValue('0.75')
+  await expect(page.getByLabel('Sale total')).toHaveText('₹ 75.00')
+
+  // the customer display opens as its own window and shows the same bill
+  await page.getByRole('button', { name: 'Customer display' }).click()
+  await expect.poll(() => app.windows().some((w) => w.url().endsWith('#/customer-display'))).toBe(true)
+  const display = app.windows().find((w) => w.url().endsWith('#/customer-display')) as Awaited<ReturnType<typeof appWindow>>
+  await expect(display.getByRole('main', { name: 'Customer display' })).toContainText('Basmati rice')
+  await expect(display.getByLabel('Total')).toHaveText('₹ 75.00')
+  await app.close()
+})

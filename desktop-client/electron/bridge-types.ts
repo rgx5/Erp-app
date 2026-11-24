@@ -9,6 +9,8 @@ export interface DesktopSettings {
   /** The receipt printer this computer prints to without a dialog, and whether a receipt prints by itself after each sale. */
   receiptPrinter?: string
   autoPrintReceipts?: boolean
+  /** The scale this counter weighs on (its serial port's name), remembered once chosen. */
+  scalePortName?: string
 }
 
 export interface DesktopBridge {
@@ -17,6 +19,8 @@ export interface DesktopBridge {
   /** 'win32', 'darwin' or 'linux': the screens use it to leave room for the window buttons. */
   readonly platform: string
   /** The shell's own commands, also in the native menu. */
+  /** Second screen facing the customer (shows the bill as it is rung up) and the cash drawer wired to the receipt printer. */
+  hardware: { openCustomerDisplay(): Promise<boolean>; closeCustomerDisplay(): Promise<void>; openCashDrawer(): Promise<void> }
   app: { about(): Promise<void>; openLogs(): Promise<void>; checkForUpdates(): Promise<void>; zoom(change: 'in' | 'out' | 'reset'): Promise<void> }
   info(): Promise<{ version: string; platform: string; secureStorage: boolean }>
   settings: {

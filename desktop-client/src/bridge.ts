@@ -1,7 +1,7 @@
 import type { DesktopBridge, DesktopSettings } from '../electron/bridge-types'
 
 /** In a plain browser (development, end-to-end tests) there is no shell: settings use localStorage and nothing is kept secretly. */
-const web: Omit<DesktopBridge, 'desktop' | 'platform' | 'app'> = {
+const web: Omit<DesktopBridge, 'desktop' | 'platform' | 'app' | 'hardware'> = {
   async info() { return { version: 'web', platform: 'web', secureStorage: false } },
   settings: {
     async get() { try { return JSON.parse(localStorage.getItem('onesync.settings') ?? '{}') as DesktopSettings } catch { return {} } },
@@ -38,5 +38,5 @@ const web: Omit<DesktopBridge, 'desktop' | 'platform' | 'app'> = {
   },
 }
 
-export const bridge: Omit<DesktopBridge, 'desktop' | 'platform' | 'app'> = typeof window !== 'undefined' && window.onesync ? window.onesync : web
+export const bridge: Omit<DesktopBridge, 'desktop' | 'platform' | 'app' | 'hardware'> = typeof window !== 'undefined' && window.onesync ? window.onesync : web
 export const isDesktop = (): boolean => typeof window !== 'undefined' && window.onesync !== undefined
