@@ -59,7 +59,10 @@ services:
     # Reachable inside the stack and, for the fleet agent on this server, on the host's loopback only.
     ports:
       - "127.0.0.1:${API_LOOPBACK_PORT:-8081}:8080"
-    networks: [internal]
+    # A name no other stack can have: the edge also sits on the shared dokploy-network, where a bare "api" can mean another stack's api.
+    networks:
+      internal:
+        aliases: [cell-api]
 
   edge:
     image: caddy:2

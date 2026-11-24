@@ -74,6 +74,7 @@ It creates 8 clients across the four editions with their cells (on-premises, ded
 ## Troubleshooting a cell that will not start
 
 - **`api` never starts, `migrate` says `password authentication failed for user "erp_migrator"`**: the database's first-start script did not create its roles (fixed in the current code). The database folder now exists without them, and PostgreSQL only runs the script on an empty folder, so after updating you must delete the database volume once: Dokploy → the cell service → stop it → Volumes → delete `cell-pgdata` (or on the server `docker volume rm onesync-cell_cell-pgdata`), then deploy again. Demo data is lost with it; on a server with real data never delete the volume, ask first.
+- **502 Bad Gateway, `dial tcp 10.0.x.x:8080: connection refused` in the `edge` log, while the `api` log shows `/health/live` answering 200**: the edge was dialling the wrong container. The edge shares `dokploy-network` with every other stack, and a bare `api` name can resolve to another stack's `api` (or a stopped old one). Current code reaches the cell's own API as `cell-api` on the private network only; redeploy the cell, then restart `edge`.
 - **502 Bad Gateway on the cell's address**: nothing answers behind the domain. Check the cell's `api`, `edge` and `migrate` logs, and that the domain points to service `edge`, port `8080`.
 
 ## 4. Backups (do this before the first client)
