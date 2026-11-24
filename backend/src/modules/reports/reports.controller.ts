@@ -2,8 +2,12 @@ import { Controller, Get, Inject, Module, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { z } from 'zod';
 import { RequiresModule } from '../identity/entitlements.js';
-import { RequirePermissions, TenantId } from '../identity/principal.js';
+import { CurrentPrincipal, type Principal, RequirePermissions, TenantId } from '../identity/principal.js';
 import { Recorder } from '../masterdata/helpers.js';
+import { NotificationsService } from './notifications.service.js';
+import { SalesModule } from '../sales/sales.controller.js';
+import { Authenticated } from '../identity/principal.js';
+import { allows } from '../identity/permissions.js';
 import { ExportService } from './export.service.js';
 import { GROUPS, ReportsService } from './reports.service.js';
 
@@ -34,5 +38,20 @@ export class ReportsController {
   lowStock(@TenantId() t: string, @Query({ schema: z.object({ companyId: z.uuid() }) }) q: { companyId: string }) { return this.reports.lowStock(t, q); }
 }
 
-@Module({ controllers: [ReportsController], providers: [ReportsService, ExportService, Recorder] })
+@ApiTags('notifications')
+@ApiBearerAuth()
+@Controller('v1/notifications')
+export class NotificationsController {
+  constructor(@Inject(NotificationsService) private readonly notices: NotificationsService) {}
+
+  /** What needs this person's attention right now: approvals waiting, low stock, overdue customers, a shift left open, recurring invoices, an expiring licence. */
+  @Authenticated() @Get()
+  async list(@CurrentPrincipal() a: Principal, @Query({ schema: z.object({ companyId: z.uuid() }) }) q: { companyId: string }) {
+    const mods = a.entitlements?.restricted ? a.entitlements.modules : null;
+    const items = await this.notices.list(a.tenantId, q.companyId, { can: (p) => allows(a.permissions, [p]), has: (m) => !mods || mods.has(m) }, a.entitlements?.expiresAt?.toISOString() ?? null);
+    return { items };
+  }
+}
+
+@Module({ imports: [SalesModule], controllers: [ReportsController, NotificationsController], providers: [ReportsService, ExportService, Recorder, NotificationsService] })
 export class ReportsModule {}

@@ -7,6 +7,7 @@ import { useSession } from '@/auth/session'
 import { useChosenCompany, useCompanies } from '@/features/organization/queries'
 import { LicenceBanner } from './LicenceBanner'
 import { Logo } from './Logo'
+import { NotificationsBell } from './NotificationsBell'
 import { cn } from './cn'
 import { CommandPalette } from './CommandPalette'
 import { NAV, currentNav, isHere, visibleNav, type NavItem } from './nav'
@@ -160,6 +161,7 @@ export function ClassicShell() {
             <Search className="size-3.5" aria-hidden /><span className="min-w-0 flex-1 truncate text-left">Search pages or start something…</span><kbd className="hidden lg:inline">Ctrl</kbd><kbd className="hidden lg:inline">K</kbd>
           </button>
           {company ? <Link to="/organization/companies" className="hidden max-w-48 items-center gap-1.5 truncate rounded-md border border-line px-2.5 py-1 text-[12.5px] font-medium hover:bg-sunken xl:flex" title="Company"><Building2 className="size-3.5 shrink-0 text-muted" aria-hidden /><span className="truncate">{company.tradeName ?? company.legalName}</span></Link> : null}
+          <NotificationsBell />
           <UserMenu />
         </header>
         <main className="min-h-0 flex-1 overflow-auto">

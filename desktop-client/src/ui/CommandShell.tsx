@@ -1,3 +1,4 @@
+import { NotificationsBell } from './NotificationsBell'
 import { Link, Outlet, useRouterState } from '@tanstack/react-router'
 import { LogOut, Search } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -60,6 +61,7 @@ export function CommandShell() {
           <span className="flex items-center gap-2"><Search className="size-3.5" aria-hidden />Search or run a command…</span><kbd className="rounded border border-line bg-surface px-1.5 text-[11px]">Ctrl K</kbd>
         </button>
         <span className="flex-1" />
+        <NotificationsBell />
         <span className="text-xs text-muted" title={me?.user?.email}>{me?.user?.displayName ?? ''}</span>
       </header>
 
