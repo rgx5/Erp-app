@@ -39,7 +39,7 @@ export class ReceivablesService {
   ) {}
 
   // ---- receipts ---------------------------------------------------------------------------------------------------
-  createReceipt(tenantId: string, actorId: string, input: Omit<CreateReceiptInput, 'method'> & { method: CreateReceiptInput['method'] | 'gift_card' }) {
+  createReceipt(tenantId: string, actorId: string, input: Omit<CreateReceiptInput, 'method'> & { method: string }) {
     return this.uow.inTenant(tenantId, async (tx) => {
       const customer = first(await tx.select().from(parties).where(and(eq(parties.tenantId, tenantId), eq(parties.id, input.customerId))), 'Customer');
       if (!customer.isCustomer) throw new AppError(422, 'not_a_customer', `${customer.code} is not a customer`);
@@ -82,7 +82,7 @@ export class ReceivablesService {
 
   // ---- refunds ----------------------------------------------------------------------------------------------------
   /** Pays money back out of an unallocated receipt (an advance) or an unapplied credit note: Dr receivables (customer), Cr cash/bank. */
-  refund(tenantId: string, actorId: string, input: { companyId: string; source: { type: 'receipt' | 'credit_note'; id: string }; refundDate: string; amount: string; method: ReceiptRow['method'] | 'gift_card'; paidFromAccountId: string; reference?: string | undefined }) {
+  refund(tenantId: string, actorId: string, input: { companyId: string; source: { type: 'receipt' | 'credit_note'; id: string }; refundDate: string; amount: string; method: ReceiptRow['method']; paidFromAccountId: string; reference?: string | undefined }) {
     return this.uow.inTenant(tenantId, async (tx) => {
       const isReceipt = input.source.type === 'receipt';
       const receipt = isReceipt ? first(await tx.select().from(customerReceipts).where(and(eq(customerReceipts.tenantId, tenantId), eq(customerReceipts.id, input.source.id))).for('update'), 'Receipt') : undefined;

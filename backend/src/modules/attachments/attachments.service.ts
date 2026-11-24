@@ -44,7 +44,7 @@ export class AttachmentsService {
     if (bytes.length > MAX_FILE_BYTES) throw new AppError(413, 'file_too_large', `A file can be at most ${MAX_FILE_BYTES / 1024 / 1024} MB`);
     if (!matchesType(bytes, input.contentType)) throw validationFailed([{ path: 'contentType', message: `The file is not really ${input.contentType}` }]);
     if (input.kind === 'photo' && !input.contentType.startsWith('image/')) throw validationFailed([{ path: 'kind', message: 'A photo must be an image' }]);
-    const name = input.filename.replace(/[\\/\u0000-\u001f]+/g, '_').trim().slice(0, 200);
+    const name = Array.from(input.filename.replace(/[\\/]+/g, '_')).filter((c) => c.charCodeAt(0) >= 32).join('').trim().slice(0, 200);
     return this.uow.inTenant(tenantId, async (tx) => {
       const exists = await tx.execute(sql`SELECT 1 FROM ${sql.raw(`erp.${ENTITIES[input.entityType].table}`)} WHERE tenant_id = ${tenantId}::uuid AND id = ${input.entityId}::uuid`);
       if (exists.rows.length === 0) throw new AppError(404, 'not_found', 'That record does not exist');
