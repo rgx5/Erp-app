@@ -22,7 +22,7 @@ export class ExportService {
          WHERE c.table_schema = 'erp' AND c.table_name <> 'schema_migrations' AND c.table_name IN (SELECT table_name FROM information_schema.columns WHERE table_schema = 'erp' AND column_name = 'tenant_id')
          ORDER BY c.table_name, c.ordinal_position`)).rows;
       const byTable = new Map<string, string[]>();
-      for (const { t, c } of cols) { if (SKIP.test(t) || HIDE_COLUMNS.has(c) || (t === 'attachments' && c === 'data')) continue; // attachment bytes are not in the file: only their names and checksums byTable.set(t, [...(byTable.get(t) ?? []), c]); }
+      for (const { t, c } of cols) { if (SKIP.test(t) || HIDE_COLUMNS.has(c) || (t === 'attachments' && c === 'data')) continue; byTable.set(t, [...(byTable.get(t) ?? []), c]); } // attachment bytes are not in the file: only their names and checksums
       const tables: Record<string, unknown[]> = {}; let bytes = 0; let rowsTotal = 0;
       for (const [t, list] of byTable) {
         if (t === 'tenants') continue;
