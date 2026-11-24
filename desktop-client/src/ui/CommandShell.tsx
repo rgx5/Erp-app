@@ -1,3 +1,4 @@
+import { useReachability } from '@/api/reachability'
 import { useT } from '@/i18n'
 import { NotificationsBell } from './NotificationsBell'
 import { Link, Outlet, useRouterState } from '@tanstack/react-router'
@@ -19,6 +20,7 @@ import { Toasts } from './Toasts'
  */
 export function CommandShell() {
   const t = useT()
+  const down = useReachability((r) => r.down)
   const { me, logout, server } = useSession()
   const path = useRouterState({ select: (s) => s.location.pathname })
   const granted = me?.permissions ?? []
@@ -85,7 +87,7 @@ export function CommandShell() {
       </div>
 
       <footer className="col-span-2 col-start-1 flex items-center gap-5 bg-hero px-4 text-[11.5px] text-[#c9d3f5]">
-        <span className="flex items-center gap-1.5"><span className="size-2 rounded-full bg-[#34d399]" aria-hidden />Connected</span>
+        <span className="flex items-center gap-1.5" role="status"><span className={`size-2 rounded-full ${down ? 'bg-[#f87171]' : 'bg-[#34d399]'}`} aria-hidden />{down ? 'Cannot reach the server' : 'Connected'}</span>
         <span className="flex-1" />
         <span className="truncate" title={server?.url}>{server?.url}</span>
         <span>Ctrl K to search</span>

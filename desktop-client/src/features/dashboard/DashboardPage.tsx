@@ -1,12 +1,13 @@
 import { Link } from '@tanstack/react-router'
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, RefreshCw } from 'lucide-react'
 import { ApiError } from '@/api/errors'
 import { formatDate, formatInr, todayIso } from '@/domain/format'
 import { useChosenCompany, useCompanies } from '@/features/organization/queries'
 import { can } from '@/auth/permissions'
 import { isStarter } from '@/auth/edition'
+import { retryNow } from '@/auth/reconnect'
 import { useSession } from '@/auth/session'
-import { Alert, Card, PageHeader, Spinner } from '@/ui/primitives'
+import { Alert, Button, Card, PageHeader, Spinner } from '@/ui/primitives'
 import { useSetupStatus } from '@/features/setup/queries'
 import { useDashboard } from './queries'
 
@@ -83,7 +84,7 @@ export function DashboardPage() {
     return (
       <div className="flex flex-col gap-4">
         <h1 className="page-title">Dashboard</h1>
-        {companies.isPending ? <Spinner /> : companies.error ? <Alert>{companies.error.message}</Alert> : <Alert tone="info">No company is set up yet. <Link to="/setup" className="underline">Set up your business</Link> to see the dashboard.</Alert>}
+        {companies.isPending ? <Spinner /> : companies.error ? <><Alert>{companies.error.message}</Alert><Button className="self-start" variant="secondary" busy={companies.isFetching} onClick={() => void retryNow().then(() => companies.refetch())}>Try again</Button></> : <Alert tone="info">No company is set up yet. <Link to="/setup" className="underline">Set up your business</Link> to see the dashboard.</Alert>}
       </div>
     )
   }
@@ -92,6 +93,7 @@ export function DashboardPage() {
   return (
     <div className="flex flex-col gap-4">
       <PageHeader title="Dashboard" sub={d ? `${d.fiscalYear.label} · as of ${formatDate(d.asOf)}` : `as of ${formatDate(asOf)}`}>
+        <Button variant="secondary" busy={dash.isFetching} onClick={() => void Promise.all([dash.refetch(), setup.refetch()])}><RefreshCw className="size-4" aria-hidden /> Refresh</Button>
         {list.length > 1 ? (
           <select aria-label="Company" className="h-8 rounded-md border border-line-strong bg-surface px-2 text-[13px]" value={active.id} onChange={(e) => choose(e.target.value)}>
             {list.map((c) => <option key={c.id} value={c.id}>{c.tradeName ?? c.legalName}</option>)}

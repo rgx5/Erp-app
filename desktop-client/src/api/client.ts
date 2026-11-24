@@ -1,6 +1,7 @@
 import createClient from 'openapi-fetch'
 import type { z } from 'zod'
 import { ApiError, NetworkError, problemToError } from './errors'
+import { isGatewayDown, markReachable, markUnreachable } from './reachability'
 import type { paths } from './schema'
 import { session as sessionSchema } from './schemas'
 
@@ -37,7 +38,7 @@ export function createApi(options: ApiOptions) {
   let refreshing: Promise<boolean> | null = null
 
   const send = async (request: Request): Promise<Response> => {
-    try { return await doFetch(request) } catch { throw new NetworkError() }
+    try { const res = await doFetch(request); if (isGatewayDown(res.status)) markUnreachable(); else markReachable(); return res } catch { markUnreachable(); throw new NetworkError() }
   }
 
   const refresh = (): Promise<boolean> => {
