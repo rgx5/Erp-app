@@ -25,6 +25,13 @@ export async function createApplication(env: Env): Promise<INestApplication> {
           options,
         );
 
+  // Attachments arrive as base64 inside JSON, so that one route accepts a larger body than the rest of the API (which stays at REQUEST_BODY_LIMIT_BYTES).
+  if (env.HTTP_ADAPTER !== 'node') {
+    (app as NestFastifyApplication).getHttpAdapter().getInstance().addHook('onRoute', (route) => {
+      if (route.url === '/v1/attachments' && route.method === 'POST') route.bodyLimit = Math.max(env.REQUEST_BODY_LIMIT_BYTES, 9 * 1024 * 1024);
+    });
+  }
+
   if (env.CORS_ALLOWED_ORIGINS.length > 0) {
     app.enableCors({
       origin: env.CORS_ALLOWED_ORIGINS,

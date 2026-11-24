@@ -14,6 +14,7 @@ import { DataTable } from '@/ui/DataTable'
 import { Drawer } from '@/ui/Drawer'
 import { useFlash } from '@/ui/flash'
 import { Alert, Button, CheckField, SelectField, Spinner, TextField, Toolbar } from '@/ui/primitives'
+import { AttachmentsPanel } from '@/features/attachments/AttachmentsPanel'
 import { usePartyAddresses } from '@/features/masterdata/queries'
 import { printSalesDoc, type DocSource, type PrintKind } from './salesDocPrint'
 import { useSeller } from './useSeller'
@@ -63,6 +64,7 @@ function QuoteDetail({ id, onClose }: { id: string; onClose: () => void }) {
             <tbody>{quote.lines.map((l) => <tr key={l.id} className="border-t border-line/60"><td className="py-1.5">{items.data?.get(l.itemId)?.code ?? ''} {l.description ?? ''}</td><td className="num py-1.5 text-right">{showQty(l.quantity)}</td><td className="num py-1.5 text-right">{formatInr(l.unitPrice, { symbol: false })}</td><td className="num py-1.5 text-right">{formatInr(l.estimatedTotal, { symbol: false })}</td></tr>)}
               <tr className="border-t border-line font-semibold"><td className="py-1.5" colSpan={3}>Estimated total (tax {formatInr(quote.estimatedTax)})</td><td className="num py-1.5 text-right">{formatInr(quote.estimatedTotal)}</td></tr></tbody></table>
           {quote.notes ? <p className="text-sm">{quote.notes}</p> : null}
+          <AttachmentsPanel entityType="sales_quote" entityId={quote.id} canWrite={can(perms, 'sales:post')} />
           <PrintBar kinds={[{ kind: 'quotation', label: 'Print quotation' }, { kind: 'proforma', label: 'Print proforma invoice' }]} source={{ no: quote.quoteNo, date: quote.quoteDate, companyId: ws.company?.id ?? '', gstRegistrationId: quote.gstRegistrationId, customerId: quote.customerId, validUntil: quote.validUntil, notes: quote.notes, lines: quote.lines.map((l) => ({ itemId: l.itemId, description: l.description, quantity: l.quantity, unitPrice: l.unitPrice, discountPercent: l.discountPercent, taxInclusive: false })) }} />
           <p className="text-xs text-muted">A quote is an offer, not a posting: nothing reaches the books or the stock until it becomes an order and is invoiced. Tax and total are estimates until then.</p>
           {problem ? <Alert>{problem}</Alert> : null}
@@ -126,6 +128,7 @@ export function OrderDetail({ id, onClose, challan = false }: { id: string; onCl
           <table className="w-full text-sm" aria-label="Order lines"><thead><tr className="text-left text-xs text-muted"><th className="py-1">Item</th><th className="py-1 text-right">Ordered</th><th className="py-1 text-right">Invoiced</th><th className="py-1 text-right">Price</th>{live ? <th className="w-28 py-1 text-right">Invoice now</th> : null}</tr></thead>
             <tbody>{order.lines.map((l) => <tr key={l.id} className="border-t border-line/60"><td className="py-1.5">{items.data?.get(l.itemId)?.code ?? ''} {l.description ?? ''}</td><td className="num py-1.5 text-right">{showQty(l.quantity)}</td><td className="num py-1.5 text-right">{showQty(l.quantityInvoiced)}</td><td className="num py-1.5 text-right">{formatInr(l.unitPrice, { symbol: false })}</td>
               {live ? <td className="py-1"><input aria-label={`Invoice ${items.data?.get(l.itemId)?.code ?? l.lineNo}`} inputMode="decimal" className="h-8 w-full rounded border border-line bg-surface px-2 text-right text-sm" placeholder={showQty(left(l))} value={qty[l.id] ?? ''} onChange={(e) => setQty({ ...qty, [l.id]: e.target.value })} /></td> : null}</tr>)}</tbody></table>
+          <AttachmentsPanel entityType="sales_order" entityId={order.id} canWrite={can(perms, 'sales:post')} />
           <PrintBar kinds={challan ? [{ kind: 'challan', label: 'Print delivery challan' }] : [{ kind: 'order', label: 'Print order' }, { kind: 'proforma', label: 'Print proforma invoice' }]} source={{ vehicleNo: order.vehicleNo, transporter: order.transporter, no: order.orderNo, date: order.orderDate, companyId: ws.company?.id ?? '', gstRegistrationId: order.gstRegistrationId, customerId: order.customerId, reference: order.customerReference, lines: order.lines.map((l) => ({ itemId: l.itemId, description: l.description, quantity: l.quantity, unitPrice: l.unitPrice, discountPercent: l.discountPercent, taxInclusive: l.taxInclusive })) }} />
           {order.invoices?.length ? <p className="text-sm">Invoices: {order.invoices.map((i) => `${i.invoiceNo} (${formatInr(i.grandTotal)})`).join(', ')}</p> : null}
           {problem ? <Alert>{problem}</Alert> : null}

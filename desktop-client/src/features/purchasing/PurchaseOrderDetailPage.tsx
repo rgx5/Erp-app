@@ -1,3 +1,4 @@
+import { AttachmentsPanel } from '@/features/attachments/AttachmentsPanel'
 import { Link, useParams } from '@tanstack/react-router'
 import { Fragment, useMemo, useState } from 'react'
 import { ApiError } from '@/api/errors'
@@ -128,6 +129,7 @@ function OrderDetail({ orderId }: { orderId: string }) {
         </table>
         <p className="mt-3 text-right text-sm text-muted">Order value before GST <b className="num ml-2 text-ink">{formatInr(total)}</b></p>
       </Card>
+      <Card><AttachmentsPanel entityType="purchase_order" entityId={o.id} canWrite={can(useSession.getState().me?.permissions ?? [], 'purchasing:post')} /></Card>
       {receiving ? <ReceiveDrawer order={o} onClose={() => setReceiving(false)} /> : null}
     </div>
   )

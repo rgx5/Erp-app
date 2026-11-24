@@ -1,3 +1,4 @@
+import { AttachmentsPanel } from '@/features/attachments/AttachmentsPanel'
 import { Link, useParams } from '@tanstack/react-router'
 import { useState } from 'react'
 import { z } from 'zod'
@@ -97,6 +98,7 @@ function BillDetail({ billId }: { billId: string }) {
           </div>
         </Drawer>
       ) : null}
+      <Card><AttachmentsPanel entityType="supplier_bill" entityId={b.id} canWrite={can(perms, 'payables:post')} /></Card>
     </div>
   )
 }

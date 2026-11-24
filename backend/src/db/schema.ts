@@ -13,3 +13,4 @@ export * from '../modules/payroll/payroll.schema.js';
 export * from '../modules/approvals/approvals.schema.js';
 export * from '../modules/banking/banking.schema.js';
 export * from '../modules/retail/retail.schema.js';
+export * from '../modules/attachments/attachments.schema.js';

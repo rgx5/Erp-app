@@ -1,4 +1,5 @@
 import { Link, useNavigate, useParams } from '@tanstack/react-router'
+import { AttachmentsPanel } from '@/features/attachments/AttachmentsPanel'
 import { useMemo, useState } from 'react'
 import { ApiError } from '@/api/errors'
 import type { Invoice } from '@/api/schemas'
@@ -158,6 +159,7 @@ function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
           <div className="mt-1 flex justify-between border-t border-line pt-2 text-base font-semibold"><dt>Grand total</dt><dd className="num">{formatInr(inv.grandTotal)}</dd></div>
         </dl>
       </Card>
+      <Card><AttachmentsPanel entityType="sales_invoice" entityId={inv.id} canWrite={can(useSession.getState().me?.permissions ?? [], 'sales:post')} /></Card>
       {panel === 'cancel' ? <CancelDrawer invoice={inv} onClose={() => setPanel(null)} /> : null}
       {panel === 'credit' || panel === 'debit' ? <NoteDrawer invoice={inv} kind={panel} onClose={() => setPanel(null)} /> : null}
     </div>

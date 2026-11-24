@@ -13,6 +13,7 @@ import { useDebounced } from '@/ui/hooks'
 import { Alert, Button, SelectField, Spinner, TextField, Toolbar } from '@/ui/primitives'
 import { download, toCsv } from './csv'
 import { ImportDialog, type ImportSpec } from './ImportDialog'
+import { ItemPhoto } from '@/features/attachments/AttachmentsPanel'
 import { VariantsDrawer } from './VariantsDrawer'
 import { ItemBarcodes } from '@/features/retail/ItemBarcodes'
 import { hsnProblem, ITEM_TYPES, itemTypeLabel, ItemForm } from './ItemForm'
@@ -123,7 +124,7 @@ export function ItemsPage() {
       {list.error ? <Alert>{list.error instanceof ApiError ? list.error.message : 'Could not load items.'}</Alert> : null}
       {list.isPending ? <Spinner /> : <DataTable columns={columns} rows={rows} rowKey={(i) => i.id} onOpen={(i) => setEditing(i)} empty={q ? 'No item matches that search.' : 'No items yet.'} height={560} />}
       {list.hasNextPage ? <Button variant="secondary" className="self-start" busy={list.isFetchingNextPage} onClick={() => void list.fetchNextPage()}>Load more</Button> : list.rows.length > 0 ? <p className="text-xs text-muted">{list.rows.length} item{list.rows.length === 1 ? '' : 's'}</p> : null}
-      {editing ? <Drawer title={editing === 'new' ? 'New item' : editing.name} onClose={() => setEditing(null)}><ItemForm item={editing === 'new' ? undefined : editing} canWrite={canWrite} onDone={() => setEditing(null)} />{editing === 'new' ? null : <ItemBarcodes item={editing} />}</Drawer> : null}
+      {editing ? <Drawer title={editing === 'new' ? 'New item' : editing.name} onClose={() => setEditing(null)}>{editing === 'new' ? null : <div className="mb-4"><ItemPhoto itemId={editing.id} canWrite={canWrite} /></div>}<ItemForm item={editing === 'new' ? undefined : editing} canWrite={canWrite} onDone={() => setEditing(null)} />{editing === 'new' ? null : <ItemBarcodes item={editing} />}</Drawer> : null}
       {variants ? <VariantsDrawer onClose={() => setVariants(false)} /> : null}
       {importing ? <ImportDialog spec={spec} onClose={() => setImporting(false)} /> : null}
     </div>
