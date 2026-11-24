@@ -202,7 +202,7 @@ test('layout: the sidebar is the default, and the command centre can be chosen i
   const s = await seedBusiness(process.env['E2E_BACKEND_URL'] as string, process.env['E2E_PLATFORM_TOKEN'] as string, { prefix: 'lay' })
   await signIn(page, s)
   await openArea(page, 'Sales')
-  await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Invoices' })).toBeVisible() // the sidebar lists the pages of an area
+  await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Invoices', exact: true })).toBeVisible() // the sidebar lists the pages of an area
   await accountMenu(page, 'My account and layout')
   await page.getByLabel(/Command centre/).check()
   await expect(page.getByRole('navigation', { name: 'Admin pages' })).toBeVisible()

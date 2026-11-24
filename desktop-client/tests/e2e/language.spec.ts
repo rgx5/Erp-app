@@ -18,12 +18,13 @@ test('language: the menus, the counter and printed headings follow the chosen la
   await expect(menu.getByRole('link', { name: 'डैशबोर्ड' })).toBeVisible()
   await expect(menu.getByRole('button', { name: 'बिक्री', exact: true })).toBeVisible() // the Sales section
   await page.evaluate(() => { window.print = () => undefined })
-  await page.goto(`/#/sales/invoices/${inv.id as string}`)
+  await page.evaluate((id) => { location.hash = `#/sales/invoices/${id}` }, inv.id as string)
   await page.getByRole('button', { name: 'Print' }).click()
   const printed = await page.evaluate(() => document.querySelector('iframe:last-of-type')?.getAttribute('srcdoc') ?? '')
   expect(printed).toContain('टैक्स इनवॉइस / Tax Invoice'); expect(printed).toContain('कुल योग / Grand total')
 
-  await page.goto('/#/account')
+  await page.evaluate(() => document.querySelectorAll('iframe').forEach((f) => f.remove())) // the print frame is no longer needed
+  await accountMenu(page, 'My account and layout')
   await page.getByLabel(/^(Language|भाषा)/).selectOption('mr')
   await expect(menu.getByRole('link', { name: 'डॅशबोर्ड' })).toBeVisible()
   await page.getByLabel(/^(Language|भाषा)/).selectOption('gu')

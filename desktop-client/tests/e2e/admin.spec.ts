@@ -105,7 +105,7 @@ test('licence: a tenant sees only the modules it has bought, and a suspended one
   await expect(area('Master data')).toBeVisible() // master data is Core
   for (const none of ['Purchasing', 'Payroll', 'Accounting', 'Manufacturing']) await expect(area(none)).toHaveCount(0)
   await openArea(page, 'Sales')
-  await expect(menu.getByRole('link', { name: 'Invoices' })).toBeVisible()
+  await expect(menu.getByRole('link', { name: 'Invoices', exact: true })).toBeVisible()
   await expect(menu.getByRole('link', { name: 'Journal entries' })).toHaveCount(0)
   await page.keyboard.press('Control+k')
   const box = page.getByLabel('Search or run a command').last()
