@@ -103,6 +103,8 @@ test('master data: items, customers, tax rates and price lists from the app', as
   await cust.getByRole('button', { name: 'Create party' }).click()
   await expect(page.getByRole('cell', { name: 'Asha Traders' })).toBeVisible()
   await page.getByRole('cell', { name: 'Asha Traders' }).click()
+  await expect(page.getByRole('heading', { name: /Asha Traders/ })).toBeVisible() // opens the customer's own page
+  await page.getByRole('button', { name: 'Edit details' }).click()
   const open = page.getByRole('dialog', { name: 'Asha Traders' })
   await open.getByRole('button', { name: 'Add address' }).click()
   await open.getByLabel('Address', { exact: true }).fill('5 MG Road')

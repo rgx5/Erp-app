@@ -1,4 +1,4 @@
-import { useNavigate } from '@tanstack/react-router'
+import { useNavigate, useSearch } from '@tanstack/react-router'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ApiError } from '@/api/errors'
 import type { Party } from '@/api/schemas'
@@ -6,6 +6,7 @@ import { isValid } from '@/domain/money'
 import { formatDate, formatInr, todayIso } from '@/domain/format'
 import { stateName } from '@/domain/india'
 import { PartyPicker } from '@/features/masterdata/PartyPicker'
+import { useParty } from '@/features/masterdata/queries'
 import { useWorkspace } from '@/features/organization/workspace'
 import { useFlash } from '@/ui/flash'
 import { useDebounced } from '@/ui/hooks'
@@ -47,6 +48,9 @@ function SalesDocEditor({ kind }: { kind: DocKind }) {
   const navigate = useNavigate()
   const flash = useFlash()
   const [customer, setCustomer] = useState<Party | null>(null)
+  const presetId = (useSearch({ strict: false }) as { customerId?: string }).customerId
+  const preset = useParty(presetId)
+  useEffect(() => { if (preset.data && !customer && preset.data.isCustomer) setCustomer(preset.data) }, [preset.data]) // eslint-disable-line react-hooks/exhaustive-deps -- only to fill the customer in when the page opens from a customer's screen
   const [date, setDate] = useState(todayIso())
   const [documentType, setDocumentType] = useState('tax_invoice')
   const [registrationId, setRegistrationId] = useState('')

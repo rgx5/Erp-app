@@ -1,5 +1,6 @@
 import type { ColumnDef } from '@tanstack/react-table'
 import { Download, Plus, Upload } from 'lucide-react'
+import { useNavigate } from '@tanstack/react-router'
 import { useMemo, useState } from 'react'
 import { query } from '@/api/client'
 import { ApiError } from '@/api/errors'
@@ -29,6 +30,7 @@ export function PartiesPage({ role }: { role?: 'customer' | 'supplier' }) {
   const list = useParties({ ...(q ? { q } : {}), ...(role ? { role } : {}), ...(status ? { status } : {}) })
   const [editing, setEditing] = useState<Party | 'new' | null>(null)
   const [importing, setImporting] = useState(false)
+  const navigate = useNavigate()
   const noun = role === 'customer' ? 'Customers' : role === 'supplier' ? 'Suppliers' : 'Parties'
 
   const columns = useMemo<ColumnDef<Party, unknown>[]>(() => [
@@ -96,7 +98,7 @@ export function PartiesPage({ role }: { role?: 'customer' | 'supplier' }) {
         <div className="w-40"><SelectField label="Status" value={status} onChange={(e) => setStatus(e.target.value)} options={[{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }, { value: 'blocked', label: 'Blocked' }, { value: '', label: 'All' }]} /></div>
       </Toolbar>
       {list.error ? <Alert>{list.error instanceof ApiError ? list.error.message : 'Could not load.'}</Alert> : null}
-      {list.isPending ? <Spinner /> : <DataTable columns={columns} rows={list.rows} rowKey={(p) => p.id} onOpen={(p) => setEditing(p)} empty={q ? 'Nobody matches that search.' : `No ${noun.toLowerCase()} yet.`} height={560} />}
+      {list.isPending ? <Spinner /> : <DataTable columns={columns} rows={list.rows} rowKey={(p) => p.id} onOpen={(p) => void navigate({ to: '/masterdata/parties/$partyId', params: { partyId: p.id } })} empty={q ? 'Nobody matches that search.' : `No ${noun.toLowerCase()} yet.`} height={560} />}
       {list.hasNextPage ? <Button variant="secondary" className="self-start" busy={list.isFetchingNextPage} onClick={() => void list.fetchNextPage()}>Load more</Button> : list.rows.length > 0 ? <p className="text-xs text-muted">{list.rows.length} record{list.rows.length === 1 ? '' : 's'}</p> : null}
       {editing ? <Drawer title={editing === 'new' ? `New ${role ?? 'party'}` : editing.legalName} onClose={() => setEditing(null)} width={580}><PartyForm party={editing === 'new' ? undefined : editing} canWrite={canWrite} defaultRole={role} onDone={() => setEditing(null)} /></Drawer> : null}
       {importing ? <ImportDialog spec={spec} onClose={() => setImporting(false)} /> : null}

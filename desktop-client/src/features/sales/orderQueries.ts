@@ -18,17 +18,17 @@ function useList<H>(key: unknown[], enabled: boolean, load: (cursor: string | un
   return { ...q, rows: q.data?.pages.flatMap((p) => p.items) ?? ([] as H[]) }
 }
 
-export const useQuotes = (companyId: string | undefined, status?: string) => useList<QuoteHeader>(['quotes', companyId, status], Boolean(companyId), (cursor) => get('/v1/sales/quotes', { query: query({ companyId: companyId as string, limit: 100, cursor, ...(status ? { status } : {}) }) }, page(quoteHeader)))
+export const useQuotes = (companyId: string | undefined, status?: string, customerId?: string) => useList<QuoteHeader>(['quotes', companyId, status, customerId], Boolean(companyId), (cursor) => get('/v1/sales/quotes', { query: query({ companyId: companyId as string, limit: 100, cursor, ...(status ? { status } : {}), ...(customerId ? { customerId } : {}) }) }, page(quoteHeader)))
 export const useQuote = (id: string | undefined) => useQuery({ queryKey: ['sales-docs', 'quote', id], enabled: Boolean(id), queryFn: (): Promise<Quote> => get('/v1/sales/quotes/{id}', { path: { id } }, quote) })
 export const useCreateQuote = () => useWrite(({ body, key }: { body: unknown; key: string }) => post('/v1/sales/quotes', body, quote, key))
 export const useRejectQuote = () => useWrite((id: string) => post(`/v1/sales/quotes/${id}/reject`, {}, quote))
 export const useConvertQuote = () => useWrite(({ id, body, key }: { id: string; body: { orderDate: string; reserveStock: boolean; customerReference?: string }; key: string }) => post(`/v1/sales/quotes/${id}/convert`, body, salesOrder, key))
 
-export const useOrders = (companyId: string | undefined, status?: string) => useList<OrderHeader>(['orders', companyId, status], Boolean(companyId), (cursor) => get('/v1/sales/orders', { query: query({ companyId: companyId as string, limit: 100, cursor, ...(status ? { status } : {}) }) }, page(orderHeader)))
+export const useOrders = (companyId: string | undefined, status?: string, customerId?: string) => useList<OrderHeader>(['orders', companyId, status, customerId], Boolean(companyId), (cursor) => get('/v1/sales/orders', { query: query({ companyId: companyId as string, limit: 100, cursor, ...(status ? { status } : {}), ...(customerId ? { customerId } : {}) }) }, page(orderHeader)))
 export const useOrder = (id: string | undefined) => useQuery({ queryKey: ['sales-docs', 'order', id], enabled: Boolean(id), queryFn: (): Promise<SalesOrder> => get('/v1/sales/orders/{id}', { path: { id } }, salesOrder) })
 export const useCreateOrder = () => useWrite(({ body, key }: { body: unknown; key: string }) => post('/v1/sales/orders', body, salesOrder, key))
 export const useInvoiceOrder = () => useWrite(({ id, body, key }: { id: string; body: { invoiceDate: string; lines?: { orderLineId: string; quantity: string }[] }; key: string }): Promise<Invoice> => post(`/v1/sales/orders/${id}/invoice`, body, invoice, key))
 export const useOrderAction = () => useWrite(({ id, action }: { id: string; action: 'cancel' | 'close' }) => post(`/v1/sales/orders/${id}/${action}`, {}, salesOrder))
 
-export const useChallans = (companyId: string | undefined, status?: string) => useList<OrderHeader>(['challans', companyId, status], Boolean(companyId), (cursor) => get('/v1/sales/delivery-challans', { query: query({ companyId: companyId as string, limit: 100, cursor, ...(status ? { status } : {}) }) }, page(orderHeader)))
+export const useChallans = (companyId: string | undefined, status?: string, customerId?: string) => useList<OrderHeader>(['challans', companyId, status, customerId], Boolean(companyId), (cursor) => get('/v1/sales/delivery-challans', { query: query({ companyId: companyId as string, limit: 100, cursor, ...(status ? { status } : {}), ...(customerId ? { customerId } : {}) }) }, page(orderHeader)))
 export const useCreateChallan = () => useWrite(({ body, key }: { body: unknown; key: string }) => post('/v1/sales/delivery-challans', body, salesOrder, key))
