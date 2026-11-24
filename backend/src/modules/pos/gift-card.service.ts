@@ -65,6 +65,20 @@ export class GiftCardService {
     });
   }
 
+  /** A refund paid onto a new gift card (the refund itself, paid from the liability account, is posted by the caller). */
+  async issueFromRefund(tx: Tx, tenantId: string, actorId: string, p: { companyId: string; amount: string; shiftId: string; holderName?: string | undefined }) {
+    let code = makeCode();
+    for (let i = 0; i < 5; i++) {
+      const [clash] = await tx.select({ id: giftCards.id }).from(giftCards).where(and(eq(giftCards.tenantId, tenantId), eq(giftCards.code, code)));
+      if (!clash) break;
+      code = makeCode();
+    }
+    const card = first(await tx.insert(giftCards).values({ tenantId, id: uuidv7(), companyId: p.companyId, code, initialAmount: p.amount, balance: p.amount, holderName: p.holderName ?? null }).returning(), 'Gift card');
+    await tx.insert(giftCardEntries).values({ tenantId, id: uuidv7(), cardId: card.id, kind: 'issue', amount: p.amount, method: 'refund', shiftId: p.shiftId, createdBy: actorId });
+    await this.recorder.record(tx, tenantId, 'gift_card', 'issued', card, { code, amount: p.amount, method: 'refund' });
+    return card;
+  }
+
   /** Spends part of a card against a counter sale. Runs inside the sale's transaction; refuses an unknown, expired or short card. */
   async redeem(tx: Tx, tenantId: string, actorId: string, p: { companyId: string; code: string; amount: string; date: string; saleId: string; shiftId: string }) {
     const code = normaliseCode(p.code);

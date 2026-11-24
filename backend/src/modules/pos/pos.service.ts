@@ -231,6 +231,11 @@ export class PosService {
         const account = accountsByMethod.get(r.method as Method);
         if (!account) throw new AppError(409, 'pos_not_configured', `Map the ${r.method} payment method to an account in the POS settings first`);
         const refund = await this.receivables.refund(tenantId, actorId, { companyId: shift.companyId, source: { type: 'credit_note', id: note.invoice.id }, refundDate: date, amount: r.amount, method: r.method as Method, paidFromAccountId: account, reference: r.reference });
+        if (r.method === 'gift_card') {
+          const card = await this.giftCards.issueFromRefund(tx, tenantId, actorId, { companyId: shift.companyId, amount: r.amount, shiftId: shift.id });
+          payments.push(first(await tx.insert(posPayments).values({ tenantId, id: uuidv7(), posSaleId: ret.id, method: 'gift_card', amount: r.amount, tendered: r.amount, changeGiven: '0', reference: card.code, refundId: refund.id }).returning(), 'POS refund'));
+          continue;
+        }
         payments.push(first(await tx.insert(posPayments).values({ tenantId, id: uuidv7(), posSaleId: ret.id, method: r.method as Method, amount: r.amount, tendered: r.amount, changeGiven: '0', reference: r.reference ?? null, refundId: refund.id }).returning(), 'POS refund'));
       }
       await this.recorder.record(tx, tenantId, 'pos_sale', 'returned', ret, { creditNoteNo: note.invoice.invoiceNo, total: note.invoice.grandTotal, shiftNo: shift.shiftNo });

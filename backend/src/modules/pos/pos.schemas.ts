@@ -71,7 +71,7 @@ export const posReturnSchema = z.strictObject({
   lines: z.array(z.strictObject({ originalLineId: z.uuid(), quantity, unitPrice: money.optional(), serialNos: serials.optional(), warehouseId: z.uuid().optional() })).min(1).max(200),
   /** How the money goes back; must add up to the credit note total. */
   /** `store_credit` keeps the refund as the customer's credit instead of paying money out. */
-  refunds: z.array(z.strictObject({ method: z.enum([...METHODS, 'store_credit']), amount: positive, reference: text(100).optional() })).min(1).max(10),
+  refunds: z.array(z.strictObject({ method: z.enum([...METHODS, 'store_credit', 'gift_card']), amount: positive, reference: text(100).optional() })).min(1).max(10),
 });
 export const listShiftsQuery = z.object({ ...page, companyId: z.uuid(), terminalId: z.uuid().optional(), status: z.enum(['open', 'closed']).optional() });
 export const listSalesQuery = z.object({ ...page, companyId: z.uuid(), shiftId: z.uuid().optional(), kind: z.enum(['sale', 'return']).optional() });

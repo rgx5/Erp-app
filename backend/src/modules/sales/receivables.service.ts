@@ -82,7 +82,7 @@ export class ReceivablesService {
 
   // ---- refunds ----------------------------------------------------------------------------------------------------
   /** Pays money back out of an unallocated receipt (an advance) or an unapplied credit note: Dr receivables (customer), Cr cash/bank. */
-  refund(tenantId: string, actorId: string, input: { companyId: string; source: { type: 'receipt' | 'credit_note'; id: string }; refundDate: string; amount: string; method: ReceiptRow['method']; paidFromAccountId: string; reference?: string | undefined }) {
+  refund(tenantId: string, actorId: string, input: { companyId: string; source: { type: 'receipt' | 'credit_note'; id: string }; refundDate: string; amount: string; method: ReceiptRow['method'] | 'gift_card'; paidFromAccountId: string; reference?: string | undefined }) {
     return this.uow.inTenant(tenantId, async (tx) => {
       const isReceipt = input.source.type === 'receipt';
       const receipt = isReceipt ? first(await tx.select().from(customerReceipts).where(and(eq(customerReceipts.tenantId, tenantId), eq(customerReceipts.id, input.source.id))).for('update'), 'Receipt') : undefined;
@@ -97,7 +97,7 @@ export class ReceivablesService {
       const available = await this.unapplied(tx, tenantId, input.source);
       if (toUnits(input.amount) > available) throw new AppError(409, 'exceeds_available', `Only ${fromUnits(available)} is unallocated and can be refunded`, { available: fromUnits(available) });
       const [from] = await tx.select().from(accounts).where(and(eq(accounts.tenantId, tenantId), eq(accounts.companyId, companyId), eq(accounts.id, input.paidFromAccountId)));
-      if (!from || from.type !== 'asset' || from.isGroup || from.status !== 'active' || from.controlKind) throw validationFailed([{ path: 'paidFromAccountId', message: 'Must be an active cash or bank (non-control asset) account of this company' }]);
+      if (!from || from.type !== (input.method === 'gift_card' ? 'liability' : 'asset') || from.isGroup || from.status !== 'active' || from.controlKind) throw validationFailed([{ path: 'paidFromAccountId', message: 'Must be an active cash or bank (non-control asset) account of this company' }]);
       const settings = await this.settings.require(tx, tenantId, companyId, ['receivableAccountId']);
       const refundNo = await nextDocNumber(tx, tenantId, companyId, input.refundDate, 'RFD');
       const id = uuidv7();

@@ -79,4 +79,20 @@ describe('gift cards', () => {
     const other = await till('Gift Other');
     expect((await call(server, 'GET', `/v1/pos/gift-cards/${card.code}?companyId=${other.companyId}`, { tenant: other.tenant })).status).toBe(404);
   });
+  it('refunds a return onto a new gift card that can then be spent', async () => {
+    const c = await till('Gift Refund Co');
+    ok(await put(c, 'payment-accounts', { method: 'gift_card', accountId: c.acc['2145'] }), 200);
+    const sale = ok(await sell(c, [{ method: 'cash', amount: '118', tendered: '118' }]));
+    const ret = ok(await call(server, 'POST', '/v1/pos/returns', { tenant: c.tenant, body: { shiftId: c.shift, date: '2025-04-11', originalSaleId: sale.id, reason: 'Changed mind', lines: [{ originalLineId: sale.invoice.lines[0].id, quantity: '1' }], refunds: [{ method: 'gift_card', amount: '118' }] } }));
+    const code = ret.payments[0].reference as string;
+    expect(ret.payments[0]).toMatchObject({ method: 'gift_card', amount: '118.0000' });
+    expect(code).toMatch(/^GC-/);
+    expect((await call(server, 'GET', `/v1/pos/gift-cards/${code}?companyId=${c.companyId}`, { tenant: c.tenant })).json.balance).toBe('118.0000');
+    const tb = (await call(server, 'GET', `/v1/accounting/trial-balance?companyId=${c.companyId}&from=2025-04-01&to=2026-03-31`, { tenant: c.tenant })).json.rows.find((r: { code: string }) => r.code === '2145');
+    expect(tb).toMatchObject({ closingCredit: '118.0000' }); // owed to the holder
+    ok(await sell(c, [{ method: 'gift_card', amount: '118', reference: code }]));
+    expect((await call(server, 'GET', `/v1/pos/gift-cards/${code}?companyId=${c.companyId}`, { tenant: c.tenant })).json.balance).toBe('0.0000');
+    // cash in the drawer is untouched by a refund to a card: 500 opening + 118 cash sale, nothing paid out
+    expect((await call(server, 'GET', `/v1/pos/shifts/${c.shift}`, { tenant: c.tenant })).json.summary.expectedCash).toBe('618.0000');
+  });
 });
