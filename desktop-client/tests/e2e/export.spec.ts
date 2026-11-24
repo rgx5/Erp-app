@@ -17,4 +17,10 @@ test('data export: the owner downloads all records as a file with no credentials
   expect(data.tables['items']?.length).toBeGreaterThan(0)
   expect(text).not.toContain('password_hash')
   await expect(page.getByText(/Saved .* records/)).toBeVisible()
+  // the saved file passes the check, and a damaged copy does not
+  await page.getByLabel('Choose a data file to check').setInputFiles(await download.path())
+  await expect(page.getByText('The file is whole and unchanged.')).toBeVisible()
+  await expect(page.getByText(/from this business/)).toBeVisible()
+  await page.getByLabel('Choose a data file to check').setInputFiles({ name: 'damaged.json', mimeType: 'application/json', buffer: Buffer.from(text.replace('"items":[', '"items":[{"id":"injected"},')) })
+  await expect(page.getByText(/changed or damaged/)).toBeVisible()
 })

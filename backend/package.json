@@ -25,7 +25,8 @@
     "db:bootstrap": "tsx scripts/bootstrap-db.ts",
     "openapi": "tsx scripts/export-openapi.ts",
     "licence": "tsx scripts/licence.ts",
-    "maintenance:retention": "tsx scripts/retention.ts"
+    "maintenance:retention": "tsx scripts/retention.ts",
+    "maintenance:restore": "tsx scripts/restore-export.ts"
   },
   "dependencies": {
     "@fastify/static": "^10.1.10",

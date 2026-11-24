@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { createHash } from 'node:crypto';
 import { sql } from 'drizzle-orm';
 import { UnitOfWork } from '../../platform/database/unit-of-work.js';
 import { AppError } from '../../platform/http/errors.js';
@@ -35,7 +36,10 @@ export class ExportService {
         tables[t] = rows;
       }
       await this.recorder.record(tx, tenantId, 'tenant', 'exported', { id: tenantId }, { tables: Object.keys(tables).length, rows: rowsTotal });
-      return { format: 'onesync-export-v1', exportedAt: new Date().toISOString(), tenantId, tables };
+      // the checksum covers the records exactly as written, so the file can be checked later (in the app or by an operator) before anyone trusts it
+      const counts = Object.fromEntries(Object.entries(tables).map(([t, r]) => [t, r.length]));
+      const checksum = createHash('sha256').update(JSON.stringify(tables)).digest('hex');
+      return { format: 'onesync-export-v1', exportedAt: new Date().toISOString(), tenantId, counts, checksum, tables };
     });
   }
 }
