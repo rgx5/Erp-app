@@ -1,3 +1,4 @@
+import { GroupReport } from './GroupReport'
 import { useState } from 'react'
 import { Link } from '@tanstack/react-router'
 import { formatDate, formatInr, todayIso } from '@/domain/format'
@@ -7,8 +8,9 @@ import { Drawer } from '@/ui/Drawer'
 import { Alert, Button, Card, Spinner, TextField, Toolbar } from '@/ui/primitives'
 import { useAccountLedger, useBalanceSheet, useCashFlow, useProfitLoss, useTrialBalance } from './queries'
 
-type Tab = 'tb' | 'pl' | 'bs' | 'cf'
+type Tab = 'tb' | 'pl' | 'bs' | 'cf' | 'group'
 const TABS: { id: Tab; label: string }[] = [{ id: 'tb', label: 'Trial balance' }, { id: 'pl', label: 'Profit and loss' }, { id: 'bs', label: 'Balance sheet' }, { id: 'cf', label: 'Cash flow' }]
+const GROUP_TAB = { id: 'group' as Tab, label: 'Group (all companies)' }
 const fyStart = (): string => { const d = new Date(); const y = d.getMonth() >= 3 ? d.getFullYear() : d.getFullYear() - 1; return `${y}-04-01` }
 const amt = (v: string) => (Number(v) === 0 ? '–' : formatInr(v, { symbol: false }))
 const Row = ({ label, value, strong }: { label: string; value: string; strong?: boolean }) => <div className={`flex justify-between py-1 ${strong ? 'border-t border-line font-semibold' : ''}`}><span>{label}</span><span className="num">{amt(value)}</span></div>
@@ -51,7 +53,7 @@ export function ReportsPage() {
     <div className="flex flex-col gap-4">
       <h1 className="page-title">Financial reports</h1>
       <div role="tablist" className="flex gap-1 border-b border-line">
-        {TABS.map((t) => <button key={t.id} role="tab" aria-selected={tab === t.id} className={`-mb-px border-b-2 px-3 py-2 text-sm ${tab === t.id ? 'border-brand font-medium text-brand' : 'border-transparent text-muted hover:text-ink'}`} onClick={() => setTab(t.id)}>{t.label}</button>)}
+        {[...TABS, ...(ws.companies.length > 1 ? [GROUP_TAB] : [])].map((t) => <button key={t.id} role="tab" aria-selected={tab === t.id} className={`-mb-px border-b-2 px-3 py-2 text-sm ${tab === t.id ? 'border-brand font-medium text-brand' : 'border-transparent text-muted hover:text-ink'}`} onClick={() => setTab(t.id)}>{t.label}</button>)}
       </div>
       <Toolbar>
         {tab !== 'bs' ? <div className="w-40"><TextField label="From" type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div> : null}
@@ -59,6 +61,7 @@ export function ReportsPage() {
       </Toolbar>
       {err ? <Alert>{err.message}</Alert> : null}
 
+      {tab === 'group' ? <GroupReport key={`${from}${to}`} from={from} to={to} /> : null}
       {tab === 'tb' ? (tb.isPending ? <Spinner /> : tb.data ? (
         <div className="flex flex-col gap-3">
           {tb.data.balanced ? null : <Alert>The trial balance does not balance. Please contact support.</Alert>}

@@ -25,7 +25,7 @@ export const NAV: NavItem[] = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, needs: ['dashboard:read'] },
   { to: '/setup', label: 'Setup', icon: ClipboardCheck, needs: ['organization:write'] },
   { to: '/leads', label: 'Leads', icon: Target, needs: ['leads:read'], section: 'Leads' },
-  { to: '/leads/reports', label: 'Lead reports', icon: LineChart, needs: ['leads:read'], section: 'Leads' },
+  { to: '/leads/reports', label: 'Lead reports', icon: LineChart, needs: ['leads:read_all'], section: 'Leads' },
   { to: '/leads/sources', label: 'Lead sources', icon: Download, needs: ['leads:manage'], section: 'Leads' },
   { to: '/leads/settings', label: 'Lead settings', icon: Settings2, needs: ['leads:manage'], section: 'Leads' },
   { to: '/sales/quotes', label: 'Quotes', icon: FileText, needs: ['sales:read'], section: 'Sales' },

@@ -13,8 +13,11 @@ const uuids = (list: string[]): SQL => (list.length === 0 ? sql`'{}'::uuid[]` : 
 const texts = (list: string[]): SQL => (list.length === 0 ? sql`'{}'::text[]` : sql`ARRAY[${sql.join(list.map((x) => sql`${x}`), sql`, `)}]::text[]`);
 const iso = (v: unknown): string | null => (v ? new Date(v as string).toISOString() : null);
 
+export interface Territory { users: string[]; cities?: string[]; pincodePrefix?: string[] }
+/** Who is looking: everyone's leads (undefined), or only a person's own and their territory's. */
+export type Scope = { userId: string } | undefined
 export type Stage = { id: string; name: string; position: number; kind: 'open' | 'won' | 'lost'; status: string };
-export interface LeadSettings { assignmentMode: 'manual' | 'round_robin'; members: string[]; rules: AssignRule[]; slaMinutes: number; lostReasons: string[] }
+export interface LeadSettings { assignmentMode: 'manual' | 'round_robin'; members: string[]; rules: AssignRule[]; territories: Territory[]; slaMinutes: number; lostReasons: string[] }
 
 type LeadRow = { id: string; lead_no: string; name: string; phone: string | null; email: string | null; city: string | null; pincode: string | null; state: string | null; source: string; connector_id: string | null; campaign: string | null; adset: string | null; ad: string | null; form_name: string | null; utm: Record<string, string>; click_id: string | null; stage_id: string; status: string; lost_reason: string | null; owner_id: string | null; owner_name?: string | null; assigned_at: string | null; first_response_at: string | null; sla_due_at: string | null; next_follow_up_at: string | null; interest: string | null; value_estimate: string | null; fields: Record<string, string>; consent: boolean; enquiry_count: number; party_id: string | null; converted_at: string | null; duplicate_of: string | null; created_at: string; updated_at: string };
 const COL_LIST = 'l.id, l.lead_no, l.name, l.phone, l.email, l.city, l.pincode, l.state, l.source, l.connector_id, l.campaign, l.adset, l.ad, l.form_name, l.utm, l.click_id, l.stage_id, l.status, l.lost_reason, l.owner_id, l.assigned_at, l.first_response_at, l.sla_due_at, l.next_follow_up_at, l.interest, l.value_estimate, l.fields, l.consent, l.enquiry_count, l.party_id, l.converted_at, l.duplicate_of, l.created_at, l.updated_at';
@@ -43,15 +46,36 @@ export interface ListQuery { status?: string | undefined; stageId?: string | und
 export class LeadsService {
   constructor(@Inject(UnitOfWork) private readonly uow: UnitOfWork, @Inject(Recorder) private readonly recorder: Recorder) {}
 
+
+  /** The leads a restricted person may see: those they own or created, and those in a territory they are named in. */
+  private async scopeSql(tx: Tx, tenantId: string, scope: Scope, alias = 'l'): Promise<SQL> {
+    if (!scope) return sql`TRUE`;
+    const t = (await tx.execute<{ territories: Territory[] }>(sql`SELECT territories FROM erp.lead_settings WHERE tenant_id = ${tenantId}::uuid`)).rows[0]?.territories ?? [];
+    const mine = t.filter((x) => x.users.includes(scope.userId));
+    const cities = [...new Set(mine.flatMap((x) => (x.cities ?? []).map((c) => c.toLowerCase().trim())))];
+    const prefixes = [...new Set(mine.flatMap((x) => (x.pincodePrefix ?? []).map((p) => p.trim()).filter(Boolean)))];
+    const col = (n: string): SQL => sql.raw(`${alias}.${n}`);
+    const parts: SQL[] = [sql`${col('owner_id')} = ${scope.userId}::uuid`, sql`${col('created_by')} = ${scope.userId}::uuid`];
+    if (cities.length) parts.push(sql`lower(${col('city')}) = ANY(${texts(cities)})`);
+    if (prefixes.length) parts.push(sql`(${sql.join(prefixes.map((p) => sql`${col('pincode')} LIKE ${p.replace(/[%_\\]/g, '') + '%'}`), sql` OR `)})`);
+    return sql`(${sql.join(parts, sql` OR `)})`;
+  }
+  private async assertVisible(tx: Tx, tenantId: string, id: string, scope: Scope): Promise<void> {
+    if (!scope) return;
+    const w = await this.scopeSql(tx, tenantId, scope);
+    const ok = (await tx.execute(sql`SELECT 1 FROM erp.leads l WHERE l.tenant_id = ${tenantId}::uuid AND l.id = ${id}::uuid AND ${w}`)).rows.length > 0;
+    if (!ok) throw new AppError(404, 'not_found', 'Lead not found'); // a lead outside your territory looks like one that does not exist
+  }
+
   // ---- settings and stages ------------------------------------------------------------------------------------------------
   /** A business's first use creates its settings and the standard pipeline; nothing has to be set up before leads can arrive. */
   async ensureSetup(tx: Tx, tenantId: string): Promise<{ settings: LeadSettings & { cursor: number }; stages: Stage[] }> {
     await tx.execute(sql`INSERT INTO erp.lead_settings (tenant_id) VALUES (${tenantId}::uuid) ON CONFLICT (tenant_id) DO NOTHING`);
     const have = (await tx.execute<{ n: number }>(sql`SELECT count(*)::int AS n FROM erp.lead_stages WHERE tenant_id = ${tenantId}::uuid`)).rows[0]?.n ?? 0;
     if (have === 0) for (const [i, s] of DEFAULT_STAGES.entries()) await tx.execute(sql`INSERT INTO erp.lead_stages (tenant_id, id, name, position, kind) VALUES (${tenantId}::uuid, ${uuidv7()}::uuid, ${s.name}, ${i + 1}, ${s.kind}) ON CONFLICT DO NOTHING`);
-    const s = (await tx.execute<{ assignment_mode: 'manual' | 'round_robin'; members: string[]; rules: AssignRule[]; sla_minutes: number; lost_reasons: string[]; rr_cursor: number }>(sql`SELECT assignment_mode, members, rules, sla_minutes, lost_reasons, rr_cursor FROM erp.lead_settings WHERE tenant_id = ${tenantId}::uuid`)).rows[0];
+    const s = (await tx.execute<{ assignment_mode: 'manual' | 'round_robin'; members: string[]; rules: AssignRule[]; territories: Territory[]; sla_minutes: number; lost_reasons: string[]; rr_cursor: number }>(sql`SELECT assignment_mode, members, rules, territories, sla_minutes, lost_reasons, rr_cursor FROM erp.lead_settings WHERE tenant_id = ${tenantId}::uuid`)).rows[0];
     const stages = (await tx.execute<Stage>(sql`SELECT id, name, position, kind, status FROM erp.lead_stages WHERE tenant_id = ${tenantId}::uuid AND status = 'active' ORDER BY position`)).rows;
-    return { settings: { assignmentMode: s?.assignment_mode ?? 'manual', members: s?.members ?? [], rules: s?.rules ?? [], slaMinutes: s?.sla_minutes ?? 30, lostReasons: s?.lost_reasons ?? [], cursor: s?.rr_cursor ?? 0 }, stages };
+    return { settings: { assignmentMode: s?.assignment_mode ?? 'manual', members: s?.members ?? [], rules: s?.rules ?? [], territories: s?.territories ?? [], slaMinutes: s?.sla_minutes ?? 30, lostReasons: s?.lost_reasons ?? [], cursor: s?.rr_cursor ?? 0 }, stages };
   }
 
   getSettings(tenantId: string) {
@@ -70,7 +94,7 @@ export class LeadsService {
         const ok = (await tx.execute<{ id: string }>(sql`SELECT id FROM erp.users WHERE tenant_id = ${tenantId}::uuid AND id = ANY(${uuids(input.members)})`)).rows.length;
         if (ok !== new Set(input.members).size) throw validationFailed([{ path: 'members', message: 'Every person must be a user of this business' }]);
       }
-      await tx.execute(sql`UPDATE erp.lead_settings SET assignment_mode = ${input.assignmentMode}, members = ${uuids(input.members)}, rules = ${JSON.stringify(input.rules)}::jsonb, sla_minutes = ${input.slaMinutes}, lost_reasons = ${texts(input.lostReasons)}, updated_at = now() WHERE tenant_id = ${tenantId}::uuid`);
+      await tx.execute(sql`UPDATE erp.lead_settings SET assignment_mode = ${input.assignmentMode}, members = ${uuids(input.members)}, rules = ${JSON.stringify(input.rules)}::jsonb, territories = ${JSON.stringify(input.territories)}::jsonb, sla_minutes = ${input.slaMinutes}, lost_reasons = ${texts(input.lostReasons)}, updated_at = now() WHERE tenant_id = ${tenantId}::uuid`);
       await this.recorder.record(tx, tenantId, 'lead_settings', 'updated', { id: tenantId }, { mode: input.assignmentMode, slaMinutes: input.slaMinutes });
       return { ok: true };
     });
@@ -151,9 +175,9 @@ export class LeadsService {
   }
 
   // ---- reading ------------------------------------------------------------------------------------------------------------
-  list(tenantId: string, q: ListQuery) {
+  list(tenantId: string, q: ListQuery, scope?: Scope) {
     return this.uow.inTenant(tenantId, async (tx) => {
-      const w: SQL[] = [sql`l.tenant_id = ${tenantId}::uuid`];
+      const w: SQL[] = [sql`l.tenant_id = ${tenantId}::uuid`, await this.scopeSql(tx, tenantId, scope)];
       if (q.status) w.push(sql`l.status = ${q.status}`);
       if (q.stageId) w.push(sql`l.stage_id = ${q.stageId}::uuid`);
       if (q.ownerId) w.push(sql`l.owner_id = ${q.ownerId}::uuid`);
@@ -174,20 +198,22 @@ export class LeadsService {
   }
 
   /** How many leads sit in each stage, and how many need attention: the numbers over the board and on the dashboard. */
-  counts(tenantId: string) {
+  counts(tenantId: string, scope?: Scope) {
     return this.uow.inTenant(tenantId, async (tx) => {
-      const byStage = (await tx.execute<{ stage_id: string; n: number }>(sql`SELECT stage_id, count(*)::int AS n FROM erp.leads WHERE tenant_id = ${tenantId}::uuid AND status = 'open' GROUP BY stage_id`)).rows;
+      const w = await this.scopeSql(tx, tenantId, scope, 'leads');
+      const byStage = (await tx.execute<{ stage_id: string; n: number }>(sql`SELECT stage_id, count(*)::int AS n FROM erp.leads WHERE tenant_id = ${tenantId}::uuid AND status = 'open' AND ${w} GROUP BY stage_id`)).rows;
       const a = (await tx.execute<{ overdue: number; follow_up: number; unassigned: number; today: number }>(sql`SELECT
         count(*) FILTER (WHERE status = 'open' AND first_response_at IS NULL AND sla_due_at < now())::int AS overdue,
         count(*) FILTER (WHERE status = 'open' AND next_follow_up_at < now())::int AS follow_up,
         count(*) FILTER (WHERE status = 'open' AND owner_id IS NULL)::int AS unassigned,
-        count(*) FILTER (WHERE created_at >= date_trunc('day', now()))::int AS today FROM erp.leads WHERE tenant_id = ${tenantId}::uuid`)).rows[0];
+        count(*) FILTER (WHERE created_at >= date_trunc('day', now()))::int AS today FROM erp.leads WHERE tenant_id = ${tenantId}::uuid AND ${w}`)).rows[0];
       return { byStage: Object.fromEntries(byStage.map((s) => [s.stage_id, s.n])), overdue: a?.overdue ?? 0, followUpDue: a?.follow_up ?? 0, unassigned: a?.unassigned ?? 0, today: a?.today ?? 0 };
     }, { readOnly: true });
   }
 
-  get(tenantId: string, id: string) {
+  get(tenantId: string, id: string, scope?: Scope) {
     return this.uow.inTenant(tenantId, async (tx) => {
+      await this.assertVisible(tx, tenantId, id, scope);
       const r = (await tx.execute<LeadRow>(sql`SELECT ${COLS}, u.display_name AS owner_name FROM erp.leads l LEFT JOIN erp.users u ON u.tenant_id = l.tenant_id AND u.id = l.owner_id WHERE l.tenant_id = ${tenantId}::uuid AND l.id = ${id}::uuid`)).rows[0];
       if (!r) throw new AppError(404, 'not_found', 'Lead not found');
       const acts = (await tx.execute<{ id: string; kind: string; body: string; due_at: string | null; done_at: string | null; created_at: string; by: string | null }>(sql`SELECT a.id, a.kind, a.body, a.due_at, a.done_at, a.created_at, u.display_name AS by FROM erp.lead_activities a LEFT JOIN erp.users u ON u.tenant_id = a.tenant_id AND u.id = a.created_by WHERE a.tenant_id = ${tenantId}::uuid AND a.lead_id = ${id}::uuid ORDER BY a.created_at DESC, a.id DESC LIMIT 500`)).rows;
@@ -201,7 +227,8 @@ export class LeadsService {
     await tx.execute(sql`INSERT INTO erp.lead_activities (tenant_id, id, lead_id, kind, body, due_at, created_by) VALUES (${tenantId}::uuid, ${id}::uuid, ${leadId}::uuid, ${kind}, ${body.slice(0, 2000)}, ${dueAt ?? null}::timestamptz, ${actorId}::uuid)`);
     return id;
   }
-  private async lock(tx: Tx, tenantId: string, id: string): Promise<LeadRow> {
+  private async lock(tx: Tx, tenantId: string, id: string, scope?: Scope): Promise<LeadRow> {
+    await this.assertVisible(tx, tenantId, id, scope);
     const r = (await tx.execute<LeadRow>(sql`SELECT ${COLS} FROM erp.leads l WHERE l.tenant_id = ${tenantId}::uuid AND l.id = ${id}::uuid FOR UPDATE`)).rows[0];
     if (!r) throw new AppError(404, 'not_found', 'Lead not found');
     return r;
@@ -210,9 +237,9 @@ export class LeadsService {
     await tx.execute(sql`UPDATE erp.leads SET next_follow_up_at = (SELECT min(due_at) FROM erp.lead_activities WHERE tenant_id = ${tenantId}::uuid AND lead_id = ${leadId}::uuid AND kind = 'task' AND done_at IS NULL), updated_at = now() WHERE tenant_id = ${tenantId}::uuid AND id = ${leadId}::uuid`);
   }
 
-  update(tenantId: string, actorId: string, id: string, p: Partial<Pick<LeadInput, 'name' | 'phone' | 'email' | 'city' | 'pincode' | 'state' | 'interest' | 'valueEstimate' | 'fields' | 'consent'>>) {
+  update(tenantId: string, actorId: string, id: string, p: Partial<Pick<LeadInput, 'name' | 'phone' | 'email' | 'city' | 'pincode' | 'state' | 'interest' | 'valueEstimate' | 'fields' | 'consent'>>, scope?: Scope) {
     return this.uow.inTenant(tenantId, async (tx) => {
-      const cur = await this.lock(tx, tenantId, id);
+      const cur = await this.lock(tx, tenantId, id, scope);
       const phone = p.phone === undefined ? cur.phone : p.phone?.trim() || null;
       const email = p.email === undefined ? cur.email : p.email?.trim() || null;
       await tx.execute(sql`UPDATE erp.leads SET name = ${p.name?.trim() || cur.name}, phone = ${phone}, phone_norm = ${normalizePhone(phone)}, email = ${normalizeEmail(email) ?? email}, city = ${p.city === undefined ? cur.city : p.city?.trim() || null}, pincode = ${p.pincode === undefined ? cur.pincode : p.pincode?.trim() || null}, state = ${p.state === undefined ? cur.state : p.state?.trim() || null},
@@ -222,9 +249,9 @@ export class LeadsService {
     });
   }
 
-  setStage(tenantId: string, actorId: string, id: string, input: { stageId: string; lostReason?: string | undefined }) {
+  setStage(tenantId: string, actorId: string, id: string, input: { stageId: string; lostReason?: string | undefined }, scope?: Scope) {
     return this.uow.inTenant(tenantId, async (tx) => {
-      const cur = await this.lock(tx, tenantId, id);
+      const cur = await this.lock(tx, tenantId, id, scope);
       const st = (await tx.execute<Stage>(sql`SELECT id, name, position, kind, status FROM erp.lead_stages WHERE tenant_id = ${tenantId}::uuid AND id = ${input.stageId}::uuid AND status = 'active'`)).rows[0];
       if (!st) throw validationFailed([{ path: 'stageId', message: 'That stage does not exist' }]);
       if (st.kind === 'lost' && !input.lostReason?.trim()) throw validationFailed([{ path: 'lostReason', message: 'Say why the lead was lost' }]);
@@ -236,9 +263,9 @@ export class LeadsService {
     });
   }
 
-  assign(tenantId: string, actorId: string, id: string, ownerId: string | null) {
+  assign(tenantId: string, actorId: string, id: string, ownerId: string | null, scope?: Scope) {
     return this.uow.inTenant(tenantId, async (tx) => {
-      const cur = await this.lock(tx, tenantId, id);
+      const cur = await this.lock(tx, tenantId, id, scope);
       let name = 'nobody';
       if (ownerId) {
         const u = (await tx.execute<{ display_name: string }>(sql`SELECT display_name FROM erp.users WHERE tenant_id = ${tenantId}::uuid AND id = ${ownerId}::uuid AND status = 'active'`)).rows[0];
@@ -253,9 +280,9 @@ export class LeadsService {
     });
   }
 
-  addActivity(tenantId: string, actorId: string, id: string, input: { kind: 'note' | 'call' | 'whatsapp' | 'email' | 'visit' | 'survey' | 'task'; body: string; dueAt?: string | undefined }) {
+  addActivity(tenantId: string, actorId: string, id: string, input: { kind: 'note' | 'call' | 'whatsapp' | 'email' | 'visit' | 'survey' | 'task'; body: string; dueAt?: string | undefined }, scope?: Scope) {
     return this.uow.inTenant(tenantId, async (tx) => {
-      await this.lock(tx, tenantId, id);
+      await this.lock(tx, tenantId, id, scope);
       if (input.kind === 'task' && !input.dueAt) throw validationFailed([{ path: 'dueAt', message: 'A task needs a due date' }]);
       const actId = await this.activity(tx, tenantId, id, input.kind, input.body, actorId, input.dueAt);
       // the first thing done with the lead stops the response clock
@@ -265,9 +292,9 @@ export class LeadsService {
     });
   }
 
-  completeTask(tenantId: string, actorId: string, id: string, activityId: string) {
+  completeTask(tenantId: string, actorId: string, id: string, activityId: string, scope?: Scope) {
     return this.uow.inTenant(tenantId, async (tx) => {
-      await this.lock(tx, tenantId, id);
+      await this.lock(tx, tenantId, id, scope);
       const r = await tx.execute(sql`UPDATE erp.lead_activities SET done_at = now() WHERE tenant_id = ${tenantId}::uuid AND lead_id = ${id}::uuid AND id = ${activityId}::uuid AND kind = 'task' AND done_at IS NULL`);
       if ((r.rowCount ?? 0) === 0) throw new AppError(404, 'not_found', 'That task is not open');
       await this.refreshFollowUp(tx, tenantId, id);
@@ -277,9 +304,9 @@ export class LeadsService {
   }
 
   /** Records that this lead is now a customer (the screen creates the customer through the normal customer form, then tells us which). */
-  linkParty(tenantId: string, actorId: string, id: string, partyId: string) {
+  linkParty(tenantId: string, actorId: string, id: string, partyId: string, scope?: Scope) {
     return this.uow.inTenant(tenantId, async (tx) => {
-      const cur = await this.lock(tx, tenantId, id);
+      const cur = await this.lock(tx, tenantId, id, scope);
       if (cur.party_id && cur.party_id !== partyId) throw new AppError(409, 'already_linked', 'This lead is already linked to another customer');
       const p = (await tx.execute<{ legal_name: string; is_customer: boolean }>(sql`SELECT legal_name, is_customer FROM erp.parties WHERE tenant_id = ${tenantId}::uuid AND id = ${partyId}::uuid`)).rows[0];
       if (!p) throw new AppError(404, 'not_found', 'Customer not found');

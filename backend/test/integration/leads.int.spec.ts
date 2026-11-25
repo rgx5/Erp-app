@@ -243,7 +243,39 @@ describe('leads: customers, money and the rest', () => {
     const slug = ((await supers.query('SELECT slug FROM erp.tenants WHERE id = $1', [a.tenant])).rows[0] as { slug: string }).slug;
     const token = (await call(server, 'POST', '/v1/auth/login', { body: { tenant: slug, email, password: PW } })).json.accessToken as string;
     expect((await call(server, 'GET', '/v1/leads', { token })).status).toBe(200);
+    expect(ok(await call(server, 'GET', '/v1/leads', { token }), 200).items).toHaveLength(0); // read, but not read-all: none of these are theirs
+    expect((await call(server, 'GET', `/v1/leads/${mine.id}`, { token })).status).toBe(404);
+    expect((await call(server, 'GET', '/v1/leads/reports/summary?from=2025-01-01&to=2025-12-31', { token })).status).toBe(403);
     expect((await call(server, 'POST', '/v1/leads', { token, body: { name: 'X', phone: '9810000203' } })).status).toBe(403);
     expect((await call(server, 'GET', '/v1/leads/connectors', { token })).status).toBe(403);
+  });
+});
+
+describe('leads: who sees which leads', () => {
+  it('a person with leads:read sees only their own leads and their territory; read-all sees everything', async () => {
+    const s = await kit.shop('Leads Scope Co'); const t = s.tenant;
+    const slug = ((await supers.query('SELECT slug FROM erp.tenants WHERE id = $1', [t])).rows[0] as { slug: string }).slug;
+    const person = async (perms: string[]) => {
+      const role = ok(await call(server, 'POST', '/v1/roles', { tenant: t, body: { name: `r-${++n}`, permissions: perms } }));
+      const email = `p${++n}@scope.example.com`;
+      const u = ok(await call(server, 'POST', '/v1/users', { tenant: t, body: { email, displayName: `P${n}`, password: PW, roleIds: [role.id] } }));
+      return { id: u.id as string, token: (await call(server, 'POST', '/v1/auth/login', { body: { tenant: slug, email, password: PW } })).json.accessToken as string };
+    };
+    const pune = await person(['leads:read', 'leads:write']); const mumbai = await person(['leads:read', 'leads:write']); const boss = await person(['leads:read', 'leads:read_all', 'leads:write']);
+    await lead(t, { name: 'Pune one', phone: '9820000001', city: 'Pune' }); await lead(t, { name: 'Pune two', phone: '9820000002', city: 'Pune', pincode: '411001' }); await lead(t, { name: 'Mumbai one', phone: '9820000003', city: 'Mumbai', pincode: '400001' }); await lead(t, { name: 'Delhi one', phone: '9820000004', city: 'Delhi' });
+    ok(await call(server, 'PUT', '/v1/leads/settings', { tenant: t, body: { assignmentMode: 'manual', members: [], slaMinutes: 30, lostReasons: ['Other'], rules: [], territories: [{ users: [pune.id], cities: ['pune'] }, { users: [mumbai.id], pincodePrefix: ['400'] }] } }), 200);
+    const names = async (token: string) => (ok(await call(server, 'GET', '/v1/leads', { token }), 200).items as { name: string }[]).map((x) => x.name).sort();
+    expect(await names(pune.token)).toEqual(['Pune one', 'Pune two']); expect(await names(mumbai.token)).toEqual(['Mumbai one']); expect(await names(boss.token)).toHaveLength(4);
+    expect((ok(await call(server, 'GET', '/v1/leads/counts', { token: pune.token }), 200)).today).toBe(2);
+    const all = ok(await call(server, 'GET', '/v1/leads', { token: boss.token }), 200).items as { id: string; name: string }[];
+    const delhi = all.find((x) => x.name === 'Delhi one') as { id: string }; const puneOne = all.find((x) => x.name === 'Pune one') as { id: string };
+    expect((await call(server, 'GET', `/v1/leads/${delhi.id}`, { token: pune.token })).status).toBe(404); // outside the territory: looks absent
+    expect((await call(server, 'POST', `/v1/leads/${delhi.id}/activities`, { token: pune.token, body: { kind: 'note', body: 'x' } })).status).toBe(404);
+    expect((await call(server, 'POST', `/v1/leads/${puneOne.id}/activities`, { token: pune.token, body: { kind: 'note', body: 'Called' } })).status).toBe(201);
+    // a lead handed to someone is theirs wherever it is; one they add themselves stays visible to them
+    ok(await call(server, 'POST', `/v1/leads/${delhi.id}/assign`, { tenant: t, body: { ownerId: pune.id } }), 200);
+    expect(await names(pune.token)).toContain('Delhi one');
+    const own = await call(server, 'POST', '/v1/leads', { token: mumbai.token, body: { name: 'Mine in Goa', phone: '9820000009', city: 'Goa' } }); expect(own.status).toBe(201);
+    expect(await names(mumbai.token)).toContain('Mine in Goa');
   });
 });

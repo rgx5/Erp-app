@@ -70,6 +70,7 @@ export const PERMISSIONS = [
   'retail:read', 'pos:approve',
   'retail:manage',
   'leads:read',
+  'leads:read_all',
   'leads:write',
   'leads:manage',
 ] as const;

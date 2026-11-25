@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useFlash } from '@/ui/flash'
 import { Alert, Button, Card, SelectField, Spinner, TextField } from '@/ui/primitives'
-import { SOURCES, useLeadActions, useLeadSettings, type AssignRule, type Stage } from './queries'
+import { SOURCES, useLeadActions, useLeadSettings, type AssignRule, type Stage, type Territory } from './queries'
 
 const list = (s: string): string[] => s.split(/[,\n]+/).map((x) => x.trim()).filter(Boolean)
 type Draft = { id?: string; name: string; kind: 'open' | 'won' | 'lost' }
@@ -57,12 +57,28 @@ function Rules({ rules, users, onChange }: { rules: AssignRule[]; users: { id: s
   )
 }
 
+function Territories({ value, users, onChange }: { value: Territory[]; users: { id: string; name: string }[]; onChange: (t: Territory[]) => void }) {
+  const patch = (i: number, p: Partial<Territory>): void => onChange(value.map((t, k) => (k === i ? { ...t, ...p } : t)))
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-xs text-muted">A person whose role can read leads, but not all of them, sees the leads they own or added, plus those in a territory they are named in. People who can read all leads see everything.</p>
+      {value.map((t, i) => (
+        <div key={i} className="rounded-lg border border-line p-3">
+          <div className="grid gap-2 md:grid-cols-2"><TextField label="Cities (comma separated)" value={(t.cities ?? []).join(', ')} onChange={(e) => patch(i, { cities: list(e.target.value) })} /><TextField label="PIN codes starting with" value={(t.pincodePrefix ?? []).join(', ')} onChange={(e) => patch(i, { pincodePrefix: list(e.target.value) })} /></div>
+          <div className="mt-2 flex flex-wrap gap-3 text-sm">{users.map((u) => <label key={u.id} className="flex items-center gap-1.5"><input type="checkbox" checked={t.users.includes(u.id)} onChange={(e) => patch(i, { users: e.target.checked ? [...t.users, u.id] : t.users.filter((x) => x !== u.id) })} /> {u.name}</label>)}</div>
+          <Button variant="ghost" className="mt-2" onClick={() => onChange(value.filter((_, k) => k !== i))}>Remove this territory</Button>
+        </div>))}
+      <Button variant="secondary" className="self-start" onClick={() => onChange([...value, { users: [], cities: [] }])}>Add a territory</Button>
+    </div>
+  )
+}
+
 /** How new leads are shared out, how fast they must be answered, why they get lost, and the stages of the pipeline. */
 export function LeadSettingsPage() {
   const q = useLeadSettings(); const a = useLeadActions(); const flash = useFlash()
-  const [mode, setMode] = useState<'manual' | 'round_robin'>('manual'); const [members, setMembers] = useState<string[]>([]); const [rules, setRules] = useState<AssignRule[]>([])
+  const [mode, setMode] = useState<'manual' | 'round_robin'>('manual'); const [members, setMembers] = useState<string[]>([]); const [rules, setRules] = useState<AssignRule[]>([]); const [territories, setTerritories] = useState<Territory[]>([])
   const [sla, setSla] = useState('30'); const [reasons, setReasons] = useState(''); const [problem, setProblem] = useState<string | null>(null)
-  useEffect(() => { if (q.data) { setMode(q.data.assignmentMode); setMembers(q.data.members); setRules(q.data.rules); setSla(String(q.data.slaMinutes)); setReasons(q.data.lostReasons.join('\n')) } }, [q.data])
+  useEffect(() => { if (q.data) { setMode(q.data.assignmentMode); setMembers(q.data.members); setRules(q.data.rules); setTerritories(q.data.territories ?? []); setSla(String(q.data.slaMinutes)); setReasons(q.data.lostReasons.join('\n')) } }, [q.data])
   if (q.isPending) return <Spinner />
   if (q.error || !q.data) return <Alert>{q.error?.message ?? 'Could not load.'}</Alert>
   const users = q.data.users
@@ -77,12 +93,13 @@ export function LeadSettingsPage() {
             <div><p className="mb-1 text-sm text-muted">The team that takes turns</p><div className="flex flex-wrap gap-3 text-sm">{users.map((u) => <label key={u.id} className="flex items-center gap-1.5"><input type="checkbox" checked={members.includes(u.id)} onChange={(e) => setMembers((m) => (e.target.checked ? [...m, u.id] : m.filter((x) => x !== u.id)))} /> {u.name}</label>)}</div></div>
             <div><p className="mb-1 text-sm font-medium">Special rules (optional)</p><Rules rules={rules} users={users} onChange={setRules} /></div>
           </>) : null}
+          <div><p className="mb-1 text-sm font-medium">Who sees which leads</p><Territories value={territories} users={users} onChange={setTerritories} /></div>
           <div className="w-64"><TextField label="Answer a new lead within (minutes)" inputMode="numeric" value={sla} onChange={(e) => setSla(e.target.value)} hint="After this, the lead shows as not contacted in time." /></div>
           <div><label className="flex flex-col gap-1 text-sm"><span className="text-muted">Reasons a lead can be lost (one per line)</span><textarea className="min-h-28 rounded-md border border-line bg-surface p-2" value={reasons} onChange={(e) => setReasons(e.target.value)} /></label></div>
           {problem ? <Alert>{problem}</Alert> : null}
           <Button className="self-start" busy={a.saveSettings.isPending} onClick={async () => {
             setProblem(null)
-            try { await a.saveSettings.mutateAsync({ assignmentMode: mode, members, rules: rules.filter((r) => r.users.length > 0), slaMinutes: Number(sla), lostReasons: list(reasons) }); flash.show('Saved.') } catch (e) { setProblem(e instanceof Error ? e.message : 'Could not save.') }
+            try { await a.saveSettings.mutateAsync({ assignmentMode: mode, members, rules: rules.filter((r) => r.users.length > 0), territories: territories.filter((t) => t.users.length > 0), slaMinutes: Number(sla), lostReasons: list(reasons) }); flash.show('Saved.') } catch (e) { setProblem(e instanceof Error ? e.message : 'Could not save.') }
           }}>Save</Button>
         </div>
       </Card>

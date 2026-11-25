@@ -6,13 +6,18 @@ import { Public } from '../../platform/http/public.js';
 import { RequiresModule } from '../identity/entitlements.js';
 import { IdentityModule } from '../identity/identity.module.js';
 import { CurrentPrincipal, type Principal, RequirePermissions, TenantId } from '../identity/principal.js';
+import { allows } from '../identity/permissions.js';
+import { Authenticated } from '../identity/principal.js';
+import { AppError } from '../../platform/http/errors.js';
 import { Recorder } from '../masterdata/helpers.js';
 import { ConnectorsService } from './connectors.service.js';
 import { IngestService } from './ingest.service.js';
 import { LeadsReportsService } from './leads-reports.service.js';
-import { LeadsService } from './leads.service.js';
+import { LeadsService, type Scope } from './leads.service.js';
 import { SOURCES } from './leads.logic.js';
 
+/** Everyone's leads for someone who may read them all, otherwise only their own and their territory's. */
+const scopeOf = (a: Principal): Scope => { if (allows(a.permissions, ['leads:read_all'])) return undefined; if (allows(a.permissions, ['leads:read'])) return { userId: a.userId }; throw new AppError(403, 'forbidden', 'You do not have permission to do that'); };
 const id = z.uuid();
 const text = (n: number) => z.string().trim().max(n);
 const opt = (n: number) => z.string().trim().max(n).nullish().transform((v) => v ?? undefined);
@@ -34,6 +39,7 @@ const linkSchema = z.strictObject({ partyId: id });
 const mergeSchema = z.strictObject({ intoId: id });
 const settingsSchema = z.strictObject({
   assignmentMode: z.enum(['manual', 'round_robin']), members: z.array(id).max(200), slaMinutes: z.number().int().min(1).max(10080), lostReasons: z.array(text(100).min(1)).min(1).max(30),
+  territories: z.array(z.strictObject({ users: z.array(id).min(1).max(100), cities: z.array(text(100)).max(50).optional(), pincodePrefix: z.array(text(12)).max(50).optional() })).max(50).default([]),
   rules: z.array(z.strictObject({ match: z.strictObject({ city: z.array(text(100)).max(50).optional(), pincodePrefix: z.array(text(12)).max(50).optional(), source: z.array(z.enum(SOURCES)).max(20).optional(), campaign: z.array(text(100)).max(50).optional() }).optional(), users: z.array(id).min(1).max(100) })).max(50),
 });
 const stagesSchema = z.strictObject({ stages: z.array(z.strictObject({ id: id.optional(), name: text(60).min(1), kind: z.enum(['open', 'won', 'lost']) })).min(3).max(15) });
@@ -49,10 +55,10 @@ const spendSchema = z.strictObject({ rows: z.array(z.strictObject({ date: day, s
 export class LeadsController {
   constructor(@Inject(LeadsService) private readonly leads: LeadsService, @Inject(ConnectorsService) private readonly connectors: ConnectorsService, @Inject(IngestService) private readonly ingest: IngestService, @Inject(LeadsReportsService) private readonly reports: LeadsReportsService) {}
 
-  @RequirePermissions('leads:read') @Get()
-  list(@TenantId() t: string, @Query({ schema: listQuery }) q: z.infer<typeof listQuery>) { return this.leads.list(t, q); }
-  @RequirePermissions('leads:read') @Get('counts')
-  counts(@TenantId() t: string) { return this.leads.counts(t); }
+  @Authenticated() @Get()
+  list(@CurrentPrincipal() a: Principal, @Query({ schema: listQuery }) q: z.infer<typeof listQuery>) { return this.leads.list(a.tenantId, q, scopeOf(a)); }
+  @Authenticated() @Get('counts')
+  counts(@CurrentPrincipal() a: Principal) { return this.leads.counts(a.tenantId, scopeOf(a)); }
 
   @RequirePermissions('leads:read') @Get('settings')
   settings(@TenantId() t: string) { return this.leads.getSettings(t); }
@@ -75,9 +81,9 @@ export class LeadsController {
   @RequirePermissions('leads:manage') @Post('connectors/:id/test') @HttpCode(200)
   connectorTest(@TenantId() t: string, @Param('id', { schema: id }) i: string) { return this.ingest.test(t, i); }
 
-  @RequirePermissions('leads:read') @Get('reports/summary')
+  @RequirePermissions('leads:read_all') @Get('reports/summary')
   summary(@TenantId() t: string, @Query({ schema: rangeQuery }) q: z.infer<typeof rangeQuery>) { return this.reports.summary(t, q.from, q.to); }
-  @RequirePermissions('leads:read') @Get('ad-spend')
+  @RequirePermissions('leads:read_all') @Get('ad-spend')
   async spend(@TenantId() t: string, @Query({ schema: rangeQuery }) q: z.infer<typeof rangeQuery>) { return { items: await this.reports.listSpend(t, q.from, q.to) }; }
   @RequirePermissions('leads:manage') @Post('ad-spend') @HttpCode(200) @ApiZodBody(spendSchema)
   saveSpend(@CurrentPrincipal() a: Principal, @Body({ schema: spendSchema }) b: z.infer<typeof spendSchema>) { return this.reports.saveSpend(a.tenantId, a.userId, b.rows); }
@@ -86,20 +92,20 @@ export class LeadsController {
 
   @RequirePermissions('leads:write') @Post() @ApiZodBody(createSchema)
   create(@CurrentPrincipal() a: Principal, @Body({ schema: createSchema }) b: z.infer<typeof createSchema>) { const { allowDuplicate, ...input } = b; return this.leads.createManual(a.tenantId, a.userId, input, allowDuplicate); }
-  @RequirePermissions('leads:read') @Get(':id')
-  get(@TenantId() t: string, @Param('id', { schema: id }) i: string) { return this.leads.get(t, i); }
+  @Authenticated() @Get(':id')
+  get(@CurrentPrincipal() a: Principal, @Param('id', { schema: id }) i: string) { return this.leads.get(a.tenantId, i, scopeOf(a)); }
   @RequirePermissions('leads:write') @Patch(':id') @ApiZodBody(updateSchema)
-  update(@CurrentPrincipal() a: Principal, @Param('id', { schema: id }) i: string, @Body({ schema: updateSchema }) b: z.infer<typeof updateSchema>) { return this.leads.update(a.tenantId, a.userId, i, b); }
+  update(@CurrentPrincipal() a: Principal, @Param('id', { schema: id }) i: string, @Body({ schema: updateSchema }) b: z.infer<typeof updateSchema>) { return this.leads.update(a.tenantId, a.userId, i, b, scopeOf(a)); }
   @RequirePermissions('leads:write') @Post(':id/stage') @HttpCode(200) @ApiZodBody(stageSchema)
-  stage(@CurrentPrincipal() a: Principal, @Param('id', { schema: id }) i: string, @Body({ schema: stageSchema }) b: z.infer<typeof stageSchema>) { return this.leads.setStage(a.tenantId, a.userId, i, b); }
+  stage(@CurrentPrincipal() a: Principal, @Param('id', { schema: id }) i: string, @Body({ schema: stageSchema }) b: z.infer<typeof stageSchema>) { return this.leads.setStage(a.tenantId, a.userId, i, b, scopeOf(a)); }
   @RequirePermissions('leads:write') @Post(':id/assign') @HttpCode(200) @ApiZodBody(assignSchema)
-  assign(@CurrentPrincipal() a: Principal, @Param('id', { schema: id }) i: string, @Body({ schema: assignSchema }) b: z.infer<typeof assignSchema>) { return this.leads.assign(a.tenantId, a.userId, i, b.ownerId); }
+  assign(@CurrentPrincipal() a: Principal, @Param('id', { schema: id }) i: string, @Body({ schema: assignSchema }) b: z.infer<typeof assignSchema>) { return this.leads.assign(a.tenantId, a.userId, i, b.ownerId, scopeOf(a)); }
   @RequirePermissions('leads:write') @Post(':id/activities') @ApiZodBody(activitySchema)
-  activity(@CurrentPrincipal() a: Principal, @Param('id', { schema: id }) i: string, @Body({ schema: activitySchema }) b: z.infer<typeof activitySchema>) { return this.leads.addActivity(a.tenantId, a.userId, i, b); }
+  activity(@CurrentPrincipal() a: Principal, @Param('id', { schema: id }) i: string, @Body({ schema: activitySchema }) b: z.infer<typeof activitySchema>) { return this.leads.addActivity(a.tenantId, a.userId, i, b, scopeOf(a)); }
   @RequirePermissions('leads:write') @Post(':id/activities/:activityId/done') @HttpCode(200)
-  done(@CurrentPrincipal() a: Principal, @Param('id', { schema: id }) i: string, @Param('activityId', { schema: id }) act: string) { return this.leads.completeTask(a.tenantId, a.userId, i, act); }
+  done(@CurrentPrincipal() a: Principal, @Param('id', { schema: id }) i: string, @Param('activityId', { schema: id }) act: string) { return this.leads.completeTask(a.tenantId, a.userId, i, act, scopeOf(a)); }
   @RequirePermissions('leads:write') @Post(':id/link-customer') @HttpCode(200) @ApiZodBody(linkSchema)
-  link(@CurrentPrincipal() a: Principal, @Param('id', { schema: id }) i: string, @Body({ schema: linkSchema }) b: z.infer<typeof linkSchema>) { return this.leads.linkParty(a.tenantId, a.userId, i, b.partyId); }
+  link(@CurrentPrincipal() a: Principal, @Param('id', { schema: id }) i: string, @Body({ schema: linkSchema }) b: z.infer<typeof linkSchema>) { return this.leads.linkParty(a.tenantId, a.userId, i, b.partyId, scopeOf(a)); }
   @RequirePermissions('leads:manage') @Post(':id/merge') @HttpCode(200) @ApiZodBody(mergeSchema)
   merge(@CurrentPrincipal() a: Principal, @Param('id', { schema: id }) i: string, @Body({ schema: mergeSchema }) b: z.infer<typeof mergeSchema>) { return this.leads.merge(a.tenantId, a.userId, i, b.intoId); }
 }
