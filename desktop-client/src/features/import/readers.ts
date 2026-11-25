@@ -38,8 +38,11 @@ const str = (v: string | number | null): string => (v === null ? '' : typeof v =
 function tableOf(g: Grid): SourceTable | null {
   const [head, ...body] = g.rows
   if (!head || body.length === 0) return null
+  // a sheet may start with a title or a summary, so the widest row decides how many columns there are
+  const width = g.rows.reduce((w, r) => Math.max(w, r.length), 0)
+  const padded = Array.from({ length: width }, (_, i) => head[i] ?? '')
   const used = new Map<string, number>()
-  const columns = head.map((h, i) => { const base = h.trim() || `Column ${i + 1}`; const n = (used.get(base) ?? 0) + 1; used.set(base, n); return n === 1 ? base : `${base} (${n})` })
+  const columns = padded.map((h, i) => { const base = h.trim() || `Column ${i + 1}`; const n = (used.get(base) ?? 0) + 1; used.set(base, n); return n === 1 ? base : `${base} (${n})` })
   return { name: g.name, columns, rows: body.map((r) => columns.map((_, i) => (r[i] ?? '').trim())) }
 }
 

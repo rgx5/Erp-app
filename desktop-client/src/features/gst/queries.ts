@@ -19,3 +19,6 @@ export const useSetCompositionRate = (registrationId: string) => {
   const qc = useQueryClient()
   return useMutation({ mutationFn: (compositionRate: string | null) => { const api = currentApi(); return api.call(api.raw.PUT('/v1/gst/registrations/{id}/return-settings', { params: { path: { id: registrationId } }, body: { compositionRate } }), returnSettings) }, onSuccess: () => qc.invalidateQueries({ queryKey: ['gst'] }) })
 }
+
+/** One month's GSTR-3B figures (the annual working adds twelve of them). */
+export const fetchGstr3b = (registrationId: string, period: string): Promise<Gstr3b> => { const api = currentApi(); return api.call(api.raw.GET('/v1/gst/returns/gstr3b', { params: { query: query({ registrationId, period }) } }), gstr3b) }

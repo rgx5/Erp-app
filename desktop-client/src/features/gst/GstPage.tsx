@@ -11,9 +11,11 @@ import { Drawer } from '@/ui/Drawer'
 import { useFlash } from '@/ui/flash'
 import { SimpleForm } from '@/ui/SimpleForm'
 import { Alert, Button, Card, SelectField, Spinner, TextField, Toolbar } from '@/ui/primitives'
+import { Gstr2bView } from './Gstr2bView'
+import { Gstr9View } from './Gstr9View'
 import { useCmp08, useGstr1, useGstr3b, useItcRegister, useReturnSettings, useSetCompositionRate } from './queries'
 
-type Tab = 'gstr1' | 'gstr3b' | 'itc' | 'cmp08'
+type Tab = 'gstr1' | 'gstr3b' | 'itc' | 'cmp08' | 'rec2b' | 'gstr9'
 const amt = (v: string) => (Number(v) === 0 ? '–' : formatInr(v, { symbol: false }))
 const stateName = (pos: string): string => STATES.find((s) => s.code === pos)?.name ?? pos
 
@@ -148,20 +150,21 @@ export function GstPage() {
   const [period, setPeriod] = useState(lastMonth())
   const [quarter, setQuarter] = useState(lastQuarter())
   const [rate, setRate] = useState(false)
+  const [fy, setFy] = useState(() => { const d = new Date(); const y = d.getMonth() >= 3 ? d.getFullYear() : d.getFullYear() - 1; return `${y - 1}-${String(y % 100).padStart(2, '0')}` })
   const reg = ws.registrations.find((r) => r.id === regId) ?? ws.registrations[0]
   const composition = reg?.registrationType === 'composition'
   const settings = useReturnSettings(composition ? reg?.id : undefined)
   const setRateM = useSetCompositionRate(reg?.id ?? '')
   if (ws.loading) return <Spinner />
   if (!ws.company || !reg) return <Alert tone="info">No GST registration yet. <Link to="/setup" className="underline">Set up your business</Link>.</Alert>
-  const tabs: [Tab, string][] = composition ? [['cmp08', 'CMP-08']] : [['gstr1', 'GSTR-1'], ['gstr3b', 'GSTR-3B'], ['itc', 'ITC register']]
+  const tabs: [Tab, string][] = composition ? [['cmp08', 'CMP-08']] : [['gstr1', 'GSTR-1'], ['gstr3b', 'GSTR-3B'], ['itc', 'ITC register'], ['rec2b', 'GSTR-2B check'], ['gstr9', 'Annual (GSTR-9)']]
   const active: Tab = composition ? 'cmp08' : tab
   return (
     <div className="flex flex-col gap-4">
       <h1 className="page-title">GST returns</h1>
       <Toolbar>
         <div className="w-80"><SelectField label="GST registration" value={reg.id} onChange={(e) => setRegId(e.target.value)} options={ws.registrations.map((r) => ({ value: r.id, label: `${r.gstin} · ${r.registrationType === 'composition' ? 'Composition' : 'Regular'}` }))} /></div>
-        {active === 'cmp08' ? <div className="w-40"><TextField label="Quarter" value={quarter} placeholder="2026-Q1" onChange={(e) => setQuarter(e.target.value.toUpperCase())} hint="Q1 = April to June" /></div> : <div className="w-44"><TextField label="Month" type="month" value={period} onChange={(e) => setPeriod(e.target.value)} /></div>}
+        {active === 'gstr9' ? <div className="w-40"><TextField label="Financial year" value={fy} placeholder="2025-26" onChange={(e) => setFy(e.target.value)} hint="April to March" /></div> : active === 'cmp08' ? <div className="w-40"><TextField label="Quarter" value={quarter} placeholder="2026-Q1" onChange={(e) => setQuarter(e.target.value.toUpperCase())} hint="Q1 = April to June" /></div> : <div className="w-44"><TextField label="Month" type="month" value={period} onChange={(e) => setPeriod(e.target.value)} /></div>}
         {composition && canManage ? <Button variant="secondary" className="self-end" onClick={() => setRate(true)}>Composition rate{settings.data?.compositionRate ? ` (${settings.data.compositionRate}%)` : ''}</Button> : null}
       </Toolbar>
       <div role="tablist" className="flex gap-1 border-b border-line">
@@ -170,6 +173,8 @@ export function GstPage() {
       {active === 'gstr1' ? <Gstr1View key={`${reg.id}${period}`} registrationId={reg.id} period={period} /> : null}
       {active === 'gstr3b' ? <Gstr3bView key={`${reg.id}${period}`} registrationId={reg.id} period={period} /> : null}
       {active === 'itc' ? <ItcView key={`${reg.id}${period}`} registrationId={reg.id} period={period} /> : null}
+      {active === 'rec2b' ? <Gstr2bView key={`${reg.id}${period}`} registrationId={reg.id} period={period} /> : null}
+      {active === 'gstr9' && /^\d{4}-\d{2}$/.test(fy) ? <Gstr9View key={`${reg.id}${fy}`} registrationId={reg.id} fy={fy} /> : null}
       {active === 'cmp08' ? <Cmp08View key={`${reg.id}${quarter}`} registrationId={reg.id} quarter={quarter} /> : null}
       {rate ? (
         <Drawer title="Composition rate" onClose={() => setRate(false)}>

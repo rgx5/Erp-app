@@ -4,12 +4,19 @@ import { compare, fromUnits, isValid, toUnits } from '@/domain/money'
 export interface ParsedLine { date: string; description: string; reference?: string; amount: string }
 export interface ParsedStatement { lines: ParsedLine[]; errors: string[] }
 
-/** Accepts 2026-04-30, 30/04/2026 or 30-04-2026. */
+const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
+const pad = (n: number | string): string => String(n).padStart(2, '0')
+const year = (y: string): string => (y.length === 2 ? `${Number(y) >= 70 ? '19' : '20'}${y}` : y)
+/** Accepts 2026-04-30, 30/04/2026, 30-04-26, 30 Apr 2026, 30-Apr-26 and a spreadsheet's 2026-04-30 10:00:00. */
 export function parseBankDate(v: string): string | null {
   const s = v.trim()
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s
-  const m = /^(\d{1,2})[/-](\d{1,2})[/-](\d{4})$/.exec(s)
-  return m ? `${m[3]}-${m[2]!.padStart(2, '0')}-${m[1]!.padStart(2, '0')}` : null
+  let m = /^(\d{4})-(\d{2})-(\d{2})(?:[ T].*)?$/.exec(s)
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`
+  m = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2}|\d{4})$/.exec(s)
+  if (m) return `${year(m[3] as string)}-${pad(m[2] as string)}-${pad(m[1] as string)}`
+  m = /^(\d{1,2})[ /-]([A-Za-z]{3})[a-z]*[ /,-]+(\d{2}|\d{4})$/.exec(s)
+  const mi = m ? MONTHS.indexOf((m[2] as string).toLowerCase()) : -1
+  return m && mi >= 0 ? `${year(m[3] as string)}-${pad(mi + 1)}-${pad(m[1] as string)}` : null
 }
 const num = (v: string | undefined): string => (v ?? '').replace(/[,\s₹]/g, '')
 

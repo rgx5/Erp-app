@@ -13,7 +13,8 @@ import { SimpleForm } from '@/ui/SimpleForm'
 import { Alert, Button, Card, SelectField, Spinner, TextField, Toolbar } from '@/ui/primitives'
 import { AccountPicker } from './AccountPicker'
 import { useAutoMatch, useBankAccounts, useBankCandidates, useBankLines, useBankReconciliation, useBankStatements, useBookLine, useCreateBankAccount, useIgnoreLine, useImportStatement, useMatchLine, useUnmatchLine } from './queries'
-import { parseStatementCsv, type ParsedLine } from './statementCsv'
+import type { ParsedLine } from './statementCsv'
+import { readStatementFile } from './statementFile'
 
 type Tab = 'lines' | 'statements' | 'recon'
 
@@ -68,6 +69,7 @@ function ImportDrawer({ bankAccountId, onClose }: { bankAccountId: string; onClo
   const [lines, setLines] = useState<ParsedLine[]>([])
   const [errors, setErrors] = useState<string[]>([])
   const [opening, setOpening] = useState('0')
+  const [format, setFormat] = useState('')
   const [closing, setClosing] = useState('')
   const [error, setError] = useState<string | null>(null)
   const dates = lines.map((l) => l.date).sort()
@@ -77,18 +79,21 @@ function ImportDrawer({ bankAccountId, onClose }: { bankAccountId: string; onClo
   const key = useMemo(() => crypto.randomUUID(), [JSON.stringify(body)]) // eslint-disable-line react-hooks/exhaustive-deps
   async function pick(f: File | undefined) {
     if (!f) return
-    const r = parseStatementCsv(await f.text()); setLines(r.lines); setErrors(r.errors)
-    if (r.lines.length && closing === '') setClosing(add(opening || '0', r.lines.reduce((s, l) => add(s, l.amount), '0')))
+    try {
+      const r = await readStatementFile(f.name, new Uint8Array(await f.arrayBuffer())); setLines(r.lines); setErrors(r.errors); setFormat(r.format)
+      if (r.opening !== undefined) setOpening(r.opening)
+      if (r.lines.length) setClosing(r.closing ?? add(r.opening ?? (opening || '0'), r.lines.reduce((s, l) => add(s, l.amount), '0')))
+    } catch (e) { setLines([]); setErrors([e instanceof Error ? e.message : 'This file could not be read.']) }
   }
   return (
     <Drawer title="Import a bank statement" onClose={onClose} width={640}>
       <div className="flex flex-col gap-3">
-        <p className="text-sm text-muted">Choose the CSV your bank gives you. It needs Date and Description, and either one Amount column (deposits positive) or Withdrawal and Deposit columns.</p>
-        <input type="file" accept=".csv,text/csv" aria-label="Statement file" onChange={(e) => void pick(e.target.files?.[0])} />
+        <p className="text-sm text-muted">Choose the statement your bank gives you: CSV or Excel, or an OFX, QIF or MT940 file from net banking or Tally. Bank names and summaries above the table are skipped. Tables need Date and Description, and either one Amount column (deposits positive) or Withdrawal and Deposit columns.</p>
+        <input type="file" aria-label="Statement file" onChange={(e) => void pick(e.target.files?.[0])} />
         {errors.length ? <Alert>{errors.slice(0, 6).map((e) => <div key={e}>{e}</div>)}{errors.length > 6 ? <div>…and {errors.length - 6} more.</div> : null}</Alert> : null}
         {lines.length ? (
           <>
-            <p className="text-sm">{lines.length} lines · {formatDate(dates[0]!)} – {formatDate(dates.at(-1)!)} · net {formatInr(net)}</p>
+            <p className="text-sm">{format ? `${format}: ` : ''}{lines.length} lines · {formatDate(dates[0]!)} – {formatDate(dates.at(-1)!)} · net {formatInr(net)}</p>
             <div className="grid grid-cols-2 gap-3"><TextField label="Opening balance" value={opening} onChange={(e) => setOpening(e.target.value)} /><TextField label="Closing balance" value={closing} onChange={(e) => setClosing(e.target.value)} /></div>
             {expected && closing !== '' && fromUnits(toUnits(closing)) !== fromUnits(toUnits(expected)) ? <Alert tone="info">Opening balance plus the lines gives {formatInr(expected)}, not {formatInr(closing)}. The server will refuse a statement that does not add up.</Alert> : null}
             {error ? <Alert>{error}</Alert> : null}
