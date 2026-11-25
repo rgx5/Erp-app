@@ -122,7 +122,7 @@ function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
   }
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-4">
+    <div className="flex max-w-5xl flex-col gap-4">
       <div className="flex items-start justify-between">
         <div>
           <p className="text-xs text-muted"><Link to="/sales/invoices" className="underline">Sales invoices</Link></p>

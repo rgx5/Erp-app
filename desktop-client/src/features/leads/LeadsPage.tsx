@@ -77,7 +77,7 @@ export function LeadsPage() {
   return (
     <div className="flex flex-col gap-4">
       <div className="flex items-center justify-between">
-        <div><h1 className="page-title">Leads</h1><p className="text-sm text-muted">Enquiries from adverts, your website and people, followed through to a sale.</p></div>
+        <div><h1 className="page-title">Leads</h1><p className="page-sub">Enquiries from adverts, your website and people, followed through to a sale.</p></div>
         <div className="flex gap-2">
           <div className="flex overflow-hidden rounded-md border border-line">
             <button aria-label="Board view" aria-pressed={view === 'board'} className={`px-2.5 py-1.5 ${view === 'board' ? 'bg-sunken' : ''}`} onClick={() => { setView('board'); try { localStorage.setItem('onesync.leads.view', 'board') } catch { /* not kept */ } }}><LayoutGrid className="size-4" aria-hidden /></button>

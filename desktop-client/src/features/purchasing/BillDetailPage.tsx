@@ -43,7 +43,7 @@ function BillDetail({ billId }: { billId: string }) {
   const intra = b.taxRegime === 'intra'
   const issues = Array.isArray(b.matchIssues) ? (b.matchIssues as MatchIssue[]) : []
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-4">
+    <div className="flex max-w-5xl flex-col gap-4">
       <div className="flex items-start justify-between">
         <div>
           <p className="text-xs text-muted"><Link to="/purchasing/bills" className="underline">Supplier bills</Link></p>

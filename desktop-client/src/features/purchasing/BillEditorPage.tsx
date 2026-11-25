@@ -123,7 +123,7 @@ export function BillEditorPage() {
   const message = apiError && apiError.code !== 'match_failed' ? `${apiError.message}${apiError.requestId ? ` (reference ${apiError.requestId})` : ''}` : problem instanceof Error && !apiError ? problem.message : null
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-4">
+    <div className="flex max-w-6xl flex-col gap-4">
       <div className="flex items-center justify-between"><h1 className="page-title">Enter a supplier bill</h1><span className="text-xs text-muted">Ctrl+S checks, then posts</span></div>
       <Card>
         <div className="grid grid-cols-4 gap-4">

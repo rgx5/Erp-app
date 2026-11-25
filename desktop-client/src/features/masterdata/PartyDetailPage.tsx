@@ -104,9 +104,9 @@ function PartyDetail({ partyId }: { partyId: string }) {
 
   const ledger = (s: { openingBalance: string; closingBalance: string; lines: { date: string; kind: string; number: string; debit: string; credit: string; balance: string }[] } | undefined, pending: boolean, _owed?: string) => (
     <>
-      <div className="mb-4 flex flex-wrap items-end gap-3 text-sm">
-        <label className="flex flex-col gap-1"><span className="text-[11px] font-semibold uppercase tracking-wide text-muted">From</span><input type="date" aria-label="From date" className="h-9 rounded-md border border-line bg-surface px-2" value={from} onChange={(e) => setFrom(e.target.value)} /></label>
-        <label className="flex flex-col gap-1"><span className="text-[11px] font-semibold uppercase tracking-wide text-muted">To</span><input type="date" aria-label="To date" className="h-9 rounded-md border border-line bg-surface px-2" value={to} onChange={(e) => setTo(e.target.value)} /></label>
+      <div className="filterbar mb-4">
+        <label><span>From</span><input type="date" aria-label="From date" className="h-9 rounded-md border border-line bg-surface px-2" value={from} onChange={(e) => setFrom(e.target.value)} /></label>
+        <label><span>To</span><input type="date" aria-label="To date" className="h-9 rounded-md border border-line bg-surface px-2" value={to} onChange={(e) => setTo(e.target.value)} /></label>
       </div>
       <DocTable loading={pending} rows={s?.lines ?? []} rowKey={(l) => `${l.date}${l.number}${l.kind}${l.balance}`} empty="Nothing in this period."
         cols={[{ head: 'Date', cell: (l) => formatDate(l.date) }, { head: 'Document', cell: (l) => <>{kindLabel(l.kind)} <span className="text-muted">{l.number}</span></> }, { head: 'Billed', right: true, cell: (l) => (Number(l.debit) ? formatInr(l.debit, { symbol: false }) : '') }, { head: 'Paid', right: true, cell: (l) => (Number(l.credit) ? <span className="text-good">{formatInr(l.credit, { symbol: false })}</span> : '') }, { head: 'Balance', right: true, cell: (l) => formatInr(l.balance, { symbol: false }) }]} />
@@ -114,7 +114,7 @@ function PartyDetail({ partyId }: { partyId: string }) {
   )
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-4 pb-6">
+    <div className="flex max-w-6xl flex-col gap-4 pb-6">
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <h1 className="page-title !text-[22px]">{party.legalName}{party.status !== 'active' ? <span className="ml-2 align-middle text-xs font-medium text-bad">{party.status === 'blocked' ? 'Blocked' : 'Inactive'}</span> : null}</h1>

@@ -29,7 +29,7 @@ export function AccountPage() {
   const enabled = me?.user?.mfaEnabled === true
   const schema = z.object({ currentPassword: z.string().min(1, 'Required'), newPassword: z.string().min(12, 'At least 12 characters'), again: z.string() }).refine((v) => v.newPassword === v.again, { path: ['again'], message: 'The two do not match' })
   return (
-    <div className="mx-auto flex max-w-xl flex-col gap-4">
+    <div className="flex max-w-xl flex-col gap-4">
       <h1 className="page-title">My account</h1>
       <p className="text-sm text-muted">{me?.user?.displayName} · {me?.user?.email}</p>
       <Card title="Language">

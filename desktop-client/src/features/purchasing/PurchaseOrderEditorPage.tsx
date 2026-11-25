@@ -73,7 +73,7 @@ export function PurchaseOrderEditorPage() {
   if (!ws.company) return <Alert tone="info">Set up your business first.</Alert>
   const message = error instanceof ApiError && error.code !== 'approval_required' ? `${error.message}${error.requestId ? ` (reference ${error.requestId})` : ''}` : error instanceof Error && !(error instanceof ApiError) ? error.message : null
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-4">
+    <div className="flex max-w-6xl flex-col gap-4">
       <div className="flex items-center justify-between"><h1 className="page-title">New purchase order</h1><span className="text-xs text-muted">Ctrl+S saves · Enter moves to the next field</span></div>
       <Card>
         <div className="grid grid-cols-4 gap-4">

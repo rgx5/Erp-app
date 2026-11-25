@@ -109,8 +109,8 @@ export function LeadSettingsPage() {
   if (q.error || !q.data) return <Alert>{q.error?.message ?? 'Could not load.'}</Alert>
   const users = q.data.users
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-4">
-      <div><h1 className="page-title">Lead settings</h1><p className="text-sm text-muted">How leads are shared out and followed up.</p></div>
+    <div className="flex max-w-4xl flex-col gap-4">
+      <div><h1 className="page-title">Lead settings</h1><p className="page-sub">How leads are shared out and followed up.</p></div>
       <Card>
         <h2 className="text-sm font-semibold">Who gets new leads</h2>
         <div className="mt-3 flex flex-col gap-3">

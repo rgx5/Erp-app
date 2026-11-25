@@ -17,7 +17,7 @@ function SpendPanel({ from, to }: { from: string; to: string }) {
     <Card>
       <h2 className="text-sm font-semibold">Advert spend</h2>
       <p className="mb-3 text-xs text-muted">Enter what you spent on each campaign (from the Meta or Google Ads billing screen), and the report shows what each lead and each sale cost. Entering the same day again replaces it.</p>
-      <div className="flex flex-wrap items-end gap-2">
+      <div className="filterbar">
         <div className="w-40"><TextField label="Date" type="date" value={v.date} onChange={(e) => setV({ ...v, date: e.target.value })} /></div>
         <div className="w-48"><SelectField label="Source" value={v.source} onChange={(e) => setV({ ...v, source: e.target.value })} options={SOURCES.filter((s) => ['meta', 'google', 'website', 'indiamart', 'justdial', 'other'].includes(s.value))} /></div>
         <div className="w-56"><TextField label="Campaign (optional)" value={v.campaign} onChange={(e) => setV({ ...v, campaign: e.target.value })} /></div>
@@ -41,9 +41,9 @@ export function LeadReportsPage() {
   const r = q.data
   const max = Math.max(1, ...(r?.funnel.map((f) => f.count) ?? [1]))
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-4">
-      <div><h1 className="page-title">Lead reports</h1><p className="text-sm text-muted">Where leads come from, how fast they are answered, and which sources pay.</p></div>
-      <div className="flex flex-wrap items-end gap-3">
+    <div className="flex max-w-6xl flex-col gap-4">
+      <div><h1 className="page-title">Lead reports</h1><p className="page-sub">Where leads come from, how fast they are answered, and which sources pay.</p></div>
+      <div className="filterbar">
         <div className="w-40"><TextField label="From" type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
         <div className="w-40"><TextField label="To" type="date" value={to} onChange={(e) => setTo(e.target.value)} /></div>
       </div>

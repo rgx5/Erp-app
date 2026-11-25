@@ -133,8 +133,8 @@ export function SourcesPage() {
   const q = useConnectors(); const base = useSession((s) => s.server?.url ?? '').replace(/\/$/, '')
   const [adding, setAdding] = useState(false); const [fresh, setFresh] = useState<Connector | null>(null)
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-4">
-      <div className="flex items-center justify-between"><div><h1 className="page-title">Lead sources</h1><p className="text-sm text-muted">Connect where your enquiries come from. Each source has its own address; enquiries arrive as leads within seconds.</p></div><Button onClick={() => setAdding(true)}>Add a source</Button></div>
+    <div className="flex max-w-4xl flex-col gap-4">
+      <div className="flex items-center justify-between"><div><h1 className="page-title">Lead sources</h1><p className="page-sub">Connect where your enquiries come from. Each source has its own address; enquiries arrive as leads within seconds.</p></div><Button onClick={() => setAdding(true)}>Add a source</Button></div>
       {q.isPending ? <Spinner /> : q.error ? <Alert>{q.error.message}</Alert> : (q.data ?? []).length === 0 ? <Alert tone="info">No sources yet. Add your website form first: it takes a minute.</Alert> : (q.data ?? []).map((c) => <Card1 key={c.id} c={c} base={base} />)}
       <p className="text-xs text-muted">Sources need this server to be reachable from the internet. Enquiries are checked for a phone number or email, and the same person asking twice is kept as one lead.</p>
       {adding ? <AddDrawer onClose={() => setAdding(false)} onCreated={(c) => { setAdding(false); setFresh(c) }} /> : null}

@@ -149,7 +149,7 @@ export function JournalEditorPage() {
   const balanced = compare(debit, credit) === 0 && toUnits(debit) > 0n
   const cell = 'h-8 w-full rounded border border-transparent bg-transparent px-2 text-sm outline-none hover:border-line focus:border-brand focus:bg-surface focus:ring-1 focus:ring-brand/40'
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-4">
+    <div className="flex max-w-5xl flex-col gap-4">
       <div className="flex items-center justify-between"><h1 className="page-title">New journal entry</h1><span className="text-xs text-muted">Ctrl+S posts when the entry balances</span></div>
       <Card>
         <div className="grid grid-cols-4 gap-4">

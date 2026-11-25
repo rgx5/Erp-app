@@ -71,12 +71,12 @@ export function TdsPage() {
   const toggle = (id: string): void => setPicked((p) => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n })
   const canPost = can(perms, 'payables:post')
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-4">
-      <div><h1 className="page-title">TDS</h1><p className="text-sm text-muted">Tax you held back from supplier payments, until it is deposited with the government (by the 7th of the next month).</p></div>
+    <div className="flex max-w-6xl flex-col gap-4">
+      <div><h1 className="page-title">TDS</h1><p className="page-sub">Tax you held back from supplier payments, until it is deposited with the government (by the 7th of the next month).</p></div>
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         {[['To deposit', sum(open), ''], ['Overdue', sum(overdue), overdue.length ? 'text-bad' : ''], ['Deposited', sum(rows.filter((r) => r.status === 'deposited')), ''], ['Deductions', rows.filter((r) => r.status !== 'cancelled').length, 'count']].map(([l, v, t]) => <div key={l as string} className="rounded-lg border border-line bg-surface px-4 py-3"><p className="text-xs text-muted">{l as string}</p><p className={`num text-lg font-semibold ${t === 'text-bad' ? 'text-bad' : ''}`}>{t === 'count' ? String(v) : formatInr(String(v))}</p></div>)}
       </div>
-      <div className="flex flex-wrap items-end gap-3">
+      <div className="filterbar">
         <div className="w-40"><TextField label="From" type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div><div className="w-40"><TextField label="To" type="date" value={to} onChange={(e) => setTo(e.target.value)} /></div>
         <div className="w-44"><SelectField label="Show" value={status} onChange={(e) => setStatus(e.target.value)} options={[{ value: '', label: 'All' }, { value: 'deducted', label: 'To deposit' }, { value: 'deposited', label: 'Deposited' }, { value: 'cancelled', label: 'Cancelled' }]} /></div>
         <div className="ml-auto flex gap-2">

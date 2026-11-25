@@ -317,7 +317,7 @@ export function CounterPage() {
   if (!shift) {
     return (
       <>
-      <div className="mx-auto flex max-w-lg flex-col gap-4">
+      <div className="flex max-w-lg flex-col gap-4">
         <h1 className="page-title">Counter</h1>
         <Card title="Open a shift">
           <div className="flex flex-col gap-4">

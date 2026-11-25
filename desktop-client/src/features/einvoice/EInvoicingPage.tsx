@@ -49,17 +49,17 @@ export function EInvoicingPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-4">
+    <div className="flex max-w-5xl flex-col gap-4">
       <div>
         <h1 className="page-title">E-invoicing</h1>
         <p className="text-sm text-muted">Sales to businesses, SEZ units and exporters need an IRN from the government e-invoice portal. Choose invoices, download one file, upload it on the portal, then load the portal's reply here. The IRN and QR code then print on the invoice.</p>
       </div>
       <Card>
-        <div className="flex flex-wrap items-end gap-3">
-          <label className="flex flex-col gap-1 text-sm"><span className="text-muted">Show</span>
+        <div className="filterbar">
+          <label><span>Show</span>
             <select className="h-9 rounded-md border border-line bg-surface px-2" value={state} onChange={(e) => { setState(e.target.value as typeof state); setPicked(new Set()) }}><option value="pending">Waiting for an IRN</option><option value="issued">IRN recorded</option><option value="all">All</option></select></label>
-          <label className="flex flex-col gap-1 text-sm"><span className="text-muted">From</span><input type="date" aria-label="From date" className="h-9 rounded-md border border-line bg-surface px-2" value={from} onChange={(e) => setFrom(e.target.value)} /></label>
-          <label className="flex flex-col gap-1 text-sm"><span className="text-muted">To</span><input type="date" aria-label="To date" className="h-9 rounded-md border border-line bg-surface px-2" value={to} onChange={(e) => setTo(e.target.value)} /></label>
+          <label><span>From</span><input type="date" aria-label="From date" className="h-9 rounded-md border border-line bg-surface px-2" value={from} onChange={(e) => setFrom(e.target.value)} /></label>
+          <label><span>To</span><input type="date" aria-label="To date" className="h-9 rounded-md border border-line bg-surface px-2" value={to} onChange={(e) => setTo(e.target.value)} /></label>
           <div className="ml-auto flex gap-2">
             {canPost ? <Button onClick={() => void makeFile()} disabled={picked.size === 0} busy={a.file.isPending}>Download file ({picked.size})</Button> : null}
             {canPost ? <Button variant="secondary" onClick={() => input.current?.click()}>Load the portal's reply</Button> : null}

@@ -102,7 +102,7 @@ function OrderDetail({ orderId }: { orderId: string }) {
   const act = async (what: 'cancel' | 'close') => { setProblem(null); try { await (what === 'cancel' ? cancel : close).mutateAsync(undefined as never); flash.show(`${o.poNo} ${what === 'cancel' ? 'cancelled' : 'closed'}.`) } catch (e) { setProblem(e instanceof ApiError ? e.message : 'Could not do that.') } }
   const total = sum(o.lines.map((l) => netValue(l.quantity, l.unitPrice, l.discountPercent)))
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-4">
+    <div className="flex max-w-5xl flex-col gap-4">
       <div className="flex items-start justify-between">
         <div>
           <p className="text-xs text-muted"><Link to="/purchasing/orders" className="underline">Purchase orders</Link></p>

@@ -77,7 +77,7 @@ function Lead({ id }: { id: string }) {
   )
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-4">
+    <div className="flex max-w-6xl flex-col gap-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs text-muted"><Link to="/leads" className="underline">Leads</Link> · {lead.leadNo}</p>

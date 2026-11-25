@@ -25,9 +25,9 @@ export function ValuationPage() {
   const r = recon.data
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex items-end justify-between">
+      <div className="flex items-center justify-between">
         <h1 className="page-title">Stock valuation</h1>
-        <div className="flex items-end gap-2"><div className="w-40"><TextField label="As of" type="date" value={asOf} onChange={(e) => setAsOf(e.target.value)} /></div>
+        <div className="filterbar"><div className="w-40"><TextField label="As of" type="date" value={asOf} onChange={(e) => setAsOf(e.target.value)} /></div>
           <Button variant="secondary" disabled={!valuation.data} onClick={() => valuation.data && download('stock-valuation.csv', toCsv(['Item code', 'Item', 'Warehouse', 'Quantity', 'Average cost', 'Value'], valuation.data.rows.map((x) => [x.itemCode, x.itemName, x.warehouseCode, x.quantity, x.averageCost, x.value])))}>Export CSV</Button></div>
       </div>
       {r ? (

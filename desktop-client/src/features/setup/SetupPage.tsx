@@ -198,7 +198,7 @@ export function SetupPage() {
   const index = STEPS.findIndex((s) => s.key === current)
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-4">
+    <div className="flex max-w-4xl flex-col gap-4">
       <div>
         <h1 className="page-title">Set up your business</h1>
         <p className="text-xs text-muted">A few details, once. Everything here can be changed later in Organization.</p>
