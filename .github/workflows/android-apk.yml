@@ -40,9 +40,23 @@ jobs:
       - run: npm ci
       - name: Generate the native Android project
         run: npx expo prebuild --platform android --no-install --clean
+      # Signed with your own release key when these repository secrets exist (what you give to clients); otherwise the debug key, which still
+      # installs on a phone for testing. ANDROID_KEYSTORE_BASE64 is the .jks file in base64.
+      - name: Release key (only when the secrets exist)
+        env:
+          KS: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KS" ]; then echo "$KS" | base64 -d > "$RUNNER_TEMP/release.jks"; echo "SIGN=1" >> "$GITHUB_ENV"; fi
       - name: Build release APK
         working-directory: android
-        run: ./gradlew assembleRelease -PreactNativeArchitectures=${{ matrix.abi }} --no-daemon
+        env:
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          SIGNING=""
+          if [ "$SIGN" = "1" ]; then SIGNING="-Pandroid.injected.signing.store.file=$RUNNER_TEMP/release.jks -Pandroid.injected.signing.store.password=$KS_PASS -Pandroid.injected.signing.key.alias=$KEY_ALIAS -Pandroid.injected.signing.key.password=${KEY_PASS:-$KS_PASS}"; fi
+          ./gradlew assembleRelease -PreactNativeArchitectures=${{ matrix.abi }} --no-daemon $SIGNING
       - name: Name the APK
         id: name
         run: |
