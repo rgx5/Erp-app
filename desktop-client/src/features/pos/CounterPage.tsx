@@ -39,6 +39,8 @@ import { WalletPanel } from './WalletPanel'
 import { grossOf, noWallet, pointsValue, walletInUse, withWalletDiscount, type WalletChoice } from './wallet'
 import { toUnits } from '@/domain/money'
 import { useBatches } from '@/features/inventory/trackingQueries'
+import { cn } from '@/ui/cn'
+import { useListNav } from '@/ui/hooks'
 
 /** An item offered under the scan box: from this computer's own list, or (rarely) from the server. */
 interface Suggest { id: string; code: string; name: string; taxCodeId: string | null; tracking?: string; mrp?: string | null | undefined; noDiscount?: boolean | undefined }
@@ -161,6 +163,8 @@ export function CounterPage() {
   // what to offer while typing: straight from this computer, nothing sent anywhere
   const suggestions = useMemo<Suggest[]>(() => (cat.ready && scan.trim() ? searchItems(cat.index, scan).matches : []), [cat.index, cat.ready, scan])
   const shown: Suggest[] = found.length > 0 ? found : suggestions
+  // Enter scans (a barcode reader types its code and Enter) until the arrows are used; then Enter takes the highlighted match
+  const nav = useListNav(shown, (i) => { setScan(''); setFound([]); void addItem(i, undefined, i.noDiscount === true) }, shown.length > 0)
   // a manager's counter registers itself for offline selling the first time it opens, so nobody has to remember to
   const registering = useRef(false)
   const registerDevice = useRegisterDevice()
@@ -355,10 +359,10 @@ export function CounterPage() {
           </div>
         </div>
         <div className="relative">
-          <TextField ref={scanRef} label="Scan or type item code or name (F2)" value={scan} autoFocus hint={priceListId && prices.isPending && !prices.data ? 'Prices are not loaded yet: items without a printed price will need one.' : undefined} autoComplete="off" onChange={(e) => setScan(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); void onScan() } }} />
+          <TextField ref={scanRef} label="Scan or type item code or name (F2)" value={scan} autoFocus hint={priceListId && prices.isPending && !prices.data ? 'Prices are not loaded yet: items without a printed price will need one.' : undefined} autoComplete="off" onChange={(e) => setScan(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter' && !nav.moved) { e.preventDefault(); void onScan(); return } nav.onKeyDown(e) }} />
           {shown.length ? (
             <ul role="listbox" aria-label="Matches" className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-md border border-line bg-surface text-sm shadow-lg">
-              {shown.map((i) => <li key={i.id}><button type="button" role="option" aria-selected={false} className="flex w-full justify-between px-3 py-1.5 text-left hover:bg-canvas" onClick={() => { setScan(''); setFound([]); void addItem(i, undefined, i.noDiscount === true) }}><span>{i.code} · {i.name}</span><span className="text-muted">{priceOf(i.id) ? formatInr(priceOf(i.id) as string) : 'no price'}</span></button></li>)}
+              {shown.map((i, n) => <li key={i.id}><button type="button" role="option" ref={nav.keep(n)} aria-selected={n === nav.active} className={cn('flex w-full justify-between px-3 py-1.5 text-left', nav.moved && n === nav.active ? 'bg-brand-soft' : 'hover:bg-canvas')} onClick={() => { setScan(''); setFound([]); void addItem(i, undefined, i.noDiscount === true) }}><span>{i.code} · {i.name}</span><span className="text-muted">{priceOf(i.id) ? formatInr(priceOf(i.id) as string) : 'no price'}</span></button></li>)}
             </ul>
           ) : null}
         </div>

@@ -17,5 +17,6 @@
     "types": ["node", "vite/client"],
     "paths": { "@/*": ["./src/*"] }
   },
-  "include": ["src", "electron", "tests", "*.config.ts", "*.config.mts"]
+  "include": ["src", "electron", "tests", "*.config.ts", "*.config.mts"],
+  "exclude": ["tests/platform-live.mts"]
 }

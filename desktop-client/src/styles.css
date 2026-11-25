@@ -99,6 +99,8 @@ html[data-shell] .window-drag-strip { position: fixed; inset: 0 0 auto 0; height
 
 /* A drawer's header is as tall as the title bar, and in the desktop app it stops short of the window buttons that sit over the top right corner (Windows, Linux). */
 .drawer-head { min-height: 48px; }
+/* A record that docks beside the page reaches up under the top bar, which is the window's drag area: without this its close button would drag the window instead of closing the record. */
+html[data-shell] [role="dialog"], html[data-shell] [role="dialog"] * { -webkit-app-region: no-drag; }
 
 
 /* One look for every table on a menu page: small capitals, muted, on a pale band; rows with room to breathe. */

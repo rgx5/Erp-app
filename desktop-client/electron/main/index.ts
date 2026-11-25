@@ -15,6 +15,8 @@ protocol.registerSchemesAsPrivileged([{ scheme: APP_SCHEME, privileges: { standa
 const RENDERER_DIR = join(__dirname, '../renderer')
 const DEV_URL = process.env['ELECTRON_RENDERER_URL']
 
+// Windows groups the taskbar button and picks its icon by this id: it must match the installer's appId, or the button shows a blank icon
+if (process.platform === 'win32') app.setAppUserModelId('com.onesync.erp.client')
 if (!app.requestSingleInstanceLock()) app.quit()
 
 let win: BrowserWindow | null = null

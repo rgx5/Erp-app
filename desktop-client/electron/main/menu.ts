@@ -3,13 +3,19 @@ import { existsSync } from 'node:fs'
 import { join } from 'node:path'
 import { logDir } from './log'
 
+/** The product's website and its documentation. */
+export const WEBSITE_URL = 'https://onesyncerp.com'
+export const DOCS_URL = 'https://docs.onesyncerp.com'
+
 /** Where releases are published. Can be pointed elsewhere with ONESYNC_RELEASES_URL. */
 export const RELEASES_URL = process.env['ONESYNC_RELEASES_URL'] ?? 'https://github.com/rgx5/Erp-app/releases'
 
 export const iconPath = (): string | undefined => {
-  const packed = join(process.resourcesPath ?? '', 'icon.png')
+  // Windows draws the taskbar and window icon from an .ico; the others from a png
+  const file = process.platform === 'win32' ? 'icon.ico' : 'icon.png'
+  const packed = join(process.resourcesPath ?? '', file)
   if (existsSync(packed)) return packed
-  const dev = join(app.getAppPath(), 'build', 'icon.png')
+  const dev = join(app.getAppPath(), 'build', file)
   return existsSync(dev) ? dev : undefined
 }
 
@@ -41,6 +47,9 @@ export function buildMenu(getWin: () => BrowserWindow | null, zoom: (delta: numb
     ] },
     { role: 'windowMenu' },
     { label: 'Help', submenu: [
+      { label: 'Documentation', click: () => void shell.openExternal(DOCS_URL) },
+      { label: 'OneSyncERP website', click: () => void shell.openExternal(WEBSITE_URL) },
+      { type: 'separator' },
       { label: 'What’s new', click: () => void shell.openExternal(RELEASES_URL) },
       { label: 'Check for updates…', click: () => void checkForUpdates() },
       { label: 'Open log folder', click: () => void openLogs() },

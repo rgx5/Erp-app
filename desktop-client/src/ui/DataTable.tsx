@@ -27,10 +27,12 @@ export function DataTable<T>({ columns, rows, rowKey, onOpen, empty = 'Nothing h
   const body = useRef<HTMLDivElement>(null)
   const list = table.getRowModel().rows
   const virtual = useVirtualizer({ count: list.length, getScrollElement: () => body.current, estimateSize: () => 34, overscan: 12 })
-  const template = `grid-template-columns: ${table.getAllLeafColumns().map((c) => `minmax(${c.getSize() ? Math.min(c.getSize(), 140) : 100}px, ${Math.max(c.getSize(), 100)}fr)`).join(' ')}`
+  // a column may ask for more room than the usual minimum (a column of buttons) with `meta: { minWidth }`
+  const floor = (c: { getSize(): number; columnDef: { meta?: unknown } }): number => (c.columnDef.meta as { minWidth?: number } | undefined)?.minWidth ?? (c.getSize() ? Math.min(c.getSize(), 140) : 100)
+  const template = `grid-template-columns: ${table.getAllLeafColumns().map((c) => `minmax(${floor(c)}px, ${Math.max(c.getSize(), 100)}fr)`).join(' ')}`
 
   // every column keeps at least its minimum width; a screen narrower than that scrolls sideways instead of hiding columns
-  const minWidth = table.getAllLeafColumns().reduce((sum, c) => sum + Math.min(c.getSize() || 100, 140) + 12, 24)
+  const minWidth = table.getAllLeafColumns().reduce((sum, c) => sum + floor(c) + 12, 24)
   return (
     <div className="overflow-x-auto rounded-lg border border-line bg-surface">
     <div role="table" aria-rowcount={list.length} style={{ minWidth }}

@@ -2,7 +2,8 @@ import { useState } from 'react'
 import { ApiError } from '@/api/errors'
 import type { Item } from '@/api/schemas'
 import { formatInr } from '@/domain/format'
-import { useDebounced } from '@/ui/hooks'
+import { cn } from '@/ui/cn'
+import { useDebounced, useListNav } from '@/ui/hooks'
 import { Alert, Button, CheckField, Spinner, TextField } from '@/ui/primitives'
 import { usePartyRateActions, usePartyRates } from './partyRates'
 import { useItems } from './queries'
@@ -15,6 +16,7 @@ export function PartyRatesTab({ partyId, canWrite, buying }: { partyId: string; 
   const [rate, setRate] = useState(''); const [inc, setInc] = useState(false); const [problem, setProblem] = useState<string | null>(null)
   const found = useItems({ ...(q ? { q } : {}), status: 'active' })
   const options = item || !q ? [] : found.rows.filter((i) => (buying ? i.isPurchasable : i.isSellable)).slice(0, 6)
+  const nav = useListNav(options, (i) => { setItem(i); setText('') }, options.length > 0)
   async function add() {
     if (!item) return
     setProblem(null)
@@ -26,8 +28,8 @@ export function PartyRatesTab({ partyId, canWrite, buying }: { partyId: string; 
       <p className="text-sm text-muted">{buying ? 'The price you have agreed to pay this supplier for an item.' : 'The price you have agreed to charge this customer for an item.'} It is used first when you start a document for them; otherwise the last price they were charged, then your price list.</p>
       {canWrite ? (
         <div className="flex flex-wrap items-end gap-3">
-          <div className="relative w-72"><TextField label="Item" placeholder="Type to find an item" autoComplete="off" value={item ? `${item.code} · ${item.name}` : text} onChange={(e) => { setItem(null); setText(e.target.value) }} />
-            {options.length > 0 ? <ul role="listbox" aria-label="Item results" className="absolute left-0 top-full z-30 mt-1 w-full overflow-auto rounded-md border border-line bg-surface text-sm shadow-lg">{options.map((i) => <li key={i.id}><button type="button" role="option" aria-selected={false} className="flex w-full justify-between px-3 py-1.5 text-left hover:bg-canvas" onMouseDown={(e) => { e.preventDefault(); setItem(i); setText('') }}><span>{i.code} · {i.name}</span></button></li>)}</ul> : null}
+          <div className="relative w-72"><TextField label="Item" placeholder="Type to find an item" autoComplete="off" value={item ? `${item.code} · ${item.name}` : text} onChange={(e) => { setItem(null); setText(e.target.value) }} onKeyDown={nav.onKeyDown} />
+            {options.length > 0 ? <ul role="listbox" aria-label="Item results" className="absolute left-0 top-full z-30 mt-1 w-full overflow-auto rounded-md border border-line bg-surface text-sm shadow-lg">{options.map((i, n) => <li key={i.id}><button type="button" role="option" ref={nav.keep(n)} aria-selected={n === nav.active} className={cn('flex w-full justify-between px-3 py-1.5 text-left', n === nav.active ? 'bg-brand-soft' : 'hover:bg-canvas')} onMouseDown={(e) => { e.preventDefault(); setItem(i); setText('') }}><span>{i.code} · {i.name}</span></button></li>)}</ul> : null}
           </div>
           <div className="w-36"><TextField label="Rate" inputMode="decimal" value={rate} onChange={(e) => setRate(e.target.value)} /></div>
           {!buying ? <CheckField label="Includes GST" checked={inc} onChange={(e) => setInc(e.target.checked)} /> : null}
