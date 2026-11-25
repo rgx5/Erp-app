@@ -65,3 +65,16 @@ describe('A4 invoice HTML', () => {
     expect(inter).toContain('CANCELLED')
   })
 })
+
+describe('document layout', () => {
+  it('shows the title, the notice, extra facts and the e-invoice block without boxes or scripts', () => {
+    const html = invoiceHtml(base, seller, undefined, { title: 'Delivery Challan', numberLabel: 'Challan no.', note: 'Not a tax invoice.', extraMeta: [['Vehicle no.', 'MH12AB1234']], einvoice: { irn: 'a'.repeat(64), ackNo: '99', ackDate: '2026-04-15T05:00:00.000Z', signedQr: 'eyJ.qr.text' }, ewayBillNo: '271012345678' })
+    expect(html).toContain('Delivery Challan'); expect(html).toContain('Not a tax invoice.'); expect(html).toContain('MH12AB1234')
+    expect(html).toContain('IRN ' + 'a'.repeat(64)); expect(html).toContain('271012345678')
+    expect(html).not.toMatch(/border:\s*1px solid #444/); expect(html).not.toMatch(/<script/i)
+  })
+  it('puts the HSN code under the description and the rate with its tax in one column', () => {
+    const html = invoiceHtml(base, seller, undefined)
+    expect(html).toContain('HSN/SAC 8479'); expect(html).toContain('18%')
+  })
+})

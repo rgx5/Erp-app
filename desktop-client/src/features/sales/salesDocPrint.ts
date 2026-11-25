@@ -54,10 +54,7 @@ export async function printSalesDoc(kind: PrintKind, source: DocSource, seller: 
       lines: source.lines.map((l) => ({ itemId: l.itemId, ...(l.description ? { description: l.description } : {}), quantity: l.quantity, unitPrice: l.unitPrice, discountPercent: l.discountPercent, taxInclusive: l.taxInclusive })),
     } as never,
   }), calculation)
-  const esc = (v: string): string => v.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string)
-  const transport = kind === 'challan' && (source.vehicleNo || source.transporter || source.reference)
-    ? `<div class="box" style="margin-top:6px;display:flex;gap:24px">${source.vehicleNo ? `<div><span class="muted">Vehicle no.</span><br><b>${esc(source.vehicleNo)}</b></div>` : ''}${source.transporter ? `<div><span class="muted">Transporter</span><br><b>${esc(source.transporter)}</b></div>` : ''}${source.reference ? `<div><span class="muted">Your reference</span><br><b>${esc(source.reference)}</b></div>` : ''}</div>`
-    : ''
-  const opts: DocOptions = { title: TITLE[kind], numberLabel: NUMBER_LABEL[kind], note: NOTE[kind](source), noQr: kind !== 'proforma', ...(transport ? { extraTop: transport } : {}) }
+  const extraMeta: [string, string][] = kind === 'challan' ? [...(source.vehicleNo ? [['Vehicle no.', source.vehicleNo] as [string, string]] : []), ...(source.transporter ? [['Transporter', source.transporter] as [string, string]] : []), ...(source.reference ? [['Your reference', source.reference] as [string, string]] : [])] : []
+  const opts: DocOptions = { title: TITLE[kind], numberLabel: NUMBER_LABEL[kind], note: NOTE[kind](source), noQr: kind !== 'proforma', ...(extraMeta.length ? { extraMeta } : {}) }
   await bridge.document.savePdf(invoiceHtml(docFromCalculation(calc, source), seller, billTo, opts), `${TITLE[kind].replaceAll(' ', '-')}-${source.no.replaceAll('/', '-')}`)
 }
