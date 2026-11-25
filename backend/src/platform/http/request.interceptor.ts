@@ -2,6 +2,7 @@ import { CallHandler, ExecutionContext, Inject, Injectable, type NestInterceptor
 import { HttpAdapterHost } from '@nestjs/core';
 import type { Logger } from 'pino';
 import { Observable, tap } from 'rxjs';
+import { MetricsService } from '../metrics/metrics.service.js';
 import { ENV, type Env } from '../../config/env.js';
 import { LOGGER } from '../logging/logger.js';
 import { applySecurityHeaders, ensureRequestId } from './http-support.js';
@@ -14,6 +15,7 @@ export class RequestInterceptor implements NestInterceptor {
     @Inject(HttpAdapterHost) private readonly host: HttpAdapterHost,
     @Inject(ENV) private readonly env: Env,
     @Inject(LOGGER) private readonly logger: Logger,
+    @Inject(MetricsService) private readonly metrics: MetricsService,
   ) {}
 
   intercept(context: ExecutionContext, next: CallHandler) {
@@ -26,6 +28,7 @@ export class RequestInterceptor implements NestInterceptor {
       tenantId?: string;
       ip?: string;
       socket?: { remoteAddress?: string };
+      routeOptions?: { url?: string };
       principal?: { kind: 'user' | 'api_key'; userId: string; apiKeyId?: string };
     }>();
     const response = http.getResponse<{ statusCode: number }>();
@@ -40,8 +43,17 @@ export class RequestInterceptor implements NestInterceptor {
     };
     // The handler runs inside this context, so audit entries and events can pick up the request id and caller.
     const handled = new Observable<unknown>((subscriber) => requestContext.run(requestCtx, () => next.handle().subscribe(subscriber)));
+    const record = (failure?: unknown): void => {
+      const code = failure ? ((failure as { status?: number }).status ?? 500) : response.statusCode;
+      const seconds = Number(process.hrtime.bigint() - started) / 1e9;
+      const labels = { method: request.method, route: request.routeOptions?.url ?? 'unmatched', status: `${Math.floor((code || 500) / 100)}xx` };
+      this.metrics.inc('erp_http_requests_total', 'Requests served', labels);
+      this.metrics.observe('erp_http_request_seconds', 'Request duration', labels, seconds);
+    };
     return handled.pipe(
+      tap({ error: (e: unknown) => record(e) }),
       tap(() => {
+        record();
         this.logger.info(
           {
             requestId,

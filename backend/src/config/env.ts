@@ -47,6 +47,9 @@ const schema = z
     /** Requests allowed per client address per window; 0 turns the limiter off. */
     RATE_LIMIT_PER_WINDOW: z.coerce.number().int().min(0).default(0),
     RATE_LIMIT_WINDOW_SECONDS: z.coerce.number().int().min(1).max(3600).default(60),
+    /** Most requests one client (tenant) may have running at once on this server, and of those the most heavy ones (reports, exports, imports); 0 = no limit. Over the limit: 429 with Retry-After. */
+    TENANT_MAX_CONCURRENT: z.coerce.number().int().min(0).default(60),
+    TENANT_MAX_CONCURRENT_HEAVY: z.coerce.number().int().min(0).default(4),
     /** How long an authenticated principal may be reused without asking the database again; 0 (default) checks every request. */
     AUTH_PRINCIPAL_CACHE_TTL_MS: z.coerce.number().int().min(0).max(60_000).default(0),
     /** Browser/desktop origins allowed to call the API, comma separated (for example `app://onesync,https://erp.example.com`). Empty = none. Never `*`. */

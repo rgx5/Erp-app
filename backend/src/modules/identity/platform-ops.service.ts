@@ -55,6 +55,24 @@ export class PlatformOpsService {
     }, { readOnly: true });
   }
 
+  /**
+   * How much data one client holds, so the platform can see who is growing and plan capacity: row counts of the tables that grow, and the
+   * on-disk size of the tables that hold them (a table is shared by every client on the cell, so size is shown as this client's share of rows).
+   */
+  async dataUsage(tenantId: string): Promise<{ tenantId: string; at: string; tables: { table: string; rows: number }[]; totalRows: number; oldestRecord: string | null }> {
+    const names = ['journal_lines', 'journal_entries', 'sales_invoices', 'sales_invoice_lines', 'supplier_bills', 'pos_sales', 'pos_sale_lines', 'stock_ledger', 'audit_log', 'outbox_events', 'attachments', 'parties', 'items', 'leads'];
+    return this.uow.inTenant(tenantId, async (tx) => {
+      const tables: { table: string; rows: number }[] = [];
+      for (const t of names) {
+        const exists = (await tx.execute<{ ok: boolean }>(sql`SELECT to_regclass(${'erp.' + t}) IS NOT NULL AS ok`)).rows[0]?.ok;
+        if (!exists) continue;
+        tables.push({ table: t, rows: n((await tx.execute<{ c: string }>(sql.raw(`SELECT count(*) AS c FROM erp.${t}`))).rows[0]?.c) });
+      }
+      const oldest = (await tx.execute<{ at: string | Date | null }>(sql`SELECT min(occurred_at) AS at FROM erp.audit_log`)).rows[0]?.at;
+      return { tenantId, at: new Date().toISOString(), tables, totalRows: tables.reduce((a, r) => a + r.rows, 0), oldestRecord: oldest ? new Date(oldest).toISOString() : null };
+    }, { readOnly: true });
+  }
+
   /** Integrity and set-up checks for one tenant. Read-only; counts and pass/fail only. */
   async validate(tenantId: string): Promise<{ tenantId: string; at: string; ok: boolean; checks: Check[] }> {
     const checks = await this.uow.inTenant(tenantId, async (tx) => {

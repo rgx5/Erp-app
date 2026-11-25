@@ -62,6 +62,9 @@ export class PlatformTenantsController {
   /** Every tenant on this server with its usage and licence: counts only, never business content. */
   @Get()
   async listTenants() { return { items: await this.ops.listTenants() }; }
+  /** Row counts of the tables that grow, for capacity planning. Counts only. */
+  @Get(':id/usage')
+  usage(@Param('id', { schema: z.uuid() }) id: string) { return this.ops.dataUsage(id); }
   @Get(':id/validate')
   validate(@Param('id', { schema: z.uuid() }) id: string) { return this.ops.validate(id); }
   /** Suspends or reactivates a tenant (suspended: nobody can sign in). */

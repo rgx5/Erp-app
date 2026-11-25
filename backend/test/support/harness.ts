@@ -55,6 +55,8 @@ export interface ApiResponse {
   status: number;
   headers: Headers;
   json: any; // eslint-disable-line
+  /** The raw body (for non-JSON answers such as /metrics). */
+  text: string;
 }
 
 export async function call(
@@ -77,7 +79,7 @@ export async function call(
   const text = await response.text();
   let json: unknown = undefined;
   try { json = text ? JSON.parse(text) : undefined; } catch { /* not JSON */ }
-  return { status: response.status, headers: response.headers, json };
+  return { status: response.status, headers: response.headers, json, text };
 }
 
 let counter = 0;
