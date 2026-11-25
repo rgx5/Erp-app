@@ -1,4 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { ENV, type Env } from '../../config/env.js';
+import { ChangeBus } from '../../platform/events/change-bus.js';
 import { and, eq, sql } from 'drizzle-orm';
 import type { Tx } from '../../platform/database/database.js';
 import { UnitOfWork } from '../../platform/database/unit-of-work.js';
@@ -29,7 +31,13 @@ export class DashboardService {
     @Inject(StatementsService) private readonly statements: StatementsService,
     @Inject(ReceivablesService) private readonly receivables: ReceivablesService,
     @Inject(PayablesService) private readonly payables: PayablesService,
-  ) {}
+    @Inject(ENV) env: Env,
+    @Inject(ChangeBus) bus: ChangeBus,
+  ) {
+    this.ttl = env.DASHBOARD_CACHE_TTL_MS;
+    bus.subscribeAll((tenantId) => this.forget(tenantId));
+  }
+  private readonly ttl: number;
 
   private async result(tx: Tx, tenantId: string, companyId: string, from: string, to: string): Promise<Result> {
     const rows = await this.statements.nets(tx, tenantId, companyId, { from, to }, true, ['income', 'expense']);
@@ -39,7 +47,22 @@ export class DashboardService {
     return { revenue, expenses };
   }
 
-  async summary(tenantId: string, companyId: string, asOf: string) {
+  private readonly cache = new Map<string, { at: number; value: Promise<unknown> }>();
+  /** The dashboard is the heaviest screen people open most: keep each answer for a few seconds, and drop it the moment anything changes for that client. */
+  summary(tenantId: string, companyId: string, asOf: string): ReturnType<DashboardService['compute']> {
+    const key = `${tenantId}|${companyId}|${asOf}`;
+    const hit = this.cache.get(key);
+    if (hit && Date.now() - hit.at < this.ttl) return hit.value as ReturnType<DashboardService['compute']>;
+    const value = this.compute(tenantId, companyId, asOf);
+    if (this.cache.size > 500) this.cache.clear();
+    this.cache.set(key, { at: Date.now(), value });
+    value.catch(() => this.cache.delete(key));
+    return value;
+  }
+  /** Called when the client's data changes. */
+  forget(tenantId: string): void { for (const k of this.cache.keys()) if (k.startsWith(`${tenantId}|`)) this.cache.delete(k); }
+
+  async compute(tenantId: string, companyId: string, asOf: string) {
     const core = await this.uow.inTenant(tenantId, async (tx) => {
       const [fy] = await tx.select().from(fiscalYears).where(and(eq(fiscalYears.tenantId, tenantId), eq(fiscalYears.companyId, companyId), sql`${fiscalYears.startDate} <= ${asOf}::date AND ${fiscalYears.endDate} >= ${asOf}::date`));
       if (!fy) throw new AppError(409, 'no_fiscal_year', `No fiscal year covers ${asOf}`);

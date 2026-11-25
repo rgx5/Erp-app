@@ -32,6 +32,7 @@ export class TenantGuardrailInterceptor implements NestInterceptor {
     const tenantId = req.tenantId;
     if (!tenantId || (this.maxAll <= 0 && this.maxHeavy <= 0)) return next.handle();
     const path = (req.url ?? req.raw?.url ?? '').split('?')[0] as string;
+    if (path === '/v1/events') return next.handle(); // a long-lived stream, not work
     const heavy = HEAVY_ROUTE.test(path);
     const slot = this.active.get(tenantId) ?? { all: 0, heavy: 0 };
     if (this.maxAll > 0 && slot.all >= this.maxAll) this.reject(context, 'concurrent');

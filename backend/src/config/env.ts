@@ -50,6 +50,8 @@ const schema = z
     /** Most requests one client (tenant) may have running at once on this server, and of those the most heavy ones (reports, exports, imports); 0 = no limit. Over the limit: 429 with Retry-After. */
     TENANT_MAX_CONCURRENT: z.coerce.number().int().min(0).default(60),
     TENANT_MAX_CONCURRENT_HEAVY: z.coerce.number().int().min(0).default(4),
+    /** How long the dashboard keeps its answer for a client (it is dropped at once when that client changes anything). 0 = never. */
+    DASHBOARD_CACHE_TTL_MS: z.coerce.number().int().min(0).max(60_000).default(10_000),
     /** A folder where the cell's backup, dump, restore-drill and housekeeping jobs leave their results, read by /metrics. Absent: those figures are not reported. */
     STATUS_DIR: z.string().min(1).optional(),
     /** How long an authenticated principal may be reused without asking the database again; 0 (default) checks every request. */

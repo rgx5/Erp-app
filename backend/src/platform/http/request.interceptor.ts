@@ -43,7 +43,9 @@ export class RequestInterceptor implements NestInterceptor {
     };
     // The handler runs inside this context, so audit entries and events can pick up the request id and caller.
     const handled = new Observable<unknown>((subscriber) => requestContext.run(requestCtx, () => next.handle().subscribe(subscriber)));
+    const stream = (adapter.getRequestUrl(request) ?? '').split('?')[0] === '/v1/events';
     const record = (failure?: unknown): void => {
+      if (stream) return;
       const code = failure ? ((failure as { status?: number }).status ?? 500) : response.statusCode;
       const seconds = Number(process.hrtime.bigint() - started) / 1e9;
       const labels = { method: request.method, route: request.routeOptions?.url ?? 'unmatched', status: `${Math.floor((code || 500) / 100)}xx` };

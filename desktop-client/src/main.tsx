@@ -5,6 +5,8 @@ import { createRoot } from 'react-dom/client'
 import { ApiError } from '@/api/errors'
 import { useSession } from '@/auth/session'
 import { startReconnectWatch } from '@/auth/reconnect'
+import { startChangeStream } from './api/changes'
+import { applyFreshness } from './api/freshness'
 import { startOfflineCache } from './offline/queryPersist'
 import { router } from './router'
 import '@fontsource-variable/inter'
@@ -20,7 +22,9 @@ if (window.onesync) document.documentElement.dataset['shell'] = window.onesync.p
 
 // The session is resolved before the first screen, so the app never flashes the sign-in page at someone who is already in.
 void useSession.getState().restore().then(() => {
+  applyFreshness(queryClient)
   startOfflineCache(queryClient)
+  startChangeStream(queryClient)
   startReconnectWatch(queryClient)
   // Signing out (or losing the session) sends everyone back to the right entrance.
   useSession.subscribe((s, prev) => { if (prev.status === 'authenticated' && s.status !== 'authenticated') { queryClient.clear(); void router.navigate({ to: s.server ? '/login' : '/connect' }) } })

@@ -43,6 +43,7 @@ export async function startServer(overrides: Record<string, string | undefined> 
     DATABASE_POOL_MAX: '10',
     PLATFORM_ADMIN_TOKEN: PLATFORM_TOKEN,
     AUTH_JWT_PRIVATE_KEY: JWT_KEY,
+    DASHBOARD_CACHE_TTL_MS: '0',
     HTTP_ADAPTER: process.env['TEST_HTTP_ADAPTER'] ?? 'fastify',
     ...overrides,
   } as NodeJS.ProcessEnv);

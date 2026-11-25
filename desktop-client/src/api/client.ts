@@ -101,7 +101,9 @@ export function createApi(options: ApiOptions) {
     if (!response.ok) throw problemToError(response.status, error, response.headers.get('x-request-id'))
   }
 
-  return { baseUrl, raw, call, done }
+  /** A long-lived read (the server's change notes): the same sign-in and renewal as any call. */
+  const stream = (path: string, signal: AbortSignal): Promise<Response> => authedFetch(new Request(baseUrl + path, { headers: { accept: 'text/event-stream' }, signal }))
+  return { baseUrl, raw, call, done, stream }
 }
 
 export type Api = ReturnType<typeof createApi>

@@ -78,6 +78,8 @@ services:
       TENANT_MAX_CONCURRENT_HEAVY: ${TENANT_MAX_CONCURRENT_HEAVY:-4}
       # Where the backup, dump and restore-drill jobs write their results, so /metrics can report their age.
       STATUS_DIR: /status
+      # Sign-in checks are reused for 5 s (a revocation made through the API takes effect at once; one made directly in the database within 5 s).
+      AUTH_PRINCIPAL_CACHE_TTL_MS: ${AUTH_PRINCIPAL_CACHE_TTL_MS:-5000}
     volumes:
       - cell-status:/status:ro
     # Reachable inside the stack and, for the fleet agent on this server, on the host's loopback only.

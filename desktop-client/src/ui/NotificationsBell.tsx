@@ -11,12 +11,12 @@ const notice = z.object({ id: z.string(), severity: z.enum(['info', 'warn', 'bad
 type Notice = z.infer<typeof notice>
 type Raw = Record<string, (p: string, o: unknown) => Promise<{ data?: unknown; error?: unknown; response: Response }>>
 
-/** The bell in the top bar: what needs this person's attention, refreshed every five minutes and when the window is focused. */
+/** The bell in the top bar: what needs this person's attention, refreshed when something changes (and every ten minutes as a fallback) and when the window is focused. */
 export function NotificationsBell() {
   const ws = useWorkspace(); const go = useNavigate()
   const companyId = ws.company?.id
   const q = useQuery({
-    queryKey: ['notifications', companyId], enabled: Boolean(companyId), refetchInterval: 5 * 60_000, refetchOnWindowFocus: true, staleTime: 60_000,
+    queryKey: ['notifications', companyId], enabled: Boolean(companyId), refetchInterval: 10 * 60_000, refetchOnWindowFocus: true, staleTime: 60_000,
     queryFn: async (): Promise<Notice[]> => (await currentApi().call((currentApi().raw as unknown as Raw)['GET']!('/v1/notifications', { params: { query: { companyId: companyId as string } } }) as never, z.object({ items: z.array(notice) }))).items,
   })
   const [open, setOpen] = useState(false); const box = useRef<HTMLDivElement>(null)
