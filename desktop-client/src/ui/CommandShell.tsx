@@ -1,4 +1,5 @@
 import { useReachability } from '@/api/reachability'
+import { BackBar } from './BackBar'
 import { HeaderTools } from './UserMenu'
 import { useT } from '@/i18n'
 import { Link, Outlet, useRouterState } from '@tanstack/react-router'
@@ -78,6 +79,7 @@ export function CommandShell() {
         <main className="min-w-0 flex-1 overflow-auto px-5 py-4">
           <div className="mx-auto max-w-[1400px]">
             <LicenceBanner />
+            <BackBar items={items} />
             <Toasts />
             <PaneContext.Provider value={pane}><Outlet /></PaneContext.Provider>
           </div>

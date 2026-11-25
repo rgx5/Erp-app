@@ -3,7 +3,7 @@ import { useState, type ReactNode } from 'react'
 import { useForm, type DefaultValues, type FieldValues, type UseFormRegister, type FieldErrors } from 'react-hook-form'
 import type { z } from 'zod'
 import { showApiError } from '@/features/setup/forms'
-import { Alert, Button } from './primitives'
+import { Alert, Button, FormActions } from './primitives'
 
 /** A form that validates with a zod schema, sends through `submit`, maps server field errors onto its fields and shows one message for the rest. */
 export function SimpleForm<S extends z.ZodType<FieldValues, FieldValues>>({ schema, defaults, fields, submit, label, children }: {
@@ -23,7 +23,7 @@ export function SimpleForm<S extends z.ZodType<FieldValues, FieldValues>>({ sche
     })}>
       {children({ register, errors })}
       {message ? <Alert>{message}</Alert> : null}
-      <Button type="submit" busy={isSubmitting}>{label}</Button>
+      <FormActions><Button type="submit" busy={isSubmitting}>{label}</Button></FormActions>
     </form>
   )
 }

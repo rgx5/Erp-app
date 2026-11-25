@@ -7,6 +7,7 @@ import { useSession } from '@/auth/session'
 import { LicenceBanner } from './LicenceBanner'
 import { Logo } from './Logo'
 import { useT } from '@/i18n'
+import { BackBar } from './BackBar'
 import { HeaderTools } from './UserMenu'
 import { cn } from './cn'
 import { CommandPalette } from './CommandPalette'
@@ -129,6 +130,7 @@ export function ClassicShell() {
         <main className="min-h-0 flex-1 overflow-auto">
           <div key={path} className="settle mx-auto max-w-[1360px] px-6 py-5">
             <LicenceBanner />
+            <BackBar items={items} />
             <Outlet />
           </div>
         </main>

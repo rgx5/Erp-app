@@ -6,7 +6,7 @@ import type { Party } from '@/api/schemas'
 import { isValidGstin, isValidPan, normalizeGstin, panOfGstin, STATES, stateOfGstin } from '@/domain/india'
 import { isValid } from '@/domain/money'
 import { showApiError } from '@/features/setup/forms'
-import { Alert, Button, CheckField, SelectField, TextField } from '@/ui/primitives'
+import { Alert, Button, CheckField, Fact, FormActions, FormSection, SelectField, TextField } from '@/ui/primitives'
 import { useCreateAddress, useCreateParty, usePartyAddresses, usePaymentTerms, useUpdateParty } from './queries'
 
 export const GST_TREATMENTS = [
@@ -72,29 +72,46 @@ export function PartyForm({ party, canWrite, defaultRole, onDone }: { party?: Pa
           onDone()
         } catch (e) { setMessage(showApiError(e, setError, fields)) }
       })}>
-        {editing ? <p className="text-xs text-muted">Code, roles, GST treatment and GSTIN cannot be changed after creation.</p> : null}
-        <div className="grid grid-cols-2 gap-4">
-          <TextField label="Code" error={errors.code?.message} disabled={editing || readOnly} {...register('code')} />
-          <SelectField label="GST treatment" options={GST_TREATMENTS} disabled={editing || readOnly} {...register('gstTreatment')} />
-        </div>
+        {editing && party ? (
+          <dl className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-md bg-sunken px-3.5 py-3" aria-label="Fixed details">
+            <Fact label="Code">{party.code}</Fact>
+            <Fact label="Role">{roleLabel(party)}</Fact>
+            <Fact label="GST treatment">{treatmentLabel(party.gstTreatment)}</Fact>
+            {party.gstin ? <Fact label="GSTIN"><span className="font-mono">{party.gstin}</span></Fact> : null}
+          </dl>
+        ) : (
+          <FormSection title="Who">
+            <div className="grid grid-cols-2 gap-4">
+              <TextField label="Code" error={errors.code?.message} {...register('code')} />
+              <SelectField label="GST treatment" options={GST_TREATMENTS} {...register('gstTreatment')} />
+            </div>
+          </FormSection>
+        )}
+        <FormSection title="Name and contact">
         <TextField label="Legal name" error={errors.legalName?.message} disabled={readOnly} {...register('legalName')} />
         <TextField label="Trade name (optional)" disabled={readOnly} {...register('tradeName')} />
         <div className="grid grid-cols-2 gap-4"><TextField label="Mobile / phone (optional)" inputMode="tel" error={errors.phone?.message} disabled={readOnly} {...register('phone')} hint="Used for WhatsApp reminders" /><TextField label="Email (optional)" type="email" error={errors.email?.message} disabled={readOnly} {...register('email')} /></div>
-        {registered || (editing && party?.gstin) ? <TextField label="GSTIN" maxLength={15} autoCapitalize="characters" error={errors.gstin?.message} disabled={editing || readOnly} {...register('gstin')} hint={gstin.length >= 12 ? `State ${STATES.find((s) => s.code === stateOfGstin(gstin))?.name ?? '?'} · PAN ${panOfGstin(gstin)}` : undefined} /> : null}
-        <div className="flex flex-wrap gap-5">
-          <CheckField label="Customer" disabled={editing || readOnly} {...register('isCustomer')} />
-          <CheckField label="Supplier" disabled={editing || readOnly} {...register('isSupplier')} />
-          <CheckField label="Subcontractor" disabled={editing || readOnly} {...register('isSubcontractor')} />
-        </div>
-        {errors.isCustomer?.message ? <p className="text-xs text-bad">{errors.isCustomer.message}</p> : null}
+        </FormSection>
+        {!editing && registered ? <TextField label="GSTIN" maxLength={15} autoCapitalize="characters" error={errors.gstin?.message} disabled={editing || readOnly} {...register('gstin')} hint={gstin.length >= 12 ? `State ${STATES.find((s) => s.code === stateOfGstin(gstin))?.name ?? '?'} · PAN ${panOfGstin(gstin)}` : undefined} /> : null}
+        {!editing ? (
+          <FormSection title="Role">
+            <div className="flex flex-wrap gap-5">
+              <CheckField label="Customer" {...register('isCustomer')} />
+              <CheckField label="Supplier" {...register('isSupplier')} />
+              <CheckField label="Subcontractor" {...register('isSubcontractor')} />
+            </div>
+            {errors.isCustomer?.message ? <p className="text-xs text-bad">{errors.isCustomer.message}</p> : null}
+          </FormSection>) : null}
+        <FormSection title="Payment">
         <div className="grid grid-cols-2 gap-4">
           <SelectField label="Payment terms" disabled={readOnly} options={[{ value: '', label: 'None' }, ...(terms.data ?? []).map((t) => ({ value: t.id, label: `${t.name} (${t.netDays} days)` }))]} {...register('paymentTermsId')} />
           <TextField label="Credit limit (customers)" inputMode="decimal" error={errors.creditLimit?.message} disabled={readOnly} {...register('creditLimit')} />
         </div>
+        </FormSection>
         {!registered && !editing ? <TextField label="PAN (optional)" maxLength={10} error={errors.pan?.message} {...register('pan')} /> : null}
         {editing ? <SelectField label="Status" disabled={readOnly} options={[{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive' }, { value: 'blocked', label: 'Blocked (no new documents)' }]} {...register('status')} /> : null}
         {message ? <Alert>{message}</Alert> : null}
-        {canWrite ? <Button type="submit" busy={create.isPending || update.isPending}>{editing ? 'Save changes' : 'Create party'}</Button> : null}
+        {canWrite ? <FormActions><Button type="submit" busy={create.isPending || update.isPending}>{editing ? 'Save changes' : 'Create party'}</Button></FormActions> : null}
       </form>
       {party ? <Addresses partyId={party.id} canWrite={canWrite} defaultState={party.gstin ? stateOfGstin(party.gstin) : '27'} /> : null}
     </div>

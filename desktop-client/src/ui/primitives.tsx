@@ -1,5 +1,6 @@
 import { forwardRef, useId, type ButtonHTMLAttributes, type InputHTMLAttributes, type ReactNode, type SelectHTMLAttributes } from 'react'
 import { cn } from './cn'
+import { useInDrawer } from './Drawer'
 
 export function Button({ variant = 'primary', busy, className, children, disabled, ...rest }: ButtonHTMLAttributes<HTMLButtonElement> & { variant?: 'primary' | 'secondary' | 'ghost' | 'danger'; busy?: boolean }) {
   return (
@@ -42,6 +43,22 @@ export function PageHeader({ title, sub, children }: { title: ReactNode; sub?: R
       {children ? <div className="flex shrink-0 items-center gap-2">{children}</div> : null}
     </div>
   )
+}
+
+/** The save/cancel row of a form in a drawer: stays at the bottom of the drawer while the fields scroll. */
+export function FormActions({ children }: { children: ReactNode }) {
+  const inDrawer = useInDrawer()
+  return inDrawer ? <div className="sticky bottom-0 z-10 -mx-5 -mb-5 mt-2 flex items-center gap-2 border-t border-line bg-surface px-5 py-3">{children}</div> : <div className="flex items-center gap-2">{children}</div>
+}
+
+/** A titled group of fields in a form, so a long form reads as a few short parts. */
+export function FormSection({ title, children }: { title: string; children: ReactNode }) {
+  return <section className="flex flex-col gap-3"><h3 className="text-[11px] font-semibold uppercase tracking-wide text-muted">{title}</h3>{children}</section>
+}
+
+/** A fact that cannot be changed, shown as plain text rather than a greyed-out box. */
+export function Fact({ label, children }: { label: string; children: ReactNode }) {
+  return <div className="min-w-0"><dt className="text-[11px] text-muted">{label}</dt><dd className="truncate text-[13px] font-medium">{children}</dd></div>
 }
 
 /** A small state tag: a coloured dot and the word, so a column of them reads at a glance without a block of colour. */

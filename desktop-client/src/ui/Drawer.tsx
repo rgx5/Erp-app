@@ -4,6 +4,8 @@ import { createPortal } from 'react-dom'
 import { usePane } from './paneContext'
 
 const InsideDrawer = createContext(false)
+/** True for anything rendered inside a drawer. */
+export const useInDrawer = (): boolean => useContext(InsideDrawer)
 
 const ARROW_SKIP = new Set(['number', 'date', 'datetime-local', 'time', 'month', 'week', 'radio', 'range', 'file'])
 const FIELD = 'input:not([type=hidden]):not([disabled]), select:not([disabled]), textarea:not([disabled]), button[type=submit]:not([disabled])'
@@ -28,9 +30,9 @@ export function arrowNavigate(e: ReactKeyboardEvent<HTMLElement>, root: HTMLElem
 
 /**
  * One record, for creating or editing. Inside the app shell it docks to the right of the page so the list stays in view; elsewhere it
- * slides over the page. The close button or Escape closes it (a click outside does not, so nothing typed is lost); Up and Down move between fields; focus moves in and returns.
+ * slides over the page. The close button (at the left, away from the window buttons) or Escape closes it (a click outside does not, so nothing typed is lost); Up and Down move between fields; focus moves in and returns.
  */
-export function Drawer({ title, onClose, children, width = 520 }: { title: string; onClose: () => void; children: ReactNode; width?: number }) {
+export function Drawer({ title, subtitle, onClose, children, width = 520 }: { title: string; subtitle?: string | undefined; onClose: () => void; children: ReactNode; width?: number }) {
   const panel = useRef<HTMLDivElement>(null)
   const shell = usePane()
   // A record docks beside the page; one opened from inside another (a payslip from a run) slides over it instead of stacking.
@@ -45,11 +47,11 @@ export function Drawer({ title, onClose, children, width = 520 }: { title: strin
   }, [onClose])
   const body = (
     <div ref={panel} role="dialog" aria-modal={pane ? undefined : true} aria-label={title} className="flex h-full flex-col bg-surface" style={{ width: Math.min(width, 640) }}>
-      <header className="drawer-head flex shrink-0 items-center justify-between gap-3 border-b border-line bg-surface px-4">
-        <h2 className="min-w-0 truncate text-base font-semibold">{title}</h2>
+      <header className="drawer-head flex shrink-0 items-center gap-3 border-b border-line bg-surface px-4">
         <button type="button" aria-label="Close" title="Close (Esc)" onClick={onClose} className="inline-flex size-8 shrink-0 items-center justify-center rounded-md border border-line text-ink hover:bg-canvas"><X className="size-4" aria-hidden /></button>
+        <div className="min-w-0"><h2 className="truncate text-base font-semibold leading-tight">{title}</h2>{subtitle ? <p className="truncate text-xs text-muted">{subtitle}</p> : null}</div>
       </header>
-      <div className="flex-1 overflow-auto p-5" onKeyDown={(e) => arrowNavigate(e, panel.current)}><InsideDrawer.Provider value>{children}</InsideDrawer.Provider></div>
+      <div className="flex-1 overflow-auto" onKeyDown={(e) => arrowNavigate(e, panel.current)}><div className="p-5"><InsideDrawer.Provider value>{children}</InsideDrawer.Provider></div></div>
     </div>
   )
   if (pane) return createPortal(body, pane)

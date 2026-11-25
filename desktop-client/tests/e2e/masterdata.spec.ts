@@ -79,7 +79,8 @@ test('master data: items, customers, tax rates and price lists from the app', as
   await expect(page.getByRole('cell', { name: 'SHIRT-M' })).toHaveCount(0)
   await page.getByRole('cell', { name: 'TROUSER-32' }).click()
   const edit = page.getByRole('dialog', { name: 'Cotton trouser' })
-  await expect(edit.getByLabel('Code', { exact: true })).toBeDisabled()
+  await expect(edit.getByLabel('Fixed details').getByText('TROUSER-32')).toBeVisible() // the code is shown as a fact, not an editable box
+  await expect(edit.getByLabel('Code', { exact: true })).toHaveCount(0)
   await edit.getByLabel('Name', { exact: true }).fill('Cotton trouser (slim)')
   await edit.getByRole('button', { name: 'Save changes' }).click()
   await expect(page.getByRole('cell', { name: 'Cotton trouser (slim)' })).toBeVisible()

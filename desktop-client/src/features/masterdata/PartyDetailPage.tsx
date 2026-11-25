@@ -1,4 +1,4 @@
-import { Link, useNavigate, useParams } from '@tanstack/react-router'
+import { useNavigate, useParams } from '@tanstack/react-router'
 import { useMemo, useState, type ReactNode } from 'react'
 import { can } from '@/auth/permissions'
 import { useSession } from '@/auth/session'
@@ -115,7 +115,6 @@ function PartyDetail({ partyId }: { partyId: string }) {
 
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-4 pb-6">
-      <p className="text-xs text-muted"><Link to={isSupplier && !isCustomer ? '/masterdata/suppliers' : '/masterdata/customers'} className="hover:text-ink hover:underline">{isSupplier && !isCustomer ? 'Suppliers' : 'Customers'}</Link> <span aria-hidden>/</span> <span className="text-ink">{party.legalName}</span></p>
       <header className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           <h1 className="page-title !text-[22px]">{party.legalName}{party.status !== 'active' ? <span className="ml-2 align-middle text-xs font-medium text-bad">{party.status === 'blocked' ? 'Blocked' : 'Inactive'}</span> : null}</h1>

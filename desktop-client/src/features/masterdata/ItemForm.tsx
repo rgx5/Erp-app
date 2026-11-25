@@ -3,7 +3,7 @@ import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { z } from 'zod'
 import type { Item } from '@/api/schemas'
-import { Alert, Button, CheckField, SelectField, TextField } from '@/ui/primitives'
+import { Alert, Button, CheckField, Fact, FormActions, FormSection, SelectField, TextField } from '@/ui/primitives'
 import { showApiError } from '@/features/setup/forms'
 import { useCategories, useCreateItem, useTaxCodes, useUnits, useUpdateItem } from './queries'
 
@@ -72,18 +72,31 @@ export function ItemForm({ item, canWrite, onDone }: { item?: Item | undefined; 
         onDone()
       } catch (e) { setMessage(showApiError(e, setError, fields)) }
     })}>
-      {editing && item ? <p className="text-xs text-muted">Item code, type, unit and stock tracking cannot be changed after creation{item.isStocked ? ' (stock may already exist)' : ''}.</p> : null}
-      <div className="grid grid-cols-2 gap-4">
-        <TextField label="Code" error={errors.code?.message} disabled={editing || readOnly} {...register('code')} />
-        <SelectField label="Type" options={ITEM_TYPES} disabled={editing || readOnly} {...register('itemType')} />
-      </div>
+      {editing && item ? (
+        <dl className="grid grid-cols-2 gap-x-4 gap-y-2 rounded-md bg-sunken px-3.5 py-3" aria-label="Fixed details">
+          <Fact label="Code">{item.code}</Fact>
+          <Fact label="Type">{itemTypeLabel(item.itemType)}</Fact>
+          <Fact label="Unit">{(units.data ?? []).find((u) => u.id === item.baseUomId)?.code ?? ''}</Fact>
+          <Fact label="Stock tracking">{item.tracking === 'none' ? 'None' : item.tracking === 'batch' ? 'By batch' : 'By serial number'}</Fact>
+        </dl>
+      ) : (
+        <FormSection title="What it is">
+          <div className="grid grid-cols-2 gap-4">
+            <TextField label="Code" error={errors.code?.message} {...register('code')} />
+            <SelectField label="Type" options={ITEM_TYPES} {...register('itemType')} />
+          </div>
+        </FormSection>
+      )}
+      <FormSection title="Details">
       <TextField label="Name" error={errors.name?.message} disabled={readOnly} {...register('name')} />
       <TextField label="Description (optional)" error={errors.description?.message} disabled={readOnly} {...register('description')} />
       <div className="grid grid-cols-2 gap-4">
-        <SelectField label="Unit" error={errors.baseUomId?.message} disabled={editing || readOnly} options={[{ value: '', label: 'Choose…' }, ...(units.data ?? []).map((u) => ({ value: u.id, label: `${u.name} (${u.code})` }))]} {...register('baseUomId')} />
+        {editing ? null : <SelectField label="Unit" error={errors.baseUomId?.message} options={[{ value: '', label: 'Choose…' }, ...(units.data ?? []).map((u) => ({ value: u.id, label: `${u.name} (${u.code})` }))]} {...register('baseUomId')} />}
         <TextField label={service ? 'SAC' : 'HSN'} inputMode="numeric" error={errors.hsnSacCode?.message} disabled={readOnly} {...register('hsnSacCode')} hint={service ? '6 digits starting 99' : '4, 6 or 8 digits'} />
       </div>
       <SelectField label="GST tax code" disabled={readOnly} options={[{ value: '', label: 'None' }, ...(taxes.data ?? []).filter((t) => t.status === 'active').map((t) => ({ value: t.id, label: `${t.code} · ${t.name}` }))]} {...register('taxCodeId')} />
+      </FormSection>
+      <FormSection title="Retail and reordering">
       <div className="grid grid-cols-3 gap-4">
         <SelectField label="Category" disabled={readOnly} options={[{ value: '', label: 'None' }, ...(categories.data ?? []).filter((c) => c.status === 'active').map((c) => ({ value: c.id, label: c.name }))]} {...register('categoryId')} />
         <TextField label="Brand (optional)" disabled={readOnly} {...register('brand')} />
@@ -94,9 +107,11 @@ export function ItemForm({ item, canWrite, onDone }: { item?: Item | undefined; 
         <TextField label="Reorder level (optional)" inputMode="decimal" error={errors.reorderLevel?.message} disabled={readOnly} {...register('reorderLevel')} hint="Flag this item when stock falls to this quantity" />
         <TextField label="Reorder quantity (optional)" inputMode="decimal" error={errors.reorderQty?.message} disabled={readOnly} {...register('reorderQty')} hint="How much to buy when it does" />
       </div>
+      </FormSection>
+      <FormSection title="Stock and sale">
       {!service ? (
         <div className="grid grid-cols-2 gap-4">
-          <SelectField label="Tracking" error={errors.tracking?.message} disabled={editing || readOnly} options={[{ value: 'none', label: 'None' }, { value: 'batch', label: 'By batch' }, { value: 'serial', label: 'By serial number' }]} {...register('tracking')} />
+          {editing ? null : <SelectField label="Tracking" error={errors.tracking?.message} disabled={editing || readOnly} options={[{ value: 'none', label: 'None' }, { value: 'batch', label: 'By batch' }, { value: 'serial', label: 'By serial number' }]} {...register('tracking')} />}
           <SelectField label="Stock valuation" disabled={readOnly} options={[{ value: 'weighted_average', label: 'Weighted average' }, { value: 'fifo', label: 'First in, first out' }]} {...register('costingMethod')} />
         </div>
       ) : null}
@@ -107,9 +122,10 @@ export function ItemForm({ item, canWrite, onDone }: { item?: Item | undefined; 
         {!service ? <CheckField label="Made in our own factory" disabled={editing || readOnly} {...register('isManufactured')} /> : null}
         {errors.isManufactured?.message ? <p className="text-xs text-bad">{errors.isManufactured.message}</p> : null}
       </div>
+      </FormSection>
       {editing ? <SelectField label="Status" disabled={readOnly} options={[{ value: 'active', label: 'Active' }, { value: 'inactive', label: 'Inactive (hidden from new documents)' }]} {...register('status')} /> : null}
       {message ? <Alert>{message}</Alert> : null}
-      {canWrite ? <Button type="submit" busy={create.isPending || update.isPending}>{editing ? 'Save changes' : 'Create item'}</Button> : null}
+      {canWrite ? <FormActions><Button type="submit" busy={create.isPending || update.isPending}>{editing ? 'Save changes' : 'Create item'}</Button></FormActions> : null}
     </form>
   )
 }
