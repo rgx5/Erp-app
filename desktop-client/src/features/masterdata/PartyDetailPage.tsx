@@ -21,25 +21,35 @@ const Status = ({ v }: { v: string }) => <span className={`capitalize ${STATUS_T
 interface Col<T> { head: string; cell: (r: T) => ReactNode; right?: boolean }
 function DocTable<T>({ rows, cols, rowKey, onOpen, loading, hasMore, more, empty }: { rows: T[]; cols: Col<T>[]; rowKey: (r: T) => string; onOpen?: ((r: T) => void) | undefined; loading: boolean; hasMore?: boolean | undefined; more?: (() => void) | undefined; empty: string }) {
   if (loading) return <Spinner />
-  if (rows.length === 0) return <p className="py-6 text-center text-sm text-muted">{empty}</p>
+  if (rows.length === 0) return <p className="rounded-md border border-dashed border-line py-8 text-center text-sm text-muted">{empty}</p>
   return (
     <>
-      <table className="w-full text-sm">
-        <thead><tr className="text-left text-xs text-muted">{cols.map((c) => <th key={c.head} className={`py-1.5 ${c.right ? 'num text-right' : ''}`}>{c.head}</th>)}</tr></thead>
+      <div className="-mx-4 overflow-x-auto">
+      <table className="w-full text-[13px]">
+        <thead><tr className="border-y border-line bg-sunken text-left text-[11px] font-semibold uppercase tracking-wide text-muted">{cols.map((c, i) => <th key={c.head} className={`px-3 py-2 ${i === 0 ? 'pl-4' : ''} ${i === cols.length - 1 ? 'pr-4' : ''} ${c.right ? 'num text-right' : ''}`}>{c.head}</th>)}</tr></thead>
         <tbody>
           {rows.map((r) => (
-            <tr key={rowKey(r)} className={`border-t border-line/60 ${onOpen ? 'cursor-pointer hover:bg-sunken' : ''}`} onClick={onOpen ? () => onOpen(r) : undefined}>
-              {cols.map((c) => <td key={c.head} className={`py-1.5 ${c.right ? 'num text-right' : ''}`}>{c.cell(r)}</td>)}
+            <tr key={rowKey(r)} className={`border-b border-line/70 last:border-b-0 ${onOpen ? 'cursor-pointer hover:bg-brand-soft/50' : 'hover:bg-sunken'}`} onClick={onOpen ? () => onOpen(r) : undefined}>
+              {cols.map((c, i) => <td key={c.head} className={`px-3 py-2.5 ${i === 0 ? 'pl-4' : ''} ${i === cols.length - 1 ? 'pr-4' : ''} ${c.right ? 'num text-right tabular-nums' : ''}`}>{c.cell(r)}</td>)}
             </tr>))}
         </tbody>
       </table>
-      {hasMore ? <Button variant="secondary" className="mt-2" onClick={more}>Load more</Button> : null}
+      </div>
+      {hasMore ? <div className="pt-3"><Button variant="secondary" onClick={more}>Load more</Button></div> : null}
     </>
   )
 }
 
 function Stat({ label, value, tone, note }: { label: string; value: string; tone?: 'bad' | 'good'; note?: string | undefined }) {
-  return <div className="rounded-lg border border-line bg-surface px-4 py-3"><p className="text-xs text-muted">{label}</p><p className={`num text-lg font-semibold ${tone === 'bad' ? 'text-bad' : tone === 'good' ? 'text-good' : ''}`}>{value}</p>{note ? <p className="text-xs text-muted">{note}</p> : null}</div>
+  const bar = tone === 'bad' ? 'bg-bad' : tone === 'good' ? 'bg-good' : 'bg-line-strong'
+  return (
+    <div className="relative overflow-hidden rounded-lg border border-line bg-surface px-4 pb-3 pt-3.5">
+      <span className={`absolute inset-y-0 left-0 w-1 ${bar}`} aria-hidden />
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">{label}</p>
+      <p className={`num mt-1 text-[22px] font-semibold leading-tight tracking-tight ${tone === 'bad' ? 'text-bad' : tone === 'good' ? 'text-good' : 'text-ink'}`}>{value}</p>
+      {note ? <p className={`mt-1 text-xs ${tone === 'bad' ? 'font-medium text-bad' : 'text-muted'}`}>{note}</p> : null}
+    </div>
+  )
 }
 
 type Tab = 's-activity' | 's-invoices' | 's-receipts' | 's-quotes' | 's-orders' | 's-challans' | 'p-activity' | 'p-bills' | 'p-payments' | 'p-orders' | 'p-receipts'
@@ -94,10 +104,14 @@ function PartyDetail({ partyId }: { partyId: string }) {
 
   const ledger = (s: { openingBalance: string; closingBalance: string; lines: { date: string; kind: string; number: string; debit: string; credit: string; balance: string }[] } | undefined, pending: boolean, owed: string) => (
     <>
-      <div className="mb-3 flex flex-wrap items-end gap-3 text-sm">
-        <label className="flex flex-col gap-1"><span className="text-muted">From</span><input type="date" aria-label="From date" className="h-9 rounded-md border border-line bg-surface px-2" value={from} onChange={(e) => setFrom(e.target.value)} /></label>
-        <label className="flex flex-col gap-1"><span className="text-muted">To</span><input type="date" aria-label="To date" className="h-9 rounded-md border border-line bg-surface px-2" value={to} onChange={(e) => setTo(e.target.value)} /></label>
-        {s ? <p className="ml-auto text-muted">Opening {formatInr(s.openingBalance)} · Closing <b className="text-ink">{formatInr(s.closingBalance)}</b> {owed}</p> : null}
+      <div className="mb-4 flex flex-wrap items-end gap-3 text-sm">
+        <label className="flex flex-col gap-1"><span className="text-[11px] font-semibold uppercase tracking-wide text-muted">From</span><input type="date" aria-label="From date" className="h-9 rounded-md border border-line bg-surface px-2" value={from} onChange={(e) => setFrom(e.target.value)} /></label>
+        <label className="flex flex-col gap-1"><span className="text-[11px] font-semibold uppercase tracking-wide text-muted">To</span><input type="date" aria-label="To date" className="h-9 rounded-md border border-line bg-surface px-2" value={to} onChange={(e) => setTo(e.target.value)} /></label>
+        {s ? (
+          <div className="ml-auto flex items-stretch divide-x divide-line overflow-hidden rounded-md border border-line bg-sunken text-right">
+            <p className="px-3 py-1.5"><span className="block text-[10.5px] font-semibold uppercase tracking-wide text-muted">Opening</span><span className="num font-medium">{formatInr(s.openingBalance)}</span></p>
+            <p className="px-3 py-1.5"><span className="block text-[10.5px] font-semibold uppercase tracking-wide text-muted">Closing, {owed}</span><span className="num font-semibold text-ink">{formatInr(s.closingBalance)}</span></p>
+          </div>) : null}
       </div>
       <DocTable loading={pending} rows={s?.lines ?? []} rowKey={(l) => `${l.date}${l.number}${l.kind}${l.balance}`} empty="Nothing in this period."
         cols={[{ head: 'Date', cell: (l) => formatDate(l.date) }, { head: 'Document', cell: (l) => <>{kindLabel(l.kind)} <span className="text-muted">{l.number}</span></> }, { head: 'Debit', right: true, cell: (l) => (Number(l.debit) ? formatInr(l.debit, { symbol: false }) : '') }, { head: 'Credit', right: true, cell: (l) => (Number(l.credit) ? formatInr(l.credit, { symbol: false }) : '') }, { head: 'Balance', right: true, cell: (l) => formatInr(l.balance, { symbol: false }) }]} />
@@ -105,22 +119,35 @@ function PartyDetail({ partyId }: { partyId: string }) {
   )
 
   return (
-    <div className="mx-auto flex max-w-6xl flex-col gap-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-xs text-muted"><Link to={isSupplier && !isCustomer ? '/masterdata/suppliers' : '/masterdata/customers'} className="underline">{isSupplier && !isCustomer ? 'Suppliers' : 'Customers'}</Link></p>
-          <h1 className="page-title">{party.legalName}{party.tradeName ? <span className="ml-2 text-base font-normal text-muted">({party.tradeName})</span> : null} {party.status !== 'active' ? <span className="ml-2 rounded bg-bad/15 px-2 py-0.5 text-xs font-medium text-bad">Inactive</span> : null}</h1>
-          <p className="text-sm text-muted">{party.code} · {roleLabel(party)} · {treatmentLabel(party.gstTreatment)}{party.gstin ? ` · ${party.gstin}` : ''}{party.phone ? ` · ${party.phone}` : ''}{party.email ? ` · ${party.email}` : ''}</p>
-          {billing ? <p className="text-sm text-muted">{[billing.line1, billing.line2, billing.city, billing.pincode].filter(Boolean).join(', ')}</p> : null}
+    <div className="mx-auto flex max-w-6xl flex-col gap-4 pb-6">
+      <p className="text-xs text-muted"><Link to={isSupplier && !isCustomer ? '/masterdata/suppliers' : '/masterdata/customers'} className="hover:text-ink hover:underline">{isSupplier && !isCustomer ? 'Suppliers' : 'Customers'}</Link> <span aria-hidden>/</span> <span className="text-ink">{party.legalName}</span></p>
+      <header className="flex flex-wrap items-start justify-between gap-4 rounded-lg border border-line bg-surface p-5">
+        <div className="flex min-w-0 items-start gap-4">
+          <span className="grid size-14 shrink-0 place-items-center rounded-xl bg-hero text-[20px] font-semibold text-white" aria-hidden>{party.legalName.split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase()}</span>
+          <div className="min-w-0">
+            <h1 className="page-title !text-[22px]">{party.legalName}{party.tradeName ? <span className="ml-2 text-base font-normal text-muted">({party.tradeName})</span> : null}</h1>
+            <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11.5px]">
+              <span className="rounded bg-sunken px-2 py-0.5 font-mono text-muted">{party.code}</span>
+              <span className="rounded bg-brand-soft px-2 py-0.5 font-medium text-brand">{roleLabel(party)}</span>
+              <span className="rounded bg-sunken px-2 py-0.5 text-muted">{treatmentLabel(party.gstTreatment)}</span>
+              {party.status !== 'active' ? <span className="rounded bg-bad-soft px-2 py-0.5 font-medium text-bad">{party.status === 'blocked' ? 'Blocked' : 'Inactive'}</span> : null}
+            </div>
+            <dl className="mt-3 grid grid-cols-1 gap-x-8 gap-y-1 text-[13px] sm:grid-cols-2">
+              {party.gstin ? <div className="flex gap-2"><dt className="w-14 shrink-0 text-muted">GSTIN</dt><dd className="font-mono">{party.gstin}</dd></div> : null}
+              {party.phone ? <div className="flex gap-2"><dt className="w-14 shrink-0 text-muted">Phone</dt><dd>{party.phone}</dd></div> : null}
+              {party.email ? <div className="flex gap-2"><dt className="w-14 shrink-0 text-muted">Email</dt><dd className="truncate">{party.email}</dd></div> : null}
+              {billing ? <div className="flex gap-2"><dt className="w-14 shrink-0 text-muted">Address</dt><dd>{[billing.line1, billing.line2, billing.city, billing.pincode].filter(Boolean).join(', ')}</dd></div> : null}
+            </dl>
+          </div>
         </div>
         <div className="flex flex-wrap gap-2">
-          {sellOn && can(perms, 'sales:post') ? <Button variant="secondary" onClick={() => void navigate({ to: '/sales/invoices/new', search: { customerId: partyId } as never })}>New invoice</Button> : null}
+          {sellOn && can(perms, 'sales:post') ? <Button onClick={() => void navigate({ to: '/sales/invoices/new', search: { customerId: partyId } as never })}>New invoice</Button> : null}
           {sellOn && can(perms, 'receivables:post') ? <Button variant="secondary" onClick={() => void navigate({ to: '/sales/receipts', search: { customerId: partyId } as never })}>Record receipt</Button> : null}
-          {buyOn && can(perms, 'purchasing:post') ? <Button variant="secondary" onClick={() => void navigate({ to: '/purchasing/bills/new', search: { supplierId: partyId } })}>New bill</Button> : null}
+          {buyOn && can(perms, 'purchasing:post') ? <Button onClick={() => void navigate({ to: '/purchasing/bills/new', search: { supplierId: partyId } })}>New bill</Button> : null}
           {buyOn && can(perms, 'payables:post') ? <Button variant="secondary" onClick={() => void navigate({ to: '/purchasing/payments', search: { supplierId: partyId } })}>Pay supplier</Button> : null}
-          {canWrite ? <Button onClick={() => setEditing(true)}>Edit details</Button> : null}
+          {canWrite ? <Button variant="secondary" onClick={() => setEditing(true)}>Edit details</Button> : null}
         </div>
-      </div>
+      </header>
 
       {sellOn || buyOn ? (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
@@ -141,8 +168,8 @@ function PartyDetail({ partyId }: { partyId: string }) {
 
       {tabs.length > 0 ? (
         <Card>
-          <div role="tablist" className="mb-3 flex flex-wrap gap-1 border-b border-line">
-            {tabs.map((t) => <button key={t.id} role="tab" aria-selected={active === t.id} onClick={() => setTab(t.id)} className={`-mb-px border-b-2 px-3 py-2 text-sm ${active === t.id ? 'border-brand font-medium text-ink' : 'border-transparent text-muted hover:text-ink'}`}>{t.label}</button>)}
+          <div role="tablist" className="-mx-4 mb-4 flex flex-wrap gap-1 border-b border-line px-4">
+            {tabs.map((t) => <button key={t.id} role="tab" aria-selected={active === t.id} onClick={() => setTab(t.id)} className={`-mb-px border-b-2 px-3.5 py-2.5 text-[13px] ${active === t.id ? 'border-brand font-semibold text-ink' : 'border-transparent text-muted hover:text-ink'}`}>{t.label}</button>)}
           </div>
           {active === 's-activity' ? ledger(stmt.data, stmt.isPending, 'owed to you') : null}
           {active === 'p-activity' ? ledger(sstmt.data, sstmt.isPending, 'owed by you') : null}
