@@ -9,7 +9,9 @@ export interface PlatformCtx { tenant: string; companyId: string; companyName: s
   /** App-made ids → the platform's ids, for records made on the phone that other records point at (a customer on a bill, an item on a return). */
   ids?: Record<string, string>
   /** Products waiting for their variant, since one platform item is both. */
-  pending?: Record<string, unknown> }
+  pending?: Record<string, unknown>
+  /** The till's payment accounts and walk-in customer have been checked once. */
+  prepared?: boolean }
 export interface PlatformTokens { access: string; refresh: string }
 export interface PlatformDeps {
   getToken: () => string | null
@@ -102,7 +104,7 @@ export function createPlatformApi(baseUrl: string, d: PlatformDeps, fetchFn: Fet
   // ───────────── the business: company, till, device, shift ─────────────
   async function ensureCtx(): Promise<PlatformCtx> {
     const have = d.ctx(); if (!have) throw new CloudError('Sign in again to connect this phone.', 401)
-    if (have.terminalId && have.deviceId) return have
+    if (have.terminalId && have.deviceId && have.prepared) return have
     const companyId = have.companyId
     let terminalId = have.terminalId; let warehouseId = have.warehouseId
     if (!terminalId) {
@@ -121,7 +123,37 @@ export function createPlatformApi(baseUrl: string, d: PlatformDeps, fetchFn: Fet
     if (!dev) dev = await json<{ id: string; terminalId: string; name: string; status: string }>('POST', '/v1/pos/devices', { terminalId, name: d.deviceName() }, { key: `device-${terminalId}-${d.deviceName()}` })
     const next: PlatformCtx = { ...have, terminalId: terminalId as string, deviceId: dev.id, ...(warehouseId ? { warehouseId } : {}) }
     d.setCtx(next)
-    return next
+    const walkIn = await prepare(next)
+    const done: PlatformCtx = { ...next, prepared: true, walkInCustomerId: walkIn ?? next.walkInCustomerId ?? null }
+    d.setCtx(done)
+    return done
+  }
+
+  /**
+   * What a till needs before its first sale: a payment account for each way of paying, and a walk-in customer. A business set up on the
+   * desktop app may have neither, so the phone sets up the obvious ones (cash and bank accounts by name) rather than refusing sales.
+   * Whatever the business has already chosen is left alone.
+   */
+  async function prepare(c: PlatformCtx): Promise<string | null> {
+    const cur = await json<{ settings: { walkInCustomerId: string | null } | null; paymentAccounts: Array<{ method: string; accountId: string }> }>('GET', `/v1/pos/settings?companyId=${c.companyId}`)
+    const mapped = new Set(cur.paymentAccounts.map((p) => p.method))
+    if (['cash', 'upi', 'card', 'bank_transfer', 'cheque'].some((m) => !mapped.has(m))) {
+      try {
+        const accounts = (await all<{ id: string; code: string; name: string; type: string; isGroup: boolean; controlKind: string | null; status: string }>(`/v1/accounts?companyId=${c.companyId}`)).filter((a) => a.type === 'asset' && !a.isGroup && !a.controlKind && a.status === 'active')
+        const cash = accounts.find((a) => /cash/i.test(a.name)); const bank = accounts.find((a) => /bank/i.test(a.name))
+        const want: Array<[string, string | undefined]> = [['cash', cash?.id], ['upi', bank?.id ?? cash?.id], ['card', bank?.id ?? cash?.id], ['bank_transfer', bank?.id ?? cash?.id], ['cheque', bank?.id ?? cash?.id]]
+        for (const [method, accountId] of want) if (accountId && !mapped.has(method)) await json('PUT', `/v1/pos/payment-accounts?companyId=${c.companyId}`, { method, accountId })
+      } catch { /* a person without the right to set this up gets the platform's own refusal on the first sale */ }
+    }
+    let walkIn = cur.settings?.walkInCustomerId ?? null
+    if (!walkIn) {
+      try {
+        const parties = await all<{ id: string; code: string }>('/v1/parties')
+        walkIn = parties.find((p) => p.code === 'WALKIN')?.id ?? (await json<{ id: string }>('POST', '/v1/parties', { code: 'WALKIN', legalName: 'Walk-in customer', gstTreatment: 'consumer', isCustomer: true }, { key: `walkin-${c.companyId}` })).id
+        await json('PUT', `/v1/pos/settings?companyId=${c.companyId}`, { walkInCustomerId: walkIn })
+      } catch { walkIn = null }
+    }
+    return walkIn
   }
 
   async function ensureShift(ctx: PlatformCtx): Promise<string> {

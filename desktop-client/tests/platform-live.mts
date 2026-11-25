@@ -7,8 +7,6 @@ const b = await bootBackend()
 try {
   const s = await seedBusiness(b.baseUrl, b.platformToken, { prefix: 'ph' })
   const H = { authorization: `Bearer ${s.token}`, 'content-type': 'application/json' }
-  await fetch(`${b.baseUrl}/v1/pos/payment-accounts?companyId=${s.company.id}`, { method: 'PUT', headers: H, body: JSON.stringify({ method: 'cash', accountId: s.cash }) })
-  await fetch(`${b.baseUrl}/v1/pos/payment-accounts?companyId=${s.company.id}`, { method: 'PUT', headers: H, body: JSON.stringify({ method: 'upi', accountId: s.bank }) })
   let tokens = { access: '', refresh: '' }; let ctx: PlatformCtx | undefined
   const api = createPlatformApi(b.baseUrl, { getToken: () => tokens.access, getRefresh: () => tokens.refresh, setTokens: (t) => { tokens = t }, ctx: () => ctx, setCtx: (c) => { ctx = c }, deviceName: () => 'Phone TEST' })
   console.log('health', await api.health())
