@@ -14,10 +14,10 @@ export const EDITIONS: readonly Edition[] = [
     modules: ['sales', 'inventory', 'pos'], limits: { users: 3, companies: 1, locations: 1, terminals: 2, sites: 1 } },
   { id: 'growth', plan: 'Growth', audience: 'Growing businesses: adds buying from suppliers, accounts, GST returns, bank reconciliation and expenses',
     modules: ['sales', 'inventory', 'pos', 'purchasing', 'accounting', 'gst', 'banking', 'extras'], limits: { users: 15, companies: 1, locations: 3, terminals: 5, sites: 1 } },
-  { id: 'enterprise', plan: 'Enterprise', audience: 'Complete ERP: adds approvals and payroll, more people, companies and locations',
-    modules: ['sales', 'inventory', 'pos', 'purchasing', 'accounting', 'gst', 'banking', 'extras', 'approvals', 'payroll'], limits: { users: 100, companies: 10, locations: 25, terminals: 25, sites: 5 } },
+  { id: 'enterprise', plan: 'Enterprise', audience: 'Complete ERP: adds approvals, payroll and lead management, more people, companies and locations',
+    modules: ['sales', 'inventory', 'pos', 'purchasing', 'accounting', 'gst', 'banking', 'extras', 'approvals', 'payroll', 'leads'], limits: { users: 100, companies: 10, locations: 25, terminals: 25, sites: 5 } },
   { id: 'manufacturing', plan: 'Manufacturing', audience: 'Manufacturers: everything, plus bills of material, work orders, job work and production costing',
-    modules: ['sales', 'inventory', 'pos', 'purchasing', 'accounting', 'gst', 'banking', 'extras', 'approvals', 'payroll', 'manufacturing'], limits: { users: 250, companies: 10, locations: 50, terminals: 50, sites: 10 } },
+    modules: ['sales', 'inventory', 'pos', 'purchasing', 'accounting', 'gst', 'banking', 'extras', 'approvals', 'payroll', 'leads', 'manufacturing'], limits: { users: 250, companies: 10, locations: 50, terminals: 50, sites: 10 } },
 ];
 
 /** Every edition must be a valid licence (dependencies satisfied) and each one must include the one below it. */

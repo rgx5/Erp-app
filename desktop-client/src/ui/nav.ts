@@ -1,6 +1,6 @@
 import { licensed } from '@/auth/permissions'
 import { isStarter } from '@/auth/edition'
-import { BellRing, FileCheck, Repeat, Download, Printer, ArrowLeftRight, BadgeCheck, Calculator, ListChecks, Warehouse as WarehouseIcon, Boxes, ClipboardList, PackageCheck, ShoppingCart, Wallet, FileText, Landmark, Receipt as ReceiptIcon, Building2, ClipboardCheck, Clock, LayoutDashboard, Percent, Ruler, Tags, Truck, Users, BookOpen, Layers, Users2, ShieldCheck, KeyRound, ScrollText, UserCog, ScanBarcode, Store, UserRound, Banknote, Settings2, Scale, Factory, Cog, Gauge, Handshake, FileSpreadsheet, FolderOpen, CalendarCheck, LineChart, ListTree, type LucideIcon } from 'lucide-react'
+import { BellRing, FileCheck, Target, Repeat, Download, Printer, ArrowLeftRight, BadgeCheck, Calculator, ListChecks, Warehouse as WarehouseIcon, Boxes, ClipboardList, PackageCheck, ShoppingCart, Wallet, FileText, Landmark, Receipt as ReceiptIcon, Building2, ClipboardCheck, Clock, LayoutDashboard, Percent, Ruler, Tags, Truck, Users, BookOpen, Layers, Users2, ShieldCheck, KeyRound, ScrollText, UserCog, ScanBarcode, Store, UserRound, Banknote, Settings2, Scale, Factory, Cog, Gauge, Handshake, FileSpreadsheet, FolderOpen, CalendarCheck, LineChart, ListTree, type LucideIcon } from 'lucide-react'
 
 /** `advanced`: left out of the small-business (Starter) menu; the page itself still works if someone opens it. */
 export interface NavItem { to: string; label: string; icon: LucideIcon; needs?: string[]; section?: string; advanced?: boolean }
@@ -12,7 +12,7 @@ export function moduleOfPage(n: Pick<NavItem, 'to' | 'section'>): string | undef
   if (n.to === '/gst') return 'gst'
   if (n.to === '/approvals') return 'approvals'
   if (n.to === '/accounting/journals' || n.to === '/accounting/chart' || n.to === '/accounting/reports' || n.to === '/accounting/periods' || n.to === '/report-centre') return 'accounting'
-  return ({ Sales: 'sales', Purchasing: 'purchasing', Inventory: 'inventory', Manufacturing: 'manufacturing', Payroll: 'payroll', 'Point of sale': 'pos' } as Record<string, string>)[n.section ?? '']
+  return ({ Sales: 'sales', Purchasing: 'purchasing', Inventory: 'inventory', Manufacturing: 'manufacturing', Payroll: 'payroll', 'Point of sale': 'pos', Leads: 'leads' } as Record<string, string>)[n.section ?? '']
 }
 /** The menu this person sees: what their role allows and their plan includes. */
 export function visibleNav(items: NavItem[], allowed: (needs: string[]) => boolean, me: Parameters<typeof licensed>[0]): NavItem[] {
@@ -24,6 +24,10 @@ export function visibleNav(items: NavItem[], allowed: (needs: string[]) => boole
 export const NAV: NavItem[] = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard, needs: ['dashboard:read'] },
   { to: '/setup', label: 'Setup', icon: ClipboardCheck, needs: ['organization:write'] },
+  { to: '/leads', label: 'Leads', icon: Target, needs: ['leads:read'], section: 'Leads' },
+  { to: '/leads/reports', label: 'Lead reports', icon: LineChart, needs: ['leads:read'], section: 'Leads' },
+  { to: '/leads/sources', label: 'Lead sources', icon: Download, needs: ['leads:manage'], section: 'Leads' },
+  { to: '/leads/settings', label: 'Lead settings', icon: Settings2, needs: ['leads:manage'], section: 'Leads' },
   { to: '/sales/quotes', label: 'Quotes', icon: FileText, needs: ['sales:read'], section: 'Sales' },
   { to: '/sales/orders', label: 'Sales orders', icon: ClipboardList, needs: ['sales:read'], section: 'Sales' },
   { to: '/sales/invoices', label: 'Invoices', icon: FileText, needs: ['sales:read'], section: 'Sales' },
@@ -93,6 +97,7 @@ export interface AppModule { id: string; label: string; icon: LucideIcon; sectio
 export const MODULES: AppModule[] = [
   { id: 'home', label: 'Home', icon: LayoutDashboard, sections: [null, 'Control'] },
   { id: 'sales', label: 'Sales', icon: FileText, sections: ['Sales'] },
+  { id: 'leads', label: 'Leads', icon: Target, sections: ['Leads'] },
   { id: 'buy', label: 'Buy', icon: ShoppingCart, sections: ['Purchasing'] },
   { id: 'stock', label: 'Stock', icon: Boxes, sections: ['Inventory', 'Master data'] },
   { id: 'books', label: 'Books', icon: BookOpen, sections: ['Accounting'] },

@@ -62,6 +62,11 @@ import { CustomerDisplayPage } from '@/features/pos/CustomerDisplayPage'
 import { RemindersPage } from '@/features/sales/RemindersPage'
 import { EInvoicingPage } from '@/features/einvoice/EInvoicingPage'
 import { PartyDetailPage } from '@/features/masterdata/PartyDetailPage'
+import { LeadsPage } from '@/features/leads/LeadsPage'
+import { LeadPage } from '@/features/leads/LeadPage'
+import { SourcesPage } from '@/features/leads/SourcesPage'
+import { LeadSettingsPage } from '@/features/leads/LeadSettingsPage'
+import { LeadReportsPage } from '@/features/leads/LeadReportsPage'
 import { RecurringPage } from '@/features/sales/RecurringPage'
 import { LabelsPage } from '@/features/retail/LabelsPage'
 import { ExpensesPage } from '@/features/expenses/ExpensesPage'
@@ -111,6 +116,11 @@ const companies = createRoute({ getParentRoute: () => app, path: '/organization/
 const setup = createRoute({ getParentRoute: () => app, path: '/setup', component: SetupPage })
 const items = createRoute({ getParentRoute: () => app, path: '/masterdata/items', component: ItemsPage })
 const customers = createRoute({ getParentRoute: () => app, path: '/masterdata/customers', component: () => <PartiesPage role="customer" /> })
+const leadsRoute = createRoute({ getParentRoute: () => app, path: '/leads', component: LeadsPage })
+const leadsSourcesRoute = createRoute({ getParentRoute: () => app, path: '/leads/sources', component: SourcesPage })
+const leadsSettingsRoute = createRoute({ getParentRoute: () => app, path: '/leads/settings', component: LeadSettingsPage })
+const leadsReportsRoute = createRoute({ getParentRoute: () => app, path: '/leads/reports', component: LeadReportsPage })
+const leadRoute = createRoute({ getParentRoute: () => app, path: '/leads/$leadId', component: LeadPage })
 const partyDetailRoute = createRoute({ getParentRoute: () => app, path: '/masterdata/parties/$partyId', component: PartyDetailPage })
 const suppliers = createRoute({ getParentRoute: () => app, path: '/masterdata/suppliers', component: () => <PartiesPage role="supplier" /> })
 const taxCodes = createRoute({ getParentRoute: () => app, path: '/masterdata/tax-codes', component: TaxCodesPage })
@@ -164,9 +174,9 @@ const apiKeysRoute = createRoute({ getParentRoute: () => app, path: '/admin/api-
 const auditRoute = createRoute({ getParentRoute: () => app, path: '/admin/audit', component: AuditPage })
 const accountRoute = createRoute({ getParentRoute: () => app, path: '/account', component: AccountPage })
 const quotesRoute = createRoute({ getParentRoute: () => app, path: '/sales/quotes', component: QuotesPage })
-const newQuoteRoute = createRoute({ getParentRoute: () => app, path: '/sales/quotes/new', component: QuoteEditorPage })
+const newQuoteRoute = createRoute({ getParentRoute: () => app, path: '/sales/quotes/new', component: QuoteEditorPage, validateSearch: (s: Record<string, unknown>): { customerId?: string } => (typeof s['customerId'] === 'string' ? { customerId: s['customerId'] } : {}) })
 const salesOrdersRoute = createRoute({ getParentRoute: () => app, path: '/sales/orders', component: OrdersPage })
-const newSalesOrderRoute = createRoute({ getParentRoute: () => app, path: '/sales/orders/new', component: OrderEditorPage })
+const newSalesOrderRoute = createRoute({ getParentRoute: () => app, path: '/sales/orders/new', component: OrderEditorPage, validateSearch: (s: Record<string, unknown>): { customerId?: string } => (typeof s['customerId'] === 'string' ? { customerId: s['customerId'] } : {}) })
 const landedRoute = createRoute({ getParentRoute: () => app, path: '/purchasing/landed-costs', component: LandedCostPage })
 const trackingRoute = createRoute({ getParentRoute: () => app, path: '/inventory/tracking', component: TrackingPage })
 const categoriesRoute = createRoute({ getParentRoute: () => app, path: '/masterdata/categories', component: CategoriesPage })
@@ -184,7 +194,7 @@ const newRecurringRoute = createRoute({ getParentRoute: () => app, path: '/sales
 const remindersRoute = createRoute({ getParentRoute: () => app, path: '/sales/reminders', component: RemindersPage })
 const expensesRoute = createRoute({ getParentRoute: () => app, path: '/accounting/expenses', component: ExpensesPage })
 const customerDisplayRoute = createRoute({ getParentRoute: () => root, path: '/customer-display', component: CustomerDisplayPage })
-const tree = root.addChildren([customerDisplayRoute, connect, login, app.addChildren([partyDetailRoute, einvoicingRoute, remindersRoute, recurringRoute, newRecurringRoute, challansRoute, newChallanRoute, exportRoute, lowStockRoute, salesAnalysisRoute, dayEndRoute, labelsRoute, loyaltyRoute, expensesRoute, categoriesRoute, trackingRoute, landedRoute, quotesRoute, newQuoteRoute, salesOrdersRoute, newSalesOrderRoute, usersRoute, rolesRoute, apiKeysRoute, auditRoute, accountRoute, counterRoute, posAdminRoute, payrollSetupRoute, peopleRoute, payrollRunsRoute, duesRoute, workCentresRoute, bomsRoute, woRoute, woDetailRoute, jobWorkRoute, costingRoute, reportCentreRoute, gstRoute, chartRoute, journalsRoute, newJournalRoute, periodsRoute, reportsRoute, bankRoute, stock, movements, transfers, counts, valuationRoute, orders, newOrder, orderDetail, goodsReceipts, bills, newBill, billDetail, payments, payables, approvals, invoices, newInvoice, invoiceDetail, receipts, receivables, dashboard, setup, companies, items, customers, suppliers, taxCodes, units, paymentTerms, priceLists])])
+const tree = root.addChildren([customerDisplayRoute, connect, login, app.addChildren([leadsRoute, leadsSourcesRoute, leadsSettingsRoute, leadsReportsRoute, leadRoute, partyDetailRoute, einvoicingRoute, remindersRoute, recurringRoute, newRecurringRoute, challansRoute, newChallanRoute, exportRoute, lowStockRoute, salesAnalysisRoute, dayEndRoute, labelsRoute, loyaltyRoute, expensesRoute, categoriesRoute, trackingRoute, landedRoute, quotesRoute, newQuoteRoute, salesOrdersRoute, newSalesOrderRoute, usersRoute, rolesRoute, apiKeysRoute, auditRoute, accountRoute, counterRoute, posAdminRoute, payrollSetupRoute, peopleRoute, payrollRunsRoute, duesRoute, workCentresRoute, bomsRoute, woRoute, woDetailRoute, jobWorkRoute, costingRoute, reportCentreRoute, gstRoute, chartRoute, journalsRoute, newJournalRoute, periodsRoute, reportsRoute, bankRoute, stock, movements, transfers, counts, valuationRoute, orders, newOrder, orderDetail, goodsReceipts, bills, newBill, billDetail, payments, payables, approvals, invoices, newInvoice, invoiceDetail, receipts, receivables, dashboard, setup, companies, items, customers, suppliers, taxCodes, units, paymentTerms, priceLists])])
 
 // A hash history works the same on a custom app:// origin and in a browser, with no server-side route fallback to configure.
 import { createHashHistory } from '@tanstack/react-router'

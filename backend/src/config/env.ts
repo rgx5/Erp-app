@@ -51,6 +51,9 @@ const schema = z
     AUTH_PRINCIPAL_CACHE_TTL_MS: z.coerce.number().int().min(0).max(60_000).default(0),
     /** Browser/desktop origins allowed to call the API, comma separated (for example `app://onesync,https://erp.example.com`). Empty = none. Never `*`. */
     CORS_ALLOWED_ORIGINS: z.string().default('').transform((v) => v.split(',').map((o) => o.trim()).filter(Boolean)).refine((l) => !l.includes('*'), 'A wildcard origin is not allowed'),
+    /** Meta (Facebook/Instagram) lead ads: the app secret that signs webhook calls (a connector may carry its own), and the Graph API address (changed only in tests). */
+    META_APP_SECRET: z.string().min(8).optional(),
+    META_GRAPH_BASE: z.url().default('https://graph.facebook.com/v21.0'),
     REQUEST_BODY_LIMIT_BYTES: z.coerce.number().int().min(1024).default(1_048_576),
     SHUTDOWN_TIMEOUT_MS: z.coerce.number().int().min(0).default(10_000),
   })

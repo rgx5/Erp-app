@@ -4647,6 +4647,540 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/einvoice/pending": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Sales that need an e-invoice, with whether each has its IRN. */
+        get: operations["EInvoiceController_pending"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/einvoice/invoices/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The e-invoice state of one invoice. */
+        get: operations["EInvoiceController_status"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/einvoice/file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The upload file for the e-invoice portal. */
+        post: operations["EInvoiceController_file"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/einvoice/reply": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Loads the portal's reply back, matching each answer to an invoice by IRN. */
+        post: operations["EInvoiceController_reply"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/einvoice/invoices/{id}/record": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Records the IRN and acknowledgement for one invoice by hand. */
+        post: operations["EInvoiceController_record"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/einvoice/invoices/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Records that the IRN was cancelled on the portal. */
+        post: operations["EInvoiceController_cancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/eway/invoices/{id}/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** What stops an e-way bill file. */
+        post: operations["EInvoiceController_ewayCheck"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/eway/invoices/{id}/file": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** The bulk-upload file for the e-way bill portal. */
+        post: operations["EInvoiceController_ewayFile"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/eway/invoices/{id}/record": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Records the e-way bill number the portal gave. */
+        post: operations["EInvoiceController_ewayRecord"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/eway/invoices/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Records that the e-way bill was cancelled. */
+        post: operations["EInvoiceController_ewayCancel"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/leads": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Leads, newest first, with filters. */
+        get: operations["LeadsController_list"];
+        put?: never;
+        /** Adds a lead by hand. */
+        post: operations["LeadsController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/leads/counts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Leads in each stage, and how many need attention. */
+        get: operations["LeadsController_counts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/leads/settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pipeline stages, assignment, response time and lost reasons. */
+        get: operations["LeadsController_settings"];
+        /** Saves assignment, response time and lost reasons. */
+        put: operations["LeadsController_putSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/leads/stages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Saves the pipeline stages. */
+        put: operations["LeadsController_putStages"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/leads/connectors": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lead sources: website, Meta, Google, webhook. */
+        get: operations["LeadsController_connectorList"];
+        put?: never;
+        /** Adds a lead source. */
+        post: operations["LeadsController_connectorCreate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/leads/connectors/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Removes a lead source. */
+        delete: operations["LeadsController_connectorDelete"];
+        options?: never;
+        head?: never;
+        /** Changes a lead source. */
+        patch: operations["LeadsController_connectorUpdate"];
+        trace?: never;
+    };
+    "/v1/leads/connectors/{id}/deliveries": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The latest enquiries a source delivered, and what happened. */
+        get: operations["LeadsController_deliveries"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/leads/connectors/{id}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Sends a sample enquiry through a source. */
+        post: operations["LeadsController_connectorTest"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/leads/reports/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Leads, wins, revenue and cost by source. */
+        get: operations["LeadsController_summary"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/leads/ad-spend": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Advert spend entered. */
+        get: operations["LeadsController_spend"];
+        put?: never;
+        /** Saves advert spend by day, source and campaign. */
+        post: operations["LeadsController_saveSpend"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/leads/ad-spend/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Removes a spend entry. */
+        delete: operations["LeadsController_removeSpend"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/leads/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One lead with its history. */
+        get: operations["LeadsController_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Edits a lead. */
+        patch: operations["LeadsController_update"];
+        trace?: never;
+    };
+    "/v1/leads/{id}/stage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Moves a lead to a stage (a lost lead needs a reason). */
+        post: operations["LeadsController_stage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/leads/{id}/assign": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Gives a lead to someone. */
+        post: operations["LeadsController_assign"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/leads/{id}/activities": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Logs a call, note, visit or task. */
+        post: operations["LeadsController_activity"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/leads/{id}/activities/{activityId}/done": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Completes a task. */
+        post: operations["LeadsController_done"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/leads/{id}/link-customer": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Records that the lead became this customer. */
+        post: operations["LeadsController_link"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/leads/{id}/merge": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Folds a duplicate lead into another. */
+        post: operations["LeadsController_merge"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ingest/website/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Public: a website form or any system posting an enquiry. */
+        post: operations["IngestController_website"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ingest/google/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Public: Google Ads lead form webhook. */
+        post: operations["IngestController_google"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/ingest/meta/{key}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Public: Meta webhook verification. */
+        get: operations["IngestController_metaVerify"];
+        put?: never;
+        /** Public: Meta lead ads webhook (signed). */
+        post: operations["IngestController_meta"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -5376,7 +5910,7 @@ export interface operations {
                 "application/json": {
                     name: string;
                     description?: string;
-                    permissions: ("organization:read" | "organization:write" | "users:read" | "users:write" | "roles:read" | "roles:write" | "api_keys:manage" | "audit:read" | "numbering:read" | "numbering:write" | "masterdata:read" | "masterdata:write" | "tax:manage" | "pricing:manage" | "accounting:read" | "accounting:post" | "accounting:reverse" | "accounting:manage" | "accounting:reopen" | "accounting:close_year" | "stock:read" | "stock:post" | "stock:manage" | "sales:read" | "sales:post" | "sales:cancel" | "sales:manage" | "receivables:read" | "receivables:post" | "receivables:writeoff" | "pos:read" | "pos:sell" | "pos:return" | "pos:manage" | "pos:sync" | "purchasing:read" | "purchasing:post" | "purchasing:cancel" | "purchasing:approve" | "purchasing:manage" | "payables:read" | "payables:post" | "payables:cancel" | "payroll:read" | "payroll:manage" | "payroll:process" | "payroll:cancel" | "gst:read" | "gst:manage" | "manufacturing:read" | "manufacturing:manage" | "manufacturing:produce" | "manufacturing:cancel" | "approvals:read" | "approvals:decide" | "approvals:manage" | "bank:read" | "bank:manage" | "bank:reconcile" | "dashboard:read" | "expenses:read" | "expenses:post" | "expenses:cancel" | "expenses:manage" | "retail:read" | "pos:approve" | "retail:manage")[];
+                    permissions: ("organization:read" | "organization:write" | "users:read" | "users:write" | "roles:read" | "roles:write" | "api_keys:manage" | "audit:read" | "numbering:read" | "numbering:write" | "masterdata:read" | "masterdata:write" | "tax:manage" | "pricing:manage" | "accounting:read" | "accounting:post" | "accounting:reverse" | "accounting:manage" | "accounting:reopen" | "accounting:close_year" | "stock:read" | "stock:post" | "stock:manage" | "sales:read" | "sales:post" | "sales:cancel" | "sales:manage" | "receivables:read" | "receivables:post" | "receivables:writeoff" | "pos:read" | "pos:sell" | "pos:return" | "pos:manage" | "pos:sync" | "purchasing:read" | "purchasing:post" | "purchasing:cancel" | "purchasing:approve" | "purchasing:manage" | "payables:read" | "payables:post" | "payables:cancel" | "payroll:read" | "payroll:manage" | "payroll:process" | "payroll:cancel" | "gst:read" | "gst:manage" | "manufacturing:read" | "manufacturing:manage" | "manufacturing:produce" | "manufacturing:cancel" | "approvals:read" | "approvals:decide" | "approvals:manage" | "bank:read" | "bank:manage" | "bank:reconcile" | "dashboard:read" | "expenses:read" | "expenses:post" | "expenses:cancel" | "expenses:manage" | "retail:read" | "pos:approve" | "retail:manage" | "leads:read" | "leads:write" | "leads:manage")[];
                 };
             };
         };
@@ -5439,7 +5973,7 @@ export interface operations {
                 "application/json": {
                     name?: string;
                     description?: string | null;
-                    permissions?: ("organization:read" | "organization:write" | "users:read" | "users:write" | "roles:read" | "roles:write" | "api_keys:manage" | "audit:read" | "numbering:read" | "numbering:write" | "masterdata:read" | "masterdata:write" | "tax:manage" | "pricing:manage" | "accounting:read" | "accounting:post" | "accounting:reverse" | "accounting:manage" | "accounting:reopen" | "accounting:close_year" | "stock:read" | "stock:post" | "stock:manage" | "sales:read" | "sales:post" | "sales:cancel" | "sales:manage" | "receivables:read" | "receivables:post" | "receivables:writeoff" | "pos:read" | "pos:sell" | "pos:return" | "pos:manage" | "pos:sync" | "purchasing:read" | "purchasing:post" | "purchasing:cancel" | "purchasing:approve" | "purchasing:manage" | "payables:read" | "payables:post" | "payables:cancel" | "payroll:read" | "payroll:manage" | "payroll:process" | "payroll:cancel" | "gst:read" | "gst:manage" | "manufacturing:read" | "manufacturing:manage" | "manufacturing:produce" | "manufacturing:cancel" | "approvals:read" | "approvals:decide" | "approvals:manage" | "bank:read" | "bank:manage" | "bank:reconcile" | "dashboard:read" | "expenses:read" | "expenses:post" | "expenses:cancel" | "expenses:manage" | "retail:read" | "pos:approve" | "retail:manage")[];
+                    permissions?: ("organization:read" | "organization:write" | "users:read" | "users:write" | "roles:read" | "roles:write" | "api_keys:manage" | "audit:read" | "numbering:read" | "numbering:write" | "masterdata:read" | "masterdata:write" | "tax:manage" | "pricing:manage" | "accounting:read" | "accounting:post" | "accounting:reverse" | "accounting:manage" | "accounting:reopen" | "accounting:close_year" | "stock:read" | "stock:post" | "stock:manage" | "sales:read" | "sales:post" | "sales:cancel" | "sales:manage" | "receivables:read" | "receivables:post" | "receivables:writeoff" | "pos:read" | "pos:sell" | "pos:return" | "pos:manage" | "pos:sync" | "purchasing:read" | "purchasing:post" | "purchasing:cancel" | "purchasing:approve" | "purchasing:manage" | "payables:read" | "payables:post" | "payables:cancel" | "payroll:read" | "payroll:manage" | "payroll:process" | "payroll:cancel" | "gst:read" | "gst:manage" | "manufacturing:read" | "manufacturing:manage" | "manufacturing:produce" | "manufacturing:cancel" | "approvals:read" | "approvals:decide" | "approvals:manage" | "bank:read" | "bank:manage" | "bank:reconcile" | "dashboard:read" | "expenses:read" | "expenses:post" | "expenses:cancel" | "expenses:manage" | "retail:read" | "pos:approve" | "retail:manage" | "leads:read" | "leads:write" | "leads:manage")[];
                 };
             };
         };
@@ -5480,7 +6014,7 @@ export interface operations {
             content: {
                 "application/json": {
                     name: string;
-                    permissions: ("organization:read" | "organization:write" | "users:read" | "users:write" | "roles:read" | "roles:write" | "api_keys:manage" | "audit:read" | "numbering:read" | "numbering:write" | "masterdata:read" | "masterdata:write" | "tax:manage" | "pricing:manage" | "accounting:read" | "accounting:post" | "accounting:reverse" | "accounting:manage" | "accounting:reopen" | "accounting:close_year" | "stock:read" | "stock:post" | "stock:manage" | "sales:read" | "sales:post" | "sales:cancel" | "sales:manage" | "receivables:read" | "receivables:post" | "receivables:writeoff" | "pos:read" | "pos:sell" | "pos:return" | "pos:manage" | "pos:sync" | "purchasing:read" | "purchasing:post" | "purchasing:cancel" | "purchasing:approve" | "purchasing:manage" | "payables:read" | "payables:post" | "payables:cancel" | "payroll:read" | "payroll:manage" | "payroll:process" | "payroll:cancel" | "gst:read" | "gst:manage" | "manufacturing:read" | "manufacturing:manage" | "manufacturing:produce" | "manufacturing:cancel" | "approvals:read" | "approvals:decide" | "approvals:manage" | "bank:read" | "bank:manage" | "bank:reconcile" | "dashboard:read" | "expenses:read" | "expenses:post" | "expenses:cancel" | "expenses:manage" | "retail:read" | "pos:approve" | "retail:manage")[];
+                    permissions: ("organization:read" | "organization:write" | "users:read" | "users:write" | "roles:read" | "roles:write" | "api_keys:manage" | "audit:read" | "numbering:read" | "numbering:write" | "masterdata:read" | "masterdata:write" | "tax:manage" | "pricing:manage" | "accounting:read" | "accounting:post" | "accounting:reverse" | "accounting:manage" | "accounting:reopen" | "accounting:close_year" | "stock:read" | "stock:post" | "stock:manage" | "sales:read" | "sales:post" | "sales:cancel" | "sales:manage" | "receivables:read" | "receivables:post" | "receivables:writeoff" | "pos:read" | "pos:sell" | "pos:return" | "pos:manage" | "pos:sync" | "purchasing:read" | "purchasing:post" | "purchasing:cancel" | "purchasing:approve" | "purchasing:manage" | "payables:read" | "payables:post" | "payables:cancel" | "payroll:read" | "payroll:manage" | "payroll:process" | "payroll:cancel" | "gst:read" | "gst:manage" | "manufacturing:read" | "manufacturing:manage" | "manufacturing:produce" | "manufacturing:cancel" | "approvals:read" | "approvals:decide" | "approvals:manage" | "bank:read" | "bank:manage" | "bank:reconcile" | "dashboard:read" | "expenses:read" | "expenses:post" | "expenses:cancel" | "expenses:manage" | "retail:read" | "pos:approve" | "retail:manage" | "leads:read" | "leads:write" | "leads:manage")[];
                     /** Format: date-time */
                     expiresAt?: string;
                 };
@@ -14079,6 +14613,865 @@ export interface operations {
             cookie?: never;
         };
         requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    EInvoiceController_pending: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    EInvoiceController_status: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    EInvoiceController_file: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    EInvoiceController_reply: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    EInvoiceController_record: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    EInvoiceController_cancel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    EInvoiceController_ewayCheck: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    EInvoiceController_ewayFile: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    EInvoiceController_ewayRecord: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    EInvoiceController_ewayCancel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    LeadsController_list: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    LeadsController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    LeadsController_counts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    LeadsController_settings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    LeadsController_putSettings: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    LeadsController_putStages: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    LeadsController_connectorList: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    LeadsController_connectorCreate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    LeadsController_connectorDelete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    LeadsController_connectorUpdate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    LeadsController_deliveries: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    LeadsController_connectorTest: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    LeadsController_summary: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    LeadsController_spend: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    LeadsController_saveSpend: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    LeadsController_removeSpend: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    LeadsController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    LeadsController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    LeadsController_stage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    LeadsController_assign: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    LeadsController_activity: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    LeadsController_done: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+                activityId: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    LeadsController_link: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    LeadsController_merge: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    IngestController_website: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    IngestController_google: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    IngestController_metaVerify: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+        };
+    };
+    IngestController_meta: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                key: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": Record<string, never>;
+            };
+        };
         responses: {
             200: {
                 headers: {

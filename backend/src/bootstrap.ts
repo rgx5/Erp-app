@@ -15,7 +15,7 @@ import { createLogger, PinoLoggerService } from './platform/logging/logger.js';
  */
 export async function createApplication(env: Env): Promise<INestApplication> {
   const logger = new PinoLoggerService(createLogger(env));
-  const options = { logger, bodyParser: true };
+  const options = { logger, bodyParser: true, rawBody: true }; // rawBody: a Meta webhook is signed over the exact bytes sent
   const app: INestApplication =
     env.HTTP_ADAPTER === 'node'
       ? await NestFactory.create(AppModule.forRoot(env), new NodeAdapter(), options)

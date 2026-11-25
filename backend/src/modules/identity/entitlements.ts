@@ -4,11 +4,11 @@ import type { Tx } from '../../platform/database/database.js';
 import { AppError } from '../../platform/http/errors.js';
 
 /** The sellable areas of the product. Core (sign-in, users, organisation, master data, the ledger engine, audit) is always on and not listed. */
-export const MODULES = ['sales', 'purchasing', 'inventory', 'pos', 'accounting', 'gst', 'banking', 'approvals', 'manufacturing', 'payroll', 'extras'] as const;
+export const MODULES = ['sales', 'purchasing', 'inventory', 'pos', 'accounting', 'gst', 'banking', 'approvals', 'manufacturing', 'payroll', 'extras', 'leads'] as const;
 export type ModuleName = (typeof MODULES)[number];
 /** A module that needs others to be on as well. */
 export const DEPENDS: Readonly<Record<string, readonly ModuleName[]>> = {
-  pos: ['sales', 'inventory'], gst: ['sales', 'accounting'], banking: ['accounting'], manufacturing: ['inventory'], payroll: ['accounting'],
+  pos: ['sales', 'inventory'], gst: ['sales', 'accounting'], banking: ['accounting'], manufacturing: ['inventory'], payroll: ['accounting'], leads: ['sales'],
 };
 /** The numeric limits a licence may set (a missing limit means no limit). */
 export const LIMIT_KEYS = ['users', 'companies', 'locations', 'terminals', 'sites'] as const;

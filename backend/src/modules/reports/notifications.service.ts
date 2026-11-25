@@ -56,6 +56,12 @@ export class NotificationsService {
       const due = await n(sql`SELECT count(*)::text AS n FROM erp.recurring_invoices WHERE tenant_id = ${tenantId}::uuid AND company_id = ${companyId}::uuid AND status = 'active' AND last_error IS NULL AND next_run_date <= ${today()}::date`);
       if (due > 0) out.push({ id: 'recurring_due', severity: 'info', title: `${due} recurring invoice${due === 1 ? ' is' : 's are'} due`, detail: 'They are raised when someone opens the app, or press "Raise due invoices now".', to: '/sales/recurring', count: due });
     }
+    if (who.can('leads:read') && who.has('leads')) {
+      const late = await n(sql`SELECT count(*)::text AS n FROM erp.leads WHERE tenant_id = ${tenantId}::uuid AND status = 'open' AND first_response_at IS NULL AND sla_due_at < now()`);
+      if (late > 0) out.push({ id: 'leads_late', severity: 'bad', title: `${late} new lead${late === 1 ? ' has' : 's have'} not been contacted in time`, detail: 'Call them: the first few minutes decide whether an enquiry becomes a sale.', to: '/leads', count: late });
+      const follow = await n(sql`SELECT count(*)::text AS n FROM erp.leads WHERE tenant_id = ${tenantId}::uuid AND status = 'open' AND next_follow_up_at < now()`);
+      if (follow > 0) out.push({ id: 'leads_follow_up', severity: 'warn', title: `${follow} lead follow-up${follow === 1 ? ' is' : 's are'} overdue`, detail: 'A task you planned has passed its date.', to: '/leads', count: follow });
+    }
     if (licenceExpiresAt) {
       const days = Math.ceil((Date.parse(licenceExpiresAt) - Date.now()) / 86_400_000);
       if (days <= 14) out.push({ id: 'licence', severity: days <= 3 ? 'bad' : 'warn', title: days < 0 ? 'Your licence has expired' : `Your licence ends in ${days} day${days === 1 ? '' : 's'}`, detail: 'Ask your administrator to renew it.', to: '/account', count: 1 });

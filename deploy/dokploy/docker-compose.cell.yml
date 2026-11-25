@@ -50,6 +50,8 @@ services:
       DATA_ENCRYPTION_KEY: ${DATA_ENCRYPTION_KEY:?set DATA_ENCRYPTION_KEY}
       PLATFORM_ADMIN_TOKEN: ${PLATFORM_ADMIN_TOKEN:?set PLATFORM_ADMIN_TOKEN}
       LICENCE_PUBLIC_KEY: ${LICENCE_PUBLIC_KEY:-}
+      # Lead management: signs Meta (Facebook / Instagram) lead-ad webhook calls. Only needed if clients connect Meta lead forms with the platform's own Meta app; a connector may carry its own.
+      META_APP_SECRET: ${META_APP_SECRET:-}
       SITE_ID: ${SITE_ID:-}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-app://onesync}
       SELF_SIGNUP_ENABLED: "false"
