@@ -1,0 +1,378 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>OneSyncERP – Platform Guide</title>
+<style>
+@page{size:A4;margin:18mm 16mm 18mm 16mm}
+:root{--b:#0551fb;--ink:#1d2433;--mut:#5b6475;--line:#e3e7ee;--bg:#f5f7fb;--ok:#0a7a3d;--warn:#b25e00;--bad:#b3261e}
+*{box-sizing:border-box}body{font:10pt/1.55 "Segoe UI",Helvetica,Arial,sans-serif;color:var(--ink);margin:0}
+h1{font-size:28pt;margin:0 0 6pt;letter-spacing:-.5pt}h2{font-size:16pt;color:var(--b);margin:26pt 0 6pt;padding-bottom:4pt;border-bottom:2px solid var(--b);break-after:avoid}
+h3{font-size:12pt;margin:15pt 0 3pt;break-after:avoid}h4{font-size:10.5pt;margin:12pt 0 3pt;break-after:avoid;color:var(--mut)}p{margin:4pt 0 6pt}ul,ol{margin:3pt 0 8pt;padding-left:17pt}li{margin:2pt 0}
+code{font:9pt Consolas,"Courier New",monospace;background:#eef1f6;padding:0 3pt;border-radius:3pt}
+pre{font:8.6pt/1.45 Consolas,"Courier New",monospace;background:#0f1726;color:#e8ecf4;padding:8pt 10pt;border-radius:5pt;white-space:pre-wrap;break-inside:avoid;margin:6pt 0}
+.cover{height:255mm;display:flex;flex-direction:column;justify-content:center;page-break-after:always}
+.cover img{width:90pt;margin-bottom:24pt}.cover .sub{font-size:14pt;color:var(--mut);max-width:430pt}.cover .meta{margin-top:40pt;color:var(--mut);font-size:10pt}
+.lead{font-size:11pt;color:var(--mut)}
+.card{background:var(--bg);border:1px solid var(--line);border-radius:6pt;padding:8pt 12pt;margin:8pt 0;break-inside:avoid}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10pt}.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8pt}
+table{border-collapse:collapse;width:100%;margin:8pt 0;font-size:9pt}
+th,td{border:1px solid var(--line);padding:3.5pt 6pt;text-align:left;vertical-align:top}th{background:var(--b);color:#fff}tr{break-inside:avoid}
+table.small{font-size:8pt}table.small th,table.small td{padding:2.5pt 5pt}
+.y{color:var(--ok);font-weight:700}.n{color:#9aa1ae}
+.note{border-left:3px solid #d99a00;background:#fff8e6;padding:6pt 10pt;margin:8pt 0;break-inside:avoid}
+.good{border-left:3px solid var(--ok);background:#eefaf2;padding:6pt 10pt;margin:8pt 0;break-inside:avoid}
+.bad{border-left:3px solid var(--bad);background:#fdeeee;padding:6pt 10pt;margin:8pt 0;break-inside:avoid}
+.toc{columns:2;font-size:10pt}.toc li{margin:2pt 0}
+.step{counter-increment:s}.runbook h3{page-break-before:auto}
+.tag{display:inline-block;font-size:8pt;background:#e8efff;color:var(--b);padding:1pt 6pt;border-radius:8pt;font-weight:600}
+.pill-ok{color:var(--ok);font-weight:700}.pill-gap{color:var(--warn);font-weight:700}
+svg text{font-family:"Segoe UI",Helvetica,Arial,sans-serif}
+footer{margin-top:24pt;color:var(--mut);font-size:9pt;border-top:1px solid var(--line);padding-top:6pt}
+</style></head><body>
+
+<div class="cover">
+<img src="../../assets/brand/logo.svg" alt="OneSyncERP">
+<h1>OneSyncERP Platform Guide</h1>
+<div class="sub">How the platform is built, how it keeps each client's data safe and separate, how it is run, and what to do when something goes wrong.</div>
+<div class="meta">For the engineering, operations and support team · Generated {{DATE}} from the code · {{tables}} database tables · {{migrations}} migrations · {{routes}} API operations</div>
+</div>
+
+<h2 style="margin-top:0">Contents</h2>
+<ol class="toc">
+<li>What the platform is</li><li>The pieces and how they fit</li><li>Editions and licensing</li><li>One database, many clients: how data stays separate</li>
+<li>How the application is built</li><li>The desktop application</li><li>Where it runs: deployment models</li><li>Releases, migrations and upgrades</li>
+<li>Protecting the data: backups, recovery, promises</li><li>Protecting other clients: limits and capacity</li><li>Monitoring and alerts</li><li>Security</li>
+<li>Operations runbook</li><li>Quality: how we know it works</li><li>Known gaps and what is next</li><li>Appendices A–F (generated)</li>
+</ol>
+
+<h2>1. What the platform is</h2>
+<p class="lead">OneSyncERP is one product for selling, buying, stock, accounts, GST, payroll, production and leads, for Indian businesses from a single shop counter to a multi-location manufacturer. The same code runs on a client's own server, in a dedicated cloud stack, or in a shared cloud <b>cell</b> that holds about ten clients.</p>
+<div class="grid">
+<div class="card"><b>One codebase, switched by licence</b><br>What differs between clients is where it runs and which modules their licence turns on, never the code. Four editions (Starter, Growth, Enterprise, Manufacturing) are starting points; any licence can be adjusted per client.</div>
+<div class="card"><b>The books are always correct</b><br>Every sale, purchase, stock movement and payroll run posts through one door into an append-only ledger that the database itself checks (debits equal credits, no edits, no deletes). Corrections are reversing entries.</div>
+<div class="card"><b>Isolation enforced by the database</b><br>Each client's rows carry their client id and PostgreSQL's row-level security (forced, on every table) refuses to show one client another's data, even if application code had a bug.</div>
+<div class="card"><b>Offline-capable counter</b><br>The billing counter keeps selling without internet and sends everything to the server when it returns.</div>
+</div>
+
+<h2>2. The pieces and how they fit</h2>
+<svg viewBox="0 0 760 330" width="100%" role="img" aria-label="Platform overview">
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0L10 5L0 10z" fill="#5b6475"/></marker></defs>
+<g font-size="12" fill="#1d2433">
+<rect x="10" y="10" width="230" height="86" rx="8" fill="#e8efff" stroke="#0551fb"/><text x="22" y="32" font-weight="700">Desktop application</text><text x="22" y="52">Electron + React · offline counter</text><text x="22" y="70">printing, import, reports</text>
+<rect x="10" y="130" width="230" height="86" rx="8" fill="#e8efff" stroke="#0551fb"/><text x="22" y="152" font-weight="700">Owner / remote access</text><text x="22" y="172">through the gateway (HTTPS tunnel)</text><text x="22" y="190">no data copied</text>
+<rect x="300" y="10" width="220" height="130" rx="8" fill="#f5f7fb" stroke="#5b6475"/><text x="312" y="32" font-weight="700">Product server ("cell" or site)</text><text x="312" y="52">API (NestJS, stateless)</text><text x="312" y="70">PostgreSQL 16 · row-level security</text><text x="312" y="88">migrate · dump · backup · drill</text><text x="312" y="106">retention · metrics</text>
+<rect x="300" y="170" width="220" height="70" rx="8" fill="#f5f7fb" stroke="#5b6475"/><text x="312" y="192" font-weight="700">Fleet agent (on each site)</text><text x="312" y="210">health, signed updates, backups</text><text x="312" y="226">outbound calls only</text>
+<rect x="570" y="10" width="180" height="108" rx="8" fill="#fff8e6" stroke="#d99a00"/><text x="582" y="32" font-weight="700">Control plane</text><text x="582" y="52">clients, sites, licences</text><text x="582" y="70">signed releases, fleet health</text><text x="582" y="88">staff, audit · no client data</text>
+<rect x="570" y="150" width="180" height="62" rx="8" fill="#fff8e6" stroke="#d99a00"/><text x="582" y="172" font-weight="700">Gateway</text><text x="582" y="190">tunnel for remote use</text>
+<rect x="300" y="270" width="450" height="50" rx="8" fill="#eefaf2" stroke="#0a7a3d"/><text x="312" y="292" font-weight="700">Backup storage (encrypted, at a second provider)</text><text x="312" y="310">pgBackRest repository · base backups + every log segment</text>
+</g>
+<g stroke="#5b6475" stroke-width="1.4" fill="none" marker-end="url(#a)"><path d="M240 53H298"/><path d="M240 173H300"/><path d="M410 140V168"/><path d="M520 190H568"/><path d="M570 80H522"/><path d="M410 240V268"/><path d="M450 140L560 150"/></g>
+</svg>
+<ul>
+<li><b>Backend</b> (<code>backend/</code>): a NestJS modular monolith on PostgreSQL 16. Stateless, so any number of instances can run behind a load balancer.</li>
+<li><b>Desktop client</b> (<code>desktop-client/</code>): Electron + React. Talks only to the API; holds an offline queue for the counter.</li>
+<li><b>Control plane</b> (<code>control-plane/</code>): a small central service that holds <i>no client business data</i>: clients and sites, signed licences, signed releases opened ring by ring, fleet health from agent heartbeats, staff accounts (with two-step sign-in) and their audit trail.</li>
+<li><b>Fleet agent</b> (<code>agent/</code>): runs on every site server, makes outbound calls only. Heartbeats every minute; applies signed releases only inside the site's maintenance window (backup first, migrate, switch, health check, roll back on failure); syncs licences; opens support access only when the client reads out a one-time code.</li>
+<li><b>Gateway</b> (<code>gateway/</code>): carries remote users' requests through the site's outbound HTTPS tunnel. Allows only <code>/v1/*</code> and <code>/health/live</code>, never <code>/v1/platform/*</code>. Stores nothing.</li>
+<li><b>Deployment files</b> (<code>deploy/dokploy/</code>): the cell stack (API, database, migrate, edge proxy, dump, backup, drill, retention), the control-plane stack, and <code>deploy/monitoring/alerts.yml</code>.</li>
+</ul>
+
+<h2>3. Editions and licensing</h2>
+<p>A licence is simply <i>modules + limits</i>, signed (Ed25519) by the control plane and verified by each product server. The editions below are the starting points; the table is generated from the control plane's code. The books (ledger) are always on underneath every edition: "accounting" only licenses the screens and reports, so a small shop gets correct GST, stock and sales postings without ever seeing an accounting screen.</p>
+{{APPENDIX_EDITIONS}}
+<p><b>Service tiers</b> (where the data lives): <i>Local</i> (client server is the system of record; encrypted cloud backup is mandatory), <i>Hybrid</i> (adds remote access through the gateway), <i>Hybrid Plus</i> (adds a live standby for read-only dashboards and failover) and <i>Cloud</i> (the client lives in one of our cells). A read-only licence state (expired, suspended) lets people sign in and read but not write.</p>
+
+<h2>4. One database, many clients: how data stays separate</h2>
+<p>A cell is one PostgreSQL database shared by about ten clients (a "tenant" is a client). The design rules are enforced by the database and by automated tests, not by convention:</p>
+<ul>
+<li><b>Every business table carries <code>tenant_id</code> as the first column of its primary key</b>, and every foreign key includes it, so a row can never reference another client's row.</li>
+<li><b>Row-level security is enabled <i>and forced</i> on every table</b> with one policy: <code>tenant_id = erp.current_tenant_id()</code>, for the application role only. The tenant is set per transaction (<code>set_config(..., true)</code>), so a pooled connection cannot leak a client into the next request. A test fails the build if any table lacks the policy (only <code>outbox_dispatch</code>, <code>schema_migrations</code> and <code>tenant_directory</code> are outside it, deliberately).</li>
+<li><b>The runtime role is weak on purpose</b>: not a superuser, no BYPASSRLS, owns nothing, cannot create objects, and has <i>no DELETE</i> on business tables. The API refuses to start if that role is unsafe.</li>
+<li><b>Per-client variable data</b> (for example each client's lead fields, settings) lives in <code>jsonb</code> columns, so different clients need no different tables or releases.</li>
+<li><b>The audit log and the ledger are append-only</b>: triggers reject UPDATE/DELETE/TRUNCATE for every role.</li>
+</ul>
+<div class="note"><b>What this does not isolate:</b> performance (one client's heavy report shares the cell's CPU and database with the others; see section 10) and the blast radius of a lost cell (all its clients are affected together; see section 9 and the runbook). Each client's data can be copied to another cell exactly, which is the lever for both.</div>
+
+<h2>5. How the application is built</h2>
+<h3>Request path</h3>
+<ol>
+<li>The edge proxy (Caddy) terminates TLS and passes <code>/v1/*</code> to the API.</li>
+<li>Rate limit (optional, per address) → authentication (JWT or API key; default deny: every route must declare itself public or require a permission) → entitlement check (is the module licensed, is the licence read-only) → permission check.</li>
+<li>Interceptors: the per-client concurrency guardrail (section 10) and the request interceptor (request id, security headers, one access-log line, metrics).</li>
+<li>The handler runs inside one database transaction with the client set (<code>uow.inTenant</code>). Posting to the ledger, stock and the audit/outbox all happen in that same transaction, so a document and its accounting either all exist or none do.</li>
+<li>Errors are RFC 9457 problem documents with stable codes.</li>
+</ol>
+<h3>Conventions that keep it correct</h3>
+<ul>
+<li><b>Money and quantities are decimal strings</b>, summed as integers of 1/10,000. No floating point anywhere near an amount; GST and TDS are integer paise arithmetic.</li>
+<li><b>Idempotency</b>: writes accept an <code>Idempotency-Key</code>; a retry returns the first result instead of posting twice (this is what makes the offline counter safe).</li>
+<li><b>Transactional outbox</b>: events are written with the business change and delivered afterwards by a relay (any number of instances may run it; failures retry with back-off and end in dead letters that alert).</li>
+<li><b>One posting door</b> (<code>PostingService</code>) and one stock door (<code>StockService.move</code>): sales, purchases, payroll, manufacturing, POS and manual journals all go through them, so period locks, control accounts and costing rules cannot be bypassed.</li>
+<li><b>Document numbering</b> per registration and financial year, gap-free where the law needs it.</li>
+<li><b>Statutory rules live in code and in the database</b> (GSTIN checksum, HSN/SAC formats, CGST = SGST = IGST/2, place of supply, TDS sections and thresholds), tested separately from the screens.</li>
+</ul>
+<h3>Modules</h3>
+<p>Sales (invoices, notes, orders, quotes, proforma, challan, recurring invoices, reminders), purchasing (orders, receipts, bills, TDS), inventory (stock ledger, batches, serials, reservations, transfers, counts, costing), POS (terminals, shifts, returns, gift cards, loyalty, offline), accounting (chart, periods, Schedule III statements, group consolidation), GST (GSTR-1, GSTR-3B, GSTR-2B reconciliation, GSTR-9 working, ITC register, e-invoice and e-way bill files), banking (statements in OFX/QIF/MT940/Excel, matching, reconciliation), approvals, payroll (statutory rules), manufacturing (BOM, work orders, job work, costing), extras (expenses, attachments, notifications) and leads (website, Meta and Google connectors, pipeline, territories, custom fields, conversion to customer).</p>
+
+<h2>6. The desktop application</h2>
+<ul>
+<li>Electron + React with a typed API client generated from the OpenAPI document; screens call only the API.</li>
+<li><b>Offline counter</b>: items and prices are held locally; sales queue with idempotency keys and flush on reconnect.</li>
+<li><b>Printing</b>: professional minimal documents (dark, heavy type for paper), thermal receipts (58/80 mm), label preview and direct printing; PDFs save to Documents and open in the default viewer.</li>
+<li><b>Import</b>: CSV, JSON, XML, Excel, zip bundles and exports from other accounting software (including <code>.vyb</code>), with column mapping and a dry run, read entirely on the client.</li>
+<li><b>Hardware</b>: cash drawer, serial weighing scale, customer display.</li>
+<li><b>Languages</b>: English, Hindi, Marathi, Gujarati. <b>Updates</b>: signed installers published as releases.</li>
+</ul>
+
+<h2>7. Where it runs: deployment models</h2>
+<table>
+<tr><th>Model</th><th>Data lives</th><th>Backups</th><th>Notes</th></tr>
+<tr><td><b>Local / Hybrid site</b></td><td>The client's own server (Docker: PostgreSQL with pgBackRest, API, proxy, agent)</td><td>Encrypted pgBackRest to 2 cloud repositories plus a local disk; log shipped at least every minute</td><td>Office keeps working if the internet or our cloud is down. Hybrid adds the gateway for remote use.</td></tr>
+<tr><td><b>Pooled cell</b></td><td>One server and database (Dokploy compose) holding about ten clients</td><td>Continuous pgBackRest to S3-compatible storage at another provider, plus daily dump; monthly restore drill</td><td>The cloud offer for small clients. Each cell is independent: one failing does not affect another.</td></tr>
+<tr><td><b>Dedicated cloud</b></td><td>The same stack with one client</td><td>As a cell</td><td>For clients who need isolation of performance and a separate restore.</td></tr>
+</table>
+<p>The control plane and gateway run as their own Dokploy services. Dokploy deploys from the connected Git branch; the stack files are in <code>deploy/dokploy/</code> with a README that includes the troubleshooting list (for example the 502 case: the domain must point at the <code>edge</code> service, port 8080).</p>
+
+<h2>8. Releases, migrations and upgrades</h2>
+<h3>Releases</h3>
+<p>Releases are signed manifests opened ring by ring: ring 0 is our own site, ring 1 friendly sites, ring 2 everyone. A site's agent upgrades only inside its maintenance window; the desktop app reads a <code>MIN_CLIENT_VERSION</code> from the server and asks older apps to update.</p>
+<h3>The migration standard</h3>
+<p>Database changes are forward-only SQL files (<code>backend/db/migrations/NNNN_*.sql</code>, checksummed) run by a separate <code>migrate</code> service as the table-owner role before the new API starts. Because a cell holds years of data for several clients, every migration after 0049 must pass an automated check (<code>src/db/migration-policy.ts</code>, run by the unit tests in CI) that blocks the patterns that lock or rewrite a large table or break the previous release during a rolling deploy:</p>
+<table>
+<tr><th>Blocked</th><th>Why</th><th>Do this instead</th></tr>
+<tr><td>Add a NOT NULL column with no default; a volatile default (<code>now()</code>, random)</td><td>Fails on a table with rows / rewrites the whole table</td><td>Add nullable, backfill in batches, then add the constraint</td></tr>
+<tr><td>Change a column type; SET NOT NULL</td><td>Rewrites or scans the table under a lock</td><td>New column + migrate data; or CHECK ... NOT VALID, VALIDATE, then SET NOT NULL</td></tr>
+<tr><td>Add a CHECK or FOREIGN KEY that validates now</td><td>Validated under a lock</td><td>Add NOT VALID, then VALIDATE CONSTRAINT</td></tr>
+<tr><td>CREATE INDEX on an existing table without CONCURRENTLY</td><td>Blocks writes while it builds</td><td>CONCURRENTLY (outside a transaction)</td></tr>
+<tr><td>Drop column/table, rename, TRUNCATE, LOCK, bulk UPDATE/DELETE</td><td>Breaks the previous release; cannot be undone; long locks</td><td>Stop using it for one release first; batch from a maintenance job</td></tr>
+</table>
+<p>A statement can be waived for a stated reason with a comment on the line before it (<code>-- allow: blocking-index the table has under 10,000 rows</code>); the waiver applies to that one statement. Changes to new tables are not restricted. Roll-back of the <i>code</i> is always possible because database changes only add; roll-back of the <i>data</i> is by restore (section 9).</p>
+<h3>Before a risky migration</h3>
+<ol><li>Take a fresh backup and note its label (<code>pgbackrest info</code>).</li><li>Rehearse on a restored copy of the cell (runbook: <i>Restore the whole cell to a scratch copy</i>) and time it.</li><li>Run during the cell's quiet window; watch <code>erp_http_request_seconds</code> and the pool gauges.</li></ol>
+
+<h2>9. Protecting the data: backups, recovery, promises</h2>
+<h3>What exists, by layer</h3>
+<table>
+<tr><th>Layer</th><th>What it protects against</th><th>Status</th></tr>
+<tr><td>Row-level security + tests</td><td>One client seeing another's data</td><td class="pill-ok">Built and tested</td></tr>
+<tr><td>Append-only ledger and audit; reversing entries</td><td>Silent edits, "who changed this"</td><td class="pill-ok">Built and tested</td></tr>
+<tr><td><b>Continuous backup with point-in-time recovery</b> (pgBackRest, encrypted, S3 at another provider; log shipped at least every 60 s; nightly differential, weekly full; verified; expired by the job)</td><td>Lost server, corruption, a mistake an hour ago</td><td class="pill-ok">Built. Recovery logic proven on a real database (restore to just before a deleted table's rows: 200 of 200 rows back). The S3 variant of the cell stack has not yet run in a Docker daemon: do the first full restore before the first client.</td></tr>
+<tr><td>Daily logical dump (14 kept, same server)</td><td>Operator mistakes; input to the drill</td><td class="pill-ok">Built</td></tr>
+<tr><td><b>Monthly restore drill</b>: loads the newest dump into a scratch database; checks books balance, migrations and clients present; records the result</td><td>Backups that exist but do not restore</td><td class="pill-ok">Built; tested on a good and a corrupted dump</td></tr>
+<tr><td>Per-client exact copy between cells (<code>maintenance:tenant-move</code>)</td><td>Moving a client; restoring one client without touching others</td><td class="pill-ok">Built and tested end to end (counts per table, attachment bytes, sign-in on the new cell)</td></tr>
+<tr><td>Owner-level JSON export</td><td>The client's own copy</td><td class="pill-gap">Limited: no attachments or passwords, and refuses businesses over 200 MB (the capacity run's biggest client was refused)</td></tr>
+<tr><td>Control plane database backup (Dokploy volume backup to S3)</td><td>Losing fleet state and sealed backup keys</td><td class="pill-gap">Configuration step in the README; prove a restore once</td></tr>
+</table>
+<h3>Recovery targets (internal; state them to clients only once the drills have been run on the real servers)</h3>
+<table>
+<tr><th>Situation</th><th>Data you could lose (RPO)</th><th>Time to recover (RTO)</th></tr>
+<tr><td>Cell with continuous backups, cell lost or corrupted</td><td>About 1 minute (log shipping interval, while the backup store is reachable)</td><td>Target: within a working day for a cell of tens of GB. <b>Not yet measured on real hardware:</b> record the first drill's duration here.</td></tr>
+<tr><td>Cell on daily dumps only (no <code>BACKUP_S3_*</code>)</td><td>Up to 24 hours</td><td>Restore time of a dump (the drill records its seconds)</td></tr>
+<tr><td>One client's mistake (wrong data posted, bulk delete)</td><td>Back to any chosen minute in the retention window</td><td>Restore to a scratch copy, copy that one client back (runbook)</td></tr>
+<tr><td>On-premise site, server lost</td><td>About 1 minute while the site had internet; otherwise since the last nightly backup</td><td>New server + restore from the repositories (agent restore command)</td></tr>
+</table>
+<div class="note">A pooled cell's database and its backups should never share a provider. The README requires the bucket to be at a different provider than the VPS, and the alert <code>BackupsNotReporting</code> fires if the backup variables were never set.</div>
+<h3>Retention (housekeeping)</h3>
+<p>A daily job removes expired idempotency keys (grace 24 h), delivered outbox events (30 days) and old sessions (180 days) in batches of 5,000. It never touches the audit log, ledgers or documents. Backups: 4 full and 7 differential kept (configurable).</p>
+
+<h2>10. Protecting other clients: limits and capacity</h2>
+<h3>Per-client guardrails</h3>
+<ul>
+<li>Each client may have at most <code>TENANT_MAX_CONCURRENT</code> (default 60) requests running at once on a cell instance, and at most <code>TENANT_MAX_CONCURRENT_HEAVY</code> (default 4) of the heavy kind (reports, GST and TDS returns, exports, imports, ledgers). Over the limit the API answers <code>429 too_many_concurrent</code> with <code>Retry-After: 2</code>; other clients are unaffected. <code>0</code> turns a limit off.</li>
+<li>Statement timeout 15 s by default so one runaway query cannot hold the database; an optional per-address rate limit.</li>
+<li>Usage per client: <code>GET /v1/platform/tenants/:id/usage</code> (row counts of the tables that grow) and the fleet view's 30-day document and event counts.</li>
+</ul>
+<h3>Capacity run (recorded)</h3>
+{{CAPACITY}}
+<p><b>How to read this:</b> with 2.9 million ledger lines on one database and one client holding 1 million of them, the heaviest statements (trial balance, balance sheet) answer in one to two seconds, and a small client on the same database is not slowed noticeably while the big one runs reports back to back. This is one machine with the ledger as the load; a real cell also has sales documents, stock and audit rows, so repeat the run (<code>npm run capacity</code>, sized by <code>CAPACITY_TENANTS</code>, <code>CAPACITY_ENTRIES</code>, <code>CAPACITY_BIG_ENTRIES</code>) on the actual cell hardware before promising limits. No partitioning or archiving has been built because the run did not show a need at this size; revisit when a client passes roughly 5 million ledger lines or a cell passes about 50 GB.</p>
+<div class="bad"><b>Found by the run:</b> the whole-business JSON export is refused for a very large client (HTTP 413 above 200 MB). Use the client move tool (section 13) for large clients, and do not offer the JSON export as their only exit path.</div>
+
+<h2>11. Monitoring and alerts</h2>
+<p>Each API exposes <code>GET /metrics</code> (Prometheus text, bearer token = <code>PLATFORM_ADMIN_TOKEN</code>; keep it off the public proxy and scrape over the private network). Health: <code>/health/live</code> (process up) and <code>/health/ready</code> (database reachable and migrations at least at this build's head).</p>
+<table>
+<tr><th>Metric</th><th>Meaning</th></tr>
+<tr><td><code>erp_http_requests_total{method,route,status}</code>, <code>erp_http_request_seconds</code></td><td>Traffic, errors and latency by route template</td></tr>
+<tr><td><code>erp_db_pool_connections{state}</code>, <code>erp_db_pool_max</code></td><td>Database pool use; <code>waiting</code> above 0 means requests queue for a connection</td></tr>
+<tr><td><code>erp_inflight_requests{kind}</code>, <code>erp_guardrail_rejections_total{kind}</code></td><td>Running now; clients refused by the per-client limits</td></tr>
+<tr><td><code>erp_outbox_pending</code>, <code>erp_outbox_oldest_pending_seconds</code>, <code>erp_outbox_dead</code></td><td>Event delivery lag and dead letters</td></tr>
+<tr><td><code>erp_database_size_bytes</code>, <code>erp_tenants</code></td><td>Cell size and client count (growth forecasting)</td></tr>
+<tr><td><code>erp_job_reported / erp_job_last_ok / erp_job_last_run_age_seconds{job}</code> for <code>backup, dump, drill, retention</code></td><td>Whether each maintenance job ran, passed, and how long ago</td></tr>
+<tr><td><code>erp_backup_base_age_seconds</code>, <code>erp_backup_wal_age_seconds</code></td><td>Age of the newest base backup and of the newest shipped log segment (the data you could lose right now)</td></tr>
+</table>
+<p>Alert rules are in <code>deploy/monitoring/alerts.yml</code> (15 rules: API down, 5xx rate, slow requests, pool exhausted, clients throttled, outbox backlog and dead letters, backups not reporting / failed / too old, log shipping late, dump failed, restore drill failed or older than 40 days, housekeeping stopped, disk growth). Route <i>page</i> alerts to a person on call and <i>ticket</i> alerts to the next working day. The control plane's fleet screen separately alerts when a site's agent goes silent or its backups are late.</p>
+
+<h2>12. Security</h2>
+<ul>
+<li><b>Sign-in</b>: tenant + email + password (argon2id), optional TOTP two-step with single-use recovery codes, lock-out after repeated failures with identical responses for unknown and wrong accounts. Access tokens are 15-minute Ed25519 JWTs; refresh tokens are opaque, rotating, single-use, with reuse detection.</li>
+<li><b>Authorization</b>: roles hold permissions from a code-defined catalog (Appendix D); default deny; the built-in Owner role has the wildcard. API keys are hashed, shown once, scoped, revocable.</li>
+<li><b>Secrets</b>: <code>DATA_ENCRYPTION_KEY</code> encrypts stored secrets (TOTP seeds, connector keys) with AES-256-GCM bound to tenant and user; production refuses to start without the signing and encryption keys.</li>
+<li><b>Network</b>: TLS at the edge; the API is not exposed except through the edge proxy; <code>/metrics</code> and <code>/v1/platform/*</code> need the platform token; the gateway blocks platform paths and path tricks.</li>
+<li><b>Staff access</b>: control plane staff need two-step sign-in in production; support sessions need a code read out by the client; everything is audited.</li>
+<li><b>Backups are encrypted on the server</b> with a per-client or per-cell key; repositories hold only ciphertext; sites cannot delete their own history; the key escrow is split between two custodians.</li>
+<li><b>Public intake endpoints</b> (lead forms and Meta/Google webhooks) are keyed per connector, signature-checked where the source signs, and size/rate limited.</li>
+</ul>
+
+<div class="runbook">
+<h2>13. Operations runbook</h2>
+<p>Each procedure says when to use it, what you need, the steps, and how to know it worked. Commands assume the cell's compose stack is running on the server (<code>cd</code> to the stack's folder first). Names in <code>&lt;angle brackets&gt;</code> are yours to fill in.</p>
+
+<h3>13.0 Daily and monthly routine</h3>
+<ul>
+<li><b>Daily (5 minutes)</b>: look at the alert channel; open the fleet screen (silent or degraded sites, late backups); glance at <code>erp_backup_wal_age_seconds</code> and <code>erp_job_last_ok</code> for each cell.</li>
+<li><b>Monthly</b>: confirm the restore drill passed on every cell (<code>erp_job_last_ok{job="drill"}</code>); do one <i>manual</i> restore of a random client to a scratch copy and open its reports; review disk growth and the pool/throttle graphs; rotate nothing unless a secret is suspected.</li>
+<li><b>Quarterly</b>: a full cell restore rehearsal from the continuous backups (13.4) with the time written down; update the RTO row in section 9.</li>
+</ul>
+
+<h3>13.1 Check that backups are healthy</h3>
+<ol>
+<li><code>curl -s -H "Authorization: Bearer $PLATFORM_ADMIN_TOKEN" http://127.0.0.1:8081/metrics | grep -E "erp_job|erp_backup"</code></li>
+<li>Expect <code>erp_job_last_ok{job="backup"} 1</code>, <code>erp_backup_wal_age_seconds</code> under 300, <code>erp_backup_base_age_seconds</code> under 90,000 (25 h).</li>
+<li>Details: <code>docker compose exec backup pgbackrest --config=/etc/pgbackrest/pgbackrest.conf --stanza=cell info</code>; integrity: same with <code>verify</code>.</li>
+<li>If log shipping is late: <code>docker compose logs postgres | grep archive</code> (usually bucket credentials, bucket unreachable, or disk full). While archiving fails, write-ahead logs pile up on the database disk: fix quickly or the disk fills.</li>
+</ol>
+
+<h3>13.2 Restore one client to a moment in time (undo a client's mistake)</h3>
+<p><b>Use when:</b> a client (or we) posted or deleted something wrongly and the answer is "go back to 14:20 yesterday" <i>for that client only</i>. Other clients on the cell must keep working and keep everything done since.</p>
+<ol>
+<li><b>Agree the exact time</b> with the client (with time zone). Pick a moment just before the mistake.</li>
+<li><b>Restore the cell to a scratch copy</b> at that time (13.4, steps 1–3 with the <code>time</code> argument). The live cell is not touched.</li>
+<li><b>Look</b> at the scratch copy: <code>psql -h /restore/sock -p 5499 -U postgres -d erp</code>; confirm the client's data is as it was (for example <code>SELECT count(*) FROM erp.sales_invoices WHERE tenant_id = '&lt;id&gt;'</code>).</li>
+<li><b>Choose</b>: (a) <i>Fix forward</i> (usually best): use the scratch copy to read the lost records and re-enter or reverse them in the live system (the ledger is append-only anyway). (b) <i>Replace the client</i>: put the client in read-only (13.6), export the client from the scratch copy (<code>SOURCE_ADMIN_DATABASE_URL="postgresql://postgres@/erp?host=/restore/sock&amp;port=5499" npm run maintenance:tenant-move -- export --tenant &lt;id&gt; --dir move-&lt;id&gt;</code>), import it as a <i>new</i> client slug on the live cell, point the client at it, and keep the old one read-only for the audit trail. The move tool refuses to overwrite an existing client by design.</li>
+<li><b>Tell the client</b> what was restored and what they must re-do (everything entered after the chosen time).</li>
+<li><b>Stop the scratch copy</b> (<code>pg_ctl -D /restore/data stop</code>) and remove its volume.</li>
+</ol>
+<p><b>Success:</b> the client's reports for the affected period match what they expect; the other clients' latest documents are unchanged.</p>
+
+<h3>13.3 Move a client to another cell</h3>
+<p><b>Use when:</b> a cell is full or noisy, a client outgrows pooling, or a cell must be emptied for maintenance. <b>You need:</b> the administrator (superuser) database connection of both cells; both cells at the <i>same release</i> (the tool compares migration heads); the target cell running and licensed in the control plane; time with the client for the cut-over (minutes for a small client, longer for a large one: rehearse).</p>
+<ol>
+<li><b>Prepare the target</b>: the client must not already exist there (same id or slug). Check disk space (the client's size plus 30%) and that the target is at the same migration: <code>npm run db:status</code> on both.</li>
+<li><b>Rehearse</b> without disturbing the client: export (step 4) while they work (the export reads one consistent snapshot), import with <code>--dry-run</code> on the target, which runs the whole load and rolls it back. Note the time each step took.</li>
+<li><b>Freeze</b>: agree a window; put the client's licence in read-only (read the current licence with <code>GET /v1/platform/tenants/&lt;id&gt;/entitlements</code> and <code>PUT</code> the same modules and limits back with <code>readOnly: true</code>), so people can read but nobody writes. Wait for the outbox to drain (<code>erp_outbox_pending</code> = 0).</li>
+<li><b>Export</b> from the source: <code>SOURCE_ADMIN_DATABASE_URL=postgresql://postgres:…@source/erp npm run maintenance:tenant-move -- export --tenant &lt;id&gt; --dir /moves/&lt;slug&gt;</code>. Output: one file per table and a <code>manifest.json</code> with row counts and checksums.</li>
+<li><b>Verify and copy</b>: <code>npm run maintenance:tenant-move -- verify --dir /moves/&lt;slug&gt;</code>; copy the folder to a machine that can reach the target (it contains the client's data: use an encrypted channel and delete it afterwards).</li>
+<li><b>Import</b> on the target: <code>TARGET_ADMIN_DATABASE_URL=… npm run maintenance:tenant-move -- import --dir /moves/&lt;slug&gt;</code>. It runs in one transaction, checks per-table counts and that the ledger balances, and rolls everything back on any difference. Included: all rows, attachments, users and password hashes, licence. Not included: sign-in sessions (people sign in again) and the pending event queue.</li>
+<li><b>Validate</b>: <code>GET /v1/platform/tenants/&lt;id&gt;/validate</code> on the target (ledger balances, entries match lines, owner exists); sign in as the owner and open the trial balance, receivables and a recent invoice; compare to the source.</li>
+<li><b>Switch</b>: in the control plane move the client's site record/address to the target cell; point the DNS or the desktop apps' server address; if the cell is shared, remove the licence from the source. People sign in again with the same passwords.</li>
+<li><b>Keep the source</b> (read-only) for the agreed period (suggest 30 days), then retire it. <b>Retiring is currently a manual database operation</b> (see section 15): do not improvise it on a live cell.</li>
+</ol>
+<p><b>If anything fails before step 8:</b> nothing changed for the client except being read-only: set <code>readOnly: false</code> and stop. The import never partly applies.</p>
+
+<h3>13.4 Restore the whole cell (server lost or corrupted)</h3>
+<ol>
+<li><b>Declare</b> an incident; tell affected clients; note the time. If the server is gone, create a new VPS with the same compose stack and the <i>same variables</i>, including <code>BACKUP_S3_*</code> and <code>BACKUP_CIPHER_PASS</code> (from the secret manager; without the pass phrase the backups cannot be opened).</li>
+<li><b>Restore to a scratch copy first</b>, even in an emergency, to check it is the right moment: on a one-off container of the database image with an empty <code>/restore</code> volume, run <code>pitr-restore.sh</code> (no argument = the newest state; or a time such as <code>"2026-03-14 11:29:00+05:30"</code>). It restores, starts the copy on port 5499 without archiving, and prints how to connect.</li>
+<li><b>Check</b>: <code>psql -h /restore/sock -p 5499 -U postgres -d erp -c "select max(id) from erp.schema_migrations"</code> and a few client row counts; run <code>restore-drill.sh</code>'s checks by hand if in doubt.</li>
+<li><b>Go live</b>: with the application stopped, restore into the real data directory (pgBackRest restore with <code>--delta</code>, same arguments as the scratch restore but <code>pg1-path</code> the real one), start PostgreSQL, wait for recovery to finish (<code>select pg_is_in_recovery()</code> = false), run <code>migrate</code>, start <code>api</code>, check <code>/health/ready</code>.</li>
+<li><b>Re-establish backups immediately</b>: the new timeline needs a new base backup (<code>backup</code> service does it at its first loop; confirm <code>erp_job_last_ok{job="backup"} 1</code>).</li>
+<li><b>Tell clients</b> the time they were restored to; they must re-enter anything after it. Write the incident up, and record the elapsed time in section 9.</li>
+</ol>
+<p>Scratch-copy and PITR logic are tested; the first real run on production hardware is still to be done: do it before the first client goes live.</p>
+
+<h3>13.5 Roll back a release</h3>
+<ol>
+<li><b>Application only</b> (the usual case; database changes only add, so the previous version still runs): in Dokploy open the service's <i>Deployments</i> and redeploy the previous one. On a site, the agent rolls back automatically if the post-upgrade health check fails; to force it, withdraw the release in the control plane (<code>POST /releases/:id/withdraw</code>) so no further site receives it, and redeploy the previous images on the affected sites.</li>
+<li><b>Desktop app</b>: withdraw the installer release; set <code>MIN_CLIENT_VERSION</code> to the last good version only if the bad one must be refused (it forces an update prompt).</li>
+<li><b>Data written by the bad release is wrong</b>: stop. Do not roll the database back. Use 13.2 for the affected clients with a time before the release.</li>
+<li><b>A migration failed half way</b>: the <code>migrate</code> service stops and the API does not start (readiness reports "migrations are behind"); migrations run in a transaction where PostgreSQL allows it. Read the migrate log; fix forward with a new migration. Never edit an applied migration file (its checksum is stored).</li>
+</ol>
+
+<h3>13.6 Suspend, make read-only, reactivate a client</h3>
+<ul>
+<li><b>Suspend</b> (nobody can sign in): <code>POST /v1/platform/tenants/&lt;id&gt;/status {"status":"suspended","reason":"..."}</code>; <b>reactivate</b> with <code>"active"</code>. Both are audited and also available from the control plane.</li>
+<li><b>Read-only</b> (people sign in and read, nothing writes): set the licence <code>readOnly: true</code> (as in 13.3 step 3); an expired licence behaves the same after its grace period (default 14 days).</li>
+</ul>
+
+<h3>13.7 Onboard a new client on a cell</h3>
+<ol>
+<li>In the control plane create the client and site (edition pre-fills the licence). Choose the cell with the most headroom (<code>erp_tenants</code>, <code>erp_database_size_bytes</code>, pool and throttle graphs): about ten per cell.</li>
+<li>Provision on the cell: <code>POST /v1/platform/tenants</code> with name, slug and owner (the agent or an operator does this); import the signed licence.</li>
+<li>Create the company, GST registration, locations and number series; load opening data with the import wizard; run <code>GET /v1/platform/tenants/&lt;id&gt;/validate</code>.</li>
+<li>Give the owner the app, the server address and a first password to change; enable two-step sign-in for owners.</li>
+<li>Within the first week confirm the client's data appears in the monthly drill's client count and in the next backup.</li>
+</ol>
+
+<h3>13.8 Offboard a client</h3>
+<ol>
+<li>Confirm in writing; put the client in read-only; give them their data (the app's export for small clients, otherwise the move tool's folder to a drive).</li>
+<li>Suspend after the agreed period; keep the data for the contract's retention period (backups age out on their own schedule: 4 full backups ≈ one month).</li>
+<li>Purge: <b>manual and not yet scripted</b> (the application role cannot delete). Until it is, schedule it, have a second person approve, take a fresh backup first, and delete the client's rows as the administrator with row counts recorded. Remember backups still contain the client until they expire.</li>
+</ol>
+
+<h3>13.9 Rotate secrets</h3>
+<ul>
+<li><b>Platform token</b>: set a new <code>PLATFORM_ADMIN_TOKEN</code> on every cell and in the agents/control plane; redeploy; the old value stops working immediately.</li>
+<li><b>Signing key</b>: add the old public key to <code>AUTH_JWT_PREVIOUS_PUBLIC_KEYS</code>, set the new private key, redeploy; remove the old key after 30 days (refresh-token lifetime).</li>
+<li><b>Data encryption key</b>: re-encrypting stored secrets is not automated: do not rotate without a migration plan.</li>
+<li><b>Backup pass phrase</b>: changing it makes older backups unreadable by new settings: start a new stanza/repository, keep the old pass phrase with the old repository until it expires.</li>
+<li><b>Bucket keys</b>: create new keys, update the cell variables, redeploy <code>postgres</code> and <code>backup</code>, confirm <code>erp_job_last_ok{job="backup"} 1</code>, revoke the old keys.</li>
+</ul>
+
+<h3>13.10 Incident checklist</h3>
+<table>
+<tr><th>Symptom</th><th>First look</th><th>Likely cause and action</th></tr>
+<tr><td>Everyone gets 502</td><td>Cell logs of <code>edge</code>, <code>api</code>, <code>migrate</code></td><td>Domain not pointed at <code>edge</code> port 8080; <code>api</code> not started because <code>migrate</code> failed; database down</td></tr>
+<tr><td>Slow for everyone</td><td><code>erp_db_pool_connections{state="waiting"}</code>, slow histogram, <code>pg_stat_activity</code></td><td>Pool too small or a runaway query: find it, cancel it (<code>pg_cancel_backend</code>); one client? Check <code>erp_guardrail_rejections_total</code> and the client's usage</td></tr>
+<tr><td>One client complains of "too many requests"</td><td>Guardrail rejections</td><td>They are running several exports/reports at once, or a script loops: ask them to wait; raise <code>TENANT_MAX_CONCURRENT_HEAVY</code> for them only by moving them to their own cell</td></tr>
+<tr><td>Disk filling on the database server</td><td><code>df</code>, <code>pg_wal</code> size, <code>erp_database_size_bytes</code></td><td>Log shipping failing (WAL piling up): fix the bucket credentials/network first; then growth: expand disk or move a client away (13.3)</td></tr>
+<tr><td>Backup alert</td><td>13.1</td><td>Credentials, bucket full/unreachable, pass phrase mismatch; re-run <code>backup</code> after fixing</td></tr>
+<tr><td>Restore drill failed</td><td><code>docker compose logs drill</code>, <code>/status/drill.json</code></td><td>Corrupt or empty dump: take a manual dump and re-run the drill; escalate: <i>backups are unproven</i> until it passes</td></tr>
+<tr><td>Events not delivered</td><td><code>erp_outbox_oldest_pending_seconds</code>, dead letters</td><td>Relay disabled (<code>OUTBOX_RELAY_ENABLED</code>) or a destination failing; dead letters need a decision per event type</td></tr>
+<tr><td>A client says "the numbers are wrong"</td><td><code>GET /v1/platform/tenants/&lt;id&gt;/validate</code></td><td>Ledger and subledger integrity checks pass/fail with counts: fail means stop and escalate; pass means compare the specific report to its source documents</td></tr>
+</table>
+</div>
+
+<h2>14. Quality: how we know it works</h2>
+<ul>
+<li><b>Backend</b>: about 640 automated tests (unit tests plus integration tests that run against a real PostgreSQL 16 as the real restricted role through the real HTTP stack), including: every table has RLS, the schema mirror matches the migrations, migration rules, per-client limits, metrics, the restore and client-move paths, and the statutory calculations.</li>
+<li><b>Desktop client</b>: about 140 unit tests and 53 end-to-end tests (Playwright driving the real app), plus a smoke test of the built Electron app.</li>
+<li><b>Control plane</b> (43 tests), <b>agent</b> (real control plane + real pgBackRest and PostgreSQL when available) and <b>gateway</b> (real tunnel) have their own suites.</li>
+<li><b>Capacity</b> (<code>npm run capacity</code>) and <b>perf</b> baselines are opt-in runs; results above.</li>
+<li><b>Restore drill</b> runs monthly in production by itself.</li>
+</ul>
+<div class="note"><b>Not yet verified on real systems:</b> installers on real Windows and Mac machines (direct print, default PDF viewer, window controls), live Meta and Google lead delivery, a real Vyapar export, the S3 variant of the cell stack in a Docker daemon, a first full restore on production hardware, native-language text review (Hindi, Marathi, Gujarati), and the Meta app's approval.</div>
+
+<h2>15. Known gaps and what is next</h2>
+<table>
+<tr><th>Gap</th><th>Effect</th><th>Plan</th></tr>
+<tr><td>Client offboarding purge is manual</td><td>Needs a second person and care</td><td>Script it: export, verify, delete by tenant as administrator with counts, audited</td></tr>
+<tr><td>Moving a client needs the administrator database connection and a read-only window</td><td>Operator task, not self-service</td><td>Wrap in a control-plane action that sequences freeze, copy, validate, switch</td></tr>
+<tr><td>No automatic fail-over for a pooled cell</td><td>Recovery is a restore (RTO hours)</td><td>A streaming standby per cell if the RTO promise must shrink</td></tr>
+<tr><td>Throttling is per API instance</td><td>With several instances the limit multiplies</td><td>A shared counter only if more than one API instance per cell is run</td></tr>
+<tr><td>No partitioning or archiving of old ledger rows</td><td>Fine at the measured size</td><td>Revisit above about 5 million ledger lines per client or 50 GB per cell</td></tr>
+<tr><td>Data encryption key rotation is not automated</td><td>A leaked key means a manual re-encryption project</td><td>Key versioning and a re-encrypt job</td></tr>
+<tr><td>Multi-currency, two-way multi-site sync, TCS on sales, Meta/Google conversion upload, automatic WhatsApp to leads, a field survey app</td><td>Not offered</td><td>Each needs design; multi-currency touches every posting</td></tr>
+</table>
+
+<h2>Appendix A – Modules, editions and limits</h2>
+<p>(Generated from <code>control-plane/src/{modules,plans}.ts</code>; shown in section 3.)</p>
+
+<h2>Appendix B – Database tables by migration</h2>
+<p>{{tables}} tables across {{migrations}} migrations. Every table is tenant-scoped with row-level security except the three listed in section 4.</p>
+{{APPENDIX_TABLES}}
+
+<h2>Appendix C – API operations</h2>
+<p>{{routes}} operations, grouped by area (generated from <code>backend/docs/openapi.json</code>). Authentication is a bearer token (user session or API key) except public routes; platform routes use the platform token.</p>
+{{APPENDIX_API}}
+
+<h2>Appendix D – Permissions</h2>
+<p>{{permissions}} permissions in the catalog (<code>backend/src/modules/identity/permissions.ts</code>). Roles are sets of these; the built-in Owner holds all.</p>
+{{APPENDIX_PERMS}}
+
+<h2>Appendix E – Server settings (environment variables)</h2>
+<p>{{env}} settings validated at start-up (<code>backend/src/config/env.ts</code>). Production requires the signing key and the data-encryption key.</p>
+{{APPENDIX_ENV}}
+
+<h2>Appendix F – Where things are in the repository</h2>
+<table class="small">
+<tr><th>Path</th><th>What</th></tr>
+<tr><td><code>backend/src/modules/*</code></td><td>Business modules (one folder per module: controller, service, logic, schema mirror)</td></tr>
+<tr><td><code>backend/src/platform/*</code></td><td>Database access and tenant context, HTTP plumbing, health, metrics and guardrails, audit/outbox/idempotency</td></tr>
+<tr><td><code>backend/db/migrations</code>, <code>backend/src/db/migration-policy.ts</code></td><td>Forward-only SQL and the rules new migrations must follow</td></tr>
+<tr><td><code>backend/src/maintenance</code>, <code>backend/scripts</code></td><td>Retention, restore-from-export, client move, perf and capacity helpers</td></tr>
+<tr><td><code>backend/test/integration</code>, <code>backend/test/capacity</code></td><td>Real-database tests; opt-in capacity run</td></tr>
+<tr><td><code>desktop-client/</code></td><td>Electron + React application</td></tr>
+<tr><td><code>control-plane/</code>, <code>agent/</code>, <code>gateway/</code></td><td>Fleet management, site agent (including pgBackRest handling), remote-access gateway</td></tr>
+<tr><td><code>deploy/dokploy/</code>, <code>deploy/dokploy/cell/scripts</code></td><td>Cell and control-plane stacks; entrypoint, backup loop, restore drill, point-in-time restore scripts</td></tr>
+<tr><td><code>deploy/monitoring/alerts.yml</code></td><td>Prometheus alert rules</td></tr>
+<tr><td><code>docs/platform</code></td><td>This guide, its generator (<code>build-guide.mjs</code>) and the recorded capacity results</td></tr>
+</table>
+<footer>OneSyncERP Platform Guide · generated {{DATE}} · regenerate with <code>node docs/platform/build-guide.mjs</code> and <code>node docs/platform/render-pdf.cjs</code>.</footer>
+</body></html>

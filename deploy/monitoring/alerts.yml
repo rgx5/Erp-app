@@ -27,7 +27,7 @@ groups:
         expr: increase(erp_guardrail_rejections_total[15m]) > 20
         for: 0m
         labels: { severity: ticket }
-        annotations: { summary: "Clients are being refused for running too much at once: check who (the logs name the tenant) and whether the limit or the client's use is the problem" }
+        annotations: { summary: "Clients are being refused for running too much at once: find which client from its usage (GET /v1/platform/tenants/:id/usage) and whether the limit or the client's use is the problem" }
       - alert: OutboxBacklog
         expr: erp_outbox_oldest_pending_seconds > 600
         for: 10m
