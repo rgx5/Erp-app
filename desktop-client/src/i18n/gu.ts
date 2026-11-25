@@ -1,6 +1,6 @@
 /** Gujarati. Keys are the English text shown on screen. */
 export const gu: Record<string, string> = {
-  Dashboard: 'ડેશબોર્ડ', Setup: 'સેટઅપ', Quotes: 'ક્વોટેશન', 'Sales orders': 'વેચાણ ઓર્ડર', Invoices: 'ઇન્વૉઇસ', Receipts: 'રસીદો', 'Payment reminders': 'ચુકવણી રિમાઇન્ડર',
+  Dashboard: 'ડેશબોર્ડ', Setup: 'સેટઅપ', Quotes: 'ક્વોટેશન', 'Sales orders': 'વેચાણ ઓર્ડર', Invoices: 'ઇન્વૉઇસ', 'Cheques received': 'મળેલા ચેક', 'Cheques issued': 'આપેલા ચેક', Receipts: 'રસીદો', 'Payment reminders': 'ચુકવણી રિમાઇન્ડર',
   TDS: 'ટીડીએસ',
   Leads: 'લીડ', 'Lead reports': 'લીડ રિપોર્ટ', 'Lead sources': 'લીડ સ્ત્રોત', 'Lead settings': 'લીડ સેટિંગ્સ',
   'E-invoicing': 'ઈ-ઇનવોઇસિંગ', 'E-invoice': 'ઈ-ઇનવોઇસ',

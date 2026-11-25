@@ -159,7 +159,7 @@ function SalesDocEditor({ kind }: { kind: DocKind }) {
         </div>
       </Card>
 
-      <LineGrid lines={lines} onChange={setLines} warehouses={ws.warehouses} computed={computed as { taxableValue: string; lineTotal: string }[]} />
+      <LineGrid partyId={customer?.id} lines={lines} onChange={setLines} warehouses={ws.warehouses} computed={computed as { taxableValue: string; lineTotal: string }[]} />
       <Button variant="ghost" className="self-start" onClick={() => setLines([...lines, emptyLine(whId)])}>+ Add line</Button>
 
       <div className="sticky bottom-0 z-10 -mx-6 -mb-5 mt-2 flex items-center gap-6 border-t border-line-strong bg-surface px-6 py-3">

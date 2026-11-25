@@ -12,6 +12,7 @@ import { AttachmentsPanel } from '@/features/attachments/AttachmentsPanel'
 import { Drawer } from '@/ui/Drawer'
 import { Alert, Button, Card, Spinner } from '@/ui/primitives'
 import { PartyForm, roleLabel } from './PartyForm'
+import { PartyRatesTab } from './PartyRatesTab'
 import { usePartyAddresses, useParty } from './queries'
 
 const fyStart = (): string => { const d = new Date(); const y = d.getMonth() >= 3 ? d.getFullYear() : d.getFullYear() - 1; return `${y}-04-01` }
@@ -52,7 +53,7 @@ function Stat({ label, value, tone, note }: { label: string; value: string; tone
   )
 }
 
-type Tab = 's-activity' | 's-invoices' | 's-receipts' | 's-quotes' | 's-orders' | 's-challans' | 'p-activity' | 'p-bills' | 'p-payments' | 'p-orders' | 'p-receipts'
+type Tab = 'rates' | 's-activity' | 's-invoices' | 's-receipts' | 's-quotes' | 's-orders' | 's-challans' | 'p-activity' | 'p-bills' | 'p-payments' | 'p-orders' | 'p-receipts'
 
 /** One customer or supplier: what they owe or are owed, and every document with them, from the first quotation to the last payment. */
 export function PartyDetailPage() {
@@ -91,6 +92,7 @@ function PartyDetail({ partyId }: { partyId: string }) {
     const both = sellOn && buyOn
     if (sellOn) t.push({ id: 's-activity', label: both ? 'Sales ledger' : 'Ledger' }, { id: 's-invoices', label: 'Invoices & notes' }, { id: 's-receipts', label: 'Receipts' }, { id: 's-quotes', label: 'Quotes' }, { id: 's-orders', label: 'Sales orders' }, { id: 's-challans', label: 'Challans' })
     if (buyOn) t.push({ id: 'p-activity', label: both ? 'Purchase ledger' : 'Ledger' }, { id: 'p-bills', label: 'Bills & notes' }, { id: 'p-payments', label: 'Payments' }, { id: 'p-orders', label: 'Purchase orders' }, { id: 'p-receipts', label: 'Goods received' })
+    if (sellOn || buyOn) t.push({ id: 'rates', label: 'Special rates' })
     return t
   }, [sellOn, buyOn])
 
@@ -152,6 +154,7 @@ function PartyDetail({ partyId }: { partyId: string }) {
           <div role="tablist" className="-mx-4 mb-4 flex flex-wrap gap-1 border-b border-line px-4">
             {tabs.map((t) => <button key={t.id} role="tab" aria-selected={active === t.id} onClick={() => setTab(t.id)} className={`-mb-px border-b-2 px-3.5 py-2.5 text-[13px] ${active === t.id ? 'border-brand font-semibold text-ink' : 'border-transparent text-muted hover:text-ink'}`}>{t.label}</button>)}
           </div>
+          {active === 'rates' ? <PartyRatesTab partyId={partyId} canWrite={can(perms, 'pricing:manage')} buying={buyOn && !sellOn} /> : null}
           {active === 's-activity' ? ledger(stmt.data, stmt.isPending, 'owed to you') : null}
           {active === 'p-activity' ? ledger(sstmt.data, sstmt.isPending, 'owed by you') : null}
           {active === 's-invoices' ? <DocTable loading={invoices.isPending && Boolean(companyId)} rows={invoices.rows} rowKey={(r) => r.id} hasMore={Boolean(invoices.hasNextPage)} more={() => void invoices.fetchNextPage()} empty="No invoices yet." onOpen={(r) => void navigate({ to: '/sales/invoices/$invoiceId', params: { invoiceId: r.id } })}

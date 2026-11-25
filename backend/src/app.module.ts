@@ -30,6 +30,7 @@ import { HealthModule } from './platform/health/health.module.js';
 import { ProblemDetailsFilter } from './platform/http/problem-details.filter.js';
 import { EventsModule } from './platform/events/events.module.js';
 import { OpeningBalancesModule } from './modules/opening/opening.module.js';
+import { ChequesModule } from './modules/cheques/cheques.module.js';
 import { MetricsModule } from './platform/metrics/metrics.module.js';
 import { RequestInterceptor } from './platform/http/request.interceptor.js';
 import { PlatformServicesModule } from './platform/services/platform-services.module.js';
@@ -55,6 +56,6 @@ export class CoreModule {
 @Module({})
 export class AppModule {
   static forRoot(env: Env): DynamicModule {
-    return { module: AppModule, imports: [CoreModule.forRoot(env), RateLimitModule, MetricsModule, EventsModule, DatabaseModule, PlatformServicesModule, HealthModule, IdentityModule, OrganizationModule, AuditModule, NumberingModule, MasterDataModule, AccountingModule, InventoryModule, SalesModule, OpeningBalancesModule, EInvoiceModule, LeadsModule, PosModule, PurchasingModule, ManufacturingModule, GstModule, PayrollModule, ApprovalsModule, BankingModule, DashboardModule, ReportsModule, AttachmentsModule, DemoModule, SetupModule, RetailModule] };
+    return { module: AppModule, imports: [CoreModule.forRoot(env), RateLimitModule, MetricsModule, EventsModule, DatabaseModule, PlatformServicesModule, HealthModule, IdentityModule, OrganizationModule, AuditModule, NumberingModule, MasterDataModule, AccountingModule, InventoryModule, SalesModule, OpeningBalancesModule, ChequesModule, EInvoiceModule, LeadsModule, PosModule, PurchasingModule, ManufacturingModule, GstModule, PayrollModule, ApprovalsModule, BankingModule, DashboardModule, ReportsModule, AttachmentsModule, DemoModule, SetupModule, RetailModule] };
   }
 }

@@ -172,9 +172,10 @@ export class PricingController {
   async price(@TenantId() t: string, @Param('id', { schema: id }) i: string, @Query({ schema: s.resolvePriceQuery }) q: z.infer<typeof s.resolvePriceQuery>) { return out(await this.pricing.resolve(t, { priceListId: i, ...q })); }
 }
 
+import { PartyRatesController, PartyRatesService } from './party-rates.service.js';
 @Module({
-  controllers: [CatalogController, ItemsController, BarcodesController, CategoriesController, PartiesController, PricingController],
-  providers: [Recorder, CatalogService, ItemsService, PartiesService, PricingService],
+  controllers: [CatalogController, ItemsController, BarcodesController, CategoriesController, PartiesController, PricingController, PartyRatesController],
+  providers: [Recorder, CatalogService, ItemsService, PartiesService, PricingService, PartyRatesService],
   exports: [CatalogService, ItemsService, PartiesService, PricingService],
 })
 export class MasterDataModule {}

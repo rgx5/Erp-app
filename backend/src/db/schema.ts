@@ -17,3 +17,5 @@ export * from '../modules/attachments/attachments.schema.js';
 export * from '../modules/einvoice/einvoice.schema.js';
 export * from '../modules/leads/leads.schema.js';
 export * from '../modules/purchasing/tds.schema.js';
+export * from '../modules/masterdata/party-rates.schema.js';
+export * from '../modules/cheques/cheques.schema.js';

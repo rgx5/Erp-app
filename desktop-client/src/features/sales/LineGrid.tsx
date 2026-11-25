@@ -4,6 +4,7 @@ import type { Item, Warehouse } from '@/api/schemas'
 import { formatInr } from '@/domain/format'
 import { useDebounced } from '@/ui/hooks'
 import { cn } from '@/ui/cn'
+import { suggestPrice } from '@/features/masterdata/partyRates'
 import { useItems } from '@/features/masterdata/queries'
 import { useBatches } from '@/features/inventory/trackingQueries'
 
@@ -88,7 +89,9 @@ function ItemCell({ line, onPick, onClear, autoFocus, buying, serviceOnly }: { l
  * The invoice lines: a keyboard-first grid. Enter moves right and then down; Enter on the last cell of the last row adds a row;
  * the arrow keys choose in the item list. Amounts shown beside each line come from the server (`computed`), not from this screen.
  */
-export function LineGrid({ lines, onChange, warehouses, computed, readOnly, buying = false, serviceOnly = false }: {
+export function LineGrid({ lines, onChange, warehouses, computed, readOnly, buying = false, serviceOnly = false, partyId }: {
+  /** When the customer (or supplier) is known, an item's price starts from what was agreed with them, or what they were last charged. */
+  partyId?: string | undefined
   /** Only items that are not stocked (services, charges): for bill lines that are not goods received. */
   serviceOnly?: boolean
   /** Buying: items you can purchase, no GST-inclusive switch, and the amount column shows the order value before tax. */
@@ -103,6 +106,16 @@ export function LineGrid({ lines, onChange, warehouses, computed, readOnly, buyi
   const [focusKey, setFocusKey] = useState<string | null>(null)
   useEffect(() => { if (focusKey) setFocusKey(null) }, [focusKey])
   const patch = (key: string, p: Partial<Line>): void => onChange(lines.map((l) => (l.key === key ? { ...l, ...p } : l)))
+  const latest = useRef(lines); latest.current = lines
+  /** Fills the price of a freshly chosen item, unless the person has already typed one in the meantime. */
+  function prefill(key: string, item: Item): void {
+    if (!partyId) return
+    void suggestPrice(partyId, item.id, buying ? 'purchase' : 'sales').then((s) => {
+      if (!s.price) return
+      const price = String(Number(s.price))
+      onChange(latest.current.map((l) => (l.key === key && l.item?.id === item.id && (l.unitPrice === '' || l.unitPrice === '0') ? { ...l, unitPrice: price, ...(buying ? {} : { taxInclusive: s.taxInclusive }) } : l)))
+    }).catch(() => undefined)
+  }
 
   function enter(e: KeyboardEvent<HTMLInputElement>, index: number) {
     if (e.key !== 'Enter') return
@@ -124,7 +137,7 @@ export function LineGrid({ lines, onChange, warehouses, computed, readOnly, buyi
         return (
           <div key={l.key} className="border-b border-line/60 last:border-0">
           <div className="grid grid-cols-[2.2fr_0.7fr_0.9fr_0.7fr_0.5fr_1fr_1fr_32px] items-center gap-1 px-2 py-1">
-            <ItemCell buying={buying} serviceOnly={serviceOnly} line={l} autoFocus={focusKey === l.key} onPick={(item) => patch(l.key, { item, description: item.name, taxInclusive: l.taxInclusive })} onClear={() => patch(l.key, { item: null })} />
+            <ItemCell buying={buying} serviceOnly={serviceOnly} line={l} autoFocus={focusKey === l.key} onPick={(item) => { patch(l.key, { item, description: item.name, taxInclusive: l.taxInclusive }); prefill(l.key, item) }} onClear={() => patch(l.key, { item: null })} />
             <input data-nav aria-label="Quantity" inputMode="decimal" className={cn(cell, 'num text-right')} value={l.quantity} onChange={(e) => patch(l.key, { quantity: e.target.value })} onKeyDown={(e) => enter(e, i)} disabled={readOnly} />
             <input data-nav aria-label="Price" inputMode="decimal" className={cn(cell, 'num text-right')} value={l.unitPrice} onChange={(e) => patch(l.key, { unitPrice: e.target.value })} onKeyDown={(e) => enter(e, i)} disabled={readOnly} />
             <input data-nav aria-label="Discount percent" inputMode="decimal" className={cn(cell, 'num text-right')} value={l.discountPercent} onChange={(e) => patch(l.key, { discountPercent: e.target.value })} onKeyDown={(e) => enter(e, i)} disabled={readOnly} />

@@ -86,7 +86,7 @@ export function PurchaseOrderEditorPage() {
           <TextField label="Notes (optional)" value={notes} onChange={(e) => setNotes(e.target.value)} />
         </div>
       </Card>
-      <LineGrid buying lines={lines} onChange={setLines} warehouses={ws.warehouses} computed={values.map((v) => (v ? { taxableValue: v, lineTotal: '0' } : undefined)) as { taxableValue: string; lineTotal: string }[]} />
+      <LineGrid buying partyId={supplier?.id} lines={lines} onChange={setLines} warehouses={ws.warehouses} computed={values.map((v) => (v ? { taxableValue: v, lineTotal: '0' } : undefined)) as { taxableValue: string; lineTotal: string }[]} />
       <Button variant="ghost" className="self-start" onClick={() => setLines([...lines, emptyLine(whId)])}>+ Add line</Button>
       <div className="grid grid-cols-[1fr_320px] gap-4">
         <div className="flex flex-col gap-2">
