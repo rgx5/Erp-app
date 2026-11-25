@@ -40,22 +40,15 @@ function DocTable<T>({ rows, cols, rowKey, onOpen, loading, hasMore, more, empty
   )
 }
 
-/** One number, coloured by what it means: red when something is late, amber when money is due, green when nothing is owed. */
-function Balance({ label, amount, overdue, clear, extra }: { label: string; amount: string; overdue: number; clear: string; extra: { tone: 'bad' | 'good'; text: string }[] }) {
-  const owed = Number(amount) > 0
-  const tone = overdue > 0 ? 'bad' : owed ? 'warn' : 'good'
-  const box = tone === 'bad' ? 'border-bad/40 bg-bad-soft' : tone === 'warn' ? 'border-warn/40 bg-warn-soft' : 'border-good/40 bg-good-soft'
-  const ink = tone === 'bad' ? 'text-bad' : tone === 'warn' ? 'text-warn' : 'text-good'
+/** The same cards as ever; the colour says what to do: red = late, amber = money due, green = fine, grey = nothing to see. */
+function Stat({ label, value, tone, note }: { label: string; value: string; tone: 'bad' | 'warn' | 'good' | 'plain'; note?: string | undefined }) {
+  const box = { bad: 'border-bad/40 bg-bad-soft', warn: 'border-warn/40 bg-warn-soft', good: 'border-good/40 bg-good-soft', plain: 'border-line bg-surface' }[tone]
+  const ink = { bad: 'text-bad', warn: 'text-warn', good: 'text-good', plain: 'text-ink' }[tone]
   return (
-    <div className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border px-5 py-4 ${box}`}>
-      <div>
-        <p className="text-xs text-muted">{label}</p>
-        <p className={`num text-3xl font-semibold tracking-tight ${ink}`}>{owed ? formatInr(amount) : clear}</p>
-      </div>
-      <div className="flex flex-col items-end gap-1 text-xs font-medium">
-        {overdue > 0 ? <span className="rounded-full bg-bad px-2.5 py-0.5 text-white">{formatInr(String(overdue))} late</span> : null}
-        {extra.map((e) => <span key={e.text} className={e.tone === 'bad' ? 'rounded-full bg-bad px-2.5 py-0.5 text-white' : 'text-good'}>{e.text}</span>)}
-      </div>
+    <div className={`rounded-lg border px-4 py-3 ${box}`}>
+      <p className="text-xs text-muted">{label}</p>
+      <p className={`num mt-0.5 text-xl font-semibold ${ink}`}>{value}</p>
+      {note ? <p className={`text-xs ${tone === 'bad' ? 'font-medium text-bad' : 'text-muted'}`}>{note}</p> : null}
     </div>
   )
 }
@@ -139,8 +132,21 @@ function PartyDetail({ partyId }: { partyId: string }) {
         </div>
       </header>
 
-      {sellOn ? <Balance label="They owe you" amount={pos.data?.totalOutstanding ?? '0'} overdue={overdue} clear="All paid" extra={[...(pos.data?.creditLimitExceeded ? [{ tone: 'bad' as const, text: 'Over credit limit' }] : []), ...(Number(pos.data?.totalUnapplied ?? 0) > 0 ? [{ tone: 'good' as const, text: `${formatInr(pos.data?.totalUnapplied ?? '0')} paid in advance` }] : [])]} /> : null}
-      {buyOn ? <Balance label="You owe them" amount={spos.data?.totalOutstanding ?? '0'} overdue={sOverdue} clear="All paid" extra={Number(spos.data?.totalUnapplied ?? 0) > 0 ? [{ tone: 'good' as const, text: `${formatInr(spos.data?.totalUnapplied ?? '0')} paid in advance` }] : []} /> : null}
+      {sellOn || buyOn ? (
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+          {sellOn ? <>
+            <Stat label="They owe you" value={formatInr(pos.data?.totalOutstanding ?? '0')} tone={overdue > 0 ? 'bad' : Number(pos.data?.totalOutstanding ?? 0) > 0 ? 'warn' : 'good'} {...(overdue > 0 ? { note: `${formatInr(String(overdue))} overdue` } : {})} />
+            <Stat label="Unapplied receipts and credits" value={formatInr(pos.data?.totalUnapplied ?? '0')} tone={Number(pos.data?.totalUnapplied ?? 0) > 0 ? 'good' : 'plain'} />
+            <Stat label="Net balance" value={formatInr(pos.data?.balance ?? '0')} tone={Number(pos.data?.balance ?? 0) > 0 ? (overdue > 0 ? 'bad' : 'warn') : 'good'} note="Positive: they owe you" />
+            <Stat label="Credit limit" value={pos.data?.customer.creditLimit && Number(pos.data.customer.creditLimit) ? formatInr(pos.data.customer.creditLimit) : 'None set'} tone={pos.data?.creditLimitExceeded ? 'bad' : 'plain'} {...(pos.data?.creditLimitExceeded ? { note: 'Limit exceeded' } : {})} />
+          </> : null}
+          {buyOn ? <>
+            <Stat label="You owe them" value={formatInr(spos.data?.totalOutstanding ?? '0')} tone={sOverdue > 0 ? 'bad' : Number(spos.data?.totalOutstanding ?? 0) > 0 ? 'warn' : 'good'} {...(sOverdue > 0 ? { note: `${formatInr(String(sOverdue))} overdue` } : {})} />
+            <Stat label="Unapplied payments and credits" value={formatInr(spos.data?.totalUnapplied ?? '0')} tone={Number(spos.data?.totalUnapplied ?? 0) > 0 ? 'good' : 'plain'} />
+            <Stat label="Net payable" value={formatInr(spos.data?.balance ?? '0')} tone={Number(spos.data?.balance ?? 0) > 0 ? (sOverdue > 0 ? 'bad' : 'warn') : 'good'} />
+          </> : null}
+        </div>
+      ) : null}
       {!sellOn && !buyOn ? <Alert tone="info">This is a party with no customer or supplier role you can see documents for. Use Edit details to change its role.</Alert> : null}
 
       {tabs.length > 0 ? (
