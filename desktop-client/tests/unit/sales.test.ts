@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import type { Invoice, Party, Item } from '@/api/schemas'
 import { emptyLine, type Line } from '@/features/sales/LineGrid'
 import { buildInvoiceBody } from '@/features/sales/InvoiceEditorPage'
-import { invoiceHtml } from '@/features/sales/invoiceHtml'
+import { DOC_CSS, invoiceHtml } from '@/features/sales/invoiceHtml'
 
 const customer = { id: 'c1', code: 'C1', legalName: 'Asha', gstTreatment: 'registered_regular' } as Party
 const sez = { ...customer, id: 'c2', gstTreatment: 'sez' } as Party
@@ -76,5 +76,19 @@ describe('document layout', () => {
   it('puts the HSN code under the description and the rate with its tax in one column', () => {
     const html = invoiceHtml(base, seller, undefined)
     expect(html).toContain('HSN/SAC 8479'); expect(html).toContain('18%')
+  })
+})
+
+describe('printed legibility', () => {
+  const luminance = (hex: string): number => { const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)); return 0.2126 * (c[0] as number) + 0.7152 * (c[1] as number) + 0.0722 * (c[2] as number) }
+  it('every text colour is dark enough for paper (contrast against white of at least 7:1)', () => {
+    const colours = [...DOC_CSS.matchAll(/(?<![-\w])color:\s*(#[0-9a-f]{6})/gi)].map((m) => m[1] as string)
+    expect(colours.length).toBeGreaterThan(5)
+    for (const c of colours) expect(1.05 / (luminance(c) + 0.05), c).toBeGreaterThanOrEqual(7)
+  })
+  it('no text is smaller than 9px and the body is not a light weight', () => {
+    for (const m of DOC_CSS.matchAll(/font-size:\s*([\d.]+)px/g)) expect(Number(m[1])).toBeGreaterThanOrEqual(9)
+    expect(DOC_CSS).toMatch(/body \{[^}]*font: 500 /)
+    expect(DOC_CSS).not.toMatch(/font-weight:\s*(100|200|300|400)\b/)
   })
 })

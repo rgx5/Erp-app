@@ -23,30 +23,31 @@ export interface DocOptions { title?: string; numberLabel?: string; note?: strin
 export const DOC_CSS = `
   @page { size: A4; margin: 14mm 15mm; }
   * { box-sizing: border-box; }
-  body { margin: 0; color: #1c1f23; font: 10.5px/1.5 "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .muted { color: #6b7280; } .r { text-align: right; } .num { font-variant-numeric: tabular-nums; }
+  body { margin: 0; color: #000; font: 500 11px/1.5 "Segoe UI", "Helvetica Neue", Helvetica, Arial, sans-serif; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  b, .strong { font-weight: 700; } .muted b { color: #000; }
+  .muted { color: #374151; } .r { text-align: right; } .num { font-variant-numeric: tabular-nums; }
   .head { display: flex; justify-content: space-between; align-items: flex-start; gap: 24px; padding-bottom: 14px; border-bottom: 2px solid #1f3a5f; }
-  .seller .name { font-size: 16px; font-weight: 600; letter-spacing: .1px; } .seller div + div { margin-top: 1px; }
-  .title { text-align: right; } .title .kind { font-size: 11px; font-weight: 600; letter-spacing: 1.6px; text-transform: uppercase; color: #1f3a5f; }
-  .title .no { font-size: 17px; font-weight: 600; margin: 2px 0 6px; }
-  .meta { display: grid; grid-template-columns: auto auto; gap: 1px 14px; justify-content: end; } .meta dt { color: #6b7280; text-align: right; } .meta dd { margin: 0; text-align: right; }
-  .parties { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 24px; padding: 14px 0; border-bottom: 1px solid #e5e7eb; }
-  .label { font-size: 8.5px; font-weight: 600; letter-spacing: 1.2px; text-transform: uppercase; color: #6b7280; margin-bottom: 3px; } .strong { font-weight: 600; font-size: 11.5px; }
-  .note { margin-top: 12px; padding: 5px 10px; border-left: 2px solid #1f3a5f; background: #f6f7f9; color: #374151; }
+  .seller .name { font-size: 17px; font-weight: 700; } .seller div + div { margin-top: 1px; }
+  .title { text-align: right; } .title .kind { font-size: 12px; font-weight: 700; letter-spacing: 1.4px; text-transform: uppercase; color: #1f3a5f; }
+  .title .no { font-size: 18px; font-weight: 700; margin: 2px 0 6px; }
+  .meta { display: grid; grid-template-columns: auto auto; gap: 1px 14px; justify-content: end; } .meta dt { color: #374151; text-align: right; } .meta dd { margin: 0; text-align: right; font-weight: 600; }
+  .parties { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 24px; padding: 14px 0; border-bottom: 1px solid #6b7280; }
+  .label { font-size: 9.5px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #1f2937; margin-bottom: 3px; } .strong { font-size: 12px; }
+  .note { margin-top: 12px; padding: 5px 10px; border-left: 3px solid #1f3a5f; background: #eef0f3; color: #111827; font-weight: 600; }
   table.items { width: 100%; border-collapse: collapse; margin-top: 14px; }
-  table.items th { padding: 0 6px 6px; text-align: right; font-size: 8.5px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: #6b7280; border-bottom: 1px solid #1c1f23; }
+  table.items th { padding: 0 6px 6px; text-align: right; font-size: 9.5px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: #111827; border-bottom: 1.5px solid #000; }
   table.items th:nth-child(1), table.items th:nth-child(2) { text-align: left; }
-  table.items td { padding: 7px 6px; border-bottom: 1px solid #eceef1; vertical-align: top; text-align: right; font-variant-numeric: tabular-nums; }
-  table.items td:nth-child(1) { text-align: left; color: #6b7280; width: 22px; padding-left: 0; } table.items td:nth-child(2) { text-align: left; } table.items th:last-child, table.items td:last-child { padding-right: 0; }
-  table.items tr { page-break-inside: avoid; } .sub { color: #6b7280; font-size: 9px; }
+  table.items td { padding: 7px 6px; border-bottom: 1px solid #9ca3af; vertical-align: top; text-align: right; font-variant-numeric: tabular-nums; }
+  table.items td:nth-child(1) { text-align: left; color: #374151; width: 22px; padding-left: 0; } table.items td:nth-child(2) { text-align: left; } table.items th:last-child, table.items td:last-child { padding-right: 0; font-weight: 700; }
+  table.items tr { page-break-inside: avoid; } .sub { color: #374151; font-size: 9.5px; font-weight: 500; }
   .summary { display: flex; justify-content: space-between; gap: 32px; margin-top: 14px; page-break-inside: avoid; }
-  .words { flex: 1; } .words .t { margin-top: 2px; font-weight: 600; }
-  .totals { width: 46%; } .totals div { display: flex; justify-content: space-between; padding: 2px 0; } .totals .grand { margin-top: 6px; padding-top: 8px; border-top: 1px solid #1c1f23; font-size: 14px; font-weight: 600; }
-  .foot { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; margin-top: 22px; padding-top: 14px; border-top: 1px solid #e5e7eb; page-break-inside: avoid; }
-  .pay { display: flex; gap: 10px; align-items: center; } .pay + .pay { margin-top: 10px; } .pay .small { font-size: 8.5px; word-break: break-all; }
-  .sign { text-align: right; min-width: 190px; } .sign .line { margin-top: 38px; padding-top: 4px; border-top: 1px solid #9ca3af; color: #6b7280; }
-  .fine { margin-top: 18px; text-align: center; font-size: 8.5px; color: #9ca3af; }
-  .watermark { position: fixed; top: 38%; left: 12%; font-size: 96px; font-weight: 700; letter-spacing: 6px; color: rgba(185, 28, 28, .10); transform: rotate(-24deg); pointer-events: none; }`
+  .words { flex: 1; } .words .t { margin-top: 2px; font-weight: 700; }
+  .totals { width: 46%; } .totals div { display: flex; justify-content: space-between; padding: 2px 0; } .totals .grand { margin-top: 6px; padding-top: 8px; border-top: 1.5px solid #000; font-size: 15px; font-weight: 700; }
+  .foot { display: flex; justify-content: space-between; align-items: flex-end; gap: 24px; margin-top: 22px; padding-top: 14px; border-top: 1px solid #6b7280; page-break-inside: avoid; }
+  .pay { display: flex; gap: 10px; align-items: center; } .pay + .pay { margin-top: 10px; } .pay .small { font-size: 9.5px; word-break: break-all; }
+  .sign { text-align: right; min-width: 190px; font-weight: 600; } .sign .line { margin-top: 38px; padding-top: 4px; border-top: 1px solid #111; color: #374151; font-weight: 500; }
+  .fine { margin-top: 18px; text-align: center; font-size: 9.5px; color: #4b5563; }
+  .watermark { position: fixed; top: 38%; left: 12%; font-size: 96px; font-weight: 800; letter-spacing: 6px; color: rgba(185, 28, 28, .16); transform: rotate(-24deg); pointer-events: none; }`
 
 export function invoiceHtml(inv: Invoice, seller: Seller, billTo: Address | undefined, opts: DocOptions = {}): string {
   const intra = inv.taxRegime === 'intra'
@@ -67,14 +68,14 @@ export function invoiceHtml(inv: Invoice, seller: Seller, billTo: Address | unde
 ${cancelled ? '<div class="watermark">CANCELLED</div>' : ''}
 <div class="head">
   <div class="seller"><div class="name">${esc(seller.name)}</div>${seller.tradeName ? `<div class="muted">${esc(seller.tradeName)}</div>` : ''}
-    <div class="muted">${seller.address.map(esc).join(', ')}</div><div class="muted">GSTIN <b style="color:#1c1f23;font-weight:600">${esc(seller.gstin)}</b></div></div>
+    <div class="muted">${seller.address.map(esc).join(', ')}</div><div class="muted">GSTIN <b>${esc(seller.gstin)}</b></div></div>
   <div class="title"><div class="kind">${esc(bilingual(kind))}</div><div class="no">${esc(inv.invoiceNo)}</div>
     <dl class="meta">${meta.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('')}</dl></div>
 </div>
 <div class="parties">
   <div><div class="label">${esc(bilingual('Bill to'))}</div><div class="strong">${esc(inv.customerName)}</div>
     ${billTo ? `<div class="muted">${esc([billTo.line1, billTo.line2, billTo.city, stateName(billTo.stateCode), billTo.pincode].filter(Boolean).join(', '))}</div>` : ''}
-    ${inv.customerGstin ? `<div class="muted">GSTIN <b style="color:#1c1f23;font-weight:600">${esc(inv.customerGstin)}</b></div>` : ''}</div>
+    ${inv.customerGstin ? `<div class="muted">GSTIN <b>${esc(inv.customerGstin)}</b></div>` : ''}</div>
   <div><div class="label">${esc(bilingual('Place of supply'))}</div><div>${esc(stateName(inv.placeOfSupply))} (${esc(inv.placeOfSupply)})</div>${supply.map((t) => `<div class="muted">${esc(t)}</div>`).join('')}</div>
   <div>${opts.ewayBillNo ? `<div class="label">E-way bill</div><div class="num">${esc(opts.ewayBillNo)}</div>` : ''}</div>
 </div>

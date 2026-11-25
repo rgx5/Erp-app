@@ -12,7 +12,7 @@ export function payslipHtml(p: Payslip, company: string, payDate: string): strin
   const ded = ([['Provident fund', p.pfEmployee], ['ESI', p.esiEmployee], ['Professional tax', p.professionalTax], ['Income tax (TDS)', p.tds], ['Other deductions', p.otherDeductions]] as [string, string][])
     .filter(([, v]) => Number(v) !== 0).map(([k, v]) => `<tr><td>${k}</td><td>${amt(v)}</td></tr>`).join('')
   const section = (title: string, body: string): string => `<div class="label" style="margin-top:18px">${title}</div><table class="items" style="margin-top:4px"><tbody>${body}</tbody></table>`
-  return `<!doctype html><html><head><meta charset="utf-8"><title>Payslip ${esc(p.employeeNo)} ${esc(p.period)}</title><style>${DOC_CSS} table.items td:nth-child(1){width:auto;color:inherit;padding-left:0} table.items td:last-child{width:130px}</style></head><body>
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Payslip ${esc(p.employeeNo)} ${esc(p.period)}</title><style>${DOC_CSS} table.items td:nth-child(1){width:auto;color:#000;padding-left:0} table.items td:last-child{width:130px}</style></head><body>
 <div class="head"><div class="seller"><div class="name">${esc(company)}</div><div class="muted">Pay period ${esc(p.period)}</div></div>
   <div class="title"><div class="kind">Payslip</div><dl class="meta" style="margin-top:6px"><dt>Paid on</dt><dd>${esc(formatDate(payDate))}</dd>${p.detail.paidDays ? `<dt>Paid days</dt><dd>${esc(p.detail.paidDays)}</dd>` : ''}</dl></div></div>
 <div class="parties" style="grid-template-columns:1fr"><div><div class="label">Employee</div><div class="strong">${esc(p.employeeName)}</div><div class="muted">${esc(p.employeeNo)}</div></div></div>
