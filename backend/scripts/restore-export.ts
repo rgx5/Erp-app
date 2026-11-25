@@ -1,5 +1,5 @@
 /**
- * Restores a OneSyncERP export file into a new, empty business. Needs MIGRATOR_DATABASE_URL (the table-owner role).
+ * Restores a OneSyncERP export file into a new, empty business. Needs MIGRATOR_DATABASE_URL pointing at the database ADMINISTRATOR (superuser) connection: the table owner is held back by row-level security and may not switch triggers off.
  *   npm run maintenance:restore -- --file export.json --tenant <id of the new business> [--dry-run]
  *   npm run maintenance:restore -- --file export.json --verify          (only checks the file)
  * Sign-in is locked on every restored user; reset the owner's password afterwards.

@@ -19,7 +19,9 @@ Not in the file, by design:
 4. Restore: the same command without `--dry-run`. It runs in one transaction: it all lands or none of it does.
 5. Set the owner's password again, then have the owner sign in and compare a few reports with the original.
 
-The command needs the table-owner database role (`MIGRATOR_DATABASE_URL`), because the load switches database triggers off for its duration.
+The command needs the database administrator connection (set as `MIGRATOR_DATABASE_URL`; the superuser, not the `erp_migrator` role): the load switches database triggers off for its duration, and the table owner is itself held back by row-level security.
+
+To move a whole client to another cell, including attachments and passwords, use `npm run maintenance:tenant-move` instead (see the platform guide's runbook); the JSON export leaves attachments and passwords out, and a very large business exceeds its size limit (200 MB).
 It refuses a file whose checksum does not match, a target that does not exist, and a target that already has a company.
 
 ## What this is not

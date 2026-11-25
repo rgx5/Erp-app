@@ -22,10 +22,12 @@
     "db:migrate": "tsx src/db/cli.ts up",
     "db:status": "tsx src/db/cli.ts status",
     "perf": "tsx scripts/perf.ts",
+    "capacity": "vitest run --config vitest.config.capacity.ts",
     "db:bootstrap": "tsx scripts/bootstrap-db.ts",
     "openapi": "tsx scripts/export-openapi.ts",
     "licence": "tsx scripts/licence.ts",
     "maintenance:retention": "tsx scripts/retention.ts",
+    "maintenance:tenant-move": "tsx scripts/tenant-move.ts",
     "maintenance:restore": "tsx scripts/restore-export.ts"
   },
   "dependencies": {

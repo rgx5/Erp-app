@@ -1,0 +1,58 @@
+{
+  "at": "2026-11-25T06:56:28.651Z",
+  "node": "v22.23.5",
+  "setup": {
+    "clients": 20,
+    "entriesPerClient": 50000,
+    "bigClientEntries": 500000,
+    "journalLinesTotal": 2900160,
+    "journalLinesBytes": 982065152,
+    "journalEntriesBytes": 851304448,
+    "databaseBytes": 1853202959,
+    "seconds": 100
+  },
+  "biggestClient": {
+    "trialBalance": {
+      "p50": 1073,
+      "p95": 1250,
+      "max": 1250
+    },
+    "profitLoss": {
+      "p50": 48,
+      "p95": 51,
+      "max": 51
+    },
+    "balanceSheet": {
+      "p50": 1498,
+      "p95": 1805,
+      "max": 1805
+    },
+    "accountLedger": {
+      "p50": 8,
+      "p95": 9,
+      "max": 9
+    },
+    "journalList": {
+      "p50": 7,
+      "p95": 8,
+      "max": 8
+    }
+  },
+  "noisyNeighbour": {
+    "smallClientAlone": {
+      "p50": 6,
+      "p95": 8,
+      "max": 8
+    },
+    "smallClientWhileBigRunsReports": {
+      "p50": 7,
+      "p95": 69,
+      "max": 69
+    },
+    "concurrentReportLoops": 3
+  },
+  "exportBiggestClient": {
+    "status": 413,
+    "seconds": 3.8
+  }
+}
