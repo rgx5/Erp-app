@@ -19,7 +19,7 @@ export type ReceiptRow = typeof customerReceipts.$inferSelect;
 export type AllocationRow = typeof receivableAllocations.$inferSelect;
 type InvoiceRow = typeof salesInvoices.$inferSelect;
 
-const DEBIT_DOCS = ['tax_invoice', 'bill_of_supply', 'debit_note'];
+const DEBIT_DOCS = ['tax_invoice', 'bill_of_supply', 'debit_note', 'opening_balance'];
 const signed = (text: string): bigint => (text.startsWith('-') ? -toUnits(text.slice(1)) : toUnits(text));
 const daysBetween = (from: string, to: string): number => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
 
@@ -235,7 +235,7 @@ export class ReceivablesService {
       SELECT i.id, i.invoice_no, i.document_type, i.invoice_date::text, COALESCE(i.due_date, i.invoice_date)::text AS due_date, i.customer_id, i.customer_name, i.grand_total::text,
              (i.grand_total - COALESCE((SELECT SUM(a.amount) FROM erp.receivable_allocations a WHERE a.tenant_id = i.tenant_id AND a.invoice_id = i.id AND a.allocated_on <= ${asOf}::date AND (a.reversed_on IS NULL OR a.reversed_on > ${asOf}::date)), 0))::text AS outstanding
         FROM erp.sales_invoices i
-       WHERE i.tenant_id = ${tenantId}::uuid AND i.company_id = ${companyId}::uuid AND i.document_type IN ('tax_invoice', 'bill_of_supply', 'debit_note') AND i.invoice_date <= ${asOf}::date
+       WHERE i.tenant_id = ${tenantId}::uuid AND i.company_id = ${companyId}::uuid AND i.document_type IN ('tax_invoice', 'bill_of_supply', 'debit_note', 'opening_balance') AND i.invoice_date <= ${asOf}::date
          AND (i.status = 'posted' OR i.cancel_date > ${asOf}::date) ${cust}
        ORDER BY i.invoice_date, i.invoice_no`);
     const unapplied = await tx.execute<{ kind: string; id: string; number: string; date: string; customer_id: string; unapplied: string }>(sql`

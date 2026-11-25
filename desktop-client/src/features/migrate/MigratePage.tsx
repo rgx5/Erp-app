@@ -1,6 +1,7 @@
 import { Check, FileUp, Loader2, TriangleAlert } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
+import { isValidGstin } from '@/domain/india'
 import { MAX_FILE_BYTES, readImportFile } from '@/features/import/readers'
 import { download, toCsv } from '@/features/masterdata/csv'
 import { Alert, Button, Card } from '@/ui/primitives'
@@ -25,7 +26,7 @@ export function MigratePage() {
   const [data, setData] = useState<VyData | null>(null)
   const [fileName, setFileName] = useState('')
   const [reading, setReading] = useState(false)
-  const [choices, setChoices] = useState<Choices>({ business: true, catalogue: true, parties: true, banks: true, stock: true, assumeBusinessState: true })
+  const [choices, setChoices] = useState<Choices>({ business: true, catalogue: true, parties: true, banks: true, stock: true, assumeBusinessState: true, openingBalances: true, asOf: new Date().toISOString().slice(0, 10), gstin: '' })
   const [progress, setProgress] = useState<{ phase: string; done: number; total: number } | null>(null)
   const [report, setReport] = useState<Report | null>(null)
   const stop = useRef(false)
@@ -52,6 +53,8 @@ export function MigratePage() {
     } catch (e) { setError(e instanceof Error ? e.message : 'The migration stopped.'); setStep('review') }
   }
 
+  const owed = useMemo(() => data ? { customers: data.parties.filter((p) => p.balance > 0), suppliers: data.parties.filter((p) => p.balance < 0) } : null, [data])
+  const badGstin = Boolean(data?.firm && !isValidGstin(data.firm.gstin))
   const counts = useMemo(() => data ? [
     ['Customers and suppliers', data.parties.length], ['Items', data.items.length], ['Item categories', data.categories.length], ['Units', data.units.length], ['Tax rates', data.taxes.length], ['Payment terms', data.terms.length], ['Bank accounts', data.banks.length],
   ] as [string, number][] : [], [data])
@@ -91,10 +94,20 @@ export function MigratePage() {
               {data.warnings.map((w) => <p key={w} className="flex gap-2 text-warn"><TriangleAlert className="mt-0.5 size-4 shrink-0" aria-hidden />{w}</p>)}
             </div>
           </Card>
+          {badGstin && data.firm ? (
+            <Card title="Your GSTIN">
+              <div className="flex max-w-xl flex-col gap-2 text-sm">
+                <p className="text-muted">The GSTIN in the file ({data.firm.gstin || 'none'}) does not pass the check, so no GST registration can be added from it. Type the correct one to add the registration now (it is needed for opening balances and invoices), or leave it empty and add it later under Settings.</p>
+                <input aria-label="Your GSTIN" maxLength={15} className="h-8 w-64 rounded-md border border-line bg-surface px-2 font-mono uppercase" placeholder="27ABCDE1234F1Z5" value={choices.gstin ?? ''} onChange={(e) => setChoices((c) => ({ ...c, gstin: e.target.value.toUpperCase() }))} />
+                {choices.gstin ? <p className={isValidGstin(choices.gstin) ? 'text-good' : 'text-bad'}>{isValidGstin(choices.gstin) ? 'This GSTIN is valid.' : 'This GSTIN is not valid yet.'}</p> : null}
+              </div>
+            </Card>) : null}
           <Card title="What to bring in">
             <div className="flex flex-col gap-2 text-sm">
-              {([['business', 'Business details, GST registration, location and warehouse (only what is missing)'], ['catalogue', `Units, tax rates, categories, payment terms and ${n(data.items.length)} items with their prices`], ['stock', 'Opening stock for items that have stock in Vyapar (as of today)'], ['parties', `${n(data.parties.length)} customers and suppliers with their addresses and credit limits`], ['banks', `${n(data.banks.length)} bank accounts`]] as [keyof Choices, string][]).map(([k, label]) => (
+              {([['business', 'Business details, GST registration, location and warehouse (only what is missing)'], ['catalogue', `Units, tax rates, categories, payment terms and ${n(data.items.length)} items with their prices`], ['stock', 'Opening stock for items that have stock in Vyapar (as of today)'], ['parties', `${n(data.parties.length)} customers and suppliers with their addresses and credit limits`], ['banks', `${n(data.banks.length)} bank accounts`]] as [Exclude<keyof Choices, 'asOf' | 'gstin' | 'assumeBusinessState' | 'openingBalances'>, string][]).map(([k, label]) => (
                 <label key={k} className="flex items-start gap-2"><input type="checkbox" className="mt-0.5" checked={choices[k]} disabled={k === 'stock' && !choices.catalogue} onChange={(e) => setChoices((c) => ({ ...c, [k]: e.target.checked }))} /><span>{label}</span></label>))}
+              <label className="flex items-start gap-2"><input type="checkbox" className="mt-0.5" checked={Boolean(choices.openingBalances)} disabled={!choices.parties} onChange={(e) => setChoices((c) => ({ ...c, openingBalances: e.target.checked }))} /><span>What customers owe you ({n(owed?.customers.length ?? 0)}, ₹{n(Math.round((owed?.customers ?? []).reduce((t, p) => t + p.balance, 0)))}) and what you owe suppliers ({n(owed?.suppliers.length ?? 0)}, ₹{n(Math.round(-(owed?.suppliers ?? []).reduce((t, p) => t + p.balance, 0)))}), as opening balances</span></label>
+              <label className="flex items-center gap-2 pl-6 text-muted"><span>dated</span><input type="date" aria-label="Opening balances date" className="h-8 rounded-md border border-line bg-surface px-2" value={choices.asOf} onChange={(e) => setChoices((c) => ({ ...c, asOf: e.target.value }))} disabled={!choices.openingBalances || !choices.parties} /><span>(a day inside your current financial year)</span></label>
               <label className="flex items-start gap-2 pl-6 text-muted"><input type="checkbox" className="mt-0.5" checked={Boolean(choices.assumeBusinessState)} disabled={!choices.parties} onChange={(e) => setChoices((c) => ({ ...c, assumeBusinessState: e.target.checked }))} /><span>Where a party has no state, take it to be in your own state. This decides whether its invoices carry CGST and SGST or IGST, so correct any that are in another state.</span></label>
             </div>
           </Card>
@@ -102,7 +115,7 @@ export function MigratePage() {
             <div className="flex flex-col gap-2 text-sm text-muted">
               <p>Your past documents are in the file but are not imported in this version, so your books start clean from today:</p>
               <ul className="grid grid-cols-1 gap-x-8 md:grid-cols-2">{data.documents.map((d) => <li key={d.kind} className="flex justify-between border-b border-line/60 py-1"><span>{d.kind}</span><span className="num">{n(d.count)}</span></li>)}</ul>
-              <p>Keep your Vyapar backup safe as the record of the past. Party balances are also not carried over: record them as opening entries when you start.</p>
+              <p>Keep your Vyapar backup safe as the record of the past. The amounts parties owe are brought in as opening balances (above), not as these documents.</p>
             </div>
           </Card>
           <div className="flex gap-2"><Button onClick={() => void start()} disabled={![choices.business, choices.catalogue, choices.parties, choices.banks].some(Boolean)}>Bring it in</Button><Button variant="ghost" onClick={() => { setData(null); setStep('upload') }}>Choose another file</Button></div>

@@ -18,7 +18,7 @@ export class LeadsReportsService {
         WITH l AS (SELECT * FROM erp.leads WHERE tenant_id = ${tenantId}::uuid AND created_at >= ${from}::date AND created_at < ${to}::date + 1 AND duplicate_of IS NULL),
         rev AS (
           SELECT l.id AS lead_id, SUM(CASE WHEN i.document_type = 'credit_note' THEN -i.grand_total ELSE i.grand_total END) AS amt
-          FROM l JOIN erp.sales_invoices i ON i.tenant_id = l.tenant_id AND i.customer_id = l.party_id AND i.status = 'posted' AND i.invoice_date >= l.created_at::date
+          FROM l JOIN erp.sales_invoices i ON i.tenant_id = l.tenant_id AND i.customer_id = l.party_id AND i.status = 'posted' AND i.document_type <> 'opening_balance' AND i.invoice_date >= l.created_at::date
           WHERE l.party_id IS NOT NULL GROUP BY l.id)
         SELECT l.source, COALESCE(l.campaign, '') AS campaign, count(*)::int AS leads, count(*) FILTER (WHERE l.status = 'open')::int AS open, count(*) FILTER (WHERE l.status = 'won')::int AS won, count(*) FILTER (WHERE l.status = 'lost')::int AS lost,
           avg(extract(epoch FROM (l.first_response_at - l.created_at)) / 60) FILTER (WHERE l.first_response_at IS NOT NULL) AS avg_response, COALESCE(sum(rev.amt), 0) AS revenue

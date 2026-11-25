@@ -197,7 +197,7 @@ export class GstReturnsService {
       // Documents issued, by type, from the number ranges.
       const issued = await tx.execute<{ document_type: string; first: string; last: string; total: string; cancelled: string }>(sql`
         SELECT document_type, MIN(invoice_no) AS first, MAX(invoice_no) AS last, COUNT(*)::text AS total, COUNT(*) FILTER (WHERE status = 'cancelled' AND cancel_date <= ${p.to}::date)::text AS cancelled
-          FROM erp.sales_invoices WHERE tenant_id = ${tenantId}::uuid AND gst_registration_id = ${registrationId}::uuid AND invoice_date BETWEEN ${p.from}::date AND ${p.to}::date GROUP BY document_type ORDER BY document_type`);
+          FROM erp.sales_invoices WHERE tenant_id = ${tenantId}::uuid AND gst_registration_id = ${registrationId}::uuid AND document_type <> 'opening_balance' AND invoice_date BETWEEN ${p.from}::date AND ${p.to}::date GROUP BY document_type ORDER BY document_type`);
       return {
         gstin: reg.gstin, period, from: p.from, to: p.to,
         b2b: [...b2b].map(([ctin, inv]) => ({ ctin, inv })), b2cl: [...b2cl].map(([pos, inv]) => ({ pos, inv })),

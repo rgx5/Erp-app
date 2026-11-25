@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { expect, test } from '@playwright/test'
 import { goTo } from '../nav'
+import { makeGstin } from '../seed'
 
 const PASSWORD = 'a long passphrase for tests 42'
 const FILE = process.env['VYAPAR_FILE'] ?? 'tests/fixtures/import/vyapar-sample.vyp'
@@ -29,6 +30,7 @@ test('migrate from Vyapar: a new business is set up from the backup file and its
   await expect(page.getByText(/Found in backup\.vyp/)).toBeVisible()
   await expect(page.getByText('Sunrise Tech Solutions')).toBeVisible()
   await expect(page.getByText('Not brought in yet')).toBeVisible()
+  await page.getByLabel('Your GSTIN').fill(makeGstin('27', 'AAAAA0000A')) // the file's own GSTIN is a dummy that fails the check
   await page.getByRole('button', { name: 'Bring it in' }).click()
   await expect(page.getByRole('heading', { name: 'Done' })).toBeVisible({ timeout: process.env['VYAPAR_FILE'] ? 840_000 : 90_000 })
 
@@ -42,6 +44,11 @@ test('migrate from Vyapar: a new business is set up from the backup file and its
   const stock = await call('GET', `/v1/stock/balances?companyId=${companies['items'][0].id}&limit=200`, undefined, token).catch(() => null)
   if (stock) expect(stock['items'].length).toBeGreaterThan(0)
   await expect(page.getByText(/Business "Sunrise Tech Solutions" created/)).toBeVisible()
+  await expect(page.getByText(/were brought forward as of/)).toBeVisible()
+  const ageing = await call('GET', `/v1/receivables/ageing?companyId=${companies['items'][0].id}&asOf=${new Date().toISOString().slice(0, 10)}`, undefined, token)
+  expect(Number(ageing['totals']?.['total'] ?? ageing['total'])).toBeGreaterThan(1000)
+  const payables = await call('GET', `/v1/payables/ageing?companyId=${companies['items'][0].id}&asOf=${new Date().toISOString().slice(0, 10)}`, undefined, token)
+  expect(Number(payables['totals']?.['total'] ?? payables['total'])).toBeGreaterThanOrEqual(0)
   await expect(page.getByText(/negative stock/)).toBeVisible()
   await page.screenshot({ path: '/tmp/migrate-done.png', fullPage: true })
 })

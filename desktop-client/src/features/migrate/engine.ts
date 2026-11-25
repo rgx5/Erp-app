@@ -9,7 +9,7 @@ export interface Server {
   get(path: string, query?: Record<string, string | number>): Promise<unknown>
   post(path: string, body: unknown, key: string): Promise<unknown>
 }
-export interface Choices { business: boolean; catalogue: boolean; parties: boolean; banks: boolean; stock: boolean; /** A party with no state in the file is taken to be in the business's own state (this decides CGST+SGST or IGST on its invoices). */ assumeBusinessState?: boolean }
+export interface Choices { business: boolean; catalogue: boolean; parties: boolean; banks: boolean; stock: boolean; /** A party with no state in the file is taken to be in the business's own state (this decides CGST+SGST or IGST on its invoices). */ assumeBusinessState?: boolean; /** Bring in what customers owe and what is owed to suppliers, as opening balances on this date. */ openingBalances?: boolean; asOf?: string; /** A GSTIN to use when the one in the file does not pass the check. */ gstin?: string }
 export interface PhaseResult { phase: string; created: number; skipped: number; failed: number; notes: string[] }
 export interface Problem { phase: string; record: string; message: string }
 export interface Report { phases: PhaseResult[]; problems: Problem[]; companyId: string | null }
@@ -65,9 +65,10 @@ export async function migrateVyapar(server: Server, data: VyData, choices: Choic
     try {
       const companies = await all(server, '/v1/companies')
       let company = companies[0]
-      const gstinOk = isValidGstin(f.gstin)
+      const gstin = (choices.gstin ?? '').trim().toUpperCase() && isValidGstin((choices.gstin ?? '').trim().toUpperCase()) ? (choices.gstin ?? '').trim().toUpperCase() : f.gstin
+      const gstinOk = isValidGstin(gstin)
       if (!company) {
-        company = (await server.post('/v1/companies', { legalName: f.name.slice(0, 200) || 'My business', ...(gstinOk ? { pan: panOfGstin(f.gstin) } : {}) }, key('company', 1))) as J
+        company = (await server.post('/v1/companies', { legalName: f.name.slice(0, 200) || 'My business', ...(gstinOk ? { pan: panOfGstin(gstin) } : {}) }, key('company', 1))) as J
         biz.created++; biz.notes.push(`Business "${f.name}" created.`)
       } else { biz.skipped++; biz.notes.push(`Your business "${str(company['legalName'])}" already exists, so it was kept as it is.`) }
       companyId = str(company['id'])
@@ -75,12 +76,12 @@ export async function migrateVyapar(server: Server, data: VyData, choices: Choic
       let regId = str(regs.items?.[0]?.['id'])
       const startDate = data.firstDate ? fyStart(data.firstDate) : fyStart(today())
       if (!regId && gstinOk) {
-        regId = str(((await server.post(`/v1/companies/${companyId}/gst-registrations`, { gstin: f.gstin, legalName: f.name.slice(0, 200), effectiveFrom: startDate }, key('gst', 1))) as J)['id'])
-        biz.created++; biz.notes.push(`GST registration ${f.gstin} added.`)
+        regId = str(((await server.post(`/v1/companies/${companyId}/gst-registrations`, { gstin, legalName: f.name.slice(0, 200), effectiveFrom: startDate }, key('gst', 1))) as J)['id'])
+        biz.created++; biz.notes.push(`GST registration ${gstin} added.`)
       } else if (!regId) biz.notes.push(f.gstin ? 'The GSTIN in the file does not pass the check, so no GST registration was added. Add it under Settings, Companies.' : 'The file has no GSTIN, so no GST registration was added.')
       const locs = asRows(await server.get('/v1/business-locations', { companyId, limit: 50 }))
       let locId = str(locs[0]?.['id'])
-      const stateCode = gstinOk ? f.gstin.slice(0, 2) : STATES.find((s) => s.name.toLowerCase() === f.state.toLowerCase())?.code ?? ''
+      const stateCode = gstinOk ? gstin.slice(0, 2) : STATES.find((s) => s.name.toLowerCase() === f.state.toLowerCase())?.code ?? ''
       if (!locId && stateCode && /^[1-9][0-9]{5}$/.test(f.pincode)) {
         const parts = f.address.split(',').map((x) => x.trim()).filter(Boolean)
         locId = str(((await server.post('/v1/business-locations', { companyId, ...(regId ? { gstRegistrationId: regId } : {}), code: 'MAIN', name: 'Main', ...(regId ? { isPrincipalPlace: true } : {}), addressLine1: (f.address || 'Address').slice(0, 200), city: (parts.length > 1 ? parts[parts.length - 1] : 'NA') as string, stateCode, pincode: f.pincode }, key('loc', 1))) as J)['id'])
@@ -167,7 +168,8 @@ export async function migrateVyapar(server: Server, data: VyData, choices: Choic
   if (choices.parties) {
     const pp = begin('Customers and suppliers')
     const noAddress: string[] = []
-    const ownState = data.firm ? (isValidGstin(data.firm.gstin) ? data.firm.gstin.slice(0, 2) : STATES.find((s) => s.name.toLowerCase() === data.firm?.state.toLowerCase())?.code ?? '') : ''
+    const partyIds = new Map<number, string>()
+    const ownState = data.firm ? (isValidGstin(choices.gstin?.trim().toUpperCase() ?? '') ? (choices.gstin as string).trim().toUpperCase().slice(0, 2) : isValidGstin(data.firm.gstin) ? data.firm.gstin.slice(0, 2) : STATES.find((s) => s.name.toLowerCase() === data.firm?.state.toLowerCase())?.code ?? '') : ''
     let assumed = 0
     const make = async (p: VyParty): Promise<void> => {
       try {
@@ -177,6 +179,7 @@ export async function migrateVyapar(server: Server, data: VyData, choices: Choic
           ...(p.creditLimit > 0 && p.isCustomer ? { creditLimit: money(p.creditLimit) } : {}),
         }
         const made = (await server.post('/v1/parties', body, key('party', p.id))) as J
+        partyIds.set(p.id, str(made['id']))
         pp.created++
         const state = p.stateCode || (choices.assumeBusinessState ? ownState : '')
         if (p.address && state) {
@@ -184,11 +187,36 @@ export async function migrateVyapar(server: Server, data: VyData, choices: Choic
           const parts = p.address.split(',').map((x) => x.trim()).filter(Boolean)
           try { await server.post(`/v1/parties/${str(made['id'])}/addresses`, { kind: 'billing', line1: p.address.slice(0, 200), city: (parts.length > 1 ? (parts[parts.length - 1] as string) : p.address).slice(0, 100), stateCode: state, ...(p.pincode ? { pincode: p.pincode } : {}), country: 'IN', isDefault: true }, key('addr', p.id)) } catch (e) { noAddress.push(p.name); problems.push({ phase: pp.phase, record: `${p.name} (address)`, message: `${messageOf(e)}: ${p.address}` }) }
         } else if (p.address) { noAddress.push(p.name); problems.push({ phase: pp.phase, record: p.name, message: `Address not saved (its state is not known): ${p.address}` }) }
-      } catch (e) { if (isDuplicate(e)) pp.skipped++; else fail(pp, p.name, e) }
+      } catch (e) {
+        if (isDuplicate(e)) {
+          pp.skipped++
+          const hit = asRows(await server.get('/v1/parties', { q: p.code, limit: 5 }).catch(() => ({}))).find((r) => str(r['code']).toLowerCase() === p.code.toLowerCase())
+          if (hit) partyIds.set(p.id, str(hit['id']))
+        } else fail(pp, p.name, e)
+      }
     }
     await pool(data.parties, 6, pp.phase, progress, make)
     if (noAddress.length) pp.notes.push(`${noAddress.length} ${noAddress.length === 1 ? 'party has' : 'parties have'} an address that was not saved because its state is not known (the address text is in the problems file).`)
     if (assumed) pp.notes.push(`${assumed} ${assumed === 1 ? 'party had' : 'parties had'} no state in the file and ${assumed === 1 ? 'was' : 'were'} taken to be in your own state. Check the ones in other states, because it decides CGST and SGST or IGST on their invoices.`)
+    if (choices.openingBalances && companyId) {
+      const ob = begin('Opening balances')
+      const asOf = choices.asOf && /^\d{4}-\d{2}-\d{2}$/.test(choices.asOf) ? choices.asOf : today()
+      const owed = data.parties.filter((p) => p.balance > 0 && p.isCustomer && partyIds.has(p.id))
+      const owing = data.parties.filter((p) => p.balance < 0 && p.isSupplier && partyIds.has(p.id))
+      const send = async (path: string, list: VyParty[]): Promise<void> => {
+        const chunks: VyParty[][] = []; for (let i = 0; i < list.length; i += 50) chunks.push(list.slice(i, i + 50))
+        await pool(chunks, 1, ob.phase, progress, async (chunk) => {
+          try {
+            const r = (await server.post(path, { companyId, asOf, items: chunk.map((p) => ({ partyId: partyIds.get(p.id), amount: money(Math.abs(p.balance)) })) }, key(`ob-${path.includes('payables') ? 'pay' : 'recv'}`, chunk[0]?.id ?? 0))) as { items?: { status: string }[] }
+            for (const x of r.items ?? []) { if (x.status === 'created') ob.created++; else ob.skipped++ }
+          } catch (e) { const m = messageOf(e); if (/GST registration/i.test(m)) { if (!ob.notes.some((t) => /registration/.test(t))) ob.notes.push('Opening balances were not added because the business has no GST registration yet. Add one under Settings, Companies and run the move again.') } else for (const p of chunk) fail(ob, p.name, e) }
+        })
+      }
+      await send('/v1/receivables/opening-balances', owed); await send('/v1/payables/opening-balances', owing)
+      if (owed.length + owing.length > 0 && ob.created > 0) ob.notes.push(`${owed.length} customers owing ₹${owed.reduce((t, p) => t + p.balance, 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })} and ${owing.length} suppliers owed ₹${owing.reduce((t, p) => t - p.balance, 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })} were brought forward as of ${asOf}.`)
+      const stray = data.parties.filter((p) => p.balance !== 0 && !partyIds.has(p.id)).length
+      if (stray) ob.notes.push(`${stray} parties with a balance could not be matched to a saved party, so their balance was not brought forward.`)
+    }
     const inactive = data.parties.filter((p) => !p.active).length
     if (inactive) pp.notes.push(`${inactive} inactive ${inactive === 1 ? 'party was' : 'parties were'} brought in as active.`)
   }

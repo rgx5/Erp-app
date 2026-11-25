@@ -96,7 +96,8 @@ export function parseVyapar(src: ImportSource): VyData {
       id, name, code: codeFromName(name, used), phone: clean(r['phone_number']).replace(/[^0-9+() -]/g, ''), email: clean(r['email']), gstin, stateCode, address: clean(r['address']), pincode: /^[1-9][0-9]{5}$/.test(pin) ? pin : '',
       creditLimit: r['credit_limit_enabled'] === '1' ? num(r['credit_limit']) : 0, balance, active: r['name_is_active'] !== '0',
       // a party with no history at all is a customer (the common case), unless it is owed money by the business
-      isCustomer: sell || (!buy && balance >= 0), isSupplier: buy || (!sell && balance < 0), termsId: null,
+      // what a party owes (a positive balance) makes it a customer, and what is owed to it (negative) makes it a supplier
+      isCustomer: sell || balance > 0 || (!buy && balance >= 0), isSupplier: buy || balance < 0 || (!sell && balance < 0), termsId: null,
     })
   }
   if (badGstin) warnings.push(`${badGstin} ${badGstin === 1 ? 'party has' : 'parties have'} a GSTIN that does not pass the check, so it was left out (the party itself is still brought in).`)

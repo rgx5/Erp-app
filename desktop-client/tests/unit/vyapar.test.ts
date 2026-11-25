@@ -44,6 +44,7 @@ function fakeServer() {
     },
     async post(path, body) {
       const b = body as Record<string, unknown>
+      if (path.includes('opening-balances')) { (made[path] ??= []).push(b); return { items: (b['items'] as unknown[]).map(() => ({ status: 'created' })) } }
       const bucket = /gst-registrations/.test(path) ? 'reg' : path
       const list = (made[bucket] ??= [])
       if (b['code'] && list.some((x) => x['code'] === b['code'])) { const { ApiError } = await import('@/api/errors'); throw new ApiError(409, 'conflict', 'That code is already used') }
@@ -52,7 +53,7 @@ function fakeServer() {
   }
   return { server, made }
 }
-const choices = { business: true, catalogue: true, parties: true, banks: true, stock: true, assumeBusinessState: true }
+const choices = { business: true, catalogue: true, parties: true, banks: true, stock: true, assumeBusinessState: true, openingBalances: true }
 
 describe('migrating from Vyapar', () => {
   it('creates the business, catalogue, parties and stock, and a second run only skips', async () => {
@@ -66,6 +67,13 @@ describe('migrating from Vyapar', () => {
     expect(r1.phases.find((p) => p.phase === 'Items')?.failed).toBe(0)
     expect(r1.phases.find((p) => p.phase === 'Opening stock')?.notes.join(' ')).toMatch(/negative stock/)
     expect(r1.problems.filter((p) => p.phase === 'Items')).toEqual([])
+    // what parties owe is brought forward: customers on the receivable side, suppliers on the payable side, always as positive amounts
+    const recv = (made['/v1/receivables/opening-balances'] ?? []).flatMap((m) => m['items'] as { amount: string }[])
+    const pay = (made['/v1/payables/opening-balances'] ?? []).flatMap((m) => m['items'] as { amount: string }[])
+    expect(recv.length).toBe(d.parties.filter((p) => p.balance > 0).length)
+    expect(pay.length).toBe(d.parties.filter((p) => p.balance < 0).length)
+    expect([...recv, ...pay].every((x) => Number(x.amount) > 0)).toBe(true)
+    expect(r1.phases.find((p) => p.phase === 'Opening balances')?.created).toBe(recv.length + pay.length)
     // run again with a fresh fake that already holds the first run's records: nothing is duplicated
     const before = made['/v1/items']?.length
     const r2 = await migrateVyapar(server, d, { ...choices, business: false }, 'b2', () => undefined)

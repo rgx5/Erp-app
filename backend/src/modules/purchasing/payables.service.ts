@@ -180,7 +180,7 @@ export class PayablesService {
   }
 
   private assertSettleable(bill: BillRow): void {
-    if (bill.documentType !== 'bill') throw new AppError(422, 'not_settleable', 'Only bills are settled');
+    if (bill.documentType !== 'bill' && bill.documentType !== 'opening_balance') throw new AppError(422, 'not_settleable', 'Only bills are settled');
     if (bill.status !== 'posted') throw new AppError(409, 'bill_cancelled', `${bill.billNo} was cancelled`);
   }
 
@@ -243,7 +243,7 @@ export class PayablesService {
       SELECT b.id, b.bill_no, b.supplier_invoice_no, b.bill_date::text, b.due_date::text, b.supplier_id, b.supplier_name, b.grand_total::text,
              (b.grand_total - COALESCE((SELECT SUM(a.amount) FROM erp.payable_allocations a WHERE a.tenant_id = b.tenant_id AND a.bill_id = b.id AND a.allocated_on <= ${asOf}::date AND (a.reversed_on IS NULL OR a.reversed_on > ${asOf}::date)), 0))::text AS outstanding
         FROM erp.supplier_bills b
-       WHERE b.tenant_id = ${tenantId}::uuid AND b.company_id = ${companyId}::uuid AND b.document_type = 'bill' AND b.bill_date <= ${asOf}::date
+       WHERE b.tenant_id = ${tenantId}::uuid AND b.company_id = ${companyId}::uuid AND b.document_type IN ('bill', 'opening_balance') AND b.bill_date <= ${asOf}::date
          AND (b.status = 'posted' OR b.cancel_date > ${asOf}::date) ${sup}
        ORDER BY b.bill_date, b.bill_no`);
     const unapplied = await tx.execute<{ kind: string; id: string; number: string; date: string; supplier_id: string; unapplied: string }>(sql`

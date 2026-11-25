@@ -11,7 +11,7 @@ import { DataTable } from '@/ui/DataTable'
 import { Alert, Button, PageHeader, SelectField, Spinner, TextField, Toolbar } from '@/ui/primitives'
 import { useInvoices } from './queries'
 
-export const DOC_LABEL: Record<string, string> = { tax_invoice: 'Tax invoice', bill_of_supply: 'Bill of supply', credit_note: 'Credit note', debit_note: 'Debit note' }
+export const DOC_LABEL: Record<string, string> = { tax_invoice: 'Tax invoice', bill_of_supply: 'Bill of supply', credit_note: 'Credit note', debit_note: 'Debit note', opening_balance: 'Opening balance' }
 
 export function InvoicesPage() {
   const ws = useWorkspace()
