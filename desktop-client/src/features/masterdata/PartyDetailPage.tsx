@@ -11,7 +11,7 @@ import { DOC_LABEL } from '@/features/sales/InvoicesPage'
 import { AttachmentsPanel } from '@/features/attachments/AttachmentsPanel'
 import { Drawer } from '@/ui/Drawer'
 import { Alert, Button, Card, Spinner } from '@/ui/primitives'
-import { PartyForm, roleLabel, treatmentLabel } from './PartyForm'
+import { PartyForm, roleLabel } from './PartyForm'
 import { usePartyAddresses, useParty } from './queries'
 
 const fyStart = (): string => { const d = new Date(); const y = d.getMonth() >= 3 ? d.getFullYear() : d.getFullYear() - 1; return `${y}-04-01` }
@@ -41,13 +41,11 @@ function DocTable<T>({ rows, cols, rowKey, onOpen, loading, hasMore, more, empty
 }
 
 function Stat({ label, value, tone, note }: { label: string; value: string; tone?: 'bad' | 'good'; note?: string | undefined }) {
-  const bar = tone === 'bad' ? 'bg-bad' : tone === 'good' ? 'bg-good' : 'bg-line-strong'
   return (
-    <div className="relative overflow-hidden rounded-lg border border-line bg-surface px-4 pb-3 pt-3.5">
-      <span className={`absolute inset-y-0 left-0 w-1 ${bar}`} aria-hidden />
-      <p className="text-[11px] font-semibold uppercase tracking-wide text-muted">{label}</p>
-      <p className={`num mt-1 text-[22px] font-semibold leading-tight tracking-tight ${tone === 'bad' ? 'text-bad' : tone === 'good' ? 'text-good' : 'text-ink'}`}>{value}</p>
-      {note ? <p className={`mt-1 text-xs ${tone === 'bad' ? 'font-medium text-bad' : 'text-muted'}`}>{note}</p> : null}
+    <div className="rounded-lg border border-line bg-surface px-4 py-3">
+      <p className="text-xs text-muted">{label}</p>
+      <p className={`num mt-0.5 text-xl font-semibold ${tone === 'bad' ? 'text-bad' : tone === 'good' ? 'text-good' : 'text-ink'}`}>{value}</p>
+      {note ? <p className={`text-xs ${tone === 'bad' ? 'text-bad' : 'text-muted'}`}>{note}</p> : null}
     </div>
   )
 }
@@ -121,24 +119,11 @@ function PartyDetail({ partyId }: { partyId: string }) {
   return (
     <div className="mx-auto flex max-w-6xl flex-col gap-4 pb-6">
       <p className="text-xs text-muted"><Link to={isSupplier && !isCustomer ? '/masterdata/suppliers' : '/masterdata/customers'} className="hover:text-ink hover:underline">{isSupplier && !isCustomer ? 'Suppliers' : 'Customers'}</Link> <span aria-hidden>/</span> <span className="text-ink">{party.legalName}</span></p>
-      <header className="flex flex-wrap items-start justify-between gap-4 rounded-lg border border-line bg-surface p-5">
-        <div className="flex min-w-0 items-start gap-4">
-          <span className="grid size-14 shrink-0 place-items-center rounded-xl bg-hero text-[20px] font-semibold text-white" aria-hidden>{party.legalName.split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase()}</span>
-          <div className="min-w-0">
-            <h1 className="page-title !text-[22px]">{party.legalName}{party.tradeName ? <span className="ml-2 text-base font-normal text-muted">({party.tradeName})</span> : null}</h1>
-            <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11.5px]">
-              <span className="rounded bg-sunken px-2 py-0.5 font-mono text-muted">{party.code}</span>
-              <span className="rounded bg-brand-soft px-2 py-0.5 font-medium text-brand">{roleLabel(party)}</span>
-              <span className="rounded bg-sunken px-2 py-0.5 text-muted">{treatmentLabel(party.gstTreatment)}</span>
-              {party.status !== 'active' ? <span className="rounded bg-bad-soft px-2 py-0.5 font-medium text-bad">{party.status === 'blocked' ? 'Blocked' : 'Inactive'}</span> : null}
-            </div>
-            <dl className="mt-3 grid grid-cols-1 gap-x-8 gap-y-1 text-[13px] sm:grid-cols-2">
-              {party.gstin ? <div className="flex gap-2"><dt className="w-14 shrink-0 text-muted">GSTIN</dt><dd className="font-mono">{party.gstin}</dd></div> : null}
-              {party.phone ? <div className="flex gap-2"><dt className="w-14 shrink-0 text-muted">Phone</dt><dd>{party.phone}</dd></div> : null}
-              {party.email ? <div className="flex gap-2"><dt className="w-14 shrink-0 text-muted">Email</dt><dd className="truncate">{party.email}</dd></div> : null}
-              {billing ? <div className="flex gap-2"><dt className="w-14 shrink-0 text-muted">Address</dt><dd>{[billing.line1, billing.line2, billing.city, billing.pincode].filter(Boolean).join(', ')}</dd></div> : null}
-            </dl>
-          </div>
+      <header className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="page-title !text-[22px]">{party.legalName}{party.status !== 'active' ? <span className="ml-2 align-middle text-xs font-medium text-bad">{party.status === 'blocked' ? 'Blocked' : 'Inactive'}</span> : null}</h1>
+          <p className="mt-1 text-[13px] text-muted">{[party.tradeName, party.code, roleLabel(party), party.gstin].filter(Boolean).join(' · ')}</p>
+          <p className="text-[13px] text-muted">{[party.phone, party.email, billing ? [billing.line1, billing.city, billing.pincode].filter(Boolean).join(', ') : ''].filter(Boolean).join(' · ')}</p>
         </div>
         <div className="flex flex-wrap gap-2">
           {sellOn && can(perms, 'sales:post') ? <Button onClick={() => void navigate({ to: '/sales/invoices/new', search: { customerId: partyId } as never })}>New invoice</Button> : null}
