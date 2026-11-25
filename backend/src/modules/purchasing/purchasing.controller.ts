@@ -15,6 +15,7 @@ import * as s from './purchasing.schemas.js';
 import { PurchaseOrdersService, type GoodsReceiptLineRow, type GoodsReceiptRow, type PurchaseOrderLineRow, type PurchaseOrderRow } from './purchase-orders.service.js';
 import { LandedCostService } from './landed-cost.service.js';
 import { PayablesService } from './payables.service.js';
+import { TdsService } from './tds.service.js';
 import { SupplierBillsService, type BillLineRow, type BillRow } from './supplier-bills.service.js';
 import { PurchasingSettingsService } from './purchasing-settings.service.js';
 import { RequiresModule } from '../identity/entitlements.js';
@@ -141,10 +142,36 @@ export class PayablesController {
   reconciliation(@TenantId() t: string, @Query({ schema: s.payablesAsOfQuery }) q: { companyId: string; asOf: string }) { return this.payables.reconciliation(t, q.companyId, q.asOf); }
 }
 
+const money = z.string().regex(/^\d{1,14}(\.\d{1,2})?$/, 'An amount such as 5000 or 5000.50');
+const day = z.iso.date();
+const sectionSchema = z.strictObject({ code: z.string().trim().min(2).max(20), description: z.string().trim().min(1).max(200), rate: z.string().regex(/^(100(\.0{1,4})?|\d{1,2}(\.\d{1,4})?)$/, 'A percentage'), singleLimit: money, annualLimit: money, status: z.enum(['active', 'inactive']).default('active') });
+const suggestQuery = z.object({ supplierId: z.uuid(), sectionCode: z.string().max(20), amount: money, date: day, base: money.optional() });
+const tdsListQuery = z.object({ companyId: z.uuid().optional(), from: day.optional(), to: day.optional(), status: z.enum(['deducted', 'deposited', 'cancelled']).optional(), supplierId: z.uuid().optional() });
+const depositSchema = z.strictObject({ ids: z.array(z.uuid()).min(1).max(500), paidFromAccountId: z.uuid(), depositedOn: day, challanNo: z.string().trim().min(1).max(40), challanDate: day, bsrCode: z.string().trim().max(10).optional() });
+
+/** Tax deducted at source from supplier payments: sections and rates, what a payment would deduct, the register, and recording the deposit with the government. */
+@ApiTags('tds')
+@ApiBearerAuth()
+@RequiresModule('purchasing')
+@Controller('v1/tds')
+export class TdsController {
+  constructor(@Inject(TdsService) private readonly tds: TdsService) {}
+  @RequirePermissions('payables:read') @Get('sections')
+  async sections(@TenantId() t: string) { return { items: await this.tds.listSections(t) }; }
+  @RequirePermissions('purchasing:manage') @Put('sections') @ApiZodBody(sectionSchema)
+  saveSection(@TenantId() t: string, @Body({ schema: sectionSchema }) b: z.infer<typeof sectionSchema>) { return this.tds.saveSection(t, b); }
+  @RequirePermissions('payables:read') @Get('suggest')
+  suggest(@TenantId() t: string, @Query({ schema: suggestQuery }) q: z.infer<typeof suggestQuery>) { return this.tds.suggest(t, q); }
+  @RequirePermissions('payables:read') @Get('deductions')
+  async deductions(@TenantId() t: string, @Query({ schema: tdsListQuery }) q: z.infer<typeof tdsListQuery>) { return { items: await this.tds.list(t, q) }; }
+  @RequirePermissions('payables:post') @Post('deposits') @HttpCode(200) @ApiZodBody(depositSchema)
+  deposit(@CurrentPrincipal() a: Principal, @Body({ schema: depositSchema }) b: z.infer<typeof depositSchema>) { return this.tds.deposit(a.tenantId, a.userId, b); }
+}
+
 @Module({
   imports: [AccountingModule, InventoryModule, NumberingModule, MasterDataModule, ApprovalsModule],
-  controllers: [PurchasingController, PayablesController],
-  providers: [Recorder, PurchasingSettingsService, PurchaseOrdersService, SupplierBillsService, PayablesService, LandedCostService],
-  exports: [PurchasingSettingsService, PurchaseOrdersService, SupplierBillsService, PayablesService, LandedCostService],
+  controllers: [PurchasingController, PayablesController, TdsController],
+  providers: [Recorder, PurchasingSettingsService, PurchaseOrdersService, SupplierBillsService, PayablesService, LandedCostService, TdsService],
+  exports: [PurchasingSettingsService, PurchaseOrdersService, SupplierBillsService, PayablesService, LandedCostService, TdsService],
 })
 export class PurchasingModule {}

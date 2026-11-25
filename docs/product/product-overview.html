@@ -84,6 +84,10 @@ footer{margin-top:24pt;color:var(--mut);font-size:9pt;border-top:1px solid var(-
 <li><b>Variants</b> – create every size and colour of a style in one step, each with its own stock, price and barcode.</li>
 <li><b>Price lists</b> – retail, wholesale, dealer or any custom list, with effective dates.</li>
 <li><b>Customers and suppliers</b> – contact details, GSTIN, GST treatment, credit terms, addresses, one record for a party that is both buyer and seller.</li>
+<li><b>TDS on supplier payments</b> – tick "Deduct TDS" when paying a supplier: the section's rate is worked out (below the limit nothing, without a PAN at least 20%), the bank pays the rest, the tax is held in TDS payable, and a register shows what is due to be deposited by the 7th of the next month. Record the challan to post the deposit, and download the register for the quarterly TDS return. Sections, rates and limits are editable.</li>
+<li><b>GSTR-2B check and annual working</b> – choose the GSTR-2B file downloaded from the GST portal and every supplier invoice is checked against your purchase bills (matched, figures differ, possible match, in 2B only, in books only), with CSV. An annual (GSTR-9) working adds the twelve monthly GSTR-3B figures for the year.</li>
+<li><b>Bank statements from any file</b> – CSV, Excel, OFX/QFX, QIF or MT940; the bank's heading and summary rows are skipped and opening and closing balances are read where the file has them.</li>
+<li><b>Group statements</b> – with more than one company, a group trial balance puts the companies side by side; tick inter-company accounts to take them out of the group totals.</li>
 <li><b>Lead management</b> – enquiries from Facebook and Instagram lead ads, Google Ads lead forms, your website and any other system arrive as leads within seconds, each with its campaign, ad and click details. People can also add or import leads by hand. Leads are shared out to the team by turns or by rules (city, PIN code, source, campaign), with a response-time clock that flags a lead nobody has called. A board and a list follow each lead through your own stages with calls, notes and follow-up tasks; a repeat enquirer is kept as one lead; one click makes the lead a customer and starts a quotation. Reports show leads, wins, sales and cost per lead and per sale by source and campaign, from advert spend you enter. Solar fields (monthly bill, roof, system size, DISCOM) are built in. Needs the server to be reachable from the internet; Meta live ads need Meta's own approval for lead retrieval.</li>
 <li><b>Customer and supplier screens</b> – click any customer or supplier for their own page: what they owe you (or you owe them), overdue amount, credit limit, and tabs with the full ledger and every document with them: invoices and notes, receipts, quotations, sales orders and challans; bills, payments, purchase orders and goods received. Rows open the document; New invoice and New bill start with that party chosen.</li>
 <li><b>Bulk import</b> – bring items and parties from CSV, Excel (.xlsx), JSON, XML, database files such as a Vyapar backup (.vyb), or a zip of these. Columns are matched for you and can be changed, units, tax rates and party types from the other software are translated, and every row is checked with an error report before anything is saved. Transactions, balances and opening stock are not imported.</li>
@@ -235,11 +239,11 @@ footer{margin-top:24pt;color:var(--mut);font-size:9pt;border-top:1px solid var(-
 <ul>
 <li>Sending sales back to Meta and Google as conversions, and sending WhatsApp messages to leads automatically (WhatsApp opens from your own number)</li>
 <li>Sending e-invoices and e-way bills to the government portals directly from the software (today you upload the prepared file yourself; e-way bills for delivery challans are not prepared)</li>
-<li>Direct filing to the GST portal and GSTR-2B auto-reconciliation (GSTR-9 annual return)</li>
-<li>Automatic bank feeds or bank statement import</li>
+<li>Direct filing to the GST portal (GSTR-2B and annual-return working are provided as checks)</li>
+<li>Automatic bank feeds from the bank (statements are imported from files)</li>
 <li>Multiple currencies</li>
-<li>Consolidated statements across companies (each company reports separately)</li>
-<li>Automatic TDS/TCS handling</li>
+<li>Consolidated profit and loss and balance sheet across companies (a group trial balance with eliminations is provided)</li>
+<li>TCS handling on sales, TDS on bills and income (TDS is deducted on supplier payments), and generating the TDS return file</li>
 <li>Batch/serial-tracked items can only be sold while online at the counter</li>
 <li>Offline returns at the counter</li>
 <li>Sending reminders by SMS or email from inside the software (WhatsApp opens from your own phone number)</li>

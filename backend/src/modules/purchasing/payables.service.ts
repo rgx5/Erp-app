@@ -16,6 +16,7 @@ import { payableAllocations, supplierBills, supplierPayments, supplierRefunds } 
 import type { CreatePaymentInput, SupplierRefundInput } from './purchasing.schemas.js';
 import { PurchasingSettingsService } from './purchasing-settings.service.js';
 import { SupplierBillsService } from './supplier-bills.service.js';
+import { TdsService } from './tds.service.js';
 
 export type PaymentRow = typeof supplierPayments.$inferSelect;
 export type PayableAllocationRow = typeof payableAllocations.$inferSelect;
@@ -40,6 +41,7 @@ export class PayablesService {
     @Inject(SupplierBillsService) private readonly bills: SupplierBillsService,
     @Inject(Recorder) private readonly recorder: Recorder,
     @Inject(ApprovalsService) private readonly approvals: ApprovalsService,
+    @Inject(TdsService) private readonly tds: TdsService,
   ) {
     // A bill with money allocated to it cannot be cancelled: release the allocations first.
     this.bills.onCancel(async (tx, tenantId, bill) => {
@@ -57,15 +59,27 @@ export class PayablesService {
       const settings = await this.settings.require(tx, tenantId, input.companyId, ['payableAccountId']);
       const paymentNo = await nextDocNumber(tx, tenantId, input.companyId, input.paymentDate, 'PAY');
       const id = uuidv7();
+      // tax deducted at source: the supplier is credited the full amount, the bank pays the rest, and the tax is held until it is deposited
+      let deducted: { computed: Awaited<ReturnType<TdsService['compute']>>; amount: string } | null = null;
+      if (input.tds) {
+        const computed = await this.tds.compute(tx, tenantId, { supplierId: supplier.id, sectionCode: input.tds.sectionCode, gross: input.amount, paymentDate: input.paymentDate, base: input.tds.base });
+        const amount = input.tds.amount ?? computed.amount;
+        if (toUnits(amount) <= 0n) throw validationFailed([{ path: 'tds', message: computed.reason || 'Nothing is due to be deducted on this payment' }]);
+        if (toUnits(amount) >= toUnits(input.amount)) throw validationFailed([{ path: 'tds.amount', message: 'The tax deducted must be less than the payment' }]);
+        deducted = { computed, amount };
+      }
+      const tdsAccountId = deducted ? await this.tds.account(tx, tenantId, input.companyId) : null;
+      const net = deducted ? fromUnits(toUnits(input.amount) - toUnits(deducted.amount)) : input.amount;
       const { entry } = await this.posting.post(tx, tenantId, {
         companyId: input.companyId, postingDate: input.paymentDate, journalType: 'system', description: `Payment ${paymentNo} to ${supplier.tradeName ?? supplier.legalName}`,
-        lines: [{ accountId: settings.payableAccountId as string, debit: input.amount, partyId: supplier.id, description: paymentNo }, { accountId: input.paidFromAccountId, credit: input.amount, description: paymentNo }],
+        lines: [{ accountId: settings.payableAccountId as string, debit: input.amount, partyId: supplier.id, description: paymentNo }, { accountId: input.paidFromAccountId, credit: net, description: paymentNo }, ...(deducted && tdsAccountId ? [{ accountId: tdsAccountId, credit: deducted.amount, description: `TDS ${deducted.computed.sectionCode} on ${paymentNo}` }] : [])],
         source: { type: 'supplier_payment', id, event: 'post' }, postedBy: actorId,
       });
       const payment = first(
         await tx.insert(supplierPayments).values({ tenantId, id, companyId: input.companyId, paymentNo, supplierId: supplier.id, paymentDate: input.paymentDate, amount: input.amount, method: input.method, paidFromAccountId: input.paidFromAccountId, reference: input.reference ?? null, notes: input.notes ?? null, journalEntryId: entry.id, createdBy: actorId }).returning(),
         'Payment',
       );
+      if (deducted) await this.tds.save(tx, tenantId, actorId, { companyId: input.companyId, supplierId: supplier.id, paymentId: payment.id, paymentDate: input.paymentDate, computed: deducted.computed, amount: deducted.amount });
       if (input.allocations && input.allocations.length > 0) await this.apply(tx, tenantId, actorId, { companyId: input.companyId, supplierId: supplier.id, source: { type: 'payment', row: payment }, allocatedOn: input.paymentDate, items: input.allocations });
       await this.approvals.link(tx, tenantId, approval, 'supplier_payment', payment.id);
       await this.recorder.record(tx, tenantId, 'supplier_payment', 'posted', payment, { paymentNo, supplierId: supplier.id, amount: payment.amount, ...(approval ? { approvalId: approval } : {}) });
@@ -82,6 +96,7 @@ export class PayablesService {
       const [refunded] = await tx.select({ n: supplierRefunds.refundNo }).from(supplierRefunds).where(and(eq(supplierRefunds.tenantId, tenantId), eq(supplierRefunds.paymentId, id))).limit(1);
       if (refunded) throw new AppError(409, 'has_refunds', `Refund ${refunded.n} was received out of this payment`);
       let reversal: string | null = null;
+      await this.tds.cancelForPayment(tx, tenantId, id);
       if (payment.journalEntryId) reversal = (await this.posting.reverse(tx, tenantId, payment.journalEntryId, { postingDate: input.cancelDate, reason: `Cancelled: ${input.reason}`, postedBy: actorId, allowSystem: true })).entry.id;
       await tx.update(payableAllocations).set({ reversedOn: input.cancelDate, reversedAt: new Date() }).where(and(eq(payableAllocations.tenantId, tenantId), eq(payableAllocations.paymentId, id), sql`${payableAllocations.reversedAt} IS NULL`));
       const updated = first(await tx.update(supplierPayments).set({ status: 'cancelled', cancelledAt: new Date(), cancelDate: input.cancelDate, cancelReason: input.reason, cancelJournalEntryId: reversal }).where(and(eq(supplierPayments.tenantId, tenantId), eq(supplierPayments.id, id))).returning(), 'Payment');

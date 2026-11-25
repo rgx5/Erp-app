@@ -152,6 +152,8 @@ export const createPaymentSchema = z.strictObject({
   notes: text(500).optional(),
   /** Settle bills now; whatever is left stays on account as an advance to the supplier. */
   allocations: z.array(allocationItem).max(200).optional(),
+  /** Tax deducted at source: the section, optionally the amount it is worked out on (default the whole payment) and the tax itself (default worked out from the section's rate). The bank pays the payment less this tax. */
+  tds: z.strictObject({ sectionCode: text(20), base: positive.optional(), amount: positive.optional() }).optional(),
 });
 export const allocatePaymentsSchema = z.strictObject({
   source: z.strictObject({ type: z.enum(['payment', 'debit_note']), id: z.uuid() }),

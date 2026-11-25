@@ -16,3 +16,4 @@ export * from '../modules/retail/retail.schema.js';
 export * from '../modules/attachments/attachments.schema.js';
 export * from '../modules/einvoice/einvoice.schema.js';
 export * from '../modules/leads/leads.schema.js';
+export * from '../modules/purchasing/tds.schema.js';

@@ -9,6 +9,7 @@ export interface NavItem { to: string; label: string; icon: LucideIcon; needs?: 
 export function moduleOfPage(n: Pick<NavItem, 'to' | 'section'>): string | undefined {
   if (n.to === '/accounting/expenses') return 'pos'
   if (n.to === '/accounting/bank') return 'banking'
+  if (n.to === '/accounting/tds') return 'purchasing'
   if (n.to === '/gst') return 'gst'
   if (n.to === '/approvals') return 'approvals'
   if (n.to === '/accounting/journals' || n.to === '/accounting/chart' || n.to === '/accounting/reports' || n.to === '/accounting/periods' || n.to === '/report-centre') return 'accounting'
@@ -40,6 +41,7 @@ export const NAV: NavItem[] = [
   { to: '/sales/receivables', label: 'Receivables', icon: Landmark, needs: ['receivables:read'], section: 'Sales' },
   { to: '/accounting/journals', label: 'Journal entries', icon: BookOpen, needs: ['accounting:read'], section: 'Accounting' },
   { to: '/accounting/expenses', label: 'Expenses', icon: Wallet, needs: ['expenses:read'], section: 'Accounting' },
+  { to: '/accounting/tds', label: 'TDS', icon: Percent, needs: ['payables:read'], section: 'Accounting' },
   { to: '/accounting/chart', label: 'Chart of accounts', icon: ListTree, needs: ['accounting:read'], section: 'Accounting' },
   { to: '/accounting/reports', label: 'Financial reports', icon: LineChart, needs: ['accounting:read'], section: 'Accounting' },
   { to: '/accounting/bank', label: 'Bank reconciliation', icon: Landmark, needs: ['bank:read'], section: 'Accounting' },

@@ -18,6 +18,7 @@ import { Drawer } from '@/ui/Drawer'
 import { useFlash } from '@/ui/flash'
 import { Alert, Button, SelectField, Spinner, TextField } from '@/ui/primitives'
 import { usePayments, usePostPayment, useSupplierPosition, type PaymentInput } from './queries'
+import { useTdsSections, useTdsSuggestion } from './tds'
 
 const METHODS = [{ value: 'bank_transfer', label: 'Bank transfer' }, { value: 'cheque', label: 'Cheque' }, { value: 'upi', label: 'UPI' }, { value: 'cash', label: 'Cash' }, { value: 'card', label: 'Card' }, { value: 'other', label: 'Other' }]
 const methodLabel = (v: string): string => METHODS.find((m) => m.value === v)?.label ?? v
@@ -33,6 +34,10 @@ function PaymentDrawer({ companyId, initialSupplier, onClose }: { companyId: str
   const [accountId, setAccountId] = useState('')
   const [reference, setReference] = useState('')
   const [alloc, setAlloc] = useState<Record<string, string>>({})
+  const [deduct, setDeduct] = useState(false); const [section, setSection] = useState(''); const [tdsAmount, setTdsAmount] = useState('')
+  const sections = useTdsSections()
+  const sug = useTdsSuggestion({ ...(supplier ? { supplierId: supplier.id } : {}), sectionCode: deduct ? section : '', amount, date })
+  const tdsDue = deduct ? (tdsAmount.trim() !== '' ? tdsAmount.trim() : sug.data?.applies ? sug.data.amount : '') : ''
   const [error, setError] = useState<unknown>(null)
   const position = useSupplierPosition(companyId, supplier?.id, date)
   const cash = accounts.data ?? []
@@ -43,6 +48,7 @@ function PaymentDrawer({ companyId, initialSupplier, onClose }: { companyId: str
   const advance = amountOk && !over ? sub(amount, allocated) : null
   const body: PaymentInput | null = supplier && amountOk && !over && paidFrom ? {
     companyId, supplierId: supplier.id, paymentDate: date, amount, method: method as 'cash', paidFromAccountId: paidFrom, ...(reference.trim() ? { reference: reference.trim() } : {}),
+    ...(deduct && section ? { tds: { sectionCode: section, ...(tdsAmount.trim() ? { amount: tdsAmount.trim() } : {}) } } : {}),
     ...(Object.entries(alloc).some(([, v]) => isValid(v) && compare(v, '0') > 0) ? { allocations: Object.entries(alloc).filter(([, v]) => isValid(v) && compare(v, '0') > 0).map(([billId, v]) => ({ billId, amount: v })) } : {}),
   } : null
   const key = useMemo(() => crypto.randomUUID(), [JSON.stringify(body)]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -75,6 +81,22 @@ function PaymentDrawer({ companyId, initialSupplier, onClose }: { companyId: str
           <SelectField label="Paid from" value={paidFrom} onChange={(e) => setAccountId(e.target.value)} options={cash.map((a) => ({ value: a.id, label: `${a.code} · ${a.name}` }))} />
         </div>
         <TextField label="Reference (optional)" value={reference} onChange={(e) => setReference(e.target.value)} hint="Cheque number, UTR" />
+        {supplier ? (
+          <div className="rounded-lg border border-line p-3">
+            <label className="flex items-center gap-2 text-sm font-medium"><input type="checkbox" checked={deduct} onChange={(e) => { setDeduct(e.target.checked); if (e.target.checked && !section) setSection((sections.data ?? [])[0]?.code ?? '') }} /> Deduct TDS from this payment</label>
+            {deduct ? (
+              <div className="mt-2 flex flex-col gap-2">
+                <div className="grid grid-cols-2 gap-3">
+                  <SelectField label="Section" value={section} onChange={(e) => { setSection(e.target.value); setTdsAmount('') }} options={(sections.data ?? []).filter((x) => x.status === 'active').map((x) => ({ value: x.code, label: `${x.code} · ${x.description} (${Number(x.rate)}%)` }))} />
+                  <TextField label="TDS amount" inputMode="decimal" value={tdsAmount} placeholder={sug.data?.applies ? sug.data.amount : '0'} onChange={(e) => setTdsAmount(e.target.value)} hint="Worked out for you; change it only if needed" />
+                </div>
+                {sug.data?.reason ? <Alert tone="info">{sug.data.reason}</Alert> : null}
+                {sug.error ? <Alert>{sug.error.message}</Alert> : null}
+                {tdsDue && amountOk && isValid(tdsDue) && compare(tdsDue, amount) < 0 ? <p className="text-sm">Deducted {formatInr(tdsDue)}. <b>The bank pays {formatInr(sub(amount, tdsDue))}</b>; the supplier is credited the full {formatInr(amount)}. Deposit the tax by the 7th of next month (Accounting, TDS).</p> : null}
+              </div>
+            ) : null}
+          </div>
+        ) : null}
         {supplier ? (
           <section aria-label="Settle bills" className="flex flex-col gap-2 border-t border-line pt-3">
             <div className="flex items-center justify-between"><h3 className="text-sm font-semibold">Settle bills</h3><Button variant="secondary" onClick={autoAllocate} disabled={!amountOk || !position.data}>Earliest due first</Button></div>
