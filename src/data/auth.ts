@@ -3,6 +3,7 @@ import { industryById } from '@/industries'
 import { buildDemo, newBusinessState, type NewBusiness } from './demo'
 import { createApi, normalizeApiUrl, type Api, type LoginResult } from './api'
 import { createKoshApi } from './kosh/api'
+import { createPlatformApi, normalizePlatformUrl, type PlatformCtx } from './platform/api'
 import { hashPin, lockoutSeconds, verifyPin } from './pin'
 import { secureDelete, secureGet, secureSet } from './secure'
 import { snapshotToData } from './snapshot'
@@ -19,13 +20,28 @@ let token: string | null = null
 export const getToken = () => token
 export async function setToken(t: string | null) {
   token = t
-  if (t) await secureSet('token', t); else await secureDelete('token')
+  if (t) await secureSet('token', t); else { await secureDelete('token'); refreshToken = null; await secureDelete('refreshToken') }
 }
+/** The platform's long-lived refresh token: swapped for a new access token (they last minutes) without asking for the password. */
+let refreshToken: string | null = null
+const setTokens = (t: { access: string; refresh: string }): void => { token = t.access; refreshToken = t.refresh; void secureSet('token', t.access); void secureSet('refreshToken', t.refresh) }
 
 /** The API client for the connected server (null for an offline workspace). */
 export function getApi(): Api | null {
   const ws = useApp.getState().workspace
+  if (ws?.mode === 'remote' && ws.apiUrl && ws.backend === 'platform') return platformApi(ws.apiUrl, ws.deviceTag) as unknown as Api
   return ws?.mode === 'remote' && ws.apiUrl && ws.backend !== 'kosh' ? createApi(ws.apiUrl, getToken) : null
+}
+
+/** The platform client for a server, remembering what it learns about the company and till with the workspace. */
+function platformApi(apiUrl: string, deviceTag?: string, ctx?: PlatformCtx) {
+  let held = ctx
+  return createPlatformApi(apiUrl, {
+    getToken, getRefresh: () => refreshToken, setTokens,
+    ctx: () => held ?? useApp.getState().workspace?.platform,
+    setCtx: (c) => { held = c; const ws = useApp.getState().workspace; if (ws) void useApp.getState().setWorkspace({ ...ws, platform: c }) },
+    deviceName: () => `Phone ${deviceTag || 'app'}`,
+  })
 }
 
 const TAG_CHARS = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
@@ -45,7 +61,7 @@ function detectIndustry(categoryIds: string[]): string {
 export async function bootApp(): Promise<void> {
   await useApp.getState().boot()
   const ws = useApp.getState().workspace
-  if (ws?.mode === 'remote') token = await secureGet('token')
+  if (ws?.mode === 'remote') { token = await secureGet('token'); refreshToken = await secureGet('refreshToken') }
 }
 
 // ───────────────────────────── connecting to a server ─────────────────────────────
@@ -69,6 +85,35 @@ async function finishConnect(apiUrl: string, login: LoginResult, email?: string)
   s.patchSync({ authenticated: true, lastError: null, lastPulledAt: Date.now() })
 }
 
+/**
+ * Sign in to a business on the new platform (server address, business code, email, password), find the company and till, and download
+ * the catalogue, customers and recent sales to the phone.
+ */
+export async function connectToPlatform(apiUrl: string, tenant: string, email: string, password: string): Promise<void> {
+  const s = useApp.getState()
+  const keep = s.workspace?.mode === 'remote' && s.workspace.backend === 'platform' && s.workspace.tenant === tenant.trim().toLowerCase() ? s.workspace : null
+  const deviceTag = keep?.deviceTag ?? randomTag()
+  const url = normalizePlatformUrl(apiUrl)
+  const probe = platformApi(url, deviceTag)
+  const session = await probe.login(tenant, email, password)
+  const companies = await probe.companies()
+  const company = companies[0]
+  if (!company) throw new Error('This business has no company yet. Set it up on the desktop app first.')
+  const ctx: PlatformCtx = { tenant: session.tenant, companyId: company.id, companyName: company.tradeName ?? company.legalName, priceIncludesTax: true }
+  const api = platformApi(url, deviceTag, ctx)
+  const snap = await api.snapshot()
+  const data = snapshotToData(snap, keep ? s.data : undefined)
+  const finalCtx = { ...ctx, ...(useApp.getState().workspace?.platform ?? {}) }
+  const ws: Workspace = {
+    id: company.id, name: ctx.companyName, mode: 'remote', backend: 'platform', industry: keep?.industry ?? 'general', apiUrl: url, storeId: company.id, tenant: session.tenant, platform: finalCtx,
+    deviceTag, barcodeBase: keep?.barcodeBase ?? randomBarcodeBase(), createdAt: keep?.createdAt ?? Date.now(), loginEmail: email.trim(),
+  }
+  await s.replaceData(data, { keepOutbox: !!keep })
+  await s.setWorkspace(ws)
+  await s.setSession({ userId: session.user.id })
+  s.patchSync({ authenticated: true, lastError: null, lastPulledAt: Date.now() })
+}
+
 /** Owner / manager sign-in with email and password, then the whole business is downloaded. */
 export async function connectWithPassword(apiUrl: string, email: string, password: string): Promise<void> {
   const login = await createApi(apiUrl).webLogin(email.trim(), password)
@@ -89,7 +134,10 @@ export async function reauthenticate(password: string): Promise<void> {
   const s = useApp.getState()
   const ws = s.workspace
   if (!ws?.apiUrl || !ws.loginEmail) throw new Error('Sign out and connect again to continue syncing.')
-  if (ws.backend === 'kosh') {
+  if (ws.backend === 'platform') {
+    if (!ws.tenant) throw new Error('Sign out and connect again to continue syncing.')
+    await platformApi(ws.apiUrl, ws.deviceTag).login(ws.tenant, ws.loginEmail, password)
+  } else if (ws.backend === 'kosh') {
     const login = await createKoshApi(ws.apiUrl).login(ws.loginEmail, password, ws.deviceId ?? 'dev', 'OneSyncERP app')
     await setToken(login.token)
   } else {
@@ -153,6 +201,8 @@ export async function switchUser(userId: string, pin: string): Promise<PinResult
   if (await lockedForSeconds() > 0) return 'locked'
 
   let ok = false
+  // the platform has no counter PINs: the person who signed in is the person at the counter
+  if (ws.mode === 'remote' && ws.backend === 'platform') return userId === s.session?.userId ? 'ok' : 'wrong'
   if (ws.mode === 'remote' && ws.backend === 'kosh' && ws.apiUrl && ws.storeId && ws.deviceId) {
     try {
       const login = await createKoshApi(ws.apiUrl).pinLogin(ws.storeId, userId, pin, ws.deviceId, 'OneSyncERP app')

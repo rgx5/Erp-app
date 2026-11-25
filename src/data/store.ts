@@ -15,7 +15,10 @@ export interface Workspace {
   name: string
   mode: 'local' | 'remote'
   /** Which server a connected workspace talks to: a Krishna-compatible retail server, or a OneSync server (the full ERP). */
-  backend?: 'krishna' | 'kosh'
+  backend?: 'krishna' | 'kosh' | 'platform'
+  /** The new platform: the business code the person signs in with, and what this phone has worked out about the company, till and device. */
+  tenant?: string
+  platform?: import('./platform/api').PlatformCtx
   /** This phone's identity on a OneSync server (idempotency of its writes, device list). */
   deviceId?: string
   /** The outlet this phone works for (multi-store, OneSync server). */
