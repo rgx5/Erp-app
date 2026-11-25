@@ -12,8 +12,8 @@ test('import: a Vyapar backup for customers (asking what its codes mean), and a 
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
 
   // a backup file with several tables: the one holding the people is picked, the columns are matched, the codes are asked
-  await goTo(page, 'Customers')
-  await page.getByRole('button', { name: 'Import' }).click()
+  await goTo(page, 'Import data')
+  await page.getByRole('button', { name: /Import customers/ }).click()
   await page.getByLabel('Data file').setInputFiles({ name: 'company.vyb', mimeType: 'application/octet-stream', buffer: readFileSync('tests/fixtures/import/small.vyb') })
   await expect(page.getByText(/Vyapar backup: company\.vyb/)).toBeVisible()
   await expect(page.getByLabel('Table or sheet')).toHaveValue('0')
@@ -32,8 +32,8 @@ test('import: a Vyapar backup for customers (asking what its codes mean), and a 
   await page.getByRole('button', { name: 'Done' }).click()
 
   // a JSON file whose columns are named differently: matched by name, units and tax rates understood
-  await goTo(page, 'Items')
-  await page.getByRole('button', { name: 'Import' }).click()
+  await goTo(page, 'Import data')
+  await page.getByRole('button', { name: /Import items/ }).click()
   const json = [{ productName: 'Brass tap', sku: 'BT-1', hsnCode: '8481', uom: 'Pcs', taxRate: '18%', retailPrice: '250' }, { productName: 'Copper pipe', sku: 'CP-1', hsnCode: '7411', uom: 'Mtr', taxRate: '18', retailPrice: '' }]
   await page.getByLabel('Data file').setInputFiles({ name: 'products.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify({ products: json })) })
   await expect(page.getByLabel('Column for Name')).toHaveText(/productName/)

@@ -62,7 +62,8 @@ test('master data: items, customers, tax rates and price lists from the app', as
   await page.keyboard.press('Escape')
 
   // import: one good row and one bad row
-  await page.getByRole('button', { name: 'Import' }).click()
+  await goTo(page, 'Import data')
+  await page.getByRole('button', { name: /Import items/ }).click()
   const csv = 'Code,Name,Type,Unit,HSN/SAC,GST code,Sellable,Purchasable\nTROUSER-32,Cotton trouser,finished_good,NOS,6203,GST12,yes,yes\nBAD-1,Broken row,finished_good,NOS,12,GST12,yes,yes\n'
   await page.getByLabel('Data file').setInputFiles({ name: 'items.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) })
   await expect(page.getByRole('status').filter({ hasText: '2 rows' })).toContainText('1 ready')
@@ -70,6 +71,7 @@ test('master data: items, customers, tax rates and price lists from the app', as
   await page.getByRole('button', { name: 'Import 1 rows' }).click()
   await expect(page.getByRole('status').filter({ hasText: '2 rows' })).toContainText('1 created')
   await page.getByRole('button', { name: 'Done' }).click()
+  await goTo(page, 'Items')
   await expect(page.getByRole('cell', { name: 'TROUSER-32' })).toBeVisible()
 
   // search and edit
@@ -82,12 +84,14 @@ test('master data: items, customers, tax rates and price lists from the app', as
   await edit.getByRole('button', { name: 'Save changes' }).click()
   await expect(page.getByRole('cell', { name: 'Cotton trouser (slim)' })).toBeVisible()
 
-  // export downloads what is on the screen's filter
-  const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Export' }).click()])
+  // export lives in the Data section and saves every item
+  await goTo(page, 'Export data')
+  const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('button', { name: 'Items' }).click()])
   expect(download.suggestedFilename()).toBe('items.csv')
   const exported = (await (await import('node:fs/promises')).readFile((await download.path()) as string, 'utf8'))
   expect(exported).toContain('TROUSER-32')
-  expect(exported).not.toContain('SHIRT-M')
+  expect(exported).toContain('SHIRT-M')
+  await goTo(page, 'Items')
 
   // ---- customers ----
   await goTo(page, 'Customers')

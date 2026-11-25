@@ -16,7 +16,7 @@ describe('editions', () => {
   })
   it('give a small shop a short menu: sales, stock, counter and the basics, without accounts, buying or the advanced screens', () => {
     const l = labels(me(['sales', 'inventory', 'pos']))
-    for (const want of ['Dashboard', 'Setup', 'Invoices', 'Receipts', 'Stock on hand', 'Counter', 'Items', 'Customers', 'Users']) expect(l, want).toContain(want)
+    for (const want of ['Dashboard', 'Setup checklist', 'Invoices', 'Receipts', 'Stock on hand', 'Counter', 'Items', 'Customers', 'Users']) expect(l, want).toContain(want)
     for (const hide of ['Purchase orders', 'Journal entries', 'GST returns', 'Payroll runs', 'Work orders', 'Approvals', 'Tax codes', 'Units', 'API keys', 'Audit log', 'Batches and serials', 'Valuation', 'Transfers']) expect(l, hide).not.toContain(hide)
   })
   it('show the advanced screens again as the plan grows, and everything with no restrictions', () => {

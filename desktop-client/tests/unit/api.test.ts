@@ -32,6 +32,19 @@ describe('api client', () => {
     expect(seen[0]?.headers.get('authorization')).toBe('Bearer acc0')
   })
 
+  it('waits and asks again when the server says too many requests, with the same idempotency key', async () => {
+    vi.useFakeTimers()
+    try {
+      let calls = 0
+      const { api, seen } = setup(() => (++calls < 3 ? json(429, { code: 'too_many_concurrent' }, { 'retry-after': '2' }) : json(200, { ok: true })))
+      const pending = api.call(api.raw.POST('/v1/sales/invoices' as never, { body: {} } as never), z.object({ ok: z.boolean() }))
+      await vi.advanceTimersByTimeAsync(5000)
+      expect(await pending).toEqual({ ok: true })
+      expect(calls).toBe(3)
+      expect(new Set(seen.map((r) => r.headers.get('idempotency-key'))).size).toBe(1)
+    } finally { vi.useRealTimers() }
+  })
+
   it('does not send the token to public endpoints', async () => {
     const { api, seen } = setup(() => json(200, { app: 'onesync-erp' }))
     await api.raw.GET('/v1/meta')

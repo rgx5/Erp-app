@@ -1,6 +1,6 @@
 import { useReachability } from '@/api/reachability'
+import { HeaderTools } from './UserMenu'
 import { useT } from '@/i18n'
-import { NotificationsBell } from './NotificationsBell'
 import { Link, Outlet, useRouterState } from '@tanstack/react-router'
 import { LogOut, Search } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -43,30 +43,29 @@ export function CommandShell() {
   const first = (m: (typeof MODULES)[number]): NavItem | undefined => items.find((n) => moduleOf(n) === m)
   return (
     <div className="grid h-full grid-cols-[68px_minmax(0,1fr)] overflow-hidden grid-rows-[48px_40px_1fr_26px]">
-      <aside className="row-span-3 flex min-h-0 flex-col items-center gap-1 border-r border-line bg-surface py-3" aria-label="Areas">
-        <Logo className="mb-2 size-9" />
+      <aside className="row-span-3 flex min-h-0 flex-col items-center gap-1 border-r border-chrome-2 bg-chrome py-3 text-chrome-ink" aria-label="Areas" data-sidebar="dark">
+        <div className="app-drag titlebar-left"><Logo className="mb-2 size-9" /></div>
         <nav className="flex flex-1 flex-col items-center gap-1" aria-label="Main">
           {modules.map((m) => {
             const target = first(m)
             const on = m === area
             return target ? (
-              <Link key={m.id} to={target.to as never} aria-label={t(m.label)} title={t(m.label)} className={cn('grid h-12 w-12 place-items-center rounded-xl text-[10px] font-medium leading-tight transition-colors', on ? 'bg-hero text-brand-ink shadow-[inset_3px_0_0_var(--color-accent)]' : 'text-muted hover:bg-canvas hover:text-ink')}>
+              <Link key={m.id} to={target.to as never} aria-label={t(m.label)} title={t(m.label)} className={cn('grid h-12 w-12 place-items-center rounded-xl text-[10px] font-medium leading-tight transition-colors', on ? 'bg-chrome-2 text-white shadow-[inset_3px_0_0_var(--color-accent)]' : 'text-chrome-ink hover:bg-chrome-2 hover:text-white')}>
                 <span className="flex flex-col items-center gap-0.5"><m.icon className="size-[18px]" aria-hidden />{t(m.label)}</span>
               </Link>) : null
           })}
         </nav>
-        <button type="button" aria-label="Sign out" title={`Sign out ${me?.user?.displayName ?? ''}`} onClick={() => void logout()} className="grid size-10 place-items-center rounded-xl text-muted hover:bg-canvas hover:text-ink"><LogOut className="size-4" aria-hidden /></button>
-        <Link to={'/account' as never} aria-label="My account" title="My account" className="grid size-8 place-items-center rounded-full bg-brand-soft text-[11px] font-semibold text-brand">{initials}</Link>
+        <button type="button" aria-label="Sign out" title={`Sign out ${me?.user?.displayName ?? ''}`} onClick={() => void logout()} className="grid size-10 place-items-center rounded-xl text-chrome-ink hover:bg-chrome-2 hover:text-white"><LogOut className="size-4" aria-hidden /></button>
+        <Link to={'/account' as never} aria-label="My account" title="My account" className="grid size-8 place-items-center rounded-full bg-chrome-2 text-[11px] font-semibold text-white">{initials}</Link>
       </aside>
 
-      <header className="col-start-2 flex items-center gap-4 border-b border-line bg-surface px-5">
+      <header className="app-drag titlebar-right col-start-2 flex items-center gap-3 border-b border-line bg-surface px-5">
         <span className="text-[15px] font-semibold tracking-tight">{t(area.label)}</span>
         <button type="button" onClick={() => setPalette(true)} aria-label="Open the command palette" className="flex h-8 w-full max-w-[460px] items-center justify-between rounded-lg border border-line bg-canvas px-3 text-[13px] text-muted hover:border-line-strong">
           <span className="flex items-center gap-2"><Search className="size-3.5" aria-hidden />Search or run a command…</span><kbd className="rounded border border-line bg-surface px-1.5 text-[11px]">Ctrl K</kbd>
         </button>
         <span className="flex-1" />
-        <NotificationsBell />
-        <span className="text-xs text-muted" title={me?.user?.email}>{me?.user?.displayName ?? ''}</span>
+        <HeaderTools />
       </header>
 
       <nav className="col-start-2 flex items-end gap-0.5 overflow-x-auto border-b border-line bg-surface px-4" aria-label={`${t(area.label)} pages`}>

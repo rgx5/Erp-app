@@ -1,9 +1,9 @@
 import { Link, useNavigate } from '@tanstack/react-router'
-import { LayoutGrid, List, Plus, Upload } from 'lucide-react'
+import { LayoutGrid, List, Plus } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { can } from '@/auth/permissions'
 import { useSession } from '@/auth/session'
-import { ImportDialog, type ImportSpec } from '@/features/masterdata/ImportDialog'
+import type { ImportSpec } from '@/features/masterdata/ImportDialog'
 import { useDebounced } from '@/ui/hooks'
 import { useFlash } from '@/ui/flash'
 import { Alert, Button, SelectField, Spinner, TextField, Toolbar } from '@/ui/primitives'
@@ -31,7 +31,7 @@ function Card({ lead, owners, shown, onOpen }: { lead: Lead; owners: Map<string,
   )
 }
 
-const importSpec = (reasonless: undefined): ImportSpec<Record<string, unknown>> => ({
+export const leadImportSpec = (reasonless: undefined): ImportSpec<Record<string, unknown>> => ({
   title: 'Import leads',
   template: { filename: 'leads-template.csv', header: ['Name', 'Phone', 'Email', 'City', 'Pincode', 'Source', 'Campaign', 'Interest'], example: ['Asha Rao', '9810000001', 'asha@example.com', 'Pune', '411001', 'website', 'Summer solar', '5 kW rooftop'] },
   invalidate: ['leads', 'lead-counts'], nameKey: 'name', hints: ['lead', 'enquiry', 'enquiries', 'contact', 'prospect'],
@@ -54,7 +54,7 @@ export function LeadsPage() {
   const [search, setSearch] = useState(''); const q = useDebounced(search.trim())
   const [owner, setOwner] = useState(''); const [source, setSource] = useState(''); const [quick, setQuick] = useState<'' | 'overdue' | 'followUp' | 'unassigned'>('')
   const [showClosed, setShowClosed] = useState(false)
-  const [adding, setAdding] = useState(false); const [importing, setImporting] = useState(false); const [losing, setLosing] = useState<Lead | null>(null)
+  const [adding, setAdding] = useState(false); const [losing, setLosing] = useState<Lead | null>(null)
   const settings = useLeadSettings(); const counts = useLeadCounts(); const a = useLeadActions()
   const filter = { ...(q ? { q } : {}), ...(owner ? { ownerId: owner } : {}), ...(source ? { source } : {}), ...(quick === 'overdue' ? { overdue: true } : {}), ...(quick === 'followUp' ? { followUpDue: true } : {}), ...(quick === 'unassigned' ? { unassigned: true } : {}), ...(view === 'list' ? {} : showClosed ? {} : { status: 'open' }) }
   const list = useLeads(filter, view === 'board' ? 500 : 100)
@@ -83,7 +83,6 @@ export function LeadsPage() {
             <button aria-label="Board view" aria-pressed={view === 'board'} className={`px-2.5 py-1.5 ${view === 'board' ? 'bg-sunken' : ''}`} onClick={() => { setView('board'); try { localStorage.setItem('onesync.leads.view', 'board') } catch { /* not kept */ } }}><LayoutGrid className="size-4" aria-hidden /></button>
             <button aria-label="List view" aria-pressed={view === 'list'} className={`px-2.5 py-1.5 ${view === 'list' ? 'bg-sunken' : ''}`} onClick={() => { setView('list'); try { localStorage.setItem('onesync.leads.view', 'list') } catch { /* not kept */ } }}><List className="size-4" aria-hidden /></button>
           </div>
-          {canWrite ? <Button variant="secondary" onClick={() => setImporting(true)}><Upload className="size-4" aria-hidden /> Import</Button> : null}
           {canWrite ? <Button onClick={() => setAdding(true)}><Plus className="size-4" aria-hidden /> New lead</Button> : null}
         </div>
       </div>
@@ -133,7 +132,6 @@ export function LeadsPage() {
       {list.hasNextPage ? <Button variant="secondary" className="self-start" busy={list.isFetchingNextPage} onClick={() => void list.fetchNextPage()}>Load more</Button> : null}
       {can(perms, 'leads:manage') && !list.isPending && list.rows.length === 0 && !q && !owner && !source && !quick ? <Alert tone="info">No leads yet. <Link to="/leads/sources" className="underline">Connect your website, Facebook or Google Ads</Link> so enquiries arrive by themselves, or add one by hand.</Alert> : null}
       {adding ? <NewLeadDrawer onClose={() => setAdding(false)} /> : null}
-      {importing ? <ImportDialog spec={importSpec(undefined)} onClose={() => setImporting(false)} /> : null}
       {losing ? <LostDialog name={losing.name} reasons={settings.data?.lostReasons ?? []} onClose={() => setLosing(null)} onConfirm={async (reason) => { const lost = stages.find((s) => s.kind === 'lost'); if (lost) await a.stage.mutateAsync({ id: losing.id, stageId: lost.id, lostReason: reason }) }} /> : null}
     </div>
   )

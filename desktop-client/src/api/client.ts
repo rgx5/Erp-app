@@ -72,8 +72,15 @@ export function createApi(options: ApiOptions) {
       if (t && !isPublic) r.headers.set('authorization', `Bearer ${t.accessToken}`)
       return r
     }
-    const res = await send(withAuth(request))
-    if (res.status === 401 && !isPublic && options.getTokens() && (await refresh())) return send(withAuth(retry))
+    const again = (): Request => withAuth(retry.clone())
+    let res = await send(withAuth(request))
+    if (res.status === 401 && !isPublic && options.getTokens() && (await refresh())) res = await send(again())
+    // The server limits how many heavy requests one business may run at once and says how long to wait: wait, then ask again (the same idempotency key, so nothing is done twice).
+    for (let i = 0; res.status === 429 && i < 5; i++) {
+      const wait = Math.min(5, Math.max(1, Number(res.headers.get('retry-after')) || 2))
+      await new Promise((done) => setTimeout(done, wait * 1000))
+      res = await send(again())
+    }
     return res
   }
 

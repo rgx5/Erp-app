@@ -1,14 +1,13 @@
-import { Link, Outlet, useNavigate, useRouterState } from '@tanstack/react-router'
-import { BadgeCheck, BookOpen, Boxes, Building2, ChevronDown, ChevronRight, Database, Download, FolderOpen, Info, Factory, FileText, LogOut, PanelLeftClose, PanelLeftOpen, ScanBarcode, Search, Settings2, ShoppingCart, UserCog, Users2, type LucideIcon } from 'lucide-react'
+import { Link, Outlet, useRouterState } from '@tanstack/react-router'
+import { ArrowLeftRight, BadgeCheck, BookOpen, Boxes, Building2, ChevronDown, ChevronRight, Database, Factory, FileText, PanelLeftClose, PanelLeftOpen, ScanBarcode, Search, Settings2, ShoppingCart, Users2, type LucideIcon } from 'lucide-react'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { isStarter } from '@/auth/edition'
 import { can } from '@/auth/permissions'
 import { useSession } from '@/auth/session'
-import { useChosenCompany, useCompanies } from '@/features/organization/queries'
 import { LicenceBanner } from './LicenceBanner'
 import { Logo } from './Logo'
 import { useT } from '@/i18n'
-import { NotificationsBell } from './NotificationsBell'
+import { HeaderTools } from './UserMenu'
 import { cn } from './cn'
 import { CommandPalette } from './CommandPalette'
 import { NAV, currentNav, isHere, visibleNav, type NavItem } from './nav'
@@ -16,7 +15,9 @@ import { Toasts } from './Toasts'
 
 const RAIL_KEY = 'onesync.nav.rail'
 const readRail = (): boolean => { try { return localStorage.getItem(RAIL_KEY) === '1' } catch { return false } }
-const GROUP_ICON: Record<string, LucideIcon> = { Sales: FileText, Purchasing: ShoppingCart, Inventory: Boxes, 'Master data': Database, Accounting: BookOpen, Manufacturing: Factory, Payroll: Users2, 'Point of sale': ScanBarcode, Administration: Settings2, Organization: Building2, Control: BadgeCheck }
+/** Data and Settings are not daily work: they close the menu. */
+const LAST = ['Data', 'Settings']
+const GROUP_ICON: Record<string, LucideIcon> = { Sales: FileText, Purchasing: ShoppingCart, Inventory: Boxes, 'Master data': Database, Accounting: BookOpen, Manufacturing: Factory, Payroll: Users2, 'Point of sale': ScanBarcode, Administration: Settings2, Organization: Building2, Control: BadgeCheck, Data: ArrowLeftRight, Settings: Settings2 }
 
 /**
  * The sidebar. Deep navy, so the work area is the brightest thing on screen. Areas are collapsed to one line each and only the one
@@ -29,7 +30,7 @@ function Sidebar({ items, rail }: { items: NavItem[]; rail: boolean }) {
   /** A small shop's "Accounting" holds only expenses, so it is called that. */
   const nameOf = (g: string): string => t(starter && g === 'Accounting' ? 'Expenses' : g)
   const path = useRouterState({ select: (s) => s.location.pathname })
-  const groups = useMemo(() => [...new Set(items.filter((n) => n.section).map((n) => n.section as string))], [items])
+  const groups = useMemo(() => [...new Set(items.filter((n) => n.section).map((n) => n.section as string))].sort((a, b) => Number(LAST.includes(a)) - Number(LAST.includes(b)) || LAST.indexOf(a) - LAST.indexOf(b)), [items])
   const here = currentNav(items, path)
   const [open, setOpen] = useState<string | null>(here?.section ?? null)
   const [fly, setFly] = useState<string | null>(null)
@@ -45,9 +46,9 @@ function Sidebar({ items, rail }: { items: NavItem[]; rail: boolean }) {
   const link = (n: NavItem, nested: boolean) => {
     const active = isHere(n, path) && here?.to === n.to
     return (
-      <Link key={n.to} to={n.to} title={rail && !nested ? t(n.label) : undefined} className={cn('group relative flex h-8 shrink-0 items-center gap-2.5 rounded-md text-[13px] transition-colors', rail && !nested ? 'justify-center px-0' : nested ? 'pl-9 pr-2' : 'px-2.5', active ? 'bg-brand-soft font-medium text-brand' : 'text-muted hover:bg-canvas hover:text-ink')}>
+      <Link key={n.to} to={n.to} title={rail && !nested ? t(n.label) : undefined} className={cn('group relative flex h-8 shrink-0 items-center gap-2.5 rounded-md text-[13px] transition-colors', rail && !nested ? 'justify-center px-0' : nested ? 'pl-9 pr-2' : 'px-2.5', active ? 'bg-chrome-2 font-medium text-white' : 'text-chrome-ink hover:bg-chrome-2 hover:text-white')}>
         {active ? <span className="absolute inset-y-1.5 left-0 w-[3px] rounded-r bg-accent" aria-hidden /> : null}
-        {nested && !rail ? null : <n.icon className={cn('size-4 shrink-0', active ? 'text-brand' : 'opacity-80')} aria-hidden />}
+        {nested && !rail ? null : <n.icon className={cn('size-4 shrink-0', active ? 'text-accent' : 'opacity-80')} aria-hidden />}
         {rail && !nested ? <span className="sr-only">{t(n.label)}</span> : <span className="truncate">{t(n.label)}</span>}
       </Link>
     )
@@ -56,7 +57,7 @@ function Sidebar({ items, rail }: { items: NavItem[]; rail: boolean }) {
   return (
     <nav ref={box} className="relative flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-2 pb-2" aria-label="Main">
       {top.map((n) => link(n, false))}
-      <div className="my-1.5 h-px bg-line" aria-hidden />
+      <div className="my-1.5 h-px bg-chrome-2" aria-hidden />
       {groups.map((g) => {
         const rows = items.filter((n) => n.section === g)
         const Icon = GROUP_ICON[g] ?? Boxes
@@ -65,11 +66,11 @@ function Sidebar({ items, rail }: { items: NavItem[]; rail: boolean }) {
         return (
           <div key={g} className="relative">
             <button type="button" aria-expanded={rail ? fly === g : isOpen} title={rail ? nameOf(g) : undefined} onClick={() => (rail ? setFly(fly === g ? null : g) : setOpen(isOpen ? null : g))}
-              className={cn('flex h-8 w-full items-center gap-2.5 rounded-md text-[13px] transition-colors', rail ? 'justify-center px-0' : 'px-2.5', active && !isOpen ? 'font-medium text-brand' : 'text-muted hover:bg-canvas hover:text-ink')}>
+              className={cn('flex h-8 w-full items-center gap-2.5 rounded-md text-[13px] transition-colors', rail ? 'justify-center px-0' : 'px-2.5', active && !isOpen ? 'font-medium text-white' : 'text-chrome-ink hover:bg-chrome-2 hover:text-white')}>
               <Icon className="size-4 shrink-0 opacity-75" aria-hidden />
               {rail ? <span className="sr-only">{nameOf(g)}</span> : <><span className="flex-1 truncate text-left">{nameOf(g)}</span><ChevronDown className={cn('size-3.5 opacity-60 transition-transform', !isOpen && '-rotate-90')} aria-hidden /></>}
             </button>
-            {isOpen ? <div className="relative mb-1 mt-0.5 flex flex-col gap-0.5"><span className="absolute bottom-1 left-[17px] top-1 w-px bg-line" aria-hidden />{rows.map((n) => link(n, true))}</div> : null}
+            {isOpen ? <div className="relative mb-1 mt-0.5 flex flex-col gap-0.5"><span className="absolute bottom-1 left-[17px] top-1 w-px bg-chrome-2" aria-hidden />{rows.map((n) => link(n, true))}</div> : null}
             {rail && fly === g ? (
               <div className="settle fixed left-[60px] z-40 mt-[-32px] w-52 rounded-lg border border-line bg-surface p-1.5 shadow-pop" role="menu" aria-label={g}>
                 <p className="eyebrow px-2 pb-1 pt-0.5">{nameOf(g)}</p>
@@ -83,43 +84,6 @@ function Sidebar({ items, rail }: { items: NavItem[]; rail: boolean }) {
   )
 }
 
-function UserMenu() {
-  const { me, logout, server } = useSession()
-  const [open, setOpen] = useState(false)
-  const box = useRef<HTMLDivElement>(null)
-  const go = useNavigate()
-  useEffect(() => {
-    if (!open) return
-    const off = (e: MouseEvent): void => { if (!box.current?.contains(e.target as Node)) setOpen(false) }
-    const esc = (e: KeyboardEvent): void => { if (e.key === 'Escape') setOpen(false) }
-    document.addEventListener('mousedown', off); document.addEventListener('keydown', esc)
-    return () => { document.removeEventListener('mousedown', off); document.removeEventListener('keydown', esc) }
-  }, [open])
-  const initials = (me?.user?.displayName ?? '?').split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase()
-  return (
-    <div ref={box} className="relative">
-      <button type="button" aria-haspopup="menu" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="flex h-8 items-center gap-2 rounded-md pl-1 pr-2 hover:bg-sunken">
-        <span className="grid size-6 place-items-center rounded-full bg-brand-soft text-[10.5px] font-semibold text-brand" aria-hidden>{initials}</span>
-        <span className="max-w-32 truncate text-[12.5px] font-medium"><span className="sr-only">Account menu: </span>{me?.user?.displayName ?? 'Signed in'}</span>
-        <ChevronDown className="size-3.5 text-muted" aria-hidden />
-      </button>
-      {open ? (
-        <div role="menu" className="settle absolute right-0 top-9 z-40 w-64 rounded-lg border border-line bg-surface p-1.5 shadow-pop">
-          <div className="border-b border-line px-2.5 pb-2 pt-1.5"><p className="truncate text-[13px] font-medium">{me?.user?.displayName}</p><p className="truncate text-xs text-muted">{me?.user?.email}</p><p className="mt-1 truncate text-[11px] text-faint" title={server?.url}>{server?.url}</p></div>
-          <button role="menuitem" type="button" onClick={() => { setOpen(false); void go({ to: '/account' as never }) }} className="mt-1 flex h-8 w-full items-center gap-2 rounded px-2.5 text-[13px] hover:bg-sunken"><UserCog className="size-4 text-muted" aria-hidden />My account and layout</button>
-          {window.onesync ? (
-            <div className="my-1 border-y border-line py-1">
-              <button role="menuitem" type="button" onClick={() => { setOpen(false); void window.onesync?.app.about() }} className="flex h-8 w-full items-center gap-2 rounded px-2.5 text-[13px] hover:bg-sunken"><Info className="size-4 text-muted" aria-hidden />About OneSyncERP</button>
-              <button role="menuitem" type="button" onClick={() => { setOpen(false); void window.onesync?.app.checkForUpdates() }} className="flex h-8 w-full items-center gap-2 rounded px-2.5 text-[13px] hover:bg-sunken"><Download className="size-4 text-muted" aria-hidden />Check for updates</button>
-              <button role="menuitem" type="button" onClick={() => { setOpen(false); void window.onesync?.app.openLogs() }} className="flex h-8 w-full items-center gap-2 rounded px-2.5 text-[13px] hover:bg-sunken"><FolderOpen className="size-4 text-muted" aria-hidden />Open log folder</button>
-            </div>) : null}
-          <button role="menuitem" type="button" onClick={() => void logout()} className="flex h-8 w-full items-center gap-2 rounded px-2.5 text-[13px] text-bad hover:bg-bad-soft"><LogOut className="size-4" aria-hidden />Sign out</button>
-        </div>
-      ) : null}
-    </div>
-  )
-}
-
 export function ClassicShell() {
   const t = useT()
   const { me } = useSession()
@@ -130,9 +94,6 @@ export function ClassicShell() {
   const here = currentNav(items, path)
   const [paletteOpen, setPaletteOpen] = useState(false)
   const [rail, setRail] = useState(readRail)
-  const companies = useCompanies()
-  const { companyId } = useChosenCompany()
-  const company = (companies.data ?? []).find((c) => c.id === companyId) ?? companies.data?.[0]
   const toggleRail = (): void => setRail((r) => { try { localStorage.setItem(RAIL_KEY, r ? '0' : '1') } catch { /* not remembered */ } return !r })
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -144,13 +105,13 @@ export function ClassicShell() {
   }, [])
   return (
     <div className={cn('grid h-full transition-[grid-template-columns] duration-150', rail ? 'grid-cols-[56px_1fr]' : 'grid-cols-[224px_1fr]')}>
-      <aside className="flex min-h-0 flex-col border-r border-line bg-surface">
+      <aside className="flex min-h-0 flex-col border-r border-chrome-2 bg-chrome text-chrome-ink" data-sidebar="dark">
         <div className={cn('app-drag titlebar-left flex h-12 shrink-0 items-center gap-2.5', rail ? 'justify-center' : 'px-4')}>
           <Logo className="size-8" />
-          {rail ? null : <span className="text-[14px] font-semibold tracking-tight">OneSyncERP</span>}
+          {rail ? null : <span className="text-[14px] font-semibold tracking-tight text-white">OneSyncERP</span>}
         </div>
         <Sidebar items={items} rail={rail} />
-        <button type="button" onClick={toggleRail} title={rail ? 'Expand the menu (Ctrl+\\)' : 'Fold the menu (Ctrl+\\)'} className={cn('flex h-10 shrink-0 items-center gap-2 border-t border-line text-[12px] text-muted hover:text-ink', rail ? 'justify-center' : 'px-4')}>
+        <button type="button" onClick={toggleRail} title={rail ? 'Expand the menu (Ctrl+\\)' : 'Fold the menu (Ctrl+\\)'} className={cn('flex h-10 shrink-0 items-center gap-2 border-t border-chrome-2 text-[12px] text-chrome-ink hover:text-white', rail ? 'justify-center' : 'px-4')}>
           {rail ? <PanelLeftOpen className="size-4" aria-hidden /> : <><PanelLeftClose className="size-4" aria-hidden />Fold menu</>}
         </button>
       </aside>
@@ -163,9 +124,7 @@ export function ClassicShell() {
           <button type="button" onClick={() => setPaletteOpen(true)} className="mx-auto flex h-8 w-full min-w-0 max-w-md items-center gap-2 rounded-md border border-line bg-sunken px-3 text-[13px] text-faint hover:border-line-strong">
             <Search className="size-3.5" aria-hidden /><span className="min-w-0 flex-1 truncate text-left">Search pages or start something…</span><kbd className="hidden lg:inline">Ctrl</kbd><kbd className="hidden lg:inline">K</kbd>
           </button>
-          {company ? <Link to="/organization/companies" className="hidden max-w-48 items-center gap-1.5 truncate rounded-md border border-line px-2.5 py-1 text-[12.5px] font-medium hover:bg-sunken xl:flex" title="Company"><Building2 className="size-3.5 shrink-0 text-muted" aria-hidden /><span className="truncate">{company.tradeName ?? company.legalName}</span></Link> : null}
-          <NotificationsBell />
-          <UserMenu />
+          <HeaderTools />
         </header>
         <main className="min-h-0 flex-1 overflow-auto">
           <div key={path} className="settle mx-auto max-w-[1360px] px-6 py-5">

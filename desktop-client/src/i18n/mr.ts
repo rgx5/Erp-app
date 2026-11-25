@@ -22,4 +22,7 @@ export const mr: Record<string, string> = {
   'Invoice no.': 'इनव्हॉइस क्र.', 'Quotation no.': 'कोटेशन क्र.', 'Proforma no.': 'प्रोफॉर्मा क्र.', 'Order no.': 'ऑर्डर क्र.', 'Challan no.': 'चलन क्र.', Date: 'दिनांक', 'Place of supply': 'पुरवठ्याचे ठिकाण', 'Bill to': 'बिल प्राप्तकर्ता',
   Description: 'तपशील', 'HSN/SAC': 'एचएसएन/एसएसी', Rate: 'दर', 'Disc.': 'सवलत', Taxable: 'करपात्र', 'Taxable value': 'करपात्र मूल्य', 'Grand total': 'एकूण रक्कम', 'Round off': 'पूर्णांकन', 'Amount in words': 'अक्षरी रक्कम',
   'Authorised signatory': 'अधिकृत स्वाक्षरीकर्ता', 'This is a computer generated document.': 'हा संगणकाद्वारे तयार केलेला दस्तऐवज आहे.', 'Pay by UPI': 'यूपीआयने पैसे द्या', 'Thank you': 'धन्यवाद', TOTAL: 'एकूण', Change: 'उरलेले पैसे',
+  // settings and data sections
+  'All settings': 'सर्व सेटिंग्ज', 'Setup checklist': 'सेटअप चेकलिस्ट', 'POS shifts and setup': 'पीओएस शिफ्ट आणि सेटअप', 'Import data': 'डेटा आयात', 'Export data': 'डेटा निर्यात', 'My account and layout': 'माझे खाते आणि लेआउट',
+  Settings: 'सेटिंग्ज', Data: 'डेटा', 'Your business': 'तुमचा व्यवसाय', 'People and access': 'लोक आणि परवानग्या', Modules: 'मॉड्यूल',
 }

@@ -120,8 +120,8 @@ test('leads: import a list, share leads out by turns, rename a stage, and record
   await expect(page.getByText('Stages saved.')).toBeVisible()
 
   // a list from a spreadsheet, with other column names and source words
-  await goTo(page, 'Leads')
-  await page.getByRole('button', { name: 'Import' }).click()
+  await goTo(page, 'Import data')
+  await page.getByRole('button', { name: /Import leads/ }).click()
   const csv = 'Customer Name,Mobile,City,Lead Source,Ad campaign\nAsha Rao,9810000041,Pune,Facebook,Solar Q4\nRavi Kumar,9810000042,Thane,Google Ads,Search\nNo Contact,,Mumbai,Facebook,Solar Q4\n'
   await page.getByLabel('Data file').setInputFiles({ name: 'leads.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) })
   await page.getByLabel('Column for Name').selectOption({ label: 'Customer Name' })
@@ -133,6 +133,7 @@ test('leads: import a list, share leads out by turns, rename a stage, and record
   await page.getByRole('button', { name: 'Import 2 rows' }).click()
   await expect(page.getByText(/2 created/)).toBeVisible()
   await page.getByRole('button', { name: 'Done' }).click()
+  await goTo(page, 'Leads')
   const leads = (await s.call('GET', '/v1/leads?limit=50')).items as unknown as { name: string; source: string; campaign: string | null; ownerId: string | null }[]
   expect(leads.map((l) => l.name).sort()).toEqual(['Asha Rao', 'Ravi Kumar'])
   expect(leads.find((l) => l.name === 'Asha Rao')).toMatchObject({ source: 'meta', campaign: 'Solar Q4' }); expect(leads.find((l) => l.name === 'Ravi Kumar')?.source).toBe('google')

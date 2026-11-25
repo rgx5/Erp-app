@@ -175,7 +175,7 @@ footer{margin-top:24pt;color:var(--mut);font-size:9pt;border-top:1px solid var(-
 <h2>10. Protecting other clients: limits and capacity</h2>
 <h3>Per-client guardrails</h3>
 <ul>
-<li>Each client may have at most <code>TENANT_MAX_CONCURRENT</code> (default 60) requests running at once on a cell instance, and at most <code>TENANT_MAX_CONCURRENT_HEAVY</code> (default 4) of the heavy kind (reports, GST and TDS returns, exports, imports, ledgers). Over the limit the API answers <code>429 too_many_concurrent</code> with <code>Retry-After: 2</code>; other clients are unaffected. <code>0</code> turns a limit off.</li>
+<li>Each client may have at most <code>TENANT_MAX_CONCURRENT</code> (default 60) requests running at once on a cell instance, and at most <code>TENANT_MAX_CONCURRENT_HEAVY</code> (default 4) of the heavy kind (reports, GST and TDS returns, exports, imports, ledgers). Over the limit the API answers <code>429 too_many_concurrent</code> with <code>Retry-After: 2</code>; other clients are unaffected. The desktop app waits the stated time and asks again (up to five times, with the same idempotency key, so nothing is done twice); a screen that fires many report requests at once, such as the GSTR-9 working with its twelve months, simply takes a few seconds longer. <code>0</code> turns a limit off.</li>
 <li>Statement timeout 15 s by default so one runaway query cannot hold the database; an optional per-address rate limit.</li>
 <li>Usage per client: <code>GET /v1/platform/tenants/:id/usage</code> (row counts of the tables that grow) and the fleet view's 30-day document and event counts.</li>
 </ul>

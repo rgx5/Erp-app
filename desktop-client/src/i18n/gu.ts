@@ -22,4 +22,7 @@ export const gu: Record<string, string> = {
   'Invoice no.': 'ઇન્વૉઇસ નં.', 'Quotation no.': 'ક્વોટેશન નં.', 'Proforma no.': 'પ્રોફોર્મા નં.', 'Order no.': 'ઓર્ડર નં.', 'Challan no.': 'ચલણ નં.', Date: 'તારીખ', 'Place of supply': 'સપ્લાયનું સ્થળ', 'Bill to': 'બિલ મેળવનાર',
   Description: 'વિગત', 'HSN/SAC': 'એચએસએન/એસએસી', Rate: 'દર', 'Disc.': 'છૂટ', Taxable: 'કરપાત્ર', 'Taxable value': 'કરપાત્ર મૂલ્ય', 'Grand total': 'કુલ રકમ', 'Round off': 'રાઉન્ડ ઓફ', 'Amount in words': 'શબ્દોમાં રકમ',
   'Authorised signatory': 'અધિકૃત સહી કરનાર', 'This is a computer generated document.': 'આ કમ્પ્યુટર દ્વારા બનાવેલ દસ્તાવેજ છે.', 'Pay by UPI': 'યુપીઆઈથી ચૂકવો', 'Thank you': 'આભાર', TOTAL: 'કુલ', Change: 'પરત',
+  // settings and data sections
+  'All settings': 'બધી સેટિંગ', 'Setup checklist': 'સેટઅપ ચેકલિસ્ટ', 'POS shifts and setup': 'પીઓએસ શિફ્ટ અને સેટઅપ', 'Import data': 'ડેટા આયાત', 'Export data': 'ડેટા નિકાસ', 'My account and layout': 'મારું ખાતું અને લેઆઉટ',
+  Settings: 'સેટિંગ', Data: 'ડેટા', 'Your business': 'તમારો વ્યવસાય', 'People and access': 'લોકો અને પરવાનગીઓ', Modules: 'મોડ્યુલ',
 }

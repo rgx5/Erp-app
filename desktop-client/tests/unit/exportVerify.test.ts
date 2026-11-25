@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { describe, expect, it } from 'vitest'
-import { verifyBackupFile } from '@/features/admin/exportVerify'
+import { verifyBackupFile } from '@/features/data/exportVerify'
 
 const make = (mut?: (d: Record<string, unknown>) => void): string => {
   const tables = { items: [{ id: 'a' }, { id: 'b' }], sales_invoices: [{ id: 'x', grand_total: '100.0000' }], tenant_directory: [{ slug: 'acme' }] }

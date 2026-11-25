@@ -205,16 +205,16 @@ test('layout: the sidebar is the default, and the command centre can be chosen i
   await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Invoices', exact: true })).toBeVisible() // the sidebar lists the pages of an area
   await accountMenu(page, 'My account and layout')
   await page.getByLabel(/Command centre/).check()
-  await expect(page.getByRole('navigation', { name: 'Admin pages' })).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Settings pages' })).toBeVisible()
   await page.reload()
-  await expect(page.getByRole('navigation', { name: 'Admin pages' })).toBeVisible() // remembered
+  await expect(page.getByRole('navigation', { name: 'Settings pages' })).toBeVisible() // remembered
   await goTo(page, 'Items')
   await page.getByRole('button', { name: 'New item' }).click()
   await expect(page.getByRole('complementary', { name: 'Record' }).getByRole('dialog', { name: 'New item' })).toBeVisible() // docked beside the list
   await page.keyboard.press('Escape')
   await goTo(page, 'My account')
   await page.getByLabel(/^Sidebar/).check()
-  await expect(page.getByRole('navigation', { name: 'Admin pages' })).toHaveCount(0)
+  await expect(page.getByRole('navigation', { name: 'Settings pages' })).toHaveCount(0)
 })
 
 test('counter staff: a discount above the limit needs a manager PIN, and a line is credited to a salesperson', async ({ page }) => {
