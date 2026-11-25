@@ -40,12 +40,11 @@ function DocTable<T>({ rows, cols, rowKey, onOpen, loading, hasMore, more, empty
   )
 }
 
-/** The same cards as ever; the colour says what to do: red = late, amber = money due, green = fine, grey = nothing to see. */
+/** The same cards as ever; the colour says what to do: the number's colour says what to do: red = late, amber = money due, green = fine, grey = nothing to see. */
 function Stat({ label, value, tone, note }: { label: string; value: string; tone: 'bad' | 'warn' | 'good' | 'plain'; note?: string | undefined }) {
-  const box = { bad: 'border-bad/40 bg-bad-soft', warn: 'border-warn/40 bg-warn-soft', good: 'border-good/40 bg-good-soft', plain: 'border-line bg-surface' }[tone]
-  const ink = { bad: 'text-bad', warn: 'text-warn', good: 'text-good', plain: 'text-ink' }[tone]
+    const ink = { bad: 'text-bad', warn: 'text-warn', good: 'text-good', plain: 'text-ink' }[tone]
   return (
-    <div className={`rounded-lg border px-4 py-3 ${box}`}>
+    <div className="rounded-lg border border-line bg-surface px-4 py-3">
       <p className="text-xs text-muted">{label}</p>
       <p className={`num mt-0.5 text-xl font-semibold ${ink}`}>{value}</p>
       {note ? <p className={`text-xs ${tone === 'bad' ? 'font-medium text-bad' : 'text-muted'}`}>{note}</p> : null}
