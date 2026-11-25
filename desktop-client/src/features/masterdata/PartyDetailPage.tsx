@@ -40,12 +40,22 @@ function DocTable<T>({ rows, cols, rowKey, onOpen, loading, hasMore, more, empty
   )
 }
 
-function Stat({ label, value, tone, note }: { label: string; value: string; tone?: 'bad' | 'good'; note?: string | undefined }) {
+/** One number, coloured by what it means: red when something is late, amber when money is due, green when nothing is owed. */
+function Balance({ label, amount, overdue, clear, extra }: { label: string; amount: string; overdue: number; clear: string; extra: { tone: 'bad' | 'good'; text: string }[] }) {
+  const owed = Number(amount) > 0
+  const tone = overdue > 0 ? 'bad' : owed ? 'warn' : 'good'
+  const box = tone === 'bad' ? 'border-bad/40 bg-bad-soft' : tone === 'warn' ? 'border-warn/40 bg-warn-soft' : 'border-good/40 bg-good-soft'
+  const ink = tone === 'bad' ? 'text-bad' : tone === 'warn' ? 'text-warn' : 'text-good'
   return (
-    <div className="rounded-lg border border-line bg-surface px-4 py-3">
-      <p className="text-xs text-muted">{label}</p>
-      <p className={`num mt-0.5 text-xl font-semibold ${tone === 'bad' ? 'text-bad' : tone === 'good' ? 'text-good' : 'text-ink'}`}>{value}</p>
-      {note ? <p className={`text-xs ${tone === 'bad' ? 'text-bad' : 'text-muted'}`}>{note}</p> : null}
+    <div className={`flex flex-wrap items-center justify-between gap-3 rounded-lg border px-5 py-4 ${box}`}>
+      <div>
+        <p className="text-xs text-muted">{label}</p>
+        <p className={`num text-3xl font-semibold tracking-tight ${ink}`}>{owed ? formatInr(amount) : clear}</p>
+      </div>
+      <div className="flex flex-col items-end gap-1 text-xs font-medium">
+        {overdue > 0 ? <span className="rounded-full bg-bad px-2.5 py-0.5 text-white">{formatInr(String(overdue))} late</span> : null}
+        {extra.map((e) => <span key={e.text} className={e.tone === 'bad' ? 'rounded-full bg-bad px-2.5 py-0.5 text-white' : 'text-good'}>{e.text}</span>)}
+      </div>
     </div>
   )
 }
@@ -100,19 +110,14 @@ function PartyDetail({ partyId }: { partyId: string }) {
   const sOverdue = (spos.data?.openBills ?? []).filter((i) => i.daysOverdue > 0).reduce((s, i) => s + Number(i.outstanding), 0)
   const kindLabel = (k: string): string => k.replaceAll('_', ' ').replace(/^./, (c) => c.toUpperCase())
 
-  const ledger = (s: { openingBalance: string; closingBalance: string; lines: { date: string; kind: string; number: string; debit: string; credit: string; balance: string }[] } | undefined, pending: boolean, owed: string) => (
+  const ledger = (s: { openingBalance: string; closingBalance: string; lines: { date: string; kind: string; number: string; debit: string; credit: string; balance: string }[] } | undefined, pending: boolean, _owed?: string) => (
     <>
       <div className="mb-4 flex flex-wrap items-end gap-3 text-sm">
         <label className="flex flex-col gap-1"><span className="text-[11px] font-semibold uppercase tracking-wide text-muted">From</span><input type="date" aria-label="From date" className="h-9 rounded-md border border-line bg-surface px-2" value={from} onChange={(e) => setFrom(e.target.value)} /></label>
         <label className="flex flex-col gap-1"><span className="text-[11px] font-semibold uppercase tracking-wide text-muted">To</span><input type="date" aria-label="To date" className="h-9 rounded-md border border-line bg-surface px-2" value={to} onChange={(e) => setTo(e.target.value)} /></label>
-        {s ? (
-          <div className="ml-auto flex items-stretch divide-x divide-line overflow-hidden rounded-md border border-line bg-sunken text-right">
-            <p className="px-3 py-1.5"><span className="block text-[10.5px] font-semibold uppercase tracking-wide text-muted">Opening</span><span className="num font-medium">{formatInr(s.openingBalance)}</span></p>
-            <p className="px-3 py-1.5"><span className="block text-[10.5px] font-semibold uppercase tracking-wide text-muted">Closing, {owed}</span><span className="num font-semibold text-ink">{formatInr(s.closingBalance)}</span></p>
-          </div>) : null}
       </div>
       <DocTable loading={pending} rows={s?.lines ?? []} rowKey={(l) => `${l.date}${l.number}${l.kind}${l.balance}`} empty="Nothing in this period."
-        cols={[{ head: 'Date', cell: (l) => formatDate(l.date) }, { head: 'Document', cell: (l) => <>{kindLabel(l.kind)} <span className="text-muted">{l.number}</span></> }, { head: 'Debit', right: true, cell: (l) => (Number(l.debit) ? formatInr(l.debit, { symbol: false }) : '') }, { head: 'Credit', right: true, cell: (l) => (Number(l.credit) ? formatInr(l.credit, { symbol: false }) : '') }, { head: 'Balance', right: true, cell: (l) => formatInr(l.balance, { symbol: false }) }]} />
+        cols={[{ head: 'Date', cell: (l) => formatDate(l.date) }, { head: 'Document', cell: (l) => <>{kindLabel(l.kind)} <span className="text-muted">{l.number}</span></> }, { head: 'Billed', right: true, cell: (l) => (Number(l.debit) ? formatInr(l.debit, { symbol: false }) : '') }, { head: 'Paid', right: true, cell: (l) => (Number(l.credit) ? <span className="text-good">{formatInr(l.credit, { symbol: false })}</span> : '') }, { head: 'Balance', right: true, cell: (l) => formatInr(l.balance, { symbol: false }) }]} />
     </>
   )
 
@@ -134,21 +139,8 @@ function PartyDetail({ partyId }: { partyId: string }) {
         </div>
       </header>
 
-      {sellOn || buyOn ? (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-          {sellOn ? <>
-            <Stat label="They owe you" value={formatInr(pos.data?.totalOutstanding ?? '0')} {...(overdue > 0 ? { tone: 'bad' as const, note: `${formatInr(String(overdue))} overdue` } : {})} />
-            <Stat label="Unapplied receipts and credits" value={formatInr(pos.data?.totalUnapplied ?? '0')} />
-            <Stat label="Net balance" value={formatInr(pos.data?.balance ?? '0')} note="Positive: they owe you" />
-            <Stat label="Credit limit" value={pos.data?.customer.creditLimit && Number(pos.data.customer.creditLimit) ? formatInr(pos.data.customer.creditLimit) : 'None set'} {...(pos.data?.creditLimitExceeded ? { tone: 'bad' as const, note: 'Limit exceeded' } : {})} />
-          </> : null}
-          {buyOn ? <>
-            <Stat label="You owe them" value={formatInr(spos.data?.totalOutstanding ?? '0')} {...(sOverdue > 0 ? { tone: 'bad' as const, note: `${formatInr(String(sOverdue))} overdue` } : {})} />
-            <Stat label="Unapplied payments and credits" value={formatInr(spos.data?.totalUnapplied ?? '0')} />
-            <Stat label="Net payable" value={formatInr(spos.data?.balance ?? '0')} />
-          </> : null}
-        </div>
-      ) : null}
+      {sellOn ? <Balance label="They owe you" amount={pos.data?.totalOutstanding ?? '0'} overdue={overdue} clear="All paid" extra={[...(pos.data?.creditLimitExceeded ? [{ tone: 'bad' as const, text: 'Over credit limit' }] : []), ...(Number(pos.data?.totalUnapplied ?? 0) > 0 ? [{ tone: 'good' as const, text: `${formatInr(pos.data?.totalUnapplied ?? '0')} paid in advance` }] : [])]} /> : null}
+      {buyOn ? <Balance label="You owe them" amount={spos.data?.totalOutstanding ?? '0'} overdue={sOverdue} clear="All paid" extra={Number(spos.data?.totalUnapplied ?? 0) > 0 ? [{ tone: 'good' as const, text: `${formatInr(spos.data?.totalUnapplied ?? '0')} paid in advance` }] : []} /> : null}
       {!sellOn && !buyOn ? <Alert tone="info">This is a party with no customer or supplier role you can see documents for. Use Edit details to change its role.</Alert> : null}
 
       {tabs.length > 0 ? (
