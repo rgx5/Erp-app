@@ -39,6 +39,7 @@ const linkSchema = z.strictObject({ partyId: id });
 const mergeSchema = z.strictObject({ intoId: id });
 const settingsSchema = z.strictObject({
   assignmentMode: z.enum(['manual', 'round_robin']), members: z.array(id).max(200), slaMinutes: z.number().int().min(1).max(10080), lostReasons: z.array(text(100).min(1)).min(1).max(30),
+  customFields: z.array(z.strictObject({ key: z.string().regex(/^[a-z][a-z0-9_]{0,40}$/, 'Lower-case letters, digits and _'), label: text(60).min(1), type: z.enum(['text', 'number', 'select', 'date', 'yes_no']), options: z.array(text(80).min(1)).max(30).optional(), required: z.boolean().optional(), showOnCard: z.boolean().optional() })).max(40).default([]),
   territories: z.array(z.strictObject({ users: z.array(id).min(1).max(100), cities: z.array(text(100)).max(50).optional(), pincodePrefix: z.array(text(12)).max(50).optional() })).max(50).default([]),
   rules: z.array(z.strictObject({ match: z.strictObject({ city: z.array(text(100)).max(50).optional(), pincodePrefix: z.array(text(12)).max(50).optional(), source: z.array(z.enum(SOURCES)).max(20).optional(), campaign: z.array(text(100)).max(50).optional() }).optional(), users: z.array(id).min(1).max(100) })).max(50),
 });

@@ -19,7 +19,7 @@ const snippet = (url: string): string => `<form id="enquiry">
   <input name="name" placeholder="Your name" required>
   <input name="phone" placeholder="Mobile number" required>
   <input name="city" placeholder="City">
-  <input name="monthly_bill" placeholder="Monthly electricity bill">
+  <input name="message" placeholder="What are you looking for?">
   <input name="_hp" style="display:none" tabindex="-1" autocomplete="off">
   <label><input type="checkbox" name="consent" value="yes" required> I agree to be contacted about my enquiry</label>
   <button>Get a free quote</button>
@@ -78,7 +78,7 @@ function Setup({ c, base, flash }: { c: Connector; base: string; flash: (m: stri
     <div className="mt-3 flex flex-col gap-2 border-t border-line pt-3 text-sm">
       {c.kind === 'website' || c.kind === 'webhook' ? (<>
         {row('Address', url)}
-        <p className="text-muted">Send an HTTP POST with JSON or form fields: <code>name</code>, <code>phone</code> (or <code>email</code>), <code>city</code>, <code>pincode</code> and anything else. <code>utm_*</code>, <code>gclid</code> and <code>fbclid</code> are kept.</p>
+        <p className="text-muted">Send an HTTP POST with JSON or form fields: <code>name</code>, <code>phone</code> (or <code>email</code>), <code>city</code>, <code>pincode</code> and anything else; extra fields are kept, and filed under your own detail fields when their names match. <code>utm_*</code>, <code>gclid</code> and <code>fbclid</code> are kept.</p>
         <details><summary className="cursor-pointer underline">Copy-paste form for your website</summary>
           <pre className="mt-2 max-h-64 overflow-auto rounded bg-sunken p-2 text-xs">{snippet(url)}</pre><Button variant="secondary" className="mt-2" onClick={() => void copy(snippet(url), flash)}>Copy the form</Button></details>
       </>) : null}

@@ -94,3 +94,7 @@ html[data-shell="win32"] .titlebar-right, html[data-shell="linux"] .titlebar-rig
 /* ... and the traffic lights over the left end on a Mac */
 html[data-shell="darwin"] .titlebar-left { padding-left: 84px; }
 html[data-shell] .window-drag-strip { position: fixed; inset: 0 0 auto 0; height: 40px; -webkit-app-region: drag; z-index: 0; }
+
+/* A drawer's header is as tall as the title bar, and in the desktop app it stops short of the window buttons that sit over the top right corner (Windows, Linux). */
+.drawer-head { min-height: 48px; }
+html[data-shell="win32"] .drawer-head, html[data-shell="linux"] .drawer-head { padding-right: 148px; }

@@ -14,13 +14,14 @@ import { ago, send, SOURCES, sourceLabel, useLeadActions, useLeadCounts, useLead
 const waLink = (phone: string | null): string | null => { const d = (phone ?? '').replace(/\D/g, ''); return d.length >= 10 ? `https://wa.me/${d.length === 10 ? '91' + d : d}` : null }
 const SOURCE_TONE: Record<string, string> = { meta: 'bg-blue-100 text-blue-900', google: 'bg-amber-100 text-amber-900', website: 'bg-emerald-100 text-emerald-900' }
 
-function Card({ lead, owners, onOpen }: { lead: Lead; owners: Map<string, string>; onOpen: () => void }) {
+function Card({ lead, owners, shown, onOpen }: { lead: Lead; owners: Map<string, string>; shown: { key: string; label: string }[]; onOpen: () => void }) {
   return (
     <div draggable onDragStart={(e) => { e.dataTransfer.setData('text/lead', lead.id); e.dataTransfer.effectAllowed = 'move' }} onClick={onOpen} role="button" tabIndex={0} onKeyDown={(e) => { if (e.key === 'Enter') onOpen() }}
       className={`cursor-pointer rounded-lg border bg-surface p-3 text-left shadow-sm hover:border-brand ${lead.overdue ? 'border-bad' : 'border-line'}`}>
       <div className="flex items-start justify-between gap-2"><p className="text-sm font-semibold">{lead.name}</p><span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${SOURCE_TONE[lead.source] ?? 'bg-sunken text-muted'}`}>{sourceLabel(lead.source)}</span></div>
       <p className="text-xs text-muted">{[lead.phone, lead.city].filter(Boolean).join(' · ')}</p>
       {lead.interest ? <p className="mt-1 text-xs">{lead.interest}</p> : null}
+      {shown.filter((d) => lead.fields[d.key]).map((d) => <p key={d.key} className="mt-0.5 truncate text-xs"><span className="text-muted">{d.label}:</span> {lead.fields[d.key]}</p>)}
       {lead.campaign ? <p className="mt-1 truncate text-[11px] text-muted">{lead.campaign}</p> : null}
       <div className="mt-2 flex items-center justify-between text-[11px] text-muted">
         <span className={lead.overdue ? 'font-medium text-bad' : ''}>{lead.overdue ? 'Not contacted · ' : ''}{ago(lead.createdAt)}</span>
@@ -107,7 +108,7 @@ export function LeadsPage() {
               <section key={s.id} aria-label={s.name} className="flex w-72 shrink-0 flex-col gap-2 rounded-lg bg-sunken p-2" onDragOver={(e) => { if (canWrite) { e.preventDefault(); e.dataTransfer.dropEffect = 'move' } }}
                 onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('text/lead'); if (id && canWrite) void move(id, s) }}>
                 <h2 className="flex items-center justify-between px-1 text-xs font-semibold uppercase tracking-wide text-muted"><span>{s.name}</span><span>{s.kind === 'open' ? counts.data?.byStage[s.id] ?? rows.length : rows.length}</span></h2>
-                {rows.length === 0 ? <p className="px-1 py-4 text-center text-xs text-muted">{canWrite ? 'Drop a lead here' : 'Nothing here'}</p> : rows.map((l) => <Card key={l.id} lead={l} owners={owners} onOpen={() => open(l.id)} />)}
+                {rows.length === 0 ? <p className="px-1 py-4 text-center text-xs text-muted">{canWrite ? 'Drop a lead here' : 'Nothing here'}</p> : rows.map((l) => <Card key={l.id} lead={l} owners={owners} shown={(settings.data?.customFields ?? []).filter((d) => d.showOnCard)} onOpen={() => open(l.id)} />)}
               </section>
             )
           })}

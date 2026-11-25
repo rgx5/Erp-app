@@ -10,6 +10,12 @@ test('leads: connect the website, a lead arrives, is followed up, becomes a cust
   await page.getByRole('button', { name: 'Sign in' }).click()
   await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
 
+  // the business says what details its leads carry (here a solar installer's), instead of the product assuming one
+  await goTo(page, 'Lead settings')
+  await page.getByLabel('Start from a template').selectOption('solar')
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
+  await expect(page.getByText('Saved.')).toBeVisible()
+
   // an empty start points at the sources
   await goTo(page, 'Leads')
   await expect(page.getByRole('heading', { name: 'Leads', exact: true })).toBeVisible()
@@ -44,7 +50,7 @@ test('leads: connect the website, a lead arrives, is followed up, becomes a cust
   await card.click()
   await expect(page.getByRole('heading', { name: /Meena Joshi/ })).toBeVisible()
   await expect(page.getByText('summer-solar').first()).toBeVisible()
-  await expect(page.getByText('4500')).toBeVisible() // the monthly bill from the form
+  await expect(page.getByText('4500')).toBeVisible() // the monthly bill from the form, filed under the business's own field
 
   // follow up: a call, a task, a move, an edit
   await page.getByLabel('Log').selectOption('call')
@@ -55,6 +61,8 @@ test('leads: connect the website, a lead arrives, is followed up, becomes a cust
   await expect(page.getByRole('list', { name: 'History' })).toContainText('New → Site survey')
   await page.getByRole('button', { name: 'Edit', exact: true }).click()
   await page.getByLabel('Expected value, ₹').fill('350000'); await page.getByLabel('System size (kW)').fill('5')
+  await page.getByLabel('Name', { exact: true }).press('ArrowDown') // Up and Down move between fields
+  await expect(page.getByLabel('Phone')).toBeFocused()
   await page.getByRole('button', { name: 'Save', exact: true }).click()
   await expect(page.getByText(/3,50,000/).first()).toBeVisible()
 
@@ -137,4 +145,25 @@ test('leads: import a list, share leads out by turns, rename a stage, and record
   await page.getByRole('button', { name: 'Add', exact: true }).click()
   await expect(page.getByText('Spend saved.')).toBeVisible()
   await expect(page.getByRole('cell', { name: /1,000\.00/ }).first()).toBeVisible()
+})
+
+test('drawers: a clear close button, Up and Down move between fields, and a click outside does not close them', async ({ page }) => {
+  const s = await seedBusiness(process.env['E2E_BACKEND_URL'] as string, process.env['E2E_PLATFORM_TOKEN'] as string, { prefix: 'dr' })
+  await page.goto('/')
+  await page.getByLabel('Server address').fill(s.base); await page.getByRole('button', { name: 'Continue' }).click()
+  await page.getByLabel('Business code').fill(s.slug); await page.getByLabel('Email').fill(s.email); await page.getByLabel('Password').fill(s.password)
+  await page.getByRole('button', { name: 'Sign in' }).click()
+  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible()
+  await goTo(page, 'Leads')
+  await page.getByRole('button', { name: 'New lead' }).click()
+  const drawer = page.getByRole('dialog', { name: 'New lead' })
+  await drawer.getByLabel('Name', { exact: true }).fill('Typed so far')
+  await drawer.getByLabel('Name', { exact: true }).press('ArrowDown')
+  await expect(drawer.getByLabel('Phone')).toBeFocused()
+  await drawer.getByLabel('Phone').press('ArrowDown'); await expect(drawer.getByLabel('Email')).toBeFocused()
+  await drawer.getByLabel('Email').press('ArrowUp'); await expect(drawer.getByLabel('Phone')).toBeFocused()
+  await page.mouse.click(260, 500) // on the page, outside the drawer
+  await expect(drawer).toBeVisible(); await expect(drawer.getByLabel('Name', { exact: true })).toHaveValue('Typed so far')
+  await drawer.getByRole('button', { name: 'Close' }).click()
+  await expect(drawer).toBeHidden()
 })

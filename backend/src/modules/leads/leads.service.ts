@@ -15,9 +15,10 @@ const iso = (v: unknown): string | null => (v ? new Date(v as string).toISOStrin
 
 export interface Territory { users: string[]; cities?: string[]; pincodePrefix?: string[] }
 /** Who is looking: everyone's leads (undefined), or only a person's own and their territory's. */
+export interface CustomField { key: string; label: string; type: 'text' | 'number' | 'select' | 'date' | 'yes_no'; options?: string[]; required?: boolean; showOnCard?: boolean }
 export type Scope = { userId: string } | undefined
 export type Stage = { id: string; name: string; position: number; kind: 'open' | 'won' | 'lost'; status: string };
-export interface LeadSettings { assignmentMode: 'manual' | 'round_robin'; members: string[]; rules: AssignRule[]; territories: Territory[]; slaMinutes: number; lostReasons: string[] }
+export interface LeadSettings { assignmentMode: 'manual' | 'round_robin'; members: string[]; rules: AssignRule[]; territories: Territory[]; customFields: CustomField[]; slaMinutes: number; lostReasons: string[] }
 
 type LeadRow = { id: string; lead_no: string; name: string; phone: string | null; email: string | null; city: string | null; pincode: string | null; state: string | null; source: string; connector_id: string | null; campaign: string | null; adset: string | null; ad: string | null; form_name: string | null; utm: Record<string, string>; click_id: string | null; stage_id: string; status: string; lost_reason: string | null; owner_id: string | null; owner_name?: string | null; assigned_at: string | null; first_response_at: string | null; sla_due_at: string | null; next_follow_up_at: string | null; interest: string | null; value_estimate: string | null; fields: Record<string, string>; consent: boolean; enquiry_count: number; party_id: string | null; converted_at: string | null; duplicate_of: string | null; created_at: string; updated_at: string };
 const COL_LIST = 'l.id, l.lead_no, l.name, l.phone, l.email, l.city, l.pincode, l.state, l.source, l.connector_id, l.campaign, l.adset, l.ad, l.form_name, l.utm, l.click_id, l.stage_id, l.status, l.lost_reason, l.owner_id, l.assigned_at, l.first_response_at, l.sla_due_at, l.next_follow_up_at, l.interest, l.value_estimate, l.fields, l.consent, l.enquiry_count, l.party_id, l.converted_at, l.duplicate_of, l.created_at, l.updated_at';
@@ -73,9 +74,9 @@ export class LeadsService {
     await tx.execute(sql`INSERT INTO erp.lead_settings (tenant_id) VALUES (${tenantId}::uuid) ON CONFLICT (tenant_id) DO NOTHING`);
     const have = (await tx.execute<{ n: number }>(sql`SELECT count(*)::int AS n FROM erp.lead_stages WHERE tenant_id = ${tenantId}::uuid`)).rows[0]?.n ?? 0;
     if (have === 0) for (const [i, s] of DEFAULT_STAGES.entries()) await tx.execute(sql`INSERT INTO erp.lead_stages (tenant_id, id, name, position, kind) VALUES (${tenantId}::uuid, ${uuidv7()}::uuid, ${s.name}, ${i + 1}, ${s.kind}) ON CONFLICT DO NOTHING`);
-    const s = (await tx.execute<{ assignment_mode: 'manual' | 'round_robin'; members: string[]; rules: AssignRule[]; territories: Territory[]; sla_minutes: number; lost_reasons: string[]; rr_cursor: number }>(sql`SELECT assignment_mode, members, rules, territories, sla_minutes, lost_reasons, rr_cursor FROM erp.lead_settings WHERE tenant_id = ${tenantId}::uuid`)).rows[0];
+    const s = (await tx.execute<{ assignment_mode: 'manual' | 'round_robin'; members: string[]; rules: AssignRule[]; territories: Territory[]; custom_fields: CustomField[]; sla_minutes: number; lost_reasons: string[]; rr_cursor: number }>(sql`SELECT assignment_mode, members, rules, territories, custom_fields, sla_minutes, lost_reasons, rr_cursor FROM erp.lead_settings WHERE tenant_id = ${tenantId}::uuid`)).rows[0];
     const stages = (await tx.execute<Stage>(sql`SELECT id, name, position, kind, status FROM erp.lead_stages WHERE tenant_id = ${tenantId}::uuid AND status = 'active' ORDER BY position`)).rows;
-    return { settings: { assignmentMode: s?.assignment_mode ?? 'manual', members: s?.members ?? [], rules: s?.rules ?? [], territories: s?.territories ?? [], slaMinutes: s?.sla_minutes ?? 30, lostReasons: s?.lost_reasons ?? [], cursor: s?.rr_cursor ?? 0 }, stages };
+    return { settings: { assignmentMode: s?.assignment_mode ?? 'manual', members: s?.members ?? [], rules: s?.rules ?? [], territories: s?.territories ?? [], customFields: s?.custom_fields ?? [], slaMinutes: s?.sla_minutes ?? 30, lostReasons: s?.lost_reasons ?? [], cursor: s?.rr_cursor ?? 0 }, stages };
   }
 
   getSettings(tenantId: string) {
@@ -94,7 +95,7 @@ export class LeadsService {
         const ok = (await tx.execute<{ id: string }>(sql`SELECT id FROM erp.users WHERE tenant_id = ${tenantId}::uuid AND id = ANY(${uuids(input.members)})`)).rows.length;
         if (ok !== new Set(input.members).size) throw validationFailed([{ path: 'members', message: 'Every person must be a user of this business' }]);
       }
-      await tx.execute(sql`UPDATE erp.lead_settings SET assignment_mode = ${input.assignmentMode}, members = ${uuids(input.members)}, rules = ${JSON.stringify(input.rules)}::jsonb, territories = ${JSON.stringify(input.territories)}::jsonb, sla_minutes = ${input.slaMinutes}, lost_reasons = ${texts(input.lostReasons)}, updated_at = now() WHERE tenant_id = ${tenantId}::uuid`);
+      await tx.execute(sql`UPDATE erp.lead_settings SET assignment_mode = ${input.assignmentMode}, members = ${uuids(input.members)}, rules = ${JSON.stringify(input.rules)}::jsonb, territories = ${JSON.stringify(input.territories)}::jsonb, custom_fields = ${JSON.stringify(input.customFields)}::jsonb, sla_minutes = ${input.slaMinutes}, lost_reasons = ${texts(input.lostReasons)}, updated_at = now() WHERE tenant_id = ${tenantId}::uuid`);
       await this.recorder.record(tx, tenantId, 'lead_settings', 'updated', { id: tenantId }, { mode: input.assignmentMode, slaMinutes: input.slaMinutes });
       return { ok: true };
     });
@@ -124,12 +125,27 @@ export class LeadsService {
     });
   }
 
+  /** A lead typed in by a person must carry the details the business marked required, and a choice must be one of the offered options. (Enquiries that arrive from a form or an advert are taken as they come.) */
+  private checkFields(defs: CustomField[], values: Record<string, string> | undefined, partial: boolean): void {
+    const v = values ?? {}; const problems: { path: string; message: string }[] = [];
+    for (const d of defs) {
+      const x = (v[d.key] ?? '').trim();
+      if (!partial && d.required && x === '') problems.push({ path: `fields.${d.key}`, message: `${d.label} is required` });
+      if (x !== '' && d.type === 'select' && d.options && !d.options.includes(x)) problems.push({ path: `fields.${d.key}`, message: `${d.label} must be one of: ${d.options.join(', ')}` });
+      if (x !== '' && d.type === 'number' && !/^-?\d{1,15}(\.\d{1,4})?$/.test(x)) problems.push({ path: `fields.${d.key}`, message: `${d.label} must be a number` });
+    }
+    if (problems.length) throw validationFailed(problems);
+  }
+
   // ---- creating a lead ----------------------------------------------------------------------------------------------------
   /** Makes a lead, or notes that the same person enquired again. Used by the screens and by every connector. */
   async create(tx: Tx, tenantId: string, input: LeadInput, ctx: { actorId: string | null; connectorId: string | null; allowDuplicate: boolean }): Promise<{ lead: LeadDto; duplicate: boolean }> {
     const { settings, stages } = await this.ensureSetup(tx, tenantId);
     const phoneNorm = normalizePhone(input.phone); const email = normalizeEmail(input.email);
     const source = input.source ?? 'manual';
+    // answers that arrive under a form's own wording ("Monthly electricity bill") are filed under the business's field of that name
+    const slugOf = (x: string): string => x.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+    if (input.fields) input = { ...input, fields: Object.fromEntries(Object.entries(input.fields).map(([k, v]) => [settings.customFields.find((d) => d.key === k || slugOf(d.label) === slugOf(k))?.key ?? k, v])) };
     // the same enquiry delivered twice (the ad platform retries), then the same person asking again
     if (ctx.connectorId && input.externalId) {
       const same = (await tx.execute<LeadRow>(sql`SELECT ${COLS} FROM erp.leads l WHERE l.tenant_id = ${tenantId}::uuid AND l.connector_id = ${ctx.connectorId}::uuid AND l.external_id = ${input.externalId}`)).rows[0];
@@ -171,7 +187,10 @@ export class LeadsService {
   }
 
   createManual(tenantId: string, actorId: string, input: LeadInput, allowDuplicate: boolean) {
-    return this.uow.inTenant(tenantId, async (tx) => (await this.create(tx, tenantId, { ...input, source: input.source ?? 'manual' }, { actorId, connectorId: null, allowDuplicate })).lead);
+    return this.uow.inTenant(tenantId, async (tx) => {
+      this.checkFields((await this.ensureSetup(tx, tenantId)).settings.customFields, input.fields, false);
+      return (await this.create(tx, tenantId, { ...input, source: input.source ?? 'manual' }, { actorId, connectorId: null, allowDuplicate })).lead;
+    });
   }
 
   // ---- reading ------------------------------------------------------------------------------------------------------------
@@ -240,6 +259,7 @@ export class LeadsService {
   update(tenantId: string, actorId: string, id: string, p: Partial<Pick<LeadInput, 'name' | 'phone' | 'email' | 'city' | 'pincode' | 'state' | 'interest' | 'valueEstimate' | 'fields' | 'consent'>>, scope?: Scope) {
     return this.uow.inTenant(tenantId, async (tx) => {
       const cur = await this.lock(tx, tenantId, id, scope);
+      if (p.fields) this.checkFields((await this.ensureSetup(tx, tenantId)).settings.customFields, p.fields, false);
       const phone = p.phone === undefined ? cur.phone : p.phone?.trim() || null;
       const email = p.email === undefined ? cur.email : p.email?.trim() || null;
       await tx.execute(sql`UPDATE erp.leads SET name = ${p.name?.trim() || cur.name}, phone = ${phone}, phone_norm = ${normalizePhone(phone)}, email = ${normalizeEmail(email) ?? email}, city = ${p.city === undefined ? cur.city : p.city?.trim() || null}, pincode = ${p.pincode === undefined ? cur.pincode : p.pincode?.trim() || null}, state = ${p.state === undefined ? cur.state : p.state?.trim() || null},

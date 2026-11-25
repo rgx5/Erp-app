@@ -17,8 +17,9 @@ export interface Lead {
 export interface Activity { id: string; kind: string; body: string; dueAt: string | null; doneAt: string | null; createdAt: string; by: string | null }
 export interface LeadDetail extends Lead { activities: Activity[] }
 export interface AssignRule { match?: { city?: string[]; pincodePrefix?: string[]; source?: string[]; campaign?: string[] }; users: string[] }
+export interface CustomField { key: string; label: string; type: 'text' | 'number' | 'select' | 'date' | 'yes_no'; options?: string[]; required?: boolean; showOnCard?: boolean }
 export interface Territory { users: string[]; cities?: string[]; pincodePrefix?: string[] }
-export interface LeadSettings { assignmentMode: 'manual' | 'round_robin'; members: string[]; rules: AssignRule[]; territories: Territory[]; slaMinutes: number; lostReasons: string[]; stages: Stage[]; users: { id: string; name: string; email: string }[] }
+export interface LeadSettings { assignmentMode: 'manual' | 'round_robin'; members: string[]; rules: AssignRule[]; territories: Territory[]; customFields: CustomField[]; slaMinutes: number; lostReasons: string[]; stages: Stage[]; users: { id: string; name: string; email: string }[] }
 export interface Counts { byStage: Record<string, number>; overdue: number; followUpDue: number; unassigned: number; today: number }
 export interface Connector { id: string; kind: 'website' | 'meta' | 'google' | 'webhook'; name: string; status: string; publicId: string; path: string; config: { allowedDomains: string[]; pageId: string | null; formIds: string[]; verifyToken: string | null; googleKey: string | null; hasPageToken: boolean; hasAppSecret: boolean; defaultCampaign: string | null }; leadCount: number; lastLeadAt: string | null; lastError: string | null; createdAt: string }
 export interface Delivery { id: string; outcome: string; detail: string | null; externalId: string | null; createdAt: string }

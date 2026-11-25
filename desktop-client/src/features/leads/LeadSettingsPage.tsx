@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useFlash } from '@/ui/flash'
 import { Alert, Button, Card, SelectField, Spinner, TextField } from '@/ui/primitives'
-import { SOURCES, useLeadActions, useLeadSettings, type AssignRule, type Stage, type Territory } from './queries'
+import { FIELD_PRESETS, slugKey } from './customFields'
+import { SOURCES, useLeadActions, useLeadSettings, type AssignRule, type CustomField, type Stage, type Territory } from './queries'
 
 const list = (s: string): string[] => s.split(/[,\n]+/).map((x) => x.trim()).filter(Boolean)
 type Draft = { id?: string; name: string; kind: 'open' | 'won' | 'lost' }
@@ -57,6 +58,31 @@ function Rules({ rules, users, onChange }: { rules: AssignRule[]; users: { id: s
   )
 }
 
+const TYPES: { value: CustomField['type']; label: string }[] = [{ value: 'text', label: 'Text' }, { value: 'number', label: 'Number' }, { value: 'select', label: 'Choice from a list' }, { value: 'date', label: 'Date' }, { value: 'yes_no', label: 'Yes / No' }]
+function Fields({ value, onChange }: { value: CustomField[]; onChange: (f: CustomField[]) => void }) {
+  const patch = (i: number, p: Partial<CustomField>): void => onChange(value.map((f, k) => (k === i ? { ...f, ...p } : f)))
+  return (
+    <div className="flex flex-col gap-3">
+      <p className="text-xs text-muted">The extra details your leads carry, whatever your business sells. They appear when adding or editing a lead, and answers from forms and ads are filed under them when the names match.</p>
+      <SelectField label="Start from a template" value="" onChange={(e) => { const p = FIELD_PRESETS.find((x) => x.id === e.target.value); if (p) onChange(p.fields.map((f) => ({ ...f }))) }} options={[{ value: '', label: 'Choose a kind of business…' }, ...FIELD_PRESETS.map((p) => ({ value: p.id, label: p.label }))]} />
+      {value.map((f, i) => (
+        <div key={i} className="rounded-lg border border-line p-3">
+          <div className="grid gap-2 md:grid-cols-3">
+            <TextField label="Name of the detail" value={f.label} onChange={(e) => patch(i, { label: e.target.value, ...(f.key === '' || f.key === slugKey(f.label) ? { key: slugKey(e.target.value) } : {}) })} />
+            <SelectField label="Kind" value={f.type} onChange={(e) => patch(i, { type: e.target.value as CustomField['type'] })} options={TYPES} />
+            {f.type === 'select' ? <TextField label="Choices (comma separated)" value={(f.options ?? []).join(', ')} onChange={(e) => patch(i, { options: list(e.target.value) })} /> : <div />}
+          </div>
+          <div className="mt-2 flex flex-wrap items-center gap-4 text-sm">
+            <label className="flex items-center gap-1.5"><input type="checkbox" checked={Boolean(f.required)} onChange={(e) => patch(i, { required: e.target.checked })} /> Required when adding a lead</label>
+            <label className="flex items-center gap-1.5"><input type="checkbox" checked={Boolean(f.showOnCard)} onChange={(e) => patch(i, { showOnCard: e.target.checked })} /> Show on the board</label>
+            <Button variant="ghost" onClick={() => onChange(value.filter((_, k) => k !== i))}>Remove</Button>
+          </div>
+        </div>))}
+      <Button variant="secondary" className="self-start" onClick={() => onChange([...value, { key: '', label: '', type: 'text' }])}>Add a detail</Button>
+    </div>
+  )
+}
+
 function Territories({ value, users, onChange }: { value: Territory[]; users: { id: string; name: string }[]; onChange: (t: Territory[]) => void }) {
   const patch = (i: number, p: Partial<Territory>): void => onChange(value.map((t, k) => (k === i ? { ...t, ...p } : t)))
   return (
@@ -76,9 +102,9 @@ function Territories({ value, users, onChange }: { value: Territory[]; users: { 
 /** How new leads are shared out, how fast they must be answered, why they get lost, and the stages of the pipeline. */
 export function LeadSettingsPage() {
   const q = useLeadSettings(); const a = useLeadActions(); const flash = useFlash()
-  const [mode, setMode] = useState<'manual' | 'round_robin'>('manual'); const [members, setMembers] = useState<string[]>([]); const [rules, setRules] = useState<AssignRule[]>([]); const [territories, setTerritories] = useState<Territory[]>([])
+  const [mode, setMode] = useState<'manual' | 'round_robin'>('manual'); const [members, setMembers] = useState<string[]>([]); const [rules, setRules] = useState<AssignRule[]>([]); const [territories, setTerritories] = useState<Territory[]>([]); const [fields, setFields] = useState<CustomField[]>([])
   const [sla, setSla] = useState('30'); const [reasons, setReasons] = useState(''); const [problem, setProblem] = useState<string | null>(null)
-  useEffect(() => { if (q.data) { setMode(q.data.assignmentMode); setMembers(q.data.members); setRules(q.data.rules); setTerritories(q.data.territories ?? []); setSla(String(q.data.slaMinutes)); setReasons(q.data.lostReasons.join('\n')) } }, [q.data])
+  useEffect(() => { if (q.data) { setMode(q.data.assignmentMode); setMembers(q.data.members); setRules(q.data.rules); setTerritories(q.data.territories ?? []); setFields(q.data.customFields ?? []); setSla(String(q.data.slaMinutes)); setReasons(q.data.lostReasons.join('\n')) } }, [q.data])
   if (q.isPending) return <Spinner />
   if (q.error || !q.data) return <Alert>{q.error?.message ?? 'Could not load.'}</Alert>
   const users = q.data.users
@@ -93,13 +119,14 @@ export function LeadSettingsPage() {
             <div><p className="mb-1 text-sm text-muted">The team that takes turns</p><div className="flex flex-wrap gap-3 text-sm">{users.map((u) => <label key={u.id} className="flex items-center gap-1.5"><input type="checkbox" checked={members.includes(u.id)} onChange={(e) => setMembers((m) => (e.target.checked ? [...m, u.id] : m.filter((x) => x !== u.id)))} /> {u.name}</label>)}</div></div>
             <div><p className="mb-1 text-sm font-medium">Special rules (optional)</p><Rules rules={rules} users={users} onChange={setRules} /></div>
           </>) : null}
+          <div><p className="mb-1 text-sm font-medium">Details on every lead</p><Fields value={fields} onChange={setFields} /></div>
           <div><p className="mb-1 text-sm font-medium">Who sees which leads</p><Territories value={territories} users={users} onChange={setTerritories} /></div>
           <div className="w-64"><TextField label="Answer a new lead within (minutes)" inputMode="numeric" value={sla} onChange={(e) => setSla(e.target.value)} hint="After this, the lead shows as not contacted in time." /></div>
           <div><label className="flex flex-col gap-1 text-sm"><span className="text-muted">Reasons a lead can be lost (one per line)</span><textarea className="min-h-28 rounded-md border border-line bg-surface p-2" value={reasons} onChange={(e) => setReasons(e.target.value)} /></label></div>
           {problem ? <Alert>{problem}</Alert> : null}
           <Button className="self-start" busy={a.saveSettings.isPending} onClick={async () => {
             setProblem(null)
-            try { await a.saveSettings.mutateAsync({ assignmentMode: mode, members, rules: rules.filter((r) => r.users.length > 0), territories: territories.filter((t) => t.users.length > 0), slaMinutes: Number(sla), lostReasons: list(reasons) }); flash.show('Saved.') } catch (e) { setProblem(e instanceof Error ? e.message : 'Could not save.') }
+            try { await a.saveSettings.mutateAsync({ assignmentMode: mode, members, rules: rules.filter((r) => r.users.length > 0), territories: territories.filter((t) => t.users.length > 0), customFields: fields.filter((f) => f.label.trim()).map(({ options, ...f }): CustomField => ({ ...f, key: f.key || slugKey(f.label), ...(f.type === 'select' ? { options: options ?? [] } : {}) })), slaMinutes: Number(sla), lostReasons: list(reasons) }); flash.show('Saved.') } catch (e) { setProblem(e instanceof Error ? e.message : 'Could not save.') }
           }}>Save</Button>
         </div>
       </Card>

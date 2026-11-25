@@ -279,3 +279,26 @@ describe('leads: who sees which leads', () => {
     expect(await names(mumbai.token)).toContain('Mine in Goa');
   });
 });
+
+describe('leads: details each business defines', () => {
+  it('a business adds its own fields; typed-in leads must satisfy them, arriving enquiries are taken as they come and filed under the right field', async () => {
+    const s = await kit.shop('Leads Fields Co'); const t = s.tenant;
+    const defs = [{ key: 'class_wanted', label: 'Class wanted', type: 'select', options: ['Nursery', 'KG', 'Class 1'], required: true }, { key: 'monthly_budget', label: 'Monthly budget', type: 'number' }];
+    await call(server, 'GET', '/v1/leads/settings', { tenant: t });
+    ok(await call(server, 'PUT', '/v1/leads/settings', { tenant: t, body: { assignmentMode: 'manual', members: [], slaMinutes: 30, lostReasons: ['Other'], rules: [], customFields: defs } }), 200);
+    expect(ok(await call(server, 'GET', '/v1/leads/settings', { tenant: t }), 200).customFields).toHaveLength(2);
+    expect((await call(server, 'POST', '/v1/leads', { tenant: t, body: { name: 'A', phone: '9830000001' } })).status).toBe(422); // required field missing
+    expect((await call(server, 'POST', '/v1/leads', { tenant: t, body: { name: 'A', phone: '9830000001', fields: { class_wanted: 'College' } } })).status).toBe(422); // not an option
+    expect((await call(server, 'POST', '/v1/leads', { tenant: t, body: { name: 'A', phone: '9830000001', fields: { class_wanted: 'KG', monthly_budget: 'lots' } } })).status).toBe(422); // not a number
+    const okLead = await lead(t, { name: 'A', phone: '9830000001', fields: { class_wanted: 'KG', monthly_budget: '5000' } });
+    expect(okLead.fields).toEqual({ class_wanted: 'KG', monthly_budget: '5000' });
+    expect((await call(server, 'PATCH', `/v1/leads/${okLead.id}`, { tenant: t, body: { fields: { monthly_budget: '6000' } } })).status).toBe(422); // edit must still satisfy the required one
+    ok(await call(server, 'PATCH', `/v1/leads/${okLead.id}`, { tenant: t, body: { fields: { class_wanted: 'Nursery', monthly_budget: '6000' } } }), 200);
+    // a website form that words it differently
+    const c = await connector(t, { kind: 'website', name: 'School site' });
+    expect((await call(server, 'POST', c.path, { body: { name: 'Parent', phone: '9830000002', 'Class wanted': 'KG', 'Monthly Budget': '4000', hobby: 'chess' } })).status).toBe(200);
+    const got = ok(await call(server, 'GET', '/v1/leads?q=Parent', { tenant: t }), 200).items[0];
+    expect(got.fields).toEqual({ class_wanted: 'KG', monthly_budget: '4000', hobby: 'chess' });
+    expect((await call(server, 'PUT', '/v1/leads/settings', { tenant: t, body: { assignmentMode: 'manual', members: [], slaMinutes: 30, lostReasons: ['Other'], rules: [], customFields: [{ key: 'Bad Key', label: 'x', type: 'text' }] } })).status).toBe(422);
+  });
+});

@@ -7,16 +7,16 @@ import { Drawer } from '@/ui/Drawer'
 import { useFlash } from '@/ui/flash'
 import { Alert, Button, Card, SelectField, Spinner, TextField } from '@/ui/primitives'
 import { ConvertDrawer } from './ConvertDrawer'
+import { FieldInputs, humanKey } from './customFields'
 import { LostDialog } from './LostDialog'
-import { ago, sourceLabel, useLead, useLeadActions, useLeadSettings, type Activity, type LeadDetail } from './queries'
+import { ago, sourceLabel, useLead, useLeadActions, useLeadSettings, type Activity, type CustomField, type LeadDetail } from './queries'
 
-const SOLAR: [string, string][] = [['property_type', 'Property (home / commercial)'], ['monthly_bill', 'Monthly electricity bill, ₹'], ['roof_type', 'Roof type'], ['roof_area', 'Roof area (sq ft)'], ['system_size_kw', 'System size (kW)'], ['sanctioned_load', 'Sanctioned load (kW)'], ['discom', 'Electricity company (DISCOM)']]
-const human = (k: string): string => k.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase())
+const human = humanKey
 const KIND: Record<string, string> = { note: 'Note', call: 'Call', whatsapp: 'WhatsApp', email: 'Email', visit: 'Visit', survey: 'Site survey', task: 'Task', stage: 'Stage', assign: 'Assigned', system: '' }
 const waLink = (phone: string | null): string | null => { const d = (phone ?? '').replace(/\D/g, ''); return d.length >= 10 ? `https://wa.me/${d.length === 10 ? '91' + d : d}` : null }
 const when = (iso: string): string => new Date(iso).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })
 
-function EditDrawer({ lead, onClose }: { lead: LeadDetail; onClose: () => void }) {
+function EditDrawer({ lead, defs, onClose }: { lead: LeadDetail; defs: CustomField[]; onClose: () => void }) {
   const a = useLeadActions(); const flash = useFlash(); const [problem, setProblem] = useState<string | null>(null)
   const [v, setV] = useState({ name: lead.name, phone: lead.phone ?? '', email: lead.email ?? '', city: lead.city ?? '', pincode: lead.pincode ?? '', interest: lead.interest ?? '', valueEstimate: lead.valueEstimate ?? '' })
   const [f, setF] = useState<Record<string, string>>({ ...lead.fields })
@@ -29,8 +29,8 @@ function EditDrawer({ lead, onClose }: { lead: LeadDetail; onClose: () => void }
         <div className="grid grid-cols-2 gap-3"><TextField label="City" value={v.city} onChange={set('city')} /><TextField label="PIN code" value={v.pincode} onChange={set('pincode')} /></div>
         <TextField label="Interested in" value={v.interest} onChange={set('interest')} />
         <TextField label="Expected value, ₹" inputMode="decimal" value={v.valueEstimate} onChange={set('valueEstimate')} />
-        <p className="mt-1 text-sm font-semibold">Solar details</p>
-        <div className="grid grid-cols-2 gap-3">{SOLAR.map(([k, label]) => <TextField key={k} label={label} value={f[k] ?? ''} onChange={(e) => setF((x) => ({ ...x, [k]: e.target.value }))} />)}</div>
+        {defs.length ? <p className="mt-1 text-sm font-semibold">Details</p> : null}
+        <FieldInputs defs={defs} values={f} onChange={(k, x) => setF((y) => ({ ...y, [k]: x }))} />
         {problem ? <Alert>{problem}</Alert> : null}
         <Button busy={a.update.isPending} onClick={async () => {
           setProblem(null)
@@ -120,10 +120,12 @@ function Lead({ id }: { id: string }) {
             </dl>
           </Card>
           <Card>
-            <h2 className="mb-2 text-sm font-semibold">Solar details</h2>
-            {Object.keys(lead.fields).length === 0 ? <p className="text-sm text-muted">Nothing recorded yet. Use Edit to add the monthly bill, roof and system size.</p> : (
-              <dl className="grid grid-cols-[10rem_1fr] gap-y-1 text-sm">{[...SOLAR.map(([k, l]) => [k, l] as [string, string]), ...Object.keys(lead.fields).filter((k) => !SOLAR.some(([s]) => s === k)).map((k) => [k, human(k)] as [string, string])].filter(([k]) => lead.fields[k]).map(([k, l]) => <Fragment key={k}><dt className="text-muted">{l}</dt><dd>{lead.fields[k]}</dd></Fragment>)}</dl>
-            )}
+            <h2 className="mb-2 text-sm font-semibold">Details</h2>
+            {(() => {
+              const defs = settings.data?.customFields ?? []
+              const rows: [string, string][] = [...defs.map((d) => [d.label, lead.fields[d.key] ?? ''] as [string, string]), ...Object.keys(lead.fields).filter((k) => !defs.some((d) => d.key === k)).map((k) => [human(k), lead.fields[k] ?? ''] as [string, string])].filter(([, v]) => v)
+              return rows.length === 0 ? <p className="text-sm text-muted">Nothing recorded yet. Use Edit to add details{defs.length ? '' : ', or set up the details you want on every lead in Lead settings'}.</p> : <dl className="grid grid-cols-[10rem_1fr] gap-y-1 text-sm">{rows.map(([l, v]) => <Fragment key={l}><dt className="text-muted">{l}</dt><dd>{v}</dd></Fragment>)}</dl>
+            })()}
           </Card>
         </div>
         <Card>
@@ -141,7 +143,7 @@ function Lead({ id }: { id: string }) {
           <ul aria-label="History">{lead.activities.map(timeline)}</ul>
         </Card>
       </div>
-      {panel === 'edit' ? <EditDrawer lead={lead} onClose={() => setPanel(null)} /> : null}
+      {panel === 'edit' ? <EditDrawer lead={lead} defs={settings.data?.customFields ?? []} onClose={() => setPanel(null)} /> : null}
       {panel === 'convert' ? <ConvertDrawer lead={lead} onClose={() => setPanel(null)} /> : null}
       {panel === 'lost' ? <LostDialog name={lead.name} reasons={settings.data?.lostReasons ?? []} onClose={() => setPanel(null)} onConfirm={async (reason) => { const lost = stages.find((s) => s.kind === 'lost'); if (lost) await a.stage.mutateAsync({ id, stageId: lost.id, lostReason: reason }); flash.show('Marked as lost.') }} /> : null}
       <p className="text-xs text-muted">{stage ? `Stage: ${stage.name}. ` : ''}Updated {ago(lead.updatedAt)}.</p>

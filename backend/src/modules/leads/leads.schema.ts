@@ -4,7 +4,7 @@ import { boolean, integer, jsonb, numeric, pgSchema, text, timestamp, uuid, bigi
 const erp = pgSchema('erp');
 const ts = (name: string) => timestamp(name, { withTimezone: true, mode: 'date' });
 export const leadSettings = erp.table('lead_settings', {
-  tenantId: uuid('tenant_id').notNull(), assignmentMode: text('assignment_mode').notNull().default('manual'), members: uuid('members').array().notNull().default([]), rules: jsonb('rules').notNull().default([]), territories: jsonb('territories').notNull().default([]),
+  tenantId: uuid('tenant_id').notNull(), assignmentMode: text('assignment_mode').notNull().default('manual'), members: uuid('members').array().notNull().default([]), rules: jsonb('rules').notNull().default([]), territories: jsonb('territories').notNull().default([]), customFields: jsonb('custom_fields').notNull().default([]),
   slaMinutes: integer('sla_minutes').notNull().default(30), rrCursor: integer('rr_cursor').notNull().default(0), leadSeq: bigint('lead_seq', { mode: 'number' }).notNull().default(0), lostReasons: text('lost_reasons').array().notNull(), updatedAt: ts('updated_at').notNull().defaultNow(),
 });
 export const leadStages = erp.table('lead_stages', {
