@@ -41,6 +41,7 @@ function platformApi(apiUrl: string, deviceTag?: string, ctx?: PlatformCtx) {
     ctx: () => held ?? useApp.getState().workspace?.platform,
     setCtx: (c) => { held = c; const ws = useApp.getState().workspace; if (ws) void useApp.getState().setWorkspace({ ...ws, platform: c }) },
     deviceName: () => `Phone ${deviceTag || 'app'}`,
+    local: () => { const d = useApp.getState().data; return { store: d.store, coupons: listOf(d.coupons) } },
   })
 }
 

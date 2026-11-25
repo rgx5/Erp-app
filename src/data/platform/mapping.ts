@@ -66,11 +66,12 @@ export function saleToBill(s: PSaleDetail, nameOf: (itemId: string) => { name: s
   const tax = num(d.cgstTotal) + num(d.sgstTotal) + num(d.igstTotal)
   const total = num(d.grandTotal)
   const customerId = d.customerId && d.customerId !== walkInId ? d.customerId : null
+  const sign = s.kind === 'return' ? -1 : 1
   const bill: Bill = {
     id: s.id, no: d.invoiceNo, date: when(s.createdAt), customerId, items, grossMrp: round2(items.reduce((t, i) => t + i.mrp * i.qty, 0)), itemDiscount: round2(items.reduce((t, i) => t + i.discountAmount, 0)),
     billDiscountType: 'amt', billDiscountValue: 0, billDiscount: 0, coupon: '', subtotal: round2(total - tax - num(d.roundOff)), taxableTotal: num(d.taxableTotal), cgstTotal: num(d.cgstTotal), sgstTotal: num(d.sgstTotal),
-    ...(num(d.igstTotal) ? { igstTotal: num(d.igstTotal) } : {}), taxTotal: round2(tax), roundOff: num(d.roundOff), total, payments, paid: round2(payments.reduce((t, p) => t + p.amount, 0)), changeDue: 0,
-    loyaltyEarned: 0, loyaltyRedeemed: 0, creditUsed: 0, cashierId: s.createdBy ?? '', status: d.status === 'cancelled' ? 'returned' : s.kind === 'return' ? 'returned' : 'paid', notes: '',
+    ...(num(d.igstTotal) ? { igstTotal: num(d.igstTotal) } : {}), taxTotal: round2(tax), roundOff: num(d.roundOff), total: sign * total, payments: payments.map((p) => ({ ...p, amount: sign * p.amount })), paid: sign * round2(payments.reduce((t, p) => t + p.amount, 0)), changeDue: 0,
+    loyaltyEarned: 0, loyaltyRedeemed: 0, creditUsed: 0, cashierId: s.createdBy ?? '', status: d.status === 'cancelled' ? 'returned' : s.kind === 'return' ? 'returned' : 'paid', notes: s.kind === 'return' ? 'Return' : '',
   }
   return bill
 }
@@ -79,7 +80,7 @@ export function saleToBill(s: PSaleDetail, nameOf: (itemId: string) => { name: s
 export interface SaleBody { shiftId: string; date?: string; customerId?: string; lines: Array<Record<string, unknown>>; payments: Array<Record<string, unknown>>; couponCode?: string }
 const METHODS = new Set(['cash', 'bank_transfer', 'upi', 'card', 'cheque', 'other'])
 
-export function billToSale(b: Bill, o: { shiftId: string; walkInId: string | null; priceIncludesTax: boolean; staffId?: string }): SaleBody {
+export function billToSale(b: Bill, o: { shiftId: string; walkInId: string | null; priceIncludesTax: boolean; staffId?: string }): SaleBody & { storeCredit?: string; loyaltyPoints?: string } {
   const lines = b.items.map((i) => {
     const gross = i.price * i.qty
     // the platform takes a percentage; a rupee discount is turned into the equivalent percentage
@@ -96,7 +97,7 @@ export function billToSale(b: Bill, o: { shiftId: string; walkInId: string | nul
     const cash = method === 'cash'
     return { method, amount: money(cash ? Math.min(p.amount, Math.max(0, b.total - b.payments.filter((x) => x !== p && x.mode !== 'cash').reduce((t, x) => t + x.amount, 0))) : p.amount), ...(p.ref ? { reference: p.ref.slice(0, 100) } : {}) }
   })
-  return { shiftId: o.shiftId, date: new Date(b.date).toISOString().slice(0, 10), ...(b.customerId && b.customerId !== o.walkInId ? { customerId: b.customerId } : {}), lines, payments, ...(b.coupon ? {} : {}) }
+  return { shiftId: o.shiftId, date: new Date(b.date).toISOString().slice(0, 10), ...(b.customerId && b.customerId !== o.walkInId ? { customerId: b.customerId } : {}), lines, payments, ...(b.coupon ? { couponCode: b.coupon.slice(0, 30) } : {}), ...(b.creditUsed > 0 ? { storeCredit: money(b.creditUsed) } : {}), ...(b.loyaltyRedeemed > 0 ? { loyaltyPoints: String(b.loyaltyRedeemed) } : {}) }
 }
 
 /** The total a payment error says the invoice came to: "...must equal the sale total (236)". */

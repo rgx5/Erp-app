@@ -1,10 +1,15 @@
-import type { Bill, Category, Customer, Product, StoreSettings, Supplier, User, Variant } from '@/domain/types'
+import type { Bill, Category, Coupon, Customer, Expense, Product, StoreSettings, Supplier, User, Variant } from '@/domain/types'
 import { DEFAULT_SLABS } from '@/domain/tax'
 import { CloudError, type FetchFn, type Snapshot } from '../api'
-import { billToSale, categoryToCategory, itemToProduct, num, partyToCustomer, partyToSupplier, retotal, saleToBill, serverTotalFrom, type PCategory, type PItem, type PParty, type PSaleDetail, type TaxRates } from './mapping'
+import { createWriter } from './writes'
+import { categoryToCategory, itemToProduct, num, partyToCustomer, partyToSupplier, saleToBill, type PCategory, type PItem, type PParty, type PSaleDetail, type TaxRates } from './mapping'
 
 /** What this phone has worked out about the business it is signed in to; kept with the workspace so it is asked for once. */
-export interface PlatformCtx { tenant: string; companyId: string; companyName: string; terminalId?: string; deviceId?: string; warehouseId?: string; walkInCustomerId?: string | null; priceIncludesTax: boolean; invoicePrefix?: string }
+export interface PlatformCtx { tenant: string; companyId: string; companyName: string; terminalId?: string; deviceId?: string; warehouseId?: string; walkInCustomerId?: string | null; priceIncludesTax: boolean; invoicePrefix?: string
+  /** App-made ids → the platform's ids, for records made on the phone that other records point at (a customer on a bill, an item on a return). */
+  ids?: Record<string, string>
+  /** Products waiting for their variant, since one platform item is both. */
+  pending?: Record<string, unknown> }
 export interface PlatformTokens { access: string; refresh: string }
 export interface PlatformDeps {
   getToken: () => string | null
@@ -12,6 +17,8 @@ export interface PlatformDeps {
   setTokens: (t: PlatformTokens) => void
   ctx: () => PlatformCtx | undefined
   setCtx: (c: PlatformCtx) => void
+  /** What only lives on the phone and must survive a refresh: the shop's own settings and coupons. */
+  local?: () => { store?: StoreSettings | null; coupons?: Coupon[] }
   /** A name that tells this phone's till apart from others. */
   deviceName: () => string
 }
@@ -38,10 +45,12 @@ const roleOf = (perms: string[]): 'owner' | 'manager' | 'cashier' => (perms.incl
  */
 export function createPlatformApi(baseUrl: string, d: PlatformDeps, fetchFn: FetchFn = (i, n) => fetch(i, n)) {
   const base = normalizePlatformUrl(baseUrl)
+  // a sale never changes once made, so its detail is fetched once for as long as the app is open
+  const billCache = new Map<string, Bill>()
 
-  async function http(method: string, path: string, body?: unknown, o: { auth?: boolean; key?: string } = {}): Promise<Response> {
+  async function http(method: string, path: string, body?: unknown, o: { auth?: boolean; key?: string; headers?: Record<string, string> } = {}): Promise<Response> {
     const go = async (): Promise<Response> => {
-      const headers: Record<string, string> = { 'Content-Type': 'application/json', ...(o.key ? { 'Idempotency-Key': o.key.replace(/[^A-Za-z0-9._:-]+/g, '-').slice(0, 200) } : {}) }
+      const headers: Record<string, string> = { 'Content-Type': 'application/json', ...(o.headers ?? {}), ...(o.key ? { 'Idempotency-Key': o.key.replace(/[^A-Za-z0-9._:-]+/g, '-').slice(0, 200) } : {}) }
       const t = o.auth === false ? null : d.getToken()
       if (t) headers['Authorization'] = `Bearer ${t}`
       try { return await fetchFn(`${base}${path}`, { method, headers, ...(body !== undefined ? { body: JSON.stringify(body) } : {}) }) } catch { throw new CloudError('Cannot reach the server — check your internet connection and the server address.') }
@@ -57,7 +66,7 @@ export function createPlatformApi(baseUrl: string, d: PlatformDeps, fetchFn: Fet
     const errors = Array.isArray(j?.['errors']) ? (j?.['errors'] as Array<{ path?: string; message?: string }>) : []
     return new CloudError(errors[0]?.message ?? String(j?.['detail'] ?? j?.['title'] ?? `Server error (${res.status})`), res.status)
   }
-  async function json<T>(method: string, path: string, body?: unknown, o: { auth?: boolean; key?: string } = {}): Promise<T> {
+  async function json<T>(method: string, path: string, body?: unknown, o: { auth?: boolean; key?: string; headers?: Record<string, string> } = {}): Promise<T> {
     const res = await http(method, path, body, o)
     if (!res.ok) throw await problem(res)
     const t = await res.text()
@@ -121,6 +130,7 @@ export function createPlatformApi(baseUrl: string, d: PlatformDeps, fetchFn: Fet
     return (await json<{ id: string }>('POST', '/v1/pos/shifts', { terminalId: ctx.terminalId, openingCash: '0' }, { key: `shift-${ctx.terminalId}-${new Date().toISOString().slice(0, 13)}` })).id
   }
 
+  const writer = createWriter({ http, json, all, ctx: () => d.ctx(), setCtx: d.setCtx, ensureCtx, ensureShift })
   return {
     base,
     health: () => json<{ status?: string }>('GET', '/health/live', undefined, { auth: false }).then(() => ({ ok: true })),
@@ -145,7 +155,7 @@ export function createPlatformApi(baseUrl: string, d: PlatformDeps, fetchFn: Fet
 
     async snapshot(): Promise<Snapshot> {
       let ctx = await ensureCtx()
-      const [company, items, parties, balances, categories, settings, cat, sales] = await Promise.all([
+      const [company, items, parties, balances, categories, settings, cat, sales, vouchers, expCats] = await Promise.all([
         json<Json>('GET', `/v1/companies/${ctx.companyId}`).catch(() => ({} as Json)),
         all<PItem>('/v1/items?isSellable=true'),
         all<PParty>('/v1/parties'),
@@ -153,7 +163,9 @@ export function createPlatformApi(baseUrl: string, d: PlatformDeps, fetchFn: Fet
         all<PCategory>('/v1/item-categories').catch(() => [] as PCategory[]),
         json<{ settings: { walkInCustomerId: string | null } | null }>('GET', `/v1/pos/settings?companyId=${ctx.companyId}`).catch(() => ({ settings: null })),
         json<{ taxRates: Array<{ taxCodeId: string; igst: string }>; barcodes: Array<{ itemId: string; barcode: string }> }>('GET', `/v1/pos/sync/catalogue?deviceId=${ctx.deviceId}`),
-        json<{ items: Array<{ id: string }> }>('GET', `/v1/pos/sales?companyId=${ctx.companyId}&limit=40`).catch(() => ({ items: [] })),
+        json<{ items: Array<{ id: string }> }>('GET', `/v1/pos/sales?companyId=${ctx.companyId}&limit=200`).catch(() => ({ items: [] })),
+        json<{ items: Array<{ id: string; voucherDate: string; categoryId: string; amount: string; payee: string | null; note: string | null; status: string; createdAt: string }> }>('GET', `/v1/expenses/vouchers?companyId=${ctx.companyId}&limit=200`).catch(() => ({ items: [] })),
+        json<{ items: Array<{ id: string; name: string }> }>('GET', `/v1/expenses/categories?companyId=${ctx.companyId}`).catch(() => ({ items: [] })),
       ])
       const walkIn = settings.settings?.walkInCustomerId ?? null
       if (walkIn !== (ctx.walkInCustomerId ?? null)) { ctx = { ...ctx, walkInCustomerId: walkIn }; d.setCtx(ctx) }
@@ -171,56 +183,33 @@ export function createPlatformApi(baseUrl: string, d: PlatformDeps, fetchFn: Fet
       }
       const vById = new Map(variants.map((v) => [v.id, v])); const pById = new Map(products.map((p) => [p.id, p]))
       const bills: Bill[] = []
-      for (let i = 0; i < sales.items.length; i += 6) {
-        const got = await Promise.all(sales.items.slice(i, i + 6).map((s) => json<PSaleDetail & { document: PSaleDetail['document'] }>('GET', `/v1/pos/sales/${s.id}`).catch(() => null)))
-        for (const s of got) if (s) bills.push(saleToBill(s, (id) => { const v = vById.get(id); return { name: pById.get(id)?.name ?? '', sku: v?.sku ?? '', barcode: v?.barcode ?? '', size: v?.size ?? '', color: v?.color ?? '', mrp: v?.mrp ?? 0 } }, walkIn))
+      const todo = sales.items.filter((x) => !billCache.has(x.id))
+      for (let i = 0; i < todo.length; i += 10) {
+        const got = await Promise.all(todo.slice(i, i + 10).map((x) => json<PSaleDetail>('GET', `/v1/pos/sales/${x.id}`).catch(() => null)))
+        for (const x of got) if (x) billCache.set(x.id, saleToBill(x, (id) => { const v = vById.get(id); return { name: pById.get(id)?.name ?? '', sku: v?.sku ?? '', barcode: v?.barcode ?? '', size: v?.size ?? '', color: v?.color ?? '', mrp: v?.mrp ?? 0 } }, walkIn))
       }
+      for (const x of sales.items) { const b = billCache.get(x.id); if (b) bills.push(b) }
+      const catName = new Map(expCats.items.map((c) => [c.id, c.name]))
+      const expenses: Expense[] = vouchers.items.filter((v) => v.status === 'posted').map((v) => ({ id: v.id, date: Date.parse(v.voucherDate) || Date.parse(v.createdAt) || Date.now(), category: catName.get(v.categoryId) ?? 'General', amount: num(v.amount), mode: 'cash', vendor: v.payee ?? '', note: v.note ?? '', recurring: false, userId: '' }))
       const me = await json<{ user: { id: string; displayName: string }; permissions: string[] }>('GET', '/v1/auth/me')
       const name = String((company['tradeName'] as string | null) ?? company['legalName'] ?? ctx.companyName)
+      const mine = d.local?.() ?? {}
       const store: StoreSettings & { plan?: string } = {
-        id: ctx.companyId, name, tagline: '', address: '', city: '', phone: '', email: '', gstin: '', invoicePrefix: 'INV-', nextInvoiceNo: 1, slabs: DEFAULT_SLABS, priceIncludesTax: true, receiptWidth: '58mm', printFormat: 'thermal',
+        tagline: '', address: '', city: '', phone: '', email: '', gstin: '', invoicePrefix: 'INV-', nextInvoiceNo: 1, slabs: DEFAULT_SLABS, priceIncludesTax: true, receiptWidth: '58mm', printFormat: 'thermal',
         autoPrintOnSale: false, returnPolicy: '', footerNote: '', loyaltyEarnPct: 0, loyaltyRedeemValue: 0, maxCashierDiscountPct: 100, lowStockDefault: 5,
+        ...(mine.store ?? {}), id: ctx.companyId, name,
       }
       const users: User[] = [{ id: me.user.id, name: me.user.displayName, role: roleOf(me.permissions), active: true }]
       const customers: Customer[] = parties.filter((p) => p.isCustomer && p.id !== walkIn && (p.status ?? 'active') === 'active').map(partyToCustomer)
       const suppliers: Supplier[] = parties.filter((p) => p.isSupplier && (p.status ?? 'active') === 'active').map(partyToSupplier)
       const cats: Category[] = categories.map((c) => categoryToCategory(c, byCat))
-      return { serverTime: Date.now(), store, users, categories: cats, products, variants, customers, bills, suppliers, purchases: [], moves: [], expenses: [], sessions: [] }
+      return { serverTime: Date.now(), store, users, categories: cats, products, variants, customers, bills, suppliers, ...(mine.coupons?.length ? { coupons: mine.coupons } : {}), purchases: [], moves: [], expenses, sessions: [] }
     },
 
     bill: async (id: string): Promise<Bill> => { throw new CloudError(`Sale ${id} is not on this server`, 404) },
 
-    /**
-     * The outbox's writes, in the older cloud client's vocabulary, translated into the platform's calls. Returns a Response so the
-     * engine can read the status itself; what the platform does not take (yet) answers 405, which the engine sets aside with a reason.
-     */
-    async raw(method: string, path: string, body?: unknown): Promise<Response> {
-      const unsupported = (what: string): Response => new Response(JSON.stringify({ error: `${what} is not synced to this server yet` }), { status: 405 })
-      try {
-        if (method === 'POST' && path === '/bills') {
-          const bill = body as Bill
-          const ctx = await ensureCtx()
-          const shiftId = await ensureShift(ctx)
-          const sale = billToSale(bill, { shiftId, walkInId: ctx.walkInCustomerId ?? null, priceIncludesTax: ctx.priceIncludesTax })
-          let res = await http('POST', '/v1/pos/sales', sale, { key: bill.id })
-          if (res.status === 422) {
-            const detail = await res.clone().text()
-            const total = serverTotalFrom(detail)
-            // the platform rounds and taxes on its own books: take its total for the bill and pay exactly that
-            if (total !== null) res = await http('POST', '/v1/pos/sales', { ...sale, payments: retotal(sale.payments, total) }, { key: bill.id })
-          }
-          return res
-        }
-        if (method === 'POST' && path === '/customers') {
-          const c = body as Customer
-          return await http('POST', '/v1/parties', { code: `C-${c.id.slice(-8).toUpperCase()}`, legalName: c.name, isCustomer: true, gstTreatment: c.gstin ? 'registered_regular' : 'consumer', ...(c.gstin ? { gstin: c.gstin } : {}), ...(c.phone ? { phone: c.phone } : {}), ...(c.email ? { email: c.email } : {}) }, { key: c.id })
-        }
-        return unsupported(`${method} ${path}`)
-      } catch (e) {
-        if (e instanceof CloudError) throw e
-        throw new CloudError('Cannot reach the server.')
-      }
-    },
+    /** The outbox's writes, translated into the platform's calls (see writes.ts). */
+    raw: (method: string, path: string, body?: unknown): Promise<Response> => writer.raw(method, path, body),
   }
 }
 export type PlatformApi = ReturnType<typeof createPlatformApi>

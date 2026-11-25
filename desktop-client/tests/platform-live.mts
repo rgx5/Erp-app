@@ -31,8 +31,28 @@ try {
   console.log('bill with different total', r3.status, (await r3.text()).slice(0, 200))
   const rc = await api.raw('POST', '/customers', { id: 'c_NEWCUST1', name: 'Phone Customer', phone: '9999999999', email: '', gstin: '' })
   console.log('customer post', rc.status)
+  const show = async (label: string, r: Response) => console.log(label, r.status, r.ok ? '' : (await r.text()).slice(0, 200))
+  // a customer made on the phone, then sold to
+  const newCust = 'c_NEWCUST1'
+  await show('sale to phone-made customer', await api.raw('POST', '/bills', { ...bill, id: 'b_TEST0003', customerId: newCust, payments: [{ mode: 'cash', amount: 236 }] }))
+  await show('customer edit', await api.raw('PUT', `/customers/${newCust}`, { id: newCust, name: 'Phone Customer Renamed', phone: '9888888888' }))
+  // a return against the first sale (it was made on the phone, so the platform id comes from the remembered mapping)
+  const credit = { ...bill, id: 'b_RET0001', no: 'CN-1', refundOfBillId: billId, items: [{ ...bill.items[0]!, qty: 1 }], total: -118, refundAmount: 118, payments: [{ mode: 'cash', amount: -118 }], notes: 'Return against INV-X-0001 · damaged', status: 'returned' }
+  await show('return', await api.raw('POST', `/bills/${billId}/return`, credit))
+  await show('return again, same id (retry)', await api.raw('POST', `/bills/${billId}/return`, credit))
+  await show('expense', await api.raw('POST', '/expenses', { id: 'e_EXP00001', date: Date.now(), category: 'Tea and snacks', amount: 150, mode: 'cash', vendor: 'Canteen', note: 'staff tea', recurring: false, userId: 'x' }))
+  await show('stock adjust out', await api.raw('POST', '/stock/adjust', { id: 'm_ADJ00001', variantId: widget.id, qty: -3, type: 'adjust', ref: 'phone', reason: 'broken', at: Date.now(), userId: 'x' }))
+  await show('stock adjust in', await api.raw('POST', '/stock/adjust', { id: 'm_ADJ00002', variantId: widget.id, qty: 5, type: 'adjust', ref: 'phone', reason: 'found', at: Date.now(), userId: 'x' }))
+  await show('new product', await api.raw('POST', '/products', { id: 'p_NEWPROD1', styleCode: 'MUG', name: 'Coffee mug', categoryId: '', brand: 'Acme', fabric: '', season: '', hsn: '6912', active: true, createdAt: Date.now(), gstRate: 12, trackStock: true }))
+  await show('new variant', await api.raw('POST', '/variants', { id: 'v_NEWVAR01', productId: 'p_NEWPROD1', sku: 'MUG-RED', barcode: '', size: '', color: 'Red', cost: 0, mrp: 250, price: 250, stock: 0, reorderLevel: 2 }))
+  await show('price change', await api.raw('PUT', '/variants/v_NEWVAR01', { id: 'v_NEWVAR01', price: 275, mrp: 275 }))
+  await show('sale of the phone-made item', await api.raw('POST', '/bills', { ...bill, id: 'b_TEST0004', items: [{ ...bill.items[0]!, variantId: 'v_NEWVAR01', qty: 1, price: 275, mrp: 275 }], total: 308, payments: [{ mode: 'cash', amount: 308 }] }))
+  await show('supplier', await api.raw('POST', '/suppliers', { id: 's_NEWSUP01', name: 'Phone Supplier', phone: '9777777777', gstin: '', address: '', openingBalance: 0 }))
+  await show('purchase (goods in, bill, part payment)', await api.raw('POST', '/purchases', { id: 'pu_PURCH0001', no: 'GRN-1', supplierId: 's_NEWSUP01', date: Date.now(), invoiceRef: 'SUP-77', items: [{ variantId: 'v_NEWVAR01', qty: 10, cost: 120 }, { variantId: widget.id, qty: 5, cost: 300 }], total: 2700, paid: 1000, notes: '', userId: 'x' }))
+  await show('purchase retry', await api.raw('POST', '/purchases', { id: 'pu_PURCH0001', no: 'GRN-1', supplierId: 's_NEWSUP01', date: Date.now(), invoiceRef: 'SUP-77', items: [{ variantId: 'v_NEWVAR01', qty: 10, cost: 120 }, { variantId: widget.id, qty: 5, cost: 300 }], total: 2700, paid: 1000, notes: '', userId: 'x' }))
+  await show('sale of the item after the purchase', await api.raw('POST', '/bills', { ...bill, id: 'b_TEST0005', items: [{ ...bill.items[0]!, variantId: 'v_NEWVAR01', qty: 1, price: 275, mrp: 275 }], total: 308, payments: [{ mode: 'cash', amount: 308 }] }))
   const after = await api.snapshot()
-  console.log('after: stock', after.variants.find((v) => v.sku === 'WIDGET')?.stock, 'bills', after.bills.map((x) => `${x.no}=${x.total}/${x.payments.map((p) => p.mode + p.amount).join('+')}`), 'customers', after.customers.length)
+  console.log('after: stock', after.variants.map((v) => `${v.sku}=${v.stock}@${v.price}`).join(' '), 'moves', 'bills', after.bills.map((x) => `${x.no}=${x.total}/${x.payments.map((p) => p.mode + p.amount).join('+')}`), 'customers', after.customers.length)
   // expired access token: the client renews it with the refresh token
   tokens = { ...tokens, access: 'expired.invalid.token' }
   console.log('renew', (await api.snapshot()).products.length, 'products after token refresh')
