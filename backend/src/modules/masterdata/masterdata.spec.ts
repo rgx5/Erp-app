@@ -51,10 +51,12 @@ describe('party rules', () => {
   });
 });
 describe('address, unit, tax and price inputs', () => {
-  it('needs a PIN for India only', () => {
+  it('takes a PIN for India only, and does not insist on one', () => {
     const a = { kind: 'billing', line1: 'x', city: 'Pune', stateCode: '27' };
     expect(createAddressSchema.safeParse({ ...a, pincode: '411001' }).success).toBe(true);
-    expect(createAddressSchema.safeParse(a).success).toBe(false);
+    expect(createAddressSchema.safeParse(a).success).toBe(true); // a PIN code is optional in India
+    expect(createAddressSchema.safeParse({ ...a, pincode: '12345' }).success).toBe(false); // but a wrong one is refused
+    expect(createAddressSchema.safeParse({ ...a, country: 'US', stateCode: '96', pincode: '411001' }).success).toBe(false); // and a foreign address has none
     expect(createAddressSchema.safeParse({ ...a, country: 'US', stateCode: '96' }).success).toBe(true);
   });
   it('takes only statutory UQC codes', () => {

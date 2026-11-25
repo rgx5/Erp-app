@@ -69,6 +69,7 @@ export const NAV: NavItem[] = [
   { to: '/admin/users', label: 'Users', icon: Users2, needs: ['users:read'], section: 'Settings' },
   { to: '/admin/roles', label: 'Roles', icon: ShieldCheck, needs: ['roles:read'], section: 'Settings' },
   { to: '/admin/api-keys', label: 'API keys', icon: KeyRound, needs: ['api_keys:manage'], section: 'Settings', advanced: true },
+  { to: '/data/migrate', label: 'Move from another program', icon: ArrowLeftRight, needs: ['organization:write'], section: 'Data' },
   { to: '/data/import', label: 'Import data', icon: Upload, section: 'Data' },
   { to: '/data/export', label: 'Export data', icon: Download, section: 'Data' },
   { to: '/admin/audit', label: 'Audit log', icon: ScrollText, needs: ['audit:read'], section: 'Settings', advanced: true },

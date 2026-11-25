@@ -29,4 +29,5 @@ export const hi: Record<string, string> = {
   // settings and data sections
   'All settings': 'सभी सेटिंग', 'Setup checklist': 'सेटअप चेकलिस्ट', 'POS shifts and setup': 'पीओएस शिफ्ट और सेटअप', 'Import data': 'डेटा आयात', 'Export data': 'डेटा निर्यात', 'My account and layout': 'मेरा खाता और लेआउट',
   Settings: 'सेटिंग', Data: 'डेटा', 'Your business': 'आपका व्यवसाय', 'People and access': 'लोग और अनुमतियाँ', Modules: 'मॉड्यूल',
+  'Move from another program': 'दूसरे प्रोग्राम से लाएँ',
 }

@@ -139,7 +139,7 @@ export const updatePartySchema = z
 export const listPartiesQuery = z.object({ ...page, role: z.enum(['customer', 'supplier', 'subcontractor']).optional(), status: z.enum(['active', 'inactive', 'blocked']).optional(), q: z.string().trim().min(1).max(60).optional() });
 export const createAddressSchema = z
   .strictObject({ kind: z.enum(['billing', 'shipping', 'registered', 'other']), line1: text(200), line2: text(200).optional(), city: text(100), stateCode: z.string().regex(/^[0-9]{2}$/, 'Use the 2-digit GST state code'), pincode: z.string().regex(/^[1-9][0-9]{5}$/, 'Not a valid PIN code').optional(), country: code(/^[A-Z]{2}$/, 'Use a 2-letter country code').default('IN'), isDefault: z.boolean().default(false) })
-  .refine((v) => (v.country === 'IN') === (v.pincode !== undefined), { path: ['pincode'], message: 'Indian addresses need a PIN code; foreign addresses must not have one' });
+  .refine((v) => v.country === 'IN' || v.pincode === undefined, { path: ['pincode'], message: 'A foreign address has no PIN code' });
 
 // ---- pricing -------------------------------------------------------------------------------------------------------
 export const createPriceListSchema = z.strictObject({ code: code(/^[A-Z0-9][A-Z0-9_.-]{0,29}$/, 'Letters, digits, . _ -'), name: text(100), kind: z.enum(['sales', 'purchase']), currency: code(/^[A-Z]{3}$/, 'Use a 3-letter code').default('INR'), taxInclusive: z.boolean().default(false) });

@@ -219,7 +219,7 @@ describe('parties', () => {
     const list = (await get(`/v1/parties/${party.id}/addresses`)).json.items;
     expect(list.find((x: { id: string }) => x.id === a.id).isDefault).toBe(false);
     expect(list.find((x: { id: string }) => x.id === b.id).isDefault).toBe(true);
-    expect((await addr({ pincode: undefined })).status).toBe(422);
+    expect((await addr({ pincode: undefined })).status).toBe(201);
     ok(await addr({ country: 'US', stateCode: '96', pincode: undefined, kind: 'billing' }));
     expect((await post('/v1/parties/01a1cf33-1a44-7104-863e-b26a759d6544/addresses', { kind: 'billing', line1: 'x', city: 'x', stateCode: '27', pincode: '411001' })).status).toBe(404);
   });

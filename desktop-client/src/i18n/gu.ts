@@ -25,4 +25,5 @@ export const gu: Record<string, string> = {
   // settings and data sections
   'All settings': 'બધી સેટિંગ', 'Setup checklist': 'સેટઅપ ચેકલિસ્ટ', 'POS shifts and setup': 'પીઓએસ શિફ્ટ અને સેટઅપ', 'Import data': 'ડેટા આયાત', 'Export data': 'ડેટા નિકાસ', 'My account and layout': 'મારું ખાતું અને લેઆઉટ',
   Settings: 'સેટિંગ', Data: 'ડેટા', 'Your business': 'તમારો વ્યવસાય', 'People and access': 'લોકો અને પરવાનગીઓ', Modules: 'મોડ્યુલ',
+  'Move from another program': 'બીજા પ્રોગ્રામમાંથી લાવો',
 }

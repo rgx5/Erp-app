@@ -25,4 +25,5 @@ export const mr: Record<string, string> = {
   // settings and data sections
   'All settings': 'सर्व सेटिंग्ज', 'Setup checklist': 'सेटअप चेकलिस्ट', 'POS shifts and setup': 'पीओएस शिफ्ट आणि सेटअप', 'Import data': 'डेटा आयात', 'Export data': 'डेटा निर्यात', 'My account and layout': 'माझे खाते आणि लेआउट',
   Settings: 'सेटिंग्ज', Data: 'डेटा', 'Your business': 'तुमचा व्यवसाय', 'People and access': 'लोक आणि परवानग्या', Modules: 'मॉड्यूल',
+  'Move from another program': 'दुसऱ्या प्रोग्राममधून आणा',
 }
