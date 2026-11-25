@@ -23,6 +23,7 @@ RUN npm ci
 COPY tsconfig.json ./
 COPY src ./src
 COPY db ./db
+COPY scripts/retention.ts ./scripts/retention.ts
 ENV NODE_ENV=production
 USER node
 CMD ["npx", "tsx", "src/db/cli.ts", "up"]

@@ -5,6 +5,7 @@ import { ENV, type Env } from '../../config/env.js';
 import { POOL } from '../database/database.js';
 import { Public } from '../http/public.js';
 import { PlatformAdminGuard } from '../tenancy/platform-admin.guard.js';
+import { jobMetrics } from './job-status.js';
 import { MetricsService } from './metrics.service.js';
 import { TenantGuardrailInterceptor } from './tenant-guardrail.interceptor.js';
 
@@ -35,6 +36,7 @@ export class MetricsModule implements OnModuleInit {
       { name: 'erp_db_pool_max', help: 'Configured pool size', samples: [{ value: this.env.DATABASE_POOL_MAX }] },
       { name: 'erp_inflight_requests', help: 'Requests running now, by heavy or all', samples: [{ labels: { kind: 'all' }, value: guard.snapshot().reduce((a, s) => a + s.all, 0) }, { labels: { kind: 'heavy' }, value: guard.snapshot().reduce((a, s) => a + s.heavy, 0) }] },
     ]);
+    metrics.gauge(async () => jobMetrics(this.env.STATUS_DIR));
     metrics.gauge(async () => {
       const r = await pool.query<{ pending: string; oldest: string | null; dead: string; db_bytes: string; tenants: string }>(
         `SELECT (SELECT count(*) FROM erp.outbox_dispatch WHERE done_at IS NULL AND dead_at IS NULL) AS pending,

@@ -6,15 +6,30 @@ name: onesync-cell
 
 services:
   postgres:
-    image: postgres:16
+    build:
+      context: ../../agent/deploy/postgres   # PostgreSQL 16 with pgBackRest added
+    image: onesync/cell-postgres:16
     restart: unless-stopped
+    entrypoint: ["/usr/local/bin/pg-entrypoint.sh"]
     environment:
       POSTGRES_PASSWORD: ${PG_SUPERUSER_PASSWORD:?set PG_SUPERUSER_PASSWORD}
+      # Continuous backups with point-in-time recovery: set these to an S3-compatible bucket (a second provider, not the same VPS). Unset = daily dumps only.
+      BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET:-}
+      BACKUP_S3_ENDPOINT: ${BACKUP_S3_ENDPOINT:-}
+      BACKUP_S3_REGION: ${BACKUP_S3_REGION:-us-east-1}
+      BACKUP_S3_KEY: ${BACKUP_S3_KEY:-}
+      BACKUP_S3_SECRET: ${BACKUP_S3_SECRET:-}
+      BACKUP_S3_PATH: ${BACKUP_S3_PATH:-/cell}
+      BACKUP_CIPHER_PASS: ${BACKUP_CIPHER_PASS:-}
+      ARCHIVE_TIMEOUT: ${ARCHIVE_TIMEOUT:-60}
       POSTGRES_DB: erp
       MIGRATOR_PASSWORD: ${MIGRATOR_PASSWORD:?set MIGRATOR_PASSWORD}
       APP_PASSWORD: ${APP_PASSWORD:?set APP_PASSWORD}
     volumes:
       - cell-pgdata:/var/lib/postgresql/data
+      - cell-pgsock:/var/run/postgresql
+      - ./cell/scripts/pg-entrypoint.sh:/usr/local/bin/pg-entrypoint.sh:ro
+      - ./cell/scripts/pgbackrest-conf.sh:/usr/local/bin/pgbackrest-conf.sh:ro
       - ../../backend/docker/init-db.sh:/docker-entrypoint-initdb.d/10-init.sh:ro
       - ../../backend/db/bootstrap:/bootstrap:ro
     healthcheck:
@@ -58,6 +73,13 @@ services:
       # Demo servers only: lets POST /v1/demo/seed fill the cell with sample data (platform token required). Leave false anywhere real.
       DEMO_SEED_ENABLED: ${DEMO_SEED_ENABLED:-false}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      # Per-client limits on this server (requests running at once; of those, reports/exports). 0 = no limit.
+      TENANT_MAX_CONCURRENT: ${TENANT_MAX_CONCURRENT:-60}
+      TENANT_MAX_CONCURRENT_HEAVY: ${TENANT_MAX_CONCURRENT_HEAVY:-4}
+      # Where the backup, dump and restore-drill jobs write their results, so /metrics can report their age.
+      STATUS_DIR: /status
+    volumes:
+      - cell-status:/status:ro
     # Reachable inside the stack and, for the fleet agent on this server, on the host's loopback only.
     ports:
       - "127.0.0.1:${API_LOOPBACK_PORT:-8081}:8080"
@@ -75,8 +97,8 @@ services:
     expose: ["8080"]
     networks: [internal, dokploy-network]
 
-  # Interim safety net: a compressed logical dump every day, the last 14 kept, in a volume. Extend with Dokploy volume backups to S3 and a
-  # second provider (see README). The standard for paying clients is the agent's continuous backups (pgBackRest), which this stack does not run.
+  # Daily compressed logical dump (14 kept) in a volume: protects against mistakes and is what the monthly restore drill loads. It does not replace
+  # the continuous backups below, and it sits on the same server: also copy the cell-dumps volume off the server (README).
   dump:
     image: postgres:16
     restart: unless-stopped
@@ -86,20 +108,97 @@ services:
       PGPASSWORD: ${PG_SUPERUSER_PASSWORD}
     volumes:
       - cell-dumps:/dumps
+      - cell-status:/status
     entrypoint: ["/bin/bash", "-c"]
     command:
       - |
         while true; do
           f=/dumps/erp-$$(date -u +%Y%m%d-%H%M).sql.gz
-          if pg_dump -h postgres -U postgres -d erp | gzip > "$$f"; then echo "dumped $$f"; else echo "dump failed"; fi
+          if pg_dump -h postgres -U postgres -d erp | gzip > "$$f" && [ "$$(stat -c %s "$$f")" -gt 1000 ]; then ok=true; echo "dumped $$f"; else ok=false; echo "dump failed"; unlink "$$f" 2>/dev/null; fi
+          printf '{"ok":%s,"at":%s,"bytes":%s}\n' "$$ok" "$$(date +%s)" "$$(stat -c %s "$$f" 2>/dev/null || echo 0)" > /status/dump.json
           ls -1t /dumps/erp-*.sql.gz | tail -n +15 | while read -r old; do unlink "$$old"; done
+          sleep 86400
+        done
+    networks: [internal]
+
+  # Continuous backups with point-in-time recovery (RPO about a minute): a backup every night (a full one on Sundays), checked and expired by this job.
+  # Needs the BACKUP_S3_* variables; without them this service idles and /metrics shows backups as not configured.
+  backup:
+    image: onesync/cell-postgres:16
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+    entrypoint: ["/bin/bash", "-c"]
+    command:
+      - |
+        if [ -z "$$BACKUP_S3_BUCKET" ]; then echo "BACKUP_S3_* not set: continuous backups are off"; sleep infinity; fi
+        exec /usr/local/bin/backup-loop.sh
+    environment:
+      PGPASSWORD: ${PG_SUPERUSER_PASSWORD}
+      BACKUP_S3_BUCKET: ${BACKUP_S3_BUCKET:-}
+      BACKUP_S3_ENDPOINT: ${BACKUP_S3_ENDPOINT:-}
+      BACKUP_S3_REGION: ${BACKUP_S3_REGION:-us-east-1}
+      BACKUP_S3_KEY: ${BACKUP_S3_KEY:-}
+      BACKUP_S3_SECRET: ${BACKUP_S3_SECRET:-}
+      BACKUP_S3_PATH: ${BACKUP_S3_PATH:-/cell}
+      BACKUP_CIPHER_PASS: ${BACKUP_CIPHER_PASS:-}
+      BACKUP_RETENTION_FULL: ${BACKUP_RETENTION_FULL:-4}
+      BACKUP_RETENTION_DIFF: ${BACKUP_RETENTION_DIFF:-7}
+    volumes:
+      - cell-pgdata:/var/lib/postgresql/data
+      - cell-pgsock:/var/run/postgresql
+      - cell-status:/status
+      - ./cell/scripts/pgbackrest-conf.sh:/usr/local/bin/pgbackrest-conf.sh:ro
+      - ./cell/scripts/backup-loop.sh:/usr/local/bin/backup-loop.sh:ro
+    user: postgres
+    networks: [internal]
+
+  # Monthly restore drill: loads the newest dump into a scratch database, checks the books balance and every client and migration is there, and
+  # records the result. /metrics shows how long ago it last passed; alert when it is more than 40 days.
+  drill:
+    image: postgres:16
+    restart: unless-stopped
+    depends_on:
+      postgres: { condition: service_healthy }
+    environment:
+      PGHOST: postgres
+      PGPASSWORD: ${PG_SUPERUSER_PASSWORD}
+    volumes:
+      - cell-dumps:/dumps:ro
+      - cell-status:/status
+      - ./cell/scripts/restore-drill.sh:/usr/local/bin/restore-drill.sh:ro
+    entrypoint: ["/bin/bash", "/usr/local/bin/restore-drill.sh", "loop"]
+    networks: [internal]
+
+  # Daily housekeeping: removes expired idempotency keys, delivered outbox events and old sessions in small batches. Never touches the audit log or documents.
+  retention:
+    build:
+      context: ../../backend
+      target: migrate
+    restart: unless-stopped
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+    environment:
+      MIGRATOR_DATABASE_URL: postgresql://erp_migrator:${MIGRATOR_PASSWORD}@postgres:5432/erp
+    volumes:
+      - cell-status:/status
+    user: root
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        while true; do
+          if out=$$(npx tsx scripts/retention.ts 2>&1); then ok=true; else ok=false; fi
+          echo "$$out"
+          printf '{"ok":%s,"at":%s}\n' "$$ok" "$$(date +%s)" > /status/retention.json
           sleep 86400
         done
     networks: [internal]
 
 volumes:
   cell-pgdata:
+  cell-pgsock:
   cell-dumps:
+  cell-status:
 
 networks:
   internal:
