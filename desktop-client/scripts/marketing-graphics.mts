@@ -15,14 +15,12 @@ const css = (g: G) => `
 body{width:${g.w}px;height:${g.h}px;overflow:hidden;font-family:Inter,'Segoe UI',system-ui,sans-serif;position:relative;
  background:${g.theme === 'dark' ? 'radial-gradient(1000px 640px at 100% 0%,#2b59ff2e,transparent 62%),radial-gradient(800px 520px at 0% 100%,#2b59ff1a,transparent 60%),linear-gradient(135deg,#eef3ff,#e4ecff)' : 'radial-gradient(900px 560px at 95% 0%,#2b59ff1c,transparent 60%),#f8f9fd'};
  color:#0e1220}
-.brand{display:flex;align-items:center;gap:14px;font-weight:700;font-size:${g.w > 1500 ? 30 : 26}px;letter-spacing:-.01em}
+.brand{display:flex;align-items:center;gap:16px;font-weight:700;font-size:${g.w > 1500 ? 38 : 32}px;letter-spacing:-.01em}
 .brand img{width:${g.w > 1500 ? 46 : 40}px;height:${g.w > 1500 ? 46 : 40}px;border-radius:12px;background:#2b59ff;padding:5px}
 .eyebrow{font-weight:700;letter-spacing:.14em;text-transform:uppercase;font-size:${g.w > 1500 ? 19 : 17}px;color:#ff8a1f}
 h1{font-weight:800;letter-spacing:-.035em;line-height:1.04}
 .sub{color:#4a5266;line-height:1.45}
 h1 em{font-style:normal;color:#2b59ff}
-h1::before{content:'';display:block;width:56px;height:6px;border-radius:3px;background:#ff8a1f;margin-bottom:24px}
-.center h1::before{margin-left:auto;margin-right:auto}
 .pills{display:flex;flex-wrap:wrap;gap:12px}
 .pill{padding:10px 18px;border-radius:999px;font-weight:700;font-size:${g.w > 1500 ? 20 : 17}px;background:#fff;color:#2b59ff;border:1.5px solid #c9d6ff}
 .win{position:absolute;border-radius:18px;overflow:hidden;background:#fff;box-shadow:0 36px 80px #0c174733,0 0 0 1px #0000001a}
@@ -38,7 +36,7 @@ const accent = (t: string): string => t.replace(/\{([^}]+)\}/g, '<em>$1</em>')
 
 function html(g: G): string {
   const pills = (g.pills ?? []).map((p) => `<span class="pill">${p}</span>`).join('')
-  const logo = `<div class="brand"><svg viewBox="0 0 1254 1254" width="46" height="46"><rect x="63" y="67" width="1127" height="1123" rx="215" fill="#0449f7"/><g fill="#fff" stroke="#fff" stroke-width="16" stroke-linejoin="round"><path d="M652 323A351 351 0 1 0 972 642L860 642A239 239 0 1 1 652 451Z"/><path d="M660 272L660 526L824 400Z"/></g><rect x="842" y="441" width="168" height="166" rx="42" fill="#ff981f"/></svg>OneSyncERP</div>`
+  const logo = `<div class="brand"><svg viewBox="0 0 1254 1254" width="${g.w > 1500 ? 64 : 54}" height="${g.w > 1500 ? 64 : 54}"><rect x="63" y="67" width="1127" height="1123" rx="215" fill="#0449f7"/><g fill="#fff" stroke="#fff" stroke-width="16" stroke-linejoin="round"><path d="M652 323A351 351 0 1 0 972 642L860 642A239 239 0 1 1 652 451Z"/><path d="M660 272L660 526L824 400Z"/></g><rect x="842" y="441" width="168" height="166" rx="42" fill="#ff981f"/></svg>OneSyncERP</div>`
   const shots = g.shots.map(b64)
   let body = ''
   if (g.layout === 'split') {
