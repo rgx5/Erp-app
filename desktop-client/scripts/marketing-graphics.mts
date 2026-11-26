@@ -13,22 +13,24 @@ interface G { file: string; w: number; h: number; theme: 'dark' | 'light'; layou
 const css = (g: G) => `
 *{box-sizing:border-box;margin:0}
 body{width:${g.w}px;height:${g.h}px;overflow:hidden;font-family:Inter,'Segoe UI',system-ui,sans-serif;position:relative;
- background:${g.theme === 'dark' ? 'radial-gradient(900px 620px at 100% 0%,#ff8a1f55,transparent 62%),radial-gradient(800px 560px at 0% 100%,#ffb36b44,transparent 60%),linear-gradient(135deg,#fff4e6,#ffe7cc 60%,#ffdcb5)' : 'radial-gradient(900px 560px at 95% 0%,#ff8a1f33,transparent 60%),radial-gradient(800px 500px at 0% 100%,#ff8a1f26,transparent 55%),#faf8f3'};
+ background:${g.theme === 'dark' ? 'radial-gradient(1000px 640px at 100% 0%,#2b59ff2e,transparent 62%),radial-gradient(800px 520px at 0% 100%,#2b59ff1a,transparent 60%),linear-gradient(135deg,#eef3ff,#e4ecff)' : 'radial-gradient(900px 560px at 95% 0%,#2b59ff1c,transparent 60%),#f8f9fd'};
  color:#0e1220}
 .brand{display:flex;align-items:center;gap:14px;font-weight:700;font-size:${g.w > 1500 ? 30 : 26}px;letter-spacing:-.01em}
 .brand img{width:${g.w > 1500 ? 46 : 40}px;height:${g.w > 1500 ? 46 : 40}px;border-radius:12px;background:#2b59ff;padding:5px}
 .eyebrow{font-weight:700;letter-spacing:.14em;text-transform:uppercase;font-size:${g.w > 1500 ? 19 : 17}px;color:#ff8a1f}
 h1{font-weight:800;letter-spacing:-.035em;line-height:1.04}
 .sub{color:#4a5266;line-height:1.45}
-h1 em{font-style:normal;color:#ff7a00}
+h1 em{font-style:normal;color:#2b59ff}
+h1::before{content:'';display:block;width:56px;height:6px;border-radius:3px;background:#ff8a1f;margin-bottom:24px}
+.center h1::before{margin-left:auto;margin-right:auto}
 .pills{display:flex;flex-wrap:wrap;gap:12px}
-.pill{padding:10px 18px;border-radius:999px;font-weight:700;font-size:${g.w > 1500 ? 20 : 17}px;background:#fff;color:#c25a00;border:1.5px solid #ffb36b}
-.win{position:absolute;border-radius:18px;overflow:hidden;background:#fff;box-shadow:0 36px 80px #7a3a0033,0 0 0 1px #00000014}
-.win .bar{height:34px;background:#f1ede4;display:flex;align-items:center;gap:8px;padding:0 14px}
+.pill{padding:10px 18px;border-radius:999px;font-weight:700;font-size:${g.w > 1500 ? 20 : 17}px;background:#fff;color:#2b59ff;border:1.5px solid #c9d6ff}
+.win{position:absolute;border-radius:18px;overflow:hidden;background:#fff;box-shadow:0 36px 80px #0c174733,0 0 0 1px #0000001a}
+.win .bar{height:34px;background:#eceff7;display:flex;align-items:center;gap:8px;padding:0 14px}
 .win .bar i{width:12px;height:12px;border-radius:50%;display:block}
 .win img{display:block;width:100%}
-.url{position:absolute;bottom:${g.w > 1500 ? 34 : 28}px;font-weight:600;font-size:${g.w > 1500 ? 22 : 19}px;color:#c25a00}
-.note{position:absolute;font-size:14px;color:#8a7f70}
+.url{position:absolute;bottom:${g.w > 1500 ? 34 : 28}px;font-weight:600;font-size:${g.w > 1500 ? 22 : 19}px;color:#2b59ff}
+.note{position:absolute;font-size:14px;color:#7c859c}
 `
 const win = (src: string, style: string, pos = 'top left') => `<div class="win" style="${style}"><div class="bar"><i style="background:#ff5f57"></i><i style="background:#febc2e"></i><i style="background:#28c840"></i></div><div style="overflow:hidden"><img src="${src}" style="width:100%;height:auto"></div></div>`
 
@@ -47,7 +49,7 @@ function html(g: G): string {
   } else if (g.layout === 'center') {
     const sq = g.w === g.h
     body = `<div style="position:absolute;left:0;right:0;top:${sq ? 56 : 64}px;display:flex;justify-content:center">${logo}</div>
-      <div style="position:absolute;left:0;right:0;top:${sq ? 150 : 170}px;text-align:center;padding:0 ${sq ? 70 : 200}px"><h1 style="font-size:${sq ? 70 : 84}px;margin:0 0 20px">${accent(g.title)}</h1><p class="sub" style="font-size:${sq ? 26 : 29}px;max-width:1100px;margin:0 auto">${g.sub}</p></div>
+      <div style="position:absolute;left:0;right:0;top:${sq ? 150 : 170}px;text-align:center;padding:0 ${sq ? 70 : 200}px" class="center"><h1 style="font-size:${sq ? 70 : 84}px;margin:0 0 20px">${accent(g.title)}</h1><p class="sub" style="font-size:${sq ? 26 : 29}px;max-width:1100px;margin:0 auto">${g.sub}</p></div>
       ${win(shots[0]!, sq ? 'left:90px;top:500px;width:900px;' : 'left:260px;top:520px;width:1400px;', g.pos)}
       `
   } else {
