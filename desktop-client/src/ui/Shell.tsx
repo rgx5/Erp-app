@@ -5,6 +5,8 @@ import { useWorkspace } from '@/features/organization/workspace'
 import { runDueRecurring } from '@/features/sales/recurringQueries'
 import { ClassicShell } from './ClassicShell'
 import { CommandShell } from './CommandShell'
+import { MobileShell } from './MobileShell'
+import { usePhone } from './usePhone'
 import { useFlash } from './flash'
 import { useLayout } from './layout'
 
@@ -24,5 +26,8 @@ function useRaiseDueRecurring(): void {
 /** The app frame, in whichever layout the person chose under My account. */
 export function Shell() {
   useRaiseDueRecurring()
-  return useLayout((s) => s.layout) === 'command' ? <CommandShell /> : <ClassicShell />
+  const phone = usePhone()
+  const layout = useLayout((s) => s.layout)
+  if (phone) return <MobileShell />
+  return layout === 'command' ? <CommandShell /> : <ClassicShell />
 }

@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from 'react'
 import { ArrowDown, ArrowUp, ChevronsUpDown } from 'lucide-react'
 import { cn } from './cn'
 import { Tag } from './primitives'
+import { usePhone } from './usePhone'
 
 /**
  * The grid every list screen uses: sortable columns and a virtualised body, so 100,000 rows scroll as smoothly as 20. Row
@@ -20,6 +21,8 @@ export function DataTable<T>({ columns, rows, rowKey, onOpen, empty = 'Nothing h
 }) {
   const [sorting, setSorting] = useState<SortingState>([])
   const [active, setActive] = useState(-1)
+  const phone = usePhone()
+  const [shown, setShown] = useState(60)
   // TanStack builds its rows from `data` alone and remembers each cell's value, so a change of columns (for example names that arrive
   // after the rows) must also be a new `data` array. Callers should keep `columns` stable (useMemo) for big lists.
   const data = useMemo(() => [...rows], [rows, columns])
@@ -30,6 +33,39 @@ export function DataTable<T>({ columns, rows, rowKey, onOpen, empty = 'Nothing h
   // a column may ask for more room than the usual minimum (a column of buttons) with `meta: { minWidth }`
   const floor = (c: { getSize(): number; columnDef: { meta?: unknown } }): number => (c.columnDef.meta as { minWidth?: number } | undefined)?.minWidth ?? (c.getSize() ? Math.min(c.getSize(), 140) : 100)
   const template = `grid-template-columns: ${table.getAllLeafColumns().map((c) => `minmax(${floor(c)}px, ${Math.max(c.getSize(), 100)}fr)`).join(' ')}`
+
+  if (phone) {
+    // On a phone each row is a card: the first column is its title, the other columns are label and value, and a column with no heading (the buttons) goes last.
+    const cols = (r: (typeof list)[number]) => r.getVisibleCells()
+    const headerOf = (c: ReturnType<typeof cols>[number]): string => (typeof c.column.columnDef.header === 'string' ? c.column.columnDef.header : '')
+    if (list.length === 0) return <p className="rounded-lg border border-line bg-surface px-4 py-8 text-center text-sm text-muted">{empty}</p>
+    return (
+      <div role="table" aria-rowcount={list.length} className="flex flex-col gap-2">
+        {list.slice(0, shown).map((row) => {
+          const cells = cols(row); const [first, ...rest] = cells
+          const status = rest.find((c) => ['Status', 'State'].includes(headerOf(c)))
+          const fields = rest.filter((c) => c !== status && headerOf(c) !== '')
+          const actions = rest.filter((c) => headerOf(c) === '')
+          return (
+            <div key={row.id} role="row" onClick={() => onOpen?.(row.original)} className={cn('rounded-lg border border-line bg-surface px-3.5 py-3', onOpen && 'cursor-pointer active:bg-sunken')}>
+              <div className="flex items-start justify-between gap-3">
+                <div role="cell" className="min-w-0 flex-1 text-[14.5px] font-semibold leading-snug break-words">{first ? flexRender(first.column.columnDef.cell, first.getContext()) : null}</div>
+                {status ? <div role="cell" className="shrink-0">{status.column.columnDef.header === 'Status' ? <StatusPill value={status.getValue()} /> : flexRender(status.column.columnDef.cell, status.getContext())}</div> : null}
+              </div>
+              {fields.length ? (
+                <dl className="keep-cols mt-1.5 grid grid-cols-[auto_1fr] gap-x-4 gap-y-0.5 text-[13px]">
+                  {fields.map((c) => { const v = flexRender(c.column.columnDef.cell, c.getContext()); return (<div key={c.id} role="cell" className="contents"><dt className="text-muted">{headerOf(c)}</dt><dd className="min-w-0 break-words text-right">{v}</dd></div>) })}
+                </dl>
+              ) : null}
+              {actions.length ? <div className="mt-2.5 flex flex-wrap justify-end gap-1.5" onClick={(e) => e.stopPropagation()}>{actions.map((c) => <div key={c.id} role="cell" className="contents">{flexRender(c.column.columnDef.cell, c.getContext())}</div>)}</div> : null}
+            </div>
+          )
+        })}
+        {list.length > shown ? <button type="button" onClick={() => setShown((n) => n + 60)} className="h-11 rounded-lg border border-line bg-surface text-[14px] font-medium text-brand">Show more ({(list.length - shown).toLocaleString('en-IN')} left)</button> : null}
+        <p className="py-1 text-center text-[11.5px] text-muted">{list.length.toLocaleString('en-IN')} {list.length === 1 ? 'row' : 'rows'}</p>
+      </div>
+    )
+  }
 
   // every column keeps at least its minimum width; a screen narrower than that scrolls sideways instead of hiding columns
   const minWidth = table.getAllLeafColumns().reduce((sum, c) => sum + floor(c) + 12, 24)

@@ -1,0 +1,101 @@
+name: Mobile app (Android)
+
+# The phone app is the same client as the desktop app (desktop-client/), shown in an Android shell with a phone layout. It is online only.
+# Every push to main or a ccr-* branch, or "Run workflow", builds one APK and publishes it to the apk-latest pre-release.
+# Signed with your release key when these repository secrets exist, otherwise with the fixed test key in desktop-client/mobile (so a new build installs over the old one):
+#   ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, 'ccr-*']
+    paths: ['desktop-client/**', '.github/workflows/mobile-apk.yml', 'assets/**']
+
+concurrency:
+  group: mobile-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: desktop-client
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop-client/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci
+      - name: Build the web app
+        run: npx vite build --config vite.web.config.mts
+      - name: App icon
+        run: |
+          mkdir -p resources
+          cp ../assets/icon.png resources/icon-only.png
+          cp ../assets/adaptive-icon.png resources/icon-foreground.png
+          convert -size 1024x1024 xc:'#0049F9' resources/icon-background.png
+      - name: Create the Android project
+        run: |
+          npx cap add android
+          npx capacitor-assets generate --android --iconBackgroundColor '#0049F9' --iconBackgroundColorDark '#0049F9'
+          npx cap sync android
+      - name: Version
+        run: |
+          sed -i "s/versionCode 1/versionCode ${{ github.run_number }}/; s/versionName \"1.0\"/versionName \"0.1.${{ github.run_number }}\"/" android/app/build.gradle
+          grep -n "versionCode\|versionName" android/app/build.gradle
+      - name: Signing key
+        env:
+          KS: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KS" ]; then echo "$KS" | base64 -d > "$RUNNER_TEMP/release.jks"; echo "KEYSTORE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"; echo "SIGNED_WITH=release" >> "$GITHUB_ENV"
+          else echo "KEYSTORE=$GITHUB_WORKSPACE/desktop-client/mobile/onesync-test.jks" >> "$GITHUB_ENV"; echo "KS_PASS=onesynctest" >> "$GITHUB_ENV"; echo "KS_ALIAS=onesynctest" >> "$GITHUB_ENV"; echo "SIGNED_WITH=test" >> "$GITHUB_ENV"; fi
+      - name: Build the APK
+        working-directory: desktop-client/android
+        env:
+          REL_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          REL_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          REL_KEYPASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          PASS="${REL_PASS:-$KS_PASS}"; ALIAS="${REL_ALIAS:-$KS_ALIAS}"; KEYPASS="${REL_KEYPASS:-$PASS}"
+          ./gradlew assembleRelease --no-daemon \
+            -Pandroid.injected.signing.store.file="$KEYSTORE" -Pandroid.injected.signing.store.password="$PASS" \
+            -Pandroid.injected.signing.key.alias="$ALIAS" -Pandroid.injected.signing.key.password="$KEYPASS"
+      - name: Name the APK
+        id: name
+        run: |
+          SHORT=$(git rev-parse --short HEAD)
+          cp android/app/build/outputs/apk/release/app-release.apk "onesync-erp-android-$SHORT.apk"
+          echo "file=onesync-erp-android-$SHORT.apk" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: onesync-erp-android
+          path: desktop-client/${{ steps.name.outputs.file }}
+          retention-days: 30
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: onesync-erp-android
+      - name: Publish to the apk-latest pre-release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release delete apk-latest --cleanup-tag --yes || true
+          gh release create apk-latest *.apk --prerelease --target "$GITHUB_SHA" \
+            --title "OneSyncERP – latest Android app" \
+            --notes "Android app (phone layout of the full OneSyncERP client; needs an internet connection). Build of $GITHUB_SHA, signed with the test key. Enable 'install unknown apps' to install; a newer build installs over an older one."

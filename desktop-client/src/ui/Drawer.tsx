@@ -2,6 +2,7 @@ import { X } from 'lucide-react'
 import { createContext, useContext, useEffect, useRef, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { usePane } from './paneContext'
+import { usePhone } from './usePhone'
 
 const InsideDrawer = createContext(false)
 /** True for anything rendered inside a drawer. */
@@ -35,9 +36,10 @@ export function arrowNavigate(e: ReactKeyboardEvent<HTMLElement>, root: HTMLElem
 export function Drawer({ title, subtitle, onClose, children, width = 520 }: { title: string; subtitle?: string | undefined; onClose: () => void; children: ReactNode; width?: number }) {
   const panel = useRef<HTMLDivElement>(null)
   const shell = usePane()
+  const phone = usePhone()
   // A record docks beside the page; one opened from inside another (a payslip from a run) slides over it instead of stacking.
   const nested = useContext(InsideDrawer)
-  const pane = nested ? null : shell
+  const pane = nested || phone ? null : shell
   useEffect(() => {
     const previous = document.activeElement as HTMLElement | null
     panel.current?.querySelector<HTMLElement>('input, select, textarea, button')?.focus()
@@ -46,7 +48,7 @@ export function Drawer({ title, subtitle, onClose, children, width = 520 }: { ti
     return () => { document.removeEventListener('keydown', onKey); previous?.focus() }
   }, [onClose])
   const body = (
-    <div ref={panel} role="dialog" aria-modal={pane ? undefined : true} aria-label={title} className="flex h-full flex-col bg-surface" style={{ width: Math.min(width, 640) }}>
+    <div ref={panel} role="dialog" aria-modal={pane ? undefined : true} aria-label={title} className="flex h-full flex-col bg-surface" style={phone ? { width: '100%' } : { width: Math.min(width, 640) }}>
       <header className="drawer-head flex shrink-0 items-center gap-3 border-b border-line bg-surface px-4">
         <button type="button" aria-label="Close" title="Close (Esc)" onClick={onClose} className="inline-flex size-8 shrink-0 items-center justify-center rounded-md border border-line text-ink hover:bg-canvas"><X className="size-4" aria-hidden /></button>
         <div className="min-w-0"><h2 className="truncate text-base font-semibold leading-tight">{title}</h2>{subtitle ? <p className="truncate text-xs text-muted">{subtitle}</p> : null}</div>
@@ -56,8 +58,8 @@ export function Drawer({ title, subtitle, onClose, children, width = 520 }: { ti
   )
   if (pane) return createPortal(body, pane)
   return (
-    <div className="fixed inset-0 z-40 flex justify-end bg-ink/30">
-      <div className="h-full border-l border-line shadow-pop">{body}</div>
+    <div className={`fixed inset-0 z-40 flex justify-end ${phone ? 'bg-surface' : 'bg-ink/30'}`} style={phone ? { paddingTop: 'env(safe-area-inset-top)', paddingBottom: 'env(safe-area-inset-bottom)' } : undefined}>
+      <div className={`h-full ${phone ? 'w-full' : 'border-l border-line shadow-pop'}`}>{body}</div>
     </div>
   )
 }

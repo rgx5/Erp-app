@@ -1,4 +1,5 @@
 import type { DesktopBridge, DesktopSettings } from '../electron/bridge-types'
+import { isNativeApp } from './mobile'
 
 /** In a plain browser (development, end-to-end tests) there is no shell: settings use localStorage and nothing is kept secretly. */
 const web: Omit<DesktopBridge, 'desktop' | 'platform' | 'app' | 'hardware'> = {
@@ -33,9 +34,10 @@ const web: Omit<DesktopBridge, 'desktop' | 'platform' | 'app' | 'hardware'> = {
     async printDocument(html) { await web.document.savePdf(html, 'document') },
   },
   secure: {
-    async get(key) { return sessionStorage.getItem(`onesync.secure.${key}`) },
-    async set(key, value) { sessionStorage.setItem(`onesync.secure.${key}`, value); return false }, // false: not remembered after the window closes
-    async delete(key) { sessionStorage.removeItem(`onesync.secure.${key}`) },
+    // In a browser nothing is kept after the window closes. In the Android app the sign-in is kept in the app's private storage, so people stay signed in.
+    async get(key) { return (isNativeApp() ? localStorage : sessionStorage).getItem(`onesync.secure.${key}`) },
+    async set(key, value) { (isNativeApp() ? localStorage : sessionStorage).setItem(`onesync.secure.${key}`, value); return isNativeApp() },
+    async delete(key) { sessionStorage.removeItem(`onesync.secure.${key}`); localStorage.removeItem(`onesync.secure.${key}`) },
   },
 }
 

@@ -1,16 +1,14 @@
-name: Android APK
+name: Android APK (older offline-first phone app, manual)
 
 # Builds installable Android APKs (signed with the debug key, so they install directly on a phone for testing;
 # not a Play Store build). One file per CPU type, so each is small:
 #   arm64-v8a    nearly every phone since 2017
 #   armeabi-v7a  older and some budget phones that run 32-bit Android ("App not installed" on the other file)
 # Run it from the Actions tab ("Run workflow"), or it runs on every push to a ccr-* branch / main. Download from the
-# run's Artifacts, or from the "apk-latest" pre-release on the Releases page.
+# run's Artifacts, or from the "apk-expo-old" pre-release on the Releases page.
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main, 'ccr-*']
 
 concurrency:
   group: apk-${{ github.ref }}
@@ -77,12 +75,12 @@ jobs:
         with:
           pattern: onesync-erp-apk-*
           merge-multiple: true
-      - name: Publish to the apk-latest pre-release
+      - name: Publish to the apk-expo-old pre-release
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
         run: |
-          gh release delete apk-latest --cleanup-tag --yes || true
-          gh release create apk-latest *.apk --prerelease --target "$GITHUB_SHA" \
+          gh release delete apk-expo-old --cleanup-tag --yes || true
+          gh release create apk-expo-old *.apk --prerelease --target "$GITHUB_SHA" \
             --title "OneSyncERP – latest test APK" \
             --notes "Debug-signed test build of $GITHUB_SHA. Most phones: the arm64-v8a file. If it says 'App not installed' (older or 32-bit phones), use the armeabi-v7a file. Enable 'install unknown apps' to install."

@@ -129,18 +129,18 @@ export function LineGrid({ lines, onChange, warehouses, computed, readOnly, buyi
 
   return (
     <div ref={root} className="overflow-visible rounded-lg border border-line bg-surface" role="group" aria-label="Invoice lines">
-      <div className="grid grid-cols-[2.2fr_0.7fr_0.9fr_0.7fr_0.5fr_1fr_1fr_32px] gap-1 border-b border-line bg-canvas px-2 py-1.5 text-xs font-semibold text-muted">
+      <div className="line-head keep-cols grid grid-cols-[2.2fr_0.7fr_0.9fr_0.7fr_0.5fr_1fr_1fr_32px] gap-1 border-b border-line bg-canvas px-2 py-1.5 text-xs font-semibold text-muted">
         <span>Item</span><span className="text-right">Qty</span><span className="text-right">Price</span><span className="text-right">Disc. %</span><span className="text-center">{buying ? '' : 'Incl. GST'}</span><span className="text-right">{buying ? 'Value before tax' : 'Taxable'}</span><span className="text-right">{buying ? '' : 'Line total'}</span><span />
       </div>
       {lines.map((l, i) => {
         const c = computed?.[i]
         return (
           <div key={l.key} className="border-b border-line/60 last:border-0">
-          <div className="grid grid-cols-[2.2fr_0.7fr_0.9fr_0.7fr_0.5fr_1fr_1fr_32px] items-center gap-1 px-2 py-1">
+          <div className="line-row keep-cols grid grid-cols-[2.2fr_0.7fr_0.9fr_0.7fr_0.5fr_1fr_1fr_32px] items-center gap-1 px-2 py-1">
             <ItemCell buying={buying} serviceOnly={serviceOnly} line={l} autoFocus={focusKey === l.key} onPick={(item) => { patch(l.key, { item, description: item.name, taxInclusive: l.taxInclusive }); prefill(l.key, item) }} onClear={() => patch(l.key, { item: null })} />
-            <input data-nav aria-label="Quantity" inputMode="decimal" className={cn(cell, 'num text-right')} value={l.quantity} onChange={(e) => patch(l.key, { quantity: e.target.value })} onKeyDown={(e) => enter(e, i)} disabled={readOnly} />
-            <input data-nav aria-label="Price" inputMode="decimal" className={cn(cell, 'num text-right')} value={l.unitPrice} onChange={(e) => patch(l.key, { unitPrice: e.target.value })} onKeyDown={(e) => enter(e, i)} disabled={readOnly} />
-            <input data-nav aria-label="Discount percent" inputMode="decimal" className={cn(cell, 'num text-right')} value={l.discountPercent} onChange={(e) => patch(l.key, { discountPercent: e.target.value })} onKeyDown={(e) => enter(e, i)} disabled={readOnly} />
+            <input data-nav aria-label="Quantity" placeholder="Qty" inputMode="decimal" className={cn(cell, 'num text-right')} value={l.quantity} onChange={(e) => patch(l.key, { quantity: e.target.value })} onKeyDown={(e) => enter(e, i)} disabled={readOnly} />
+            <input data-nav aria-label="Price" placeholder="Price" inputMode="decimal" className={cn(cell, 'num text-right')} value={l.unitPrice} onChange={(e) => patch(l.key, { unitPrice: e.target.value })} onKeyDown={(e) => enter(e, i)} disabled={readOnly} />
+            <input data-nav aria-label="Discount percent" placeholder="Disc %" inputMode="decimal" className={cn(cell, 'num text-right')} value={l.discountPercent} onChange={(e) => patch(l.key, { discountPercent: e.target.value })} onKeyDown={(e) => enter(e, i)} disabled={readOnly} />
             <div className="text-center">{buying ? null : <input type="checkbox" aria-label="Price includes GST" checked={l.taxInclusive} onChange={(e) => patch(l.key, { taxInclusive: e.target.checked })} disabled={readOnly} />}</div>
             <span className="num text-right text-sm text-muted">{c ? formatInr(c.taxableValue, { symbol: false }) : ''}</span>
             <span className="num text-right text-sm">{c ? formatInr(c.lineTotal, { symbol: false }) : ''}</span>
