@@ -2,7 +2,7 @@ import type { Bill, Category, Coupon, Customer, Expense, Product, StoreSettings,
 import { DEFAULT_SLABS } from '@/domain/tax'
 import { CloudError, type FetchFn, type Snapshot } from '../api'
 import { createWriter } from './writes'
-import { categoryToCategory, itemToProduct, num, partyToCustomer, partyToSupplier, saleToBill, type PCategory, type PItem, type PParty, type PSaleDetail, type TaxRates } from './mapping'
+import { categoryToCategory, couponFromPlatform, itemToProduct, num, partyToCustomer, partyToSupplier, saleToBill, sessionFromShift, storeDetails, type PCategory, type PCoupon, type PGst, type PItem, type PLocation, type PParty, type PRetail, type PSaleDetail, type PShift, type TaxRates } from './mapping'
 
 /** What this phone has worked out about the business it is signed in to; kept with the workspace so it is asked for once. */
 export interface PlatformCtx { tenant: string; companyId: string; companyName: string; terminalId?: string; deviceId?: string; warehouseId?: string; walkInCustomerId?: string | null; priceIncludesTax: boolean; invoicePrefix?: string
@@ -49,6 +49,8 @@ export function createPlatformApi(baseUrl: string, d: PlatformDeps, fetchFn: Fet
   const base = normalizePlatformUrl(baseUrl)
   // a sale never changes once made, so its detail is fetched once for as long as the app is open
   const billCache = new Map<string, Bill>()
+  // a customer's loyalty points and store credit are looked up at most every ten minutes, so a refresh does not make a call per customer each time
+  const walletCache = new Map<string, { at: number; points: number; credit: number }>()
 
   async function http(method: string, path: string, body?: unknown, o: { auth?: boolean; key?: string; headers?: Record<string, string> } = {}): Promise<Response> {
     const go = async (): Promise<Response> => {
@@ -135,7 +137,15 @@ export function createPlatformApi(baseUrl: string, d: PlatformDeps, fetchFn: Fet
    * Whatever the business has already chosen is left alone.
    */
   async function prepare(c: PlatformCtx): Promise<string | null> {
-    const cur = await json<{ settings: { walkInCustomerId: string | null } | null; paymentAccounts: Array<{ method: string; accountId: string }> }>('GET', `/v1/pos/settings?companyId=${c.companyId}`)
+    const cur = await json<{ settings: { walkInCustomerId: string | null; cashVarianceAccountId?: string | null } | null; paymentAccounts: Array<{ method: string; accountId: string }> }>('GET', `/v1/pos/settings?companyId=${c.companyId}`)
+    // closing the day books any cash difference to an expense account, which has to be named once
+    if (!cur.settings?.cashVarianceAccountId) {
+      try {
+        const exp = (await all<{ id: string; name: string; type: string; isGroup: boolean; controlKind: string | null; status: string }>(`/v1/accounts?companyId=${c.companyId}`)).filter((a) => a.type === 'expense' && !a.isGroup && !a.controlKind && a.status === 'active' && !/cost of/i.test(a.name))
+        const pick = exp.find((a) => /over|short|differen|cash|misc|other/i.test(a.name)) ?? exp[0]
+        if (pick) await json('PUT', `/v1/pos/settings?companyId=${c.companyId}`, { ...(cur.settings?.walkInCustomerId ? { walkInCustomerId: cur.settings.walkInCustomerId } : {}), cashVarianceAccountId: pick.id })
+      } catch { /* the platform's own message appears when the day is closed */ }
+    }
     const mapped = new Set(cur.paymentAccounts.map((p) => p.method))
     if (['cash', 'upi', 'card', 'bank_transfer', 'cheque'].some((m) => !mapped.has(m))) {
       try {
@@ -150,7 +160,7 @@ export function createPlatformApi(baseUrl: string, d: PlatformDeps, fetchFn: Fet
       try {
         const parties = await all<{ id: string; code: string }>('/v1/parties')
         walkIn = parties.find((p) => p.code === 'WALKIN')?.id ?? (await json<{ id: string }>('POST', '/v1/parties', { code: 'WALKIN', legalName: 'Walk-in customer', gstTreatment: 'consumer', isCustomer: true }, { key: `walkin-${c.companyId}` })).id
-        await json('PUT', `/v1/pos/settings?companyId=${c.companyId}`, { walkInCustomerId: walkIn })
+        await json('PUT', `/v1/pos/settings?companyId=${c.companyId}`, { walkInCustomerId: walkIn, ...(cur.settings?.cashVarianceAccountId ? { cashVarianceAccountId: cur.settings.cashVarianceAccountId } : {}) })
       } catch { walkIn = null }
     }
     return walkIn
@@ -187,7 +197,7 @@ export function createPlatformApi(baseUrl: string, d: PlatformDeps, fetchFn: Fet
 
     async snapshot(): Promise<Snapshot> {
       let ctx = await ensureCtx()
-      const [company, items, parties, balances, categories, settings, cat, sales, vouchers, expCats] = await Promise.all([
+      const [company, items, parties, balances, categories, settings, cat, sales, vouchers, expCats, gsts, locs, retail, coupons, shifts] = await Promise.all([
         json<Json>('GET', `/v1/companies/${ctx.companyId}`).catch(() => ({} as Json)),
         all<PItem>('/v1/items?isSellable=true'),
         all<PParty>('/v1/parties'),
@@ -198,6 +208,11 @@ export function createPlatformApi(baseUrl: string, d: PlatformDeps, fetchFn: Fet
         json<{ items: Array<{ id: string }> }>('GET', `/v1/pos/sales?companyId=${ctx.companyId}&limit=200`).catch(() => ({ items: [] })),
         json<{ items: Array<{ id: string; voucherDate: string; categoryId: string; amount: string; payee: string | null; note: string | null; status: string; createdAt: string }> }>('GET', `/v1/expenses/vouchers?companyId=${ctx.companyId}&limit=200`).catch(() => ({ items: [] })),
         json<{ items: Array<{ id: string; name: string }> }>('GET', `/v1/expenses/categories?companyId=${ctx.companyId}`).catch(() => ({ items: [] })),
+        json<{ items: PGst[] }>('GET', `/v1/companies/${ctx.companyId}/gst-registrations`).catch(() => ({ items: [] as PGst[] })),
+        json<{ items: PLocation[] }>('GET', `/v1/business-locations?companyId=${ctx.companyId}`).catch(() => ({ items: [] as PLocation[] })),
+        json<PRetail>('GET', `/v1/retail/settings?companyId=${ctx.companyId}`).catch(() => undefined),
+        json<{ items: PCoupon[] }>('GET', `/v1/retail/coupons?companyId=${ctx.companyId}`).catch(() => ({ items: [] as PCoupon[] })),
+        json<{ items: PShift[] }>('GET', `/v1/pos/shifts?companyId=${ctx.companyId}&terminalId=${ctx.terminalId}&limit=40`).catch(() => ({ items: [] as PShift[] })),
       ])
       const walkIn = settings.settings?.walkInCustomerId ?? null
       if (walkIn !== (ctx.walkInCustomerId ?? null)) { ctx = { ...ctx, walkInCustomerId: walkIn }; d.setCtx(ctx) }
@@ -229,13 +244,22 @@ export function createPlatformApi(baseUrl: string, d: PlatformDeps, fetchFn: Fet
       const store: StoreSettings & { plan?: string } = {
         tagline: '', address: '', city: '', phone: '', email: '', gstin: '', invoicePrefix: 'INV-', nextInvoiceNo: 1, slabs: DEFAULT_SLABS, priceIncludesTax: true, receiptWidth: '58mm', printFormat: 'thermal',
         autoPrintOnSale: false, returnPolicy: '', footerNote: '', loyaltyEarnPct: 0, loyaltyRedeemValue: 0, maxCashierDiscountPct: 100, lowStockDefault: 5,
+        ...storeDetails(gsts.items.find((g) => (g.status ?? 'active') === 'active'), locs.items.find((l) => l.isPrincipalPlace) ?? locs.items[0], retail),
         ...(mine.store ?? {}), id: ctx.companyId, name,
       }
       const users: User[] = [{ id: me.user.id, name: me.user.displayName, role: roleOf(me.permissions), active: true }]
-      const customers: Customer[] = parties.filter((p) => p.isCustomer && p.id !== walkIn && (p.status ?? 'active') === 'active').map(partyToCustomer)
+      const wallets = new Map<string, { points: number; credit: number }>()
+      const wanted = parties.filter((p) => p.isCustomer && p.id !== walkIn && (p.status ?? 'active') === 'active').slice(0, 150)
+      const stale = wanted.filter((p) => Date.now() - (walletCache.get(p.id)?.at ?? 0) > 600_000)
+      for (let i = 0; i < stale.length; i += 10) {
+        const got = await Promise.all(stale.slice(i, i + 10).map((p) => json<{ storeCredit: string; loyalty: { points: string } }>('GET', `/v1/retail/customers/${p.id}/wallet?companyId=${ctx.companyId}`).then((w) => { walletCache.set(p.id, { at: Date.now(), points: num(w.loyalty?.points), credit: num(w.storeCredit) }) }).catch(() => undefined)))
+        void got
+      }
+      for (const p of wanted) { const w = walletCache.get(p.id); if (w) wallets.set(p.id, { points: w.points, credit: w.credit }) }
+      const customers: Customer[] = parties.filter((p) => p.isCustomer && p.id !== walkIn && (p.status ?? 'active') === 'active').map((p) => { const c = partyToCustomer(p); const w = wallets.get(p.id); return w ? { ...c, loyaltyPoints: w.points, storeCredit: w.credit } : c })
       const suppliers: Supplier[] = parties.filter((p) => p.isSupplier && (p.status ?? 'active') === 'active').map(partyToSupplier)
       const cats: Category[] = categories.map((c) => categoryToCategory(c, byCat))
-      return { serverTime: Date.now(), store, users, categories: cats, products, variants, customers, bills, suppliers, ...(mine.coupons?.length ? { coupons: mine.coupons } : {}), purchases: [], moves: [], expenses, sessions: [] }
+      return { serverTime: Date.now(), store, users, categories: cats, products, variants, customers, bills, suppliers, coupons: coupons.items.map(couponFromPlatform), purchases: [], moves: [], expenses, sessions: shifts.items.map(sessionFromShift) }
     },
 
     bill: async (id: string): Promise<Bill> => { throw new CloudError(`Sale ${id} is not on this server`, 404) },

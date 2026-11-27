@@ -1,7 +1,7 @@
-import type { Bill, Customer, Expense, Purchase, StockMove, Supplier } from '@/domain/types'
+import type { Bill, Coupon, Customer, DaySession, Expense, Purchase, StockMove, Supplier } from '@/domain/types'
 import { CloudError } from '../api'
 import type { PlatformCtx } from './api'
-import { billToSale, money, num, retotal, serverTotalFrom } from './mapping'
+import { billToSale, couponToPlatform, money, num, retotal, serverTotalFrom } from './mapping'
 
 type Http = (method: string, path: string, body?: unknown, o?: { auth?: boolean; key?: string; headers?: Record<string, string> }) => Promise<Response>
 export interface WriterDeps {
@@ -161,6 +161,39 @@ export function createWriter(d: WriterDeps) {
     return pay.ok ? bill : pay
   }
 
+  /** The phone's "open the day" is the till's shift; closing it counts the cash. A shift the sales have already opened is adopted, not opened twice. */
+  async function openDay(sess: DaySession): Promise<Response> {
+    const ctx = await d.ensureCtx()
+    const open = await d.json<{ items: Array<{ id: string }> }>('GET', `/v1/pos/shifts?companyId=${ctx.companyId}&terminalId=${ctx.terminalId}&status=open&limit=1`)
+    if (open.items[0]) { remember(sess.id, open.items[0].id); return reply(200) }
+    const res = await d.http('POST', '/v1/pos/shifts', { terminalId: ctx.terminalId, openingCash: money(sess.openingCash) }, { key: sess.id })
+    if (res.ok) { try { remember(sess.id, ((await res.clone().json()) as { id: string }).id) } catch { /* see sale() */ } }
+    return res
+  }
+  async function closeDay(p: Row): Promise<Response> {
+    const ctx = await d.ensureCtx()
+    let id = idOf(String(p['id']))
+    if (!id || !isId(id)) { const open = await d.json<{ items: Array<{ id: string }> }>('GET', `/v1/pos/shifts?companyId=${ctx.companyId}&terminalId=${ctx.terminalId}&status=open&limit=1`); id = open.items[0]?.id }
+    if (!id) return reply(200) // nothing open on the platform: already closed
+    return d.http('POST', `/v1/pos/shifts/${id}/close`, { countedCash: money(num(p['countedCash'])) }, { key: `close-${String(p['id'])}` })
+  }
+  async function createCoupon(c: Coupon): Promise<Response> {
+    const ctx = await d.ensureCtx()
+    const res = await d.http('POST', '/v1/retail/coupons', couponToPlatform(c, ctx.companyId), { key: c.id })
+    if (res.ok) { try { remember(c.id, ((await res.clone().json()) as { id: string }).id) } catch { /* see sale() */ } }
+    return res
+  }
+  async function updateCoupon(p: Row): Promise<Response> {
+    const id = idOf(String(p['id'])); if (!id || !isId(id)) return reply(404, { error: 'That coupon has not reached the server yet' })
+    const body: Row = { ...(p['active'] !== undefined ? { status: p['active'] ? 'active' : 'inactive' } : {}), ...(p['value'] !== undefined ? { value: money(num(p['value'])) } : {}), ...(p['minBill'] !== undefined ? { minBill: money(num(p['minBill'])) } : {}) }
+    if (!Object.keys(body).length) return reply(200)
+    // coupons have no single-record read: the version comes from the list
+    const ctx = await d.ensureCtx()
+    const list = await d.json<{ items: Array<{ id: string; version: number }> }>('GET', `/v1/retail/coupons?companyId=${ctx.companyId}`)
+    const cur = list.items.find((x) => x.id === id); if (!cur) return reply(404, { error: 'That coupon is not on the server' })
+    return d.http('PATCH', `/v1/retail/coupons/${id}`, body, { headers: { 'If-Match': String(cur.version) } })
+  }
+
   async function holdProduct(p: Row): Promise<Response> {
     const c = d.ctx(); if (!c) return reply(401)
     d.setCtx({ ...c, pending: { ...(c.pending ?? {}), [String(p['id'])]: p } })
@@ -212,7 +245,11 @@ export function createWriter(d: WriterDeps) {
         if (method === 'POST' && path === '/variants') return await createVariant(body)
         if (method === 'PUT' && path.startsWith('/variants/')) return await updateVariant(body)
         if (method === 'PUT' && path.startsWith('/products/')) return await updateProduct(body)
-        if (path === '/store' || path.startsWith('/categories') || path.startsWith('/coupons') || path.startsWith('/sessions') || path === '/users' || path.startsWith('/users/')) return reply(200) // settings that stay on the phone
+        if (method === 'POST' && path === '/sessions') return await openDay(bodyIn as DaySession)
+        if (method === 'PUT' && path.startsWith('/sessions/')) return await closeDay(body)
+        if (method === 'POST' && path === '/coupons') return await createCoupon(bodyIn as Coupon)
+        if (method === 'PUT' && path.startsWith('/coupons/')) return await updateCoupon(body)
+        if (path === '/store' || path.startsWith('/categories') || path === '/users' || path.startsWith('/users/')) return reply(200) // settings that stay on the phone
         return reply(405, { error: `${method} ${path} is not synced to this server yet` })
       } catch (e) {
         // no connection: let the sync engine see it as one (it marks the phone offline and tries again later)

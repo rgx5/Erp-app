@@ -20,13 +20,17 @@ tax invoices):
 | Stock adjustment, opening stock | `POST /v1/stock/movements` (adjustment) |
 | Goods received | goods receipt + supplier bill + payment (`/v1/purchasing/...`) |
 | Expense | `POST /v1/expenses/vouchers` (category created on first use) |
+| Coupons | `/v1/retail/coupons` (created, switched on or off on the phone; downloaded on refresh) |
+| Open / close the day | the till shift: `POST /v1/pos/shifts` and `/v1/pos/shifts/:id/close` (counted cash) |
+| Shop details on receipts | company GST registration, main location and loyalty settings, downloaded on refresh |
+| Loyalty points, store credit | `/v1/retail/customers/:id/wallet` (first 150 customers, refreshed at most every ten minutes) |
 
 On first sign-in the phone finds the company, registers itself as a till device (a "Phone" terminal if the business has none) and opens a
 shift when a sale needs one. The business must have a **payment account mapped for each payment method** (cash, UPI, card…) in POS setup, or
 sales paid that way are refused (the phone says so).
 
-Not synced yet (the phone keeps them locally and the change is set aside with a clear reason): coupons, staff accounts, store settings,
-price lists, credit (due) sales.
+Not synced yet (the phone keeps them locally and the change is set aside with a clear reason): staff accounts and PINs, price lists,
+purchase and stock-movement history after a refresh, items beyond the first 500 in the till's warehouse.
 
 ## Build
 

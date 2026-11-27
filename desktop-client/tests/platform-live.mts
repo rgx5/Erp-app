@@ -51,6 +51,17 @@ try {
   await show('sale of the item after the purchase', await api.raw('POST', '/bills', { ...bill, id: 'b_TEST0005', items: [{ ...bill.items[0]!, variantId: 'v_NEWVAR01', qty: 1, price: 275, mrp: 275 }], total: 308, payments: [{ mode: 'cash', amount: 308 }] }))
   const after = await api.snapshot()
   console.log('after: stock', after.variants.map((v) => `${v.sku}=${v.stock}@${v.price}`).join(' '), 'moves', 'bills', after.bills.map((x) => `${x.no}=${x.total}/${x.payments.map((p) => p.mode + p.amount).join('+')}`), 'customers', after.customers.length)
+  // the shop's own details, loyalty settings, coupons, customer wallets and the day open/close
+  await fetch(`${b.baseUrl}/v1/retail/settings?companyId=${s.company.id}`, { method: 'PUT', headers: H, body: JSON.stringify({ loyaltyPointsPerHundred: '2', loyaltyRupeesPerPoint: '0.5' }) })
+  await show('coupon create', await api.raw('POST', '/coupons', { id: 'cp_SAVE10', code: 'save10', type: 'pct', value: 10, minBill: 500, maxUses: 0, active: true, createdAt: Date.now() }))
+  await show('coupon deactivate', await api.raw('PUT', '/coupons/cp_SAVE10', { id: 'cp_SAVE10', active: false }))
+  const snap2 = await api.snapshot()
+  console.log('store', JSON.stringify({ gstin: snap2.store?.gstin, reg: snap2.store?.registrationType, address: snap2.store?.address, city: snap2.store?.city, earn: snap2.store?.loyaltyEarnPct, redeem: snap2.store?.loyaltyRedeemValue }))
+  console.log('coupons', snap2.coupons?.map((c) => `${c.code}:${c.type}${c.value}:${c.active ? 'on' : 'off'}`))
+  console.log('sessions', snap2.sessions.map((x) => `${x.closedAt ? 'closed' : 'open'}:${x.openingCash}`))
+  await show('day close', await api.raw('PUT', `/sessions/${snap2.sessions[0]!.id}`, { id: snap2.sessions[0]!.id, countedCash: 1234, closedAt: Date.now() }))
+  await show('day open', await api.raw('POST', '/sessions', { id: 'ds_NEWDAY01', openedAt: Date.now(), openedBy: 'x', openingCash: 500 }))
+  console.log('sessions after', (await api.snapshot()).sessions.map((x) => `${x.closedAt ? 'closed' : 'open'}:${x.openingCash}:counted=${x.countedCash}`))
   // expired access token: the client renews it with the refresh token
   tokens = { ...tokens, access: 'expired.invalid.token' }
   console.log('renew', (await api.snapshot()).products.length, 'products after token refresh')

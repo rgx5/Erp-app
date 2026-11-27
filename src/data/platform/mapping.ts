@@ -1,4 +1,4 @@
-import type { Bill, BillItem, Category, Customer, Payment, Product, Supplier, User, Variant } from '@/domain/types'
+import type { Bill, BillItem, Category, Coupon, Customer, DaySession, Payment, Product, StoreSettings, Supplier, User, Variant } from '@/domain/types'
 
 /**
  * The new platform speaks in companies, items, parties and tax invoices; the phone app keeps products with variants, customers and
@@ -113,3 +113,33 @@ export function retotal(payments: Array<Record<string, unknown>>, serverTotal: n
 }
 
 export const staffUser = (id: string, name: string): User => ({ id, name, role: 'owner', active: true })
+
+// ───────────── shop details, coupons and day sessions ─────────────
+export interface PGst { gstin: string; registrationType?: string; legalName?: string; tradeName?: string | null; status?: string }
+export interface PLocation { isPrincipalPlace?: boolean; address?: { line1?: string; line2?: string | null; city?: string; pincode?: string | null } | null; status?: string }
+export interface PRetail { loyaltyPointsPerHundred?: string; loyaltyRupeesPerPoint?: string; maxDiscountWithoutApproval?: string | null; upiId?: string | null }
+
+/** What the shop's own receipts and invoices print, from the company's GST registration, its main location and its loyalty settings. */
+export function storeDetails(gst: PGst | undefined, loc: PLocation | undefined, retail: PRetail | undefined): Partial<StoreSettings> {
+  const a = loc?.address
+  const reg = gst?.registrationType === 'composition' ? 'composition' : gst?.registrationType === 'unregistered' ? 'unregistered' : gst ? 'regular' : undefined
+  return {
+    ...(gst?.gstin ? { gstin: gst.gstin } : {}), ...(reg ? { registrationType: reg } : {}),
+    ...(a?.line1 ? { address: [a.line1, a.line2].filter(Boolean).join(', ') } : {}), ...(a?.city ? { city: a.pincode ? `${a.city} ${a.pincode}` : a.city } : {}),
+    ...(retail ? { loyaltyEarnPct: num(retail.loyaltyPointsPerHundred), loyaltyRedeemValue: num(retail.loyaltyRupeesPerPoint) } : {}),
+  }
+}
+
+export interface PCoupon { id: string; code: string; kind: 'percent' | 'amount'; value: string; minBill?: string; validTo?: string | null; maxUses?: number | null; status?: string; createdAt?: string }
+export const couponFromPlatform = (c: PCoupon): Coupon => ({
+  id: c.id, code: c.code, type: c.kind === 'percent' ? 'pct' : 'amt', value: num(c.value), minBill: num(c.minBill), ...(c.validTo ? { expiresAt: when(c.validTo) } : {}), maxUses: c.maxUses ?? 0, active: (c.status ?? 'active') === 'active', createdAt: when(c.createdAt),
+})
+export const couponToPlatform = (c: Coupon, companyId: string): Record<string, unknown> => ({
+  companyId, code: c.code.toUpperCase().slice(0, 30), kind: c.type === 'pct' ? 'percent' : 'amount', value: money(c.value), ...(c.minBill ? { minBill: money(c.minBill) } : {}), ...(c.expiresAt ? { validTo: new Date(c.expiresAt).toISOString().slice(0, 10) } : {}), ...(c.maxUses ? { maxUses: c.maxUses } : {}),
+})
+
+export interface PShift { id: string; openedBy?: string; openedAt: string; openingCash: string; status: string; closedAt?: string | null; countedCash?: string | null; expectedCash?: string | null; variance?: string | null }
+export const sessionFromShift = (h: PShift): DaySession => ({
+  id: h.id, openedAt: when(h.openedAt), openedBy: h.openedBy ?? '', openingCash: num(h.openingCash),
+  ...(h.status === 'closed' ? { closedAt: when(h.closedAt), closedBy: h.openedBy ?? '', countedCash: num(h.countedCash), expectedCash: num(h.expectedCash), variance: num(h.variance) } : {}),
+})

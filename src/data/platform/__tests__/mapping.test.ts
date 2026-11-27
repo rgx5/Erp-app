@@ -1,5 +1,5 @@
 import type { Bill } from '@/domain/types'
-import { billToSale, itemToProduct, money, retotal, saleToBill, serverTotalFrom } from '../mapping'
+import { billToSale, couponFromPlatform, couponToPlatform, itemToProduct, money, retotal, saleToBill, serverTotalFrom, sessionFromShift, storeDetails } from '../mapping'
 import { normalizePlatformUrl } from '../api'
 
 const bill = (over: Partial<Bill> = {}): Bill => ({
@@ -59,5 +59,20 @@ describe('platform mapping', () => {
     expect(normalizePlatformUrl('erp.shop.in/')).toBe('https://erp.shop.in')
     expect(normalizePlatformUrl('https://erp.shop.in/api')).toBe('https://erp.shop.in')
     expect(normalizePlatformUrl('192.168.1.5:3000')).toBe('http://192.168.1.5:3000')
+  })
+  it('prints the company\'s own details and loyalty settings on the shop', () => {
+    const st = storeDetails({ gstin: '27ABCDE1234F1Z0', registrationType: 'regular' }, { isPrincipalPlace: true, address: { line1: '12 Mill Road', line2: null, city: 'Mumbai', pincode: '400001' } }, { loyaltyPointsPerHundred: '2.0000', loyaltyRupeesPerPoint: '0.5000' })
+    expect(st).toMatchObject({ gstin: '27ABCDE1234F1Z0', registrationType: 'regular', address: '12 Mill Road', city: 'Mumbai 400001', loyaltyEarnPct: 2, loyaltyRedeemValue: 0.5 })
+    expect(storeDetails(undefined, undefined, undefined)).toEqual({})
+  })
+  it('converts coupons both ways', () => {
+    const c = couponFromPlatform({ id: 'c1', code: 'SAVE10', kind: 'percent', value: '10.0000', minBill: '500.0000', validTo: '2026-12-31', maxUses: null, status: 'active' })
+    expect(c).toMatchObject({ id: 'c1', code: 'SAVE10', type: 'pct', value: 10, minBill: 500, maxUses: 0, active: true })
+    expect(couponToPlatform({ ...c, code: 'save10' }, 'co1')).toMatchObject({ companyId: 'co1', code: 'SAVE10', kind: 'percent', value: '10', minBill: '500' })
+  })
+  it('reads a till shift as a day session', () => {
+    expect(sessionFromShift({ id: 's1', openedAt: '2026-11-27T04:00:00Z', openingCash: '2000.0000', status: 'open' })).toMatchObject({ id: 's1', openingCash: 2000 })
+    const closed = sessionFromShift({ id: 's2', openedAt: '2026-11-26T04:00:00Z', openingCash: '0', status: 'closed', closedAt: '2026-11-26T14:00:00Z', countedCash: '1234', expectedCash: '1200', variance: '34' })
+    expect(closed).toMatchObject({ countedCash: 1234, expectedCash: 1200, variance: 34 }); expect(closed.closedAt).toBeDefined()
   })
 })
