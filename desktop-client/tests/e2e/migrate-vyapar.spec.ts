@@ -15,12 +15,15 @@ test('migrate from Vyapar: a new business is set up from the backup file and its
     if (!r.ok) throw new Error(`${method} ${path}: ${r.status} ${await r.text()}`)
     return (await r.json()) as Record<string, any> // eslint-disable-line
   }
-  await call('POST', '/v1/platform/tenants', { name: 'Migrating Co', slug, owner: { email, displayName: 'Owner', password: PASSWORD } }, process.env['E2E_PLATFORM_TOKEN'])
-  const token = (await call('POST', '/v1/auth/login', { tenant: slug, email, password: PASSWORD })).accessToken as string
+  const tenant = await call('POST', '/v1/platform/tenants', { name: 'Migrating Co', slug, owner: { email, displayName: 'Owner', password: PASSWORD } }, process.env['E2E_PLATFORM_TOKEN'])
+  // moving a business over is our team's job: it is done from a Super admin login, which a company's own staff do not have
+  const support = `support@${slug}.example.com`
+  await call('POST', `/v1/platform/tenants/${tenant['id']}/super-admin`, { email: support, displayName: 'Support', password: PASSWORD }, process.env['E2E_PLATFORM_TOKEN'])
+  const token = (await call('POST', '/v1/auth/login', { tenant: slug, email: support, password: PASSWORD })).accessToken as string
 
   await page.goto('/')
   await page.getByLabel('Server address').fill(base); await page.getByRole('button', { name: 'Continue' }).click()
-  await page.getByLabel('Business code').fill(slug); await page.getByLabel('Email').fill(email); await page.getByLabel('Password').fill(PASSWORD)
+  await page.getByLabel('Business code').fill(slug); await page.getByLabel('Email').fill(support); await page.getByLabel('Password').fill(PASSWORD)
   await page.getByRole('button', { name: 'Sign in' }).click()
   await expect(page.getByRole('heading', { name: /Dashboard|Set up your business/ })).toBeVisible()
 

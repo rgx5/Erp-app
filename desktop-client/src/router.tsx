@@ -60,6 +60,7 @@ import { ImportPage } from '@/features/data/ImportPage'
 import { ChequesPage } from '@/features/cheques/ChequesPage'
 import { LoanDetailPage, LoansPage } from '@/features/loans/LoansPage'
 import { TcsPage } from '@/features/tcs/TcsPage'
+import { LicencePage } from '@/features/licence/LicencePage'
 import { FxPage } from '@/features/fx/FxPage'
 import { MigratePage } from '@/features/migrate/MigratePage'
 import { SettingsPage } from '@/features/settings/SettingsPage'
@@ -200,6 +201,7 @@ const chequesIssuedRoute = createRoute({ getParentRoute: () => app, path: '/purc
 const loansTakenRoute = createRoute({ getParentRoute: () => app, path: '/accounting/loans', component: () => <LoansPage direction="taken" /> })
 const loansGivenRoute = createRoute({ getParentRoute: () => app, path: '/accounting/loans-given', component: () => <LoansPage direction="given" /> })
 const fxRoute = createRoute({ getParentRoute: () => app, path: '/sales/foreign-currency', component: FxPage })
+const licenceRoute = createRoute({ getParentRoute: () => app, path: '/admin/licence', component: LicencePage })
 const tcsRoute = createRoute({ getParentRoute: () => app, path: '/sales/tcs', component: TcsPage })
 const loanDetailRoute = createRoute({ getParentRoute: () => app, path: '/accounting/loans/$loanId', component: LoanDetailPage })
 const migrateRoute = createRoute({ getParentRoute: () => app, path: '/data/migrate', component: MigratePage })
@@ -213,7 +215,7 @@ const newRecurringRoute = createRoute({ getParentRoute: () => app, path: '/sales
 const remindersRoute = createRoute({ getParentRoute: () => app, path: '/sales/reminders', component: RemindersPage })
 const expensesRoute = createRoute({ getParentRoute: () => app, path: '/accounting/expenses', component: ExpensesPage })
 const customerDisplayRoute = createRoute({ getParentRoute: () => root, path: '/customer-display', component: CustomerDisplayPage })
-const tree = root.addChildren([customerDisplayRoute, connect, login, app.addChildren([fxRoute, tcsRoute, loansTakenRoute, loansGivenRoute, loanDetailRoute, chequesReceivedRoute, chequesIssuedRoute, migrateRoute, importRoute, settingsRoute, tdsRoute, leadsRoute, leadsSourcesRoute, leadsSettingsRoute, leadsReportsRoute, leadRoute, partyDetailRoute, einvoicingRoute, remindersRoute, recurringRoute, newRecurringRoute, challansRoute, newChallanRoute, exportRoute, lowStockRoute, salesAnalysisRoute, dayEndRoute, labelsRoute, loyaltyRoute, expensesRoute, categoriesRoute, trackingRoute, landedRoute, quotesRoute, newQuoteRoute, salesOrdersRoute, newSalesOrderRoute, usersRoute, rolesRoute, apiKeysRoute, auditRoute, accountRoute, counterRoute, posAdminRoute, payrollSetupRoute, peopleRoute, payrollRunsRoute, duesRoute, workCentresRoute, bomsRoute, woRoute, woDetailRoute, jobWorkRoute, costingRoute, reportCentreRoute, gstRoute, chartRoute, journalsRoute, newJournalRoute, periodsRoute, reportsRoute, bankRoute, stock, movements, transfers, counts, valuationRoute, orders, newOrder, orderDetail, goodsReceipts, bills, newBill, billDetail, payments, payables, approvals, invoices, newInvoice, invoiceDetail, receipts, receivables, dashboard, setup, companies, items, customers, suppliers, taxCodes, units, paymentTerms, priceLists])])
+const tree = root.addChildren([customerDisplayRoute, connect, login, app.addChildren([licenceRoute, fxRoute, tcsRoute, loansTakenRoute, loansGivenRoute, loanDetailRoute, chequesReceivedRoute, chequesIssuedRoute, migrateRoute, importRoute, settingsRoute, tdsRoute, leadsRoute, leadsSourcesRoute, leadsSettingsRoute, leadsReportsRoute, leadRoute, partyDetailRoute, einvoicingRoute, remindersRoute, recurringRoute, newRecurringRoute, challansRoute, newChallanRoute, exportRoute, lowStockRoute, salesAnalysisRoute, dayEndRoute, labelsRoute, loyaltyRoute, expensesRoute, categoriesRoute, trackingRoute, landedRoute, quotesRoute, newQuoteRoute, salesOrdersRoute, newSalesOrderRoute, usersRoute, rolesRoute, apiKeysRoute, auditRoute, accountRoute, counterRoute, posAdminRoute, payrollSetupRoute, peopleRoute, payrollRunsRoute, duesRoute, workCentresRoute, bomsRoute, woRoute, woDetailRoute, jobWorkRoute, costingRoute, reportCentreRoute, gstRoute, chartRoute, journalsRoute, newJournalRoute, periodsRoute, reportsRoute, bankRoute, stock, movements, transfers, counts, valuationRoute, orders, newOrder, orderDetail, goodsReceipts, bills, newBill, billDetail, payments, payables, approvals, invoices, newInvoice, invoiceDetail, receipts, receivables, dashboard, setup, companies, items, customers, suppliers, taxCodes, units, paymentTerms, priceLists])])
 
 // A hash history works the same on a custom app:// origin and in a browser, with no server-side route fallback to configure.
 import { createHashHistory } from '@tanstack/react-router'

@@ -79,6 +79,10 @@ export const PERMISSIONS = [
   'leads:read_all',
   'leads:write',
   'leads:manage',
+  // Platform tier: held only by our own team's Super admin accounts, never by a client's staff. The `*` of a company's owner does not reach these.
+  'platform:licensing',
+  'platform:migrate',
+  'platform:support',
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -87,5 +91,12 @@ export const isPermission = (value: string): value is Permission => (PERMISSIONS
 
 export const OWNER_ROLE_NAME = 'Owner';
 
+/** Grants every platform-tier permission. Held by the built-in Super admin role only. */
+export const PLATFORM_WILDCARD = 'platform:*';
+export const SUPER_ADMIN_ROLE_NAME = 'Super admin';
+export const isPlatformPermission = (permission: string): boolean => permission.startsWith('platform:');
+/** The owner's `*` covers everything a company can do, but never the platform tier: that needs `platform:*` or the permission itself. */
 export const allows = (granted: ReadonlySet<string>, required: readonly string[]): boolean =>
-  granted.has(WILDCARD) || required.every((permission) => granted.has(permission));
+  required.every((permission) => (isPlatformPermission(permission) ? granted.has(PLATFORM_WILDCARD) || granted.has(permission) : granted.has(WILDCARD) || granted.has(permission)));
+/** Does this holder belong to our own team (can they see and manage platform-tier things)? */
+export const isPlatformHolder = (granted: ReadonlySet<string>): boolean => granted.has(PLATFORM_WILDCARD);

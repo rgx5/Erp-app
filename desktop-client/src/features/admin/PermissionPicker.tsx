@@ -14,7 +14,7 @@ export function PermissionPicker({ value, onChange, disabled, limit }: { value: 
   const all = usePermissions()
   const groups = useMemo(() => {
     const m = new Map<string, string[]>()
-    for (const p of all.data ?? []) { if (limit && !limit.includes(p) && !limit.includes('*')) continue; const g = p.split(':')[0] as string; m.set(g, [...(m.get(g) ?? []), p]) }
+    for (const p of all.data ?? []) { if (p.startsWith('platform:') ? !(limit ?? []).includes('platform:*') : (limit && !limit.includes(p) && !limit.includes('*'))) continue; const g = p.split(':')[0] as string; m.set(g, [...(m.get(g) ?? []), p]) }
     return [...m]
   }, [all.data, limit])
   if (all.isPending) return <Spinner />

@@ -14,7 +14,7 @@ import { tenants } from '../organization/organization.schema.js';
 import { apiKeys, roles, sessions, userRoles, users } from './identity.schema.js';
 import type { CreateApiKeyInput, CreateRoleInput, CreateUserInput, ProvisionTenantInput, UpdateRoleInput, UpdateUserInput } from './identity.schemas.js';
 import { hashPassword } from './password.js';
-import { allows, OWNER_ROLE_NAME, WILDCARD } from './permissions.js';
+import { allows, OWNER_ROLE_NAME, PLATFORM_WILDCARD, SUPER_ADMIN_ROLE_NAME, WILDCARD } from './permissions.js';
 import type { Principal } from './principal.js';
 import { compactUuid, sha256 } from './principal.service.js';
 import { assertWithinLimit } from './entitlements.js';
@@ -32,7 +32,7 @@ const one = <T>(rows: T[], what: string): T => {
 
 /** Nobody may hand out more than they hold: a user, role or key can never exceed the grantor's own permissions. */
 function assertCanGrant(actor: Principal, permissions: readonly string[]): void {
-  if (permissions.includes(WILDCARD) ? !actor.permissions.has(WILDCARD) : !allows(actor.permissions, permissions)) {
+  if (permissions.includes(PLATFORM_WILDCARD) ? !actor.permissions.has(PLATFORM_WILDCARD) : permissions.includes(WILDCARD) ? !actor.permissions.has(WILDCARD) : !allows(actor.permissions, permissions)) {
     throw new AppError(403, 'privilege_escalation', 'You cannot grant permissions you do not hold yourself');
   }
 }
@@ -99,10 +99,38 @@ export class AccessService {
     });
   }
 
-  getUser(tenantId: string, id: string): Promise<UserWithRoles> {
+  /** Users who hold the Super admin role: our own team's accounts, which a company's staff never see or change. */
+  private static readonly SUPER_USERS = (tenantId: string) => sql`SELECT ur.user_id FROM erp.user_roles ur JOIN erp.roles r ON r.tenant_id = ur.tenant_id AND r.id = ur.role_id WHERE ur.tenant_id = ${tenantId}::uuid AND ur.revoked_at IS NULL AND r.is_system AND r.name = ${SUPER_ADMIN_ROLE_NAME}`;
+  private async assertVisibleUser(tx: Tx, actor: Pick<Principal, 'tenantId' | 'permissions'>, userId: string): Promise<void> {
+    if (actor.permissions.has(PLATFORM_WILDCARD)) return;
+    const hidden = (await tx.execute(sql`SELECT 1 WHERE ${userId}::uuid IN (${AccessService.SUPER_USERS(actor.tenantId)})`)).rows[0];
+    if (hidden) throw notFound('User');
+  }
+
+  /**
+   * Creates (or adds to) our team's Super admin login for a tenant: full access including the platform tier. Used by the platform operator only; the
+   * tenant's own staff cannot create, see or change it.
+   */
+  async createSuperAdmin(tenantId: string, input: { email: string; displayName: string; password: string }): Promise<UserWithRoles> {
+    const passwordHash = await hashPassword(input.password);
+    return this.uow.inTenant(tenantId, async (tx) => {
+      let [role] = await tx.select().from(roles).where(and(eq(roles.tenantId, tenantId), eq(roles.name, SUPER_ADMIN_ROLE_NAME)));
+      if (!role) {
+        [role] = await tx.insert(roles).values({ tenantId, id: uuidv7(), name: SUPER_ADMIN_ROLE_NAME, description: 'Platform team: full access including licensing and migration', isSystem: true, permissions: [WILDCARD, PLATFORM_WILDCARD] }).returning();
+      }
+      const userId = uuidv7();
+      const [user] = await tx.insert(users).values({ tenantId, id: userId, email: input.email, displayName: input.displayName, passwordHash }).returning();
+      await tx.insert(userRoles).values({ tenantId, userId, roleId: (role as RoleRow).id, grantedBy: userId });
+      await this.note(tx, tenantId, 'user', 'super_admin_created', userId, { email: input.email }, false);
+      return { ...(user as UserRow), roleIds: [(role as RoleRow).id] };
+    });
+  }
+
+  getUser(tenantId: string, id: string, includePlatform = true): Promise<UserWithRoles> {
     return this.uow.inTenant(
       tenantId,
       async (tx) => {
+        if (!includePlatform) await this.assertVisibleUser(tx, { tenantId, permissions: new Set() }, id);
         const user = one(await tx.select().from(users).where(and(eq(users.tenantId, tenantId), eq(users.id, id))), 'User');
         return (await this.withRoles(tx, tenantId, [user]))[0] as UserWithRoles;
       },
@@ -110,7 +138,7 @@ export class AccessService {
     );
   }
 
-  listUsers(tenantId: string, limit: number, cursor: string | undefined): Promise<Page<UserWithRoles>> {
+  listUsers(tenantId: string, limit: number, cursor: string | undefined, includePlatform = true): Promise<Page<UserWithRoles>> {
     const after = decodeCursor(cursor);
     return this.uow.inTenant(
       tenantId,
@@ -118,7 +146,7 @@ export class AccessService {
         const rows = await tx
           .select()
           .from(users)
-          .where(and(eq(users.tenantId, tenantId), after ? gt(users.id, after) : undefined))
+          .where(and(eq(users.tenantId, tenantId), after ? gt(users.id, after) : undefined, includePlatform ? undefined : sql`${users.id} NOT IN (${AccessService.SUPER_USERS(tenantId)})`))
           .orderBy(asc(users.id))
           .limit(limit + 1);
         const page = toPage(rows, limit);
@@ -130,6 +158,7 @@ export class AccessService {
 
   updateUser(actor: Principal, id: string, version: number, input: UpdateUserInput): Promise<UserWithRoles> {
     return this.uow.inTenant(actor.tenantId, async (tx) => {
+      await this.assertVisibleUser(tx, actor, id);
       if (input.status === 'disabled') {
         if (id === actor.userId) throw new AppError(409, 'cannot_disable_self', 'You cannot disable your own account');
         await this.assertOwnerRemains(tx, actor.tenantId, id);
@@ -157,6 +186,7 @@ export class AccessService {
   /** Replaces the user's role set. Removed roles are revoked (timestamped), never deleted. */
   setUserRoles(actor: Principal, userId: string, roleIds: string[]): Promise<UserWithRoles> {
     return this.uow.inTenant(actor.tenantId, async (tx) => {
+      await this.assertVisibleUser(tx, actor, userId);
       const user = one(await tx.select().from(users).where(and(eq(users.tenantId, actor.tenantId), eq(users.id, userId))).for('update'), 'User');
       const wanted = await this.loadRoles(tx, actor.tenantId, roleIds);
       for (const role of wanted) assertCanGrant(actor, role.permissions);
@@ -201,15 +231,15 @@ export class AccessService {
     });
   }
 
-  getRole(tenantId: string, id: string): Promise<RoleRow> {
-    return this.uow.inTenant(tenantId, async (tx) => one(await tx.select().from(roles).where(and(eq(roles.tenantId, tenantId), eq(roles.id, id))), 'Role'), { readOnly: true });
+  getRole(tenantId: string, id: string, includePlatform = true): Promise<RoleRow> {
+    return this.uow.inTenant(tenantId, async (tx) => { const r = one(await tx.select().from(roles).where(and(eq(roles.tenantId, tenantId), eq(roles.id, id))), 'Role'); if (!includePlatform && r.name === SUPER_ADMIN_ROLE_NAME && r.isSystem) throw notFound('Role'); return r; }, { readOnly: true });
   }
 
-  listRoles(tenantId: string, limit: number, cursor: string | undefined): Promise<Page<RoleRow>> {
+  listRoles(tenantId: string, limit: number, cursor: string | undefined, includePlatform = true): Promise<Page<RoleRow>> {
     const after = decodeCursor(cursor);
     return this.uow.inTenant(
       tenantId,
-      async (tx) => toPage(await tx.select().from(roles).where(and(eq(roles.tenantId, tenantId), after ? gt(roles.id, after) : undefined)).orderBy(asc(roles.id)).limit(limit + 1), limit),
+      async (tx) => toPage(await tx.select().from(roles).where(and(eq(roles.tenantId, tenantId), after ? gt(roles.id, after) : undefined, includePlatform ? undefined : sql`NOT (${roles.isSystem} AND ${roles.name} = ${SUPER_ADMIN_ROLE_NAME})`)).orderBy(asc(roles.id)).limit(limit + 1), limit),
       { readOnly: true },
     );
   }
@@ -320,7 +350,7 @@ export class AccessService {
       .from(userRoles)
       .innerJoin(roles, and(eq(roles.tenantId, userRoles.tenantId), eq(roles.id, userRoles.roleId)))
       .innerJoin(users, and(eq(users.tenantId, userRoles.tenantId), eq(users.id, userRoles.userId)))
-      .where(and(eq(userRoles.tenantId, tenantId), isNull(userRoles.revokedAt), eq(roles.isSystem, true), eq(users.status, 'active')));
+      .where(and(eq(userRoles.tenantId, tenantId), isNull(userRoles.revokedAt), eq(roles.isSystem, true), eq(roles.name, OWNER_ROLE_NAME), eq(users.status, 'active')));
     const remaining = owners.filter((o) => applied || o.userId !== leavingUserId);
     if (remaining.length === 0) throw new AppError(409, 'last_owner', 'The tenant must keep at least one active owner');
   }

@@ -44,7 +44,15 @@ jobs:
           mkdir -p resources
           cp ../assets/icon.png resources/icon-only.png
           cp ../assets/adaptive-icon.png resources/icon-foreground.png
-          convert -size 1024x1024 xc:'#0049F9' resources/icon-background.png
+          python3 - <<'PY'
+          import zlib, struct
+          w = h = 1024
+          row = b'\x00' + bytes([0x00, 0x49, 0xF9]) * w
+          raw = row * h
+          def chunk(t, d): return struct.pack('>I', len(d)) + t + d + struct.pack('>I', zlib.crc32(t + d) & 0xffffffff)
+          png = b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, 2, 0, 0, 0)) + chunk(b'IDAT', zlib.compress(raw, 9)) + chunk(b'IEND', b'')
+          open('resources/icon-background.png', 'wb').write(png)
+          PY
       - name: Create the Android project
         run: |
           npx cap add android

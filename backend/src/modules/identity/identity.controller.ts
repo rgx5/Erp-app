@@ -5,7 +5,7 @@ import { ENV, type Env } from '../../config/env.js';
 import { notFound, preconditionRequired } from '../../platform/http/errors.js';
 import { ApiZodBody, pageQuerySchema, type PageQuery } from '../../platform/http/validation.js';
 import { presentPage } from '../organization/organization.presenters.js';
-import { PERMISSIONS } from './permissions.js';
+import { isPlatformHolder, PERMISSIONS } from './permissions.js';
 import { AccessService } from './access.service.js';
 import { AuthService } from './auth.service.js';
 import {
@@ -14,6 +14,7 @@ import {
   createRoleSchema,
   createUserSchema,
   loginSchema,
+  ownerSchema,
   mfaActivateSchema,
   mfaDisableSchema,
   provisionTenantSchema,
@@ -85,12 +86,29 @@ export class PlatformTenantsController {
   @ApiZodBody(signedLicenceSchema)
   async importLicence(@Param('id', { schema: z.uuid() }) id: string, @Body({ schema: signedLicenceSchema }) body: SignedLicence) { return presentEntitlements(await this.entitlements.importLicence(id, body)); }
 
+  /** Adds our team's Super admin login to a tenant (full access including licensing and migration). Never created by, or visible to, the tenant's own staff. */
+  @Post(':id/super-admin')
+  @ApiZodBody(ownerSchema)
+  async createSuperAdmin(@Param('id', { schema: z.uuid() }) id: string, @Body({ schema: ownerSchema }) body: { email: string; displayName: string; password: string }) { return presentUser(await this.access.createSuperAdmin(id, body)); }
+
   @Post()
   @ApiZodBody(provisionTenantSchema)
   async create(@Body({ schema: provisionTenantSchema }) body: ProvisionTenantInput) {
     const { tenant, user } = await this.access.provisionTenant(body);
     return { id: tenant.id, slug: tenant.slug, name: tenant.name, status: tenant.status, owner: presentUser(user) };
   }
+}
+
+/** What the signed-in business has licensed. Anyone who can see the organisation may read it; changing it is for our Super admin only. */
+@ApiTags('admin')
+@ApiBearerAuth()
+@Controller('v1/admin/licence')
+export class LicenceAdminController {
+  constructor(@Inject(EntitlementsService) private readonly entitlements: EntitlementsService) {}
+  @RequirePermissions('organization:read') @Get()
+  async get(@TenantId() tenantId: string) { const e = await this.entitlements.get(tenantId); return { entitlements: e ? presentEntitlements(e) : null }; }
+  @RequirePermissions('platform:licensing') @Put() @ApiZodBody(setEntitlementsSchema)
+  async set(@TenantId() tenantId: string, @Body({ schema: setEntitlementsSchema }) body: SetEntitlementsInput) { return presentEntitlements(await this.entitlements.set(tenantId, body)); }
 }
 
 @ApiTags('auth')
@@ -199,14 +217,14 @@ export class UsersController {
 
   @RequirePermissions('users:read')
   @Get()
-  async list(@TenantId() tenantId: string, @Query({ schema: pageQuerySchema }) query: PageQuery) {
-    return presentPage(await this.access.listUsers(tenantId, query.limit, query.cursor), presentUser);
+  async list(@CurrentPrincipal() actor: Principal, @TenantId() tenantId: string, @Query({ schema: pageQuerySchema }) query: PageQuery) {
+    return presentPage(await this.access.listUsers(tenantId, query.limit, query.cursor, isPlatformHolder(actor.permissions)), presentUser);
   }
 
   @RequirePermissions('users:read')
   @Get(':id')
-  async get(@TenantId() tenantId: string, @Param('id', { schema: id }) userId: string) {
-    return presentUser(await this.access.getUser(tenantId, userId));
+  async get(@CurrentPrincipal() actor: Principal, @TenantId() tenantId: string, @Param('id', { schema: id }) userId: string) {
+    return presentUser(await this.access.getUser(tenantId, userId, isPlatformHolder(actor.permissions)));
   }
 
   @RequirePermissions('users:write')
@@ -252,14 +270,14 @@ export class RolesController {
 
   @RequirePermissions('roles:read')
   @Get()
-  async list(@TenantId() tenantId: string, @Query({ schema: pageQuerySchema }) query: PageQuery) {
-    return presentPage(await this.access.listRoles(tenantId, query.limit, query.cursor), presentRole);
+  async list(@CurrentPrincipal() actor: Principal, @TenantId() tenantId: string, @Query({ schema: pageQuerySchema }) query: PageQuery) {
+    return presentPage(await this.access.listRoles(tenantId, query.limit, query.cursor, isPlatformHolder(actor.permissions)), presentRole);
   }
 
   @RequirePermissions('roles:read')
   @Get(':id')
-  async get(@TenantId() tenantId: string, @Param('id', { schema: id }) roleId: string) {
-    return presentRole(await this.access.getRole(tenantId, roleId));
+  async get(@CurrentPrincipal() actor: Principal, @TenantId() tenantId: string, @Param('id', { schema: id }) roleId: string) {
+    return presentRole(await this.access.getRole(tenantId, roleId, isPlatformHolder(actor.permissions)));
   }
 
   @RequirePermissions('roles:write')

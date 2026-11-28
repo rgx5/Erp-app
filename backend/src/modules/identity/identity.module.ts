@@ -6,13 +6,13 @@ import { AuthGuard } from './auth.guard.js';
 import { PrincipalCache } from './principal-cache.js';
 import { AuthService } from './auth.service.js';
 import { cryptoProviders, SECRET_BOX } from './crypto.providers.js';
-import { ApiKeysController, AuthController, PlatformTenantsController, RolesController, UsersController } from './identity.controller.js';
+import { ApiKeysController, AuthController, LicenceAdminController, PlatformTenantsController, RolesController, UsersController } from './identity.controller.js';
 import { PrincipalService } from './principal.service.js';
 import { EntitlementsService } from './entitlements.service.js';
 import { PlatformOpsService } from './platform-ops.service.js';
 
 @Module({
-  controllers: [PlatformTenantsController, AuthController, UsersController, RolesController, ApiKeysController],
+  controllers: [PlatformTenantsController, LicenceAdminController, AuthController, UsersController, RolesController, ApiKeysController],
   providers: [...cryptoProviders, PrincipalCache, PrincipalService, AuthService, AccessService, EntitlementsService, PlatformOpsService, PlatformAdminGuard, { provide: APP_GUARD, useClass: AuthGuard }],
   exports: [PrincipalService, SECRET_BOX],
 })
