@@ -20,6 +20,8 @@ import { businessLocations, gstRegistrations } from '../organization/organizatio
 import { computeInvoice, computeLine, paiseToMoney, placeOfSupply, supplyTypeOf, taxRegime, type LineTax, type Rates, type TaxRegime } from './gst.js';
 import { receivableAllocations, salesInvoiceLines, salesInvoices } from './sales.schema.js';
 import type { CreateInvoiceInput, CreateNoteInput, ListInvoicesQuery } from './sales.schemas.js';
+import { ensureAccount } from '../accounting/ensure-account.js';
+import { DEFAULT_TCS_SECTIONS, tcsOn } from './tcs.logic.js';
 import { SalesSettingsService, type SalesSettingsRow } from './sales-settings.service.js';
 
 export type InvoiceRow = typeof salesInvoices.$inferSelect;
@@ -69,7 +71,7 @@ export class SalesInvoiceService {
    */
   calculate(tenantId: string, input: CreateInvoiceInput) {
     return this.uow.inTenant(tenantId, async (tx) => {
-      const { customer, supplyType, pos, regime, lines, totals } = await this.priceDocument(tx, tenantId, input, { requireWarehouse: false });
+      const { customer, supplyType, pos, regime, lines, totals, tcs } = await this.priceDocument(tx, tenantId, input, { requireWarehouse: false });
       return {
         documentType: input.documentType, invoiceDate: input.invoiceDate, dueDate: await this.dueDate(tx, tenantId, customer.paymentTermsId, input.invoiceDate),
         customer: { id: customer.id, code: customer.code, name: customer.tradeName ?? customer.legalName, gstin: customer.gstin, gstTreatment: customer.gstTreatment },
@@ -78,7 +80,8 @@ export class SalesInvoiceService {
           lineNo: i + 1, itemId: l.itemId, description: l.description, hsn: l.hsn, quantity: l.quantity, unitPrice: l.unitPrice, discountPercent: l.discountPercent, taxInclusive: l.taxInclusive, taxCodeId: l.taxCodeId,
           rates: l.rates, taxableValue: moneyOf(l.tax.taxable), cgst: moneyOf(l.tax.cgst), sgst: moneyOf(l.tax.sgst), igst: moneyOf(l.tax.igst), cess: moneyOf(l.tax.cess), lineTotal: moneyOf(l.tax.total),
         })),
-        totals: { taxable: moneyOf(totals.taxable), cgst: moneyOf(totals.cgst), sgst: moneyOf(totals.sgst), igst: moneyOf(totals.igst), cess: moneyOf(totals.cess), payable: moneyOf(totals.payable), roundOff: moneyOf(totals.roundOff), grandTotal: moneyOf(totals.grand) },
+        totals: { taxable: moneyOf(totals.taxable), cgst: moneyOf(totals.cgst), sgst: moneyOf(totals.sgst), igst: moneyOf(totals.igst), cess: moneyOf(totals.cess), payable: moneyOf(totals.payable), roundOff: moneyOf(totals.roundOff), tcs: moneyOf(tcs.amount), grandTotal: moneyOf(totals.grand) },
+        tcs: tcs.section ? { section: tcs.section, rate: tcs.rate, base: moneyOf(tcs.base), amount: moneyOf(tcs.amount) } : null,
       };
     }, { readOnly: true });
   }
@@ -131,11 +134,24 @@ export class SalesInvoiceService {
     const totals = computeInvoice(lines.map((l) => l.tax), input.reverseCharge);
     if (input.documentType === 'bill_of_supply' && totals.cgst + totals.sgst + totals.igst + totals.cess > 0n) throw new AppError(422, 'bill_of_supply_has_tax', 'A bill of supply cannot carry tax');
 
-    return { registration, customer, supplyType, pos, regime, lines, totals };
+    const tcs = await this.tcsFor(tx, tenantId, input, totals.taxable);
+    return { registration, customer, supplyType, pos, regime, lines, totals: { ...totals, grand: totals.grand + tcs.amount, tcs: tcs.amount }, tcs };
+  }
+
+  /** Seller's TCS (section 206C): looked up from the business's own section table (seeded with the usual ones), on the taxable value unless a base is given. */
+  private async tcsFor(tx: Tx, tenantId: string, input: CreateInvoiceInput, taxable: bigint): Promise<{ section: string | null; rate: string | null; base: bigint; amount: bigint }> {
+    if (!input.tcs) return { section: null, rate: null, base: 0n, amount: 0n };
+    // read-only on purpose (a preview runs in a read-only transaction): until the business has its own sections, the usual ones apply
+    const mine = (await tx.execute<{ code: string; rate: string; status: string }>(sql`SELECT code, rate::text, status FROM erp.tcs_sections WHERE tenant_id = ${tenantId}::uuid`)).rows;
+    const row = mine.length > 0 ? mine.find((r) => r.code === input.tcs?.sectionCode) : DEFAULT_TCS_SECTIONS.filter((d) => d.code === input.tcs?.sectionCode).map((d) => ({ rate: d.rate, status: 'active' }))[0];
+    if (!row || row.status !== 'active') throw validationFailed([{ path: 'tcs.sectionCode', message: 'Unknown or inactive TCS section' }]);
+    const rate = (input.tcs.rate ?? row.rate).replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '');
+    const base = input.tcs.base ? moneyToUnits(input.tcs.base) / 100n : taxable;
+    return { section: input.tcs.sectionCode, rate, base, amount: tcsOn(base, rate) };
   }
 
   async postInvoice(tx: Tx, tenantId: string, actorId: string, input: CreateInvoiceInput, extras: InvoiceExtras = {}): Promise<Posted> {
-    const { registration, customer, supplyType, pos, regime, lines, totals } = await this.priceDocument(tx, tenantId, input, { requireWarehouse: true });
+    const { registration, customer, supplyType, pos, regime, lines, totals, tcs } = await this.priceDocument(tx, tenantId, input, { requireWarehouse: true });
     lines.forEach((l, i) => {
       const e = extras.lines?.[i];
       if (e) {
@@ -148,7 +164,7 @@ export class SalesInvoiceService {
     const header = {
       companyId: input.companyId, gstRegistrationId: registration.id, businessLocationId: input.businessLocationId ?? null, documentType: input.documentType, invoiceNo: allocation, invoiceDate: input.invoiceDate,
       customerId: customer.id, customerName: customer.tradeName ?? customer.legalName, customerGstin: customer.gstin, customerGstTreatment: customer.gstTreatment, placeOfSupply: pos, supplyType,
-      taxPayment: input.taxPayment ?? null, reverseCharge: input.reverseCharge, taxRegime: regime, originalInvoiceId: null, reason: null, orderId: extras.orderId ?? null, dueDate: await this.dueDate(tx, tenantId, customer.paymentTermsId, input.invoiceDate),
+      taxPayment: input.taxPayment ?? null, reverseCharge: input.reverseCharge, taxRegime: regime, tcsSection: tcs.section, tcsRate: tcs.rate, tcsBase: tcs.section ? moneyOf(tcs.base) : null, tcsAmount: moneyOf(tcs.amount), originalInvoiceId: null, reason: null, orderId: extras.orderId ?? null, dueDate: await this.dueDate(tx, tenantId, customer.paymentTermsId, input.invoiceDate),
     };
     return this.finish(tx, tenantId, actorId, invoiceId, header, lines, totals, 'invoice');
   }
@@ -220,7 +236,7 @@ export class SalesInvoiceService {
   }
 
   // ---- the shared posting step ----------------------------------------------------------------------------------------
-  private async finish(tx: Tx, tenantId: string, actorId: string, documentId: string, header: Omit<typeof salesInvoices.$inferInsert, 'tenantId' | 'id' | 'taxableTotal' | 'grandTotal'>, lines: PricedLine[], totals: ReturnType<typeof computeInvoice>, kind: 'invoice' | 'credit_note' | 'debit_note'): Promise<Posted> {
+  private async finish(tx: Tx, tenantId: string, actorId: string, documentId: string, header: Omit<typeof salesInvoices.$inferInsert, 'tenantId' | 'id' | 'taxableTotal' | 'grandTotal'>, lines: PricedLine[], totals: ReturnType<typeof computeInvoice> & { tcs?: bigint }, kind: 'invoice' | 'credit_note' | 'debit_note'): Promise<Posted> {
     const taxCharged = !header.reverseCharge;
     const needs: Parameters<SalesSettingsService['require']>[3] = ['receivableAccountId'];
     if (lines.some((l) => !l.isService)) needs.push('salesAccountId');
@@ -277,6 +293,7 @@ export class SalesInvoiceService {
       // grand = payable + roundOff: a positive round-off is extra income, a negative one a concession
       if (totals.roundOff > 0n) add(settings.roundOffAccountId, totals.roundOff, credit ? 'dr' : 'cr');
       if (totals.roundOff < 0n) add(settings.roundOffAccountId, -totals.roundOff, credit ? 'cr' : 'dr');
+      if (totals.tcs && totals.tcs > 0n) add(await ensureAccount(tx, tenantId, header.companyId, { code: '2250', name: 'TCS payable', type: 'liability', parentCode: '2200' }), totals.tcs, 'cr');
       add(settings.receivableAccountId, totals.grand, credit ? 'cr' : 'dr', header.customerId);
       const { entry } = await this.posting.post(tx, tenantId, {
         companyId: header.companyId, postingDate: header.invoiceDate, journalType: 'system', description: `${header.documentType.replaceAll('_', ' ')} ${header.invoiceNo} to ${header.customerName}`, lines: jl,

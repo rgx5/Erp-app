@@ -30,6 +30,8 @@ export const PERMISSIONS = [
   'cheques:post',
   'loans:read',
   'loans:post',
+  'tcs:read',
+  'tcs:manage',
   'sales:read',
   'sales:post',
   'sales:cancel',

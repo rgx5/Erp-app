@@ -9,7 +9,7 @@ export interface LineIn {
 export type DocType = 'tax_invoice' | 'bill_of_supply' | 'credit_note' | 'debit_note';
 export interface InvoiceIn {
   invoiceNo: string; documentType: DocType; invoiceDate: string; status: string; supplyType: string; taxPayment: string | null; reverseCharge: boolean; placeOfSupply: string;
-  taxableTotal: string; cgstTotal: string; sgstTotal: string; igstTotal: string; cessTotal: string; roundOff: string; grandTotal: string;
+  taxableTotal: string; cgstTotal: string; sgstTotal: string; igstTotal: string; cessTotal: string; roundOff: string; grandTotal: string; tcsAmount?: string;
   original: { invoiceNo: string; invoiceDate: string } | null; lines: LineIn[];
 }
 
@@ -98,7 +98,7 @@ export function buildEInvoice(inv: InvoiceIn, seller: PartyIn, buyer: PartyIn): 
     BuyerDtls: { Gstin: foreign ? 'URP' : buyer.gstin, LglNm: buyer.legalName.slice(0, 100), ...(buyer.tradeName ? { TrdNm: buyer.tradeName.slice(0, 100) } : {}), Pos: foreign ? '96' : inv.placeOfSupply, ...addr(buyer), Pin: foreign ? 999999 : Number(buyer.pincode), Stcd: foreign ? '96' : buyer.stateCode },
     ...(inv.original && inv.documentType !== 'tax_invoice' ? { PrecDocDtls: [{ InvNo: inv.original.invoiceNo, InvDt: dmy(inv.original.invoiceDate) }] } : {}),
     ItemList: items,
-    ValDtls: { AssVal: n2(inv.taxableTotal), CgstVal: n2(inv.cgstTotal), SgstVal: n2(inv.sgstTotal), IgstVal: n2(inv.igstTotal), CesVal: n2(inv.cessTotal), Disc: n2(disc), RndOffAmt: n2(inv.roundOff), TotInvVal: n2(inv.grandTotal) },
+    ValDtls: { AssVal: n2(inv.taxableTotal), CgstVal: n2(inv.cgstTotal), SgstVal: n2(inv.sgstTotal), IgstVal: n2(inv.igstTotal), CesVal: n2(inv.cessTotal), Disc: n2(disc), ...(Number(inv.tcsAmount ?? 0) > 0 ? { OthChrg: n2(inv.tcsAmount ?? '0') } : {}), RndOffAmt: n2(inv.roundOff), TotInvVal: n2(inv.grandTotal) },
   };
 }
 

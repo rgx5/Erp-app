@@ -46,6 +46,8 @@ export const createInvoiceSchema = z.strictObject({
   /** Required for SEZ and export customers: with payment of IGST, or without (under LUT / bond). */
   taxPayment: z.enum(['with_payment', 'without_payment']).optional(),
   lines: z.array(invoiceLine).min(1).max(500),
+  /** Tax collected at source on this sale (section 206C). The base defaults to the taxable value. */
+  tcs: z.strictObject({ sectionCode: text(60), rate: z.string().regex(/^\d{1,3}(\.\d{1,4})?$/, 'A percentage such as 1 or 2.5').optional(), base: money.optional() }).optional(),
 });
 
 const noteLine = z.strictObject({

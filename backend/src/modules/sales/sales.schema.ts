@@ -51,6 +51,11 @@ export const salesInvoices = erp.table('sales_invoices', {
   cessTotal: money('cess_total').notNull().default('0'),
   roundOff: money('round_off').notNull().default('0'),
   grandTotal: money('grand_total').notNull(),
+  /** Tax collected at source: the section, rate and base it was worked out on, and the amount (included in the grand total). */
+  tcsSection: text('tcs_section'),
+  tcsRate: numeric('tcs_rate', { precision: 7, scale: 4 }),
+  tcsBase: money('tcs_base'),
+  tcsAmount: money('tcs_amount').notNull().default('0'),
   originalInvoiceId: uuid('original_invoice_id'),
   reason: text('reason'),
   journalEntryId: uuid('journal_entry_id'),
@@ -295,4 +300,13 @@ export const paymentReminders = erp.table('payment_reminders', {
   message: text('message').notNull(),
   createdBy: uuid('created_by'),
   createdAt: ts('created_at').notNull().defaultNow(),
+});
+
+/** Mirrors db/migrations/0055_tcs.sql. */
+export const tcsSections = erp.table('tcs_sections', {
+  tenantId: uuid('tenant_id').notNull(), id: uuid('id').notNull(), code: text('code').notNull(), description: text('description').notNull(), rate: rate('rate').notNull(), status: text('status').notNull().default('active'),
+});
+export const tcsDeposits = erp.table('tcs_deposits', {
+  tenantId: uuid('tenant_id').notNull(), id: uuid('id').notNull(), companyId: uuid('company_id').notNull(), periodFrom: day('period_from').notNull(), periodTo: day('period_to').notNull(), amount: money('amount').notNull(),
+  depositedOn: day('deposited_on').notNull(), challanNo: text('challan_no'), accountId: uuid('account_id').notNull(), entryId: uuid('entry_id'), notes: text('notes'), createdBy: uuid('created_by'), createdAt: ts('created_at').notNull().defaultNow(),
 });

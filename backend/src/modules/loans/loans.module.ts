@@ -8,6 +8,7 @@ import { UnitOfWork } from '../../platform/database/unit-of-work.js';
 import { AppError, validationFailed } from '../../platform/http/errors.js';
 import { ApiZodBody } from '../../platform/http/validation.js';
 import { Idempotent } from '../../platform/services/idempotency.js';
+import { ensureAccount } from '../accounting/ensure-account.js';
 import { PostingService } from '../accounting/posting.service.js';
 import { AccountingModule } from '../accounting/accounting.controller.js';
 import { RequiresModule } from '../identity/entitlements.js';
@@ -77,18 +78,10 @@ export class LoansService {
     if (r.is_group || r.status !== 'active' || !types.includes(r.type)) throw validationFailed([{ path: 'accounts', message: `The ${what} must be an active ${types.join(' or ')} account that can be posted to` }]);
     return r.id;
   }
-  /** Accounts the standard chart does not have are added the first time they are needed. */
-  private async ensureAccount(tx: Tx, tenantId: string, companyId: string, code: string, name: string, type: 'asset' | 'income', parentCode: string): Promise<void> {
-    const have = (await tx.execute(sql`SELECT 1 FROM erp.accounts WHERE tenant_id = ${tenantId}::uuid AND company_id = ${companyId}::uuid AND code = ${code}`)).rows[0];
-    if (have) return;
-    const parent = (await tx.execute<{ id: string }>(sql`SELECT id FROM erp.accounts WHERE tenant_id = ${tenantId}::uuid AND company_id = ${companyId}::uuid AND code = ${parentCode}`)).rows[0];
-    await tx.execute(sql`INSERT INTO erp.accounts (tenant_id, id, company_id, code, name, type, parent_id, is_group) VALUES (${tenantId}::uuid, ${uuidv7()}::uuid, ${companyId}::uuid, ${code}, ${name}, ${type}, ${parent?.id ?? null}, false)`);
-  }
-
   create(tenantId: string, actorId: string, input: z.infer<typeof createLoanSchema>) {
     return this.uow.inTenant(tenantId, async (tx) => {
       const taken = input.direction === 'taken';
-      if (!taken) { await this.ensureAccount(tx, tenantId, input.companyId, '1150', 'Loans given', 'asset', '1100'); await this.ensureAccount(tx, tenantId, input.companyId, '4910', 'Interest income', 'income', '4000'); }
+      if (!taken) { await ensureAccount(tx, tenantId, input.companyId, { code: '1150', name: 'Loans given', type: 'asset', parentCode: '1100' }); await ensureAccount(tx, tenantId, input.companyId, { code: '4910', name: 'Interest income', type: 'income', parentCode: '4000' }); }
       const loanAccountId = await this.account(tx, tenantId, input.companyId, input.loanAccountId, taken ? '2310' : '1150', taken ? ['liability'] : ['asset'], taken ? 'loan (liability) account' : 'loans given (asset) account');
       const interestAccountId = await this.account(tx, tenantId, input.companyId, input.interestAccountId, taken ? '5800' : '4910', taken ? ['expense'] : ['income'], taken ? 'interest expense account' : 'interest income account');
       const bankAccountId = await this.account(tx, tenantId, input.companyId, input.bankAccountId, '1120', ['asset'], 'bank or cash account');

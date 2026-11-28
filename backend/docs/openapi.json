@@ -7259,6 +7259,28 @@
                       ],
                       "additionalProperties": false
                     }
+                  },
+                  "tcs": {
+                    "type": "object",
+                    "properties": {
+                      "sectionCode": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 60
+                      },
+                      "rate": {
+                        "type": "string",
+                        "pattern": "^\\d{1,3}(\\.\\d{1,4})?$"
+                      },
+                      "base": {
+                        "type": "string",
+                        "pattern": "^[0-9]{1,14}(\\.[0-9]{1,4})?$"
+                      }
+                    },
+                    "required": [
+                      "sectionCode"
+                    ],
+                    "additionalProperties": false
                   }
                 },
                 "required": [
@@ -7440,6 +7462,28 @@
                       ],
                       "additionalProperties": false
                     }
+                  },
+                  "tcs": {
+                    "type": "object",
+                    "properties": {
+                      "sectionCode": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 60
+                      },
+                      "rate": {
+                        "type": "string",
+                        "pattern": "^\\d{1,3}(\\.\\d{1,4})?$"
+                      },
+                      "base": {
+                        "type": "string",
+                        "pattern": "^[0-9]{1,14}(\\.[0-9]{1,4})?$"
+                      }
+                    },
+                    "required": [
+                      "sectionCode"
+                    ],
+                    "additionalProperties": false
                   }
                 },
                 "required": [
@@ -20850,6 +20894,242 @@
         ],
         "tags": [
           "loans"
+        ]
+      }
+    },
+    "/v1/tcs/sections": {
+      "get": {
+        "operationId": "TcsController_sections",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "tcs"
+        ]
+      },
+      "post": {
+        "operationId": "TcsController_createSection",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 60
+                  },
+                  "description": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "rate": {
+                    "type": "string",
+                    "pattern": "^\\d{1,3}(\\.\\d{1,4})?$"
+                  }
+                },
+                "required": [
+                  "code",
+                  "description",
+                  "rate"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "tcs"
+        ]
+      }
+    },
+    "/v1/tcs/sections/{id}": {
+      "patch": {
+        "operationId": "TcsController_updateSection",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "description": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "rate": {
+                    "type": "string",
+                    "pattern": "^\\d{1,3}(\\.\\d{1,4})?$"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": [
+                      "active",
+                      "inactive"
+                    ]
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "tcs"
+        ]
+      }
+    },
+    "/v1/tcs/register": {
+      "get": {
+        "operationId": "TcsController_register",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "tcs"
+        ]
+      }
+    },
+    "/v1/tcs/deposits": {
+      "get": {
+        "operationId": "TcsController_deposits",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "tcs"
+        ]
+      },
+      "post": {
+        "operationId": "TcsController_deposit",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "companyId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "periodFrom": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  },
+                  "periodTo": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  },
+                  "amount": {
+                    "type": "string",
+                    "pattern": "^\\d{1,14}(\\.\\d{1,2})?$"
+                  },
+                  "depositedOn": {
+                    "type": "string",
+                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$"
+                  },
+                  "challanNo": {
+                    "type": "string",
+                    "maxLength": 60
+                  },
+                  "bankAccountId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "notes": {
+                    "type": "string",
+                    "maxLength": 300
+                  }
+                },
+                "required": [
+                  "companyId",
+                  "periodFrom",
+                  "periodTo",
+                  "amount",
+                  "depositedOn",
+                  "bankAccountId"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "tcs"
         ]
       }
     }
