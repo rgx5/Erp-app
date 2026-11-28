@@ -1,6 +1,8 @@
 import { useNavigate, useSearch } from '@tanstack/react-router'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { ApiError } from '@/api/errors'
+import { can } from '@/auth/permissions'
+import { useSession } from '@/auth/session'
 import type { Party } from '@/api/schemas'
 import { isValid } from '@/domain/money'
 import { formatDate, formatInr, todayIso } from '@/domain/format'
@@ -15,6 +17,7 @@ import { emptyLine, isBlank, LineGrid, serialsOf, trackingIssue, type Line } fro
 import { FREQUENCIES, useCreateRecurring } from './recurringQueries'
 import { useCreateChallan, useCreateOrder, useCreateQuote } from './orderQueries'
 import { useCalculation, usePostInvoice, type InvoiceInput } from './queries'
+import { useTcsSections } from '@/features/tcs/queries'
 
 const REGISTERED_SPECIAL = new Set(['sez', 'overseas', 'deemed_export'])
 const qtyOk = (v: string): boolean => /^\d{1,12}(\.\d{1,6})?$/.test(v) && Number(v) > 0
@@ -58,6 +61,8 @@ function SalesDocEditor({ kind }: { kind: DocKind }) {
   const [warehouseId, setWarehouseId] = useState('')
   const [reverseCharge, setReverseCharge] = useState(false)
   const [taxPayment, setTaxPayment] = useState('')
+  const [tcsSection, setTcsSection] = useState('')
+  const tcsSections = useTcsSections(kind === 'invoice' && can(useSession((x) => x.me?.permissions ?? []), 'tcs:read'))
   const placeOfSupply = '' // the server works the place of supply out from the customer's addresses
   const [lines, setLines] = useState<Line[]>([emptyLine()])
   const [problem, setProblem] = useState<string | null>(null)
@@ -76,7 +81,8 @@ function SalesDocEditor({ kind }: { kind: DocKind }) {
 
   const regId = registrationId || ws.registrations[0]?.id || ''
   const whId = warehouseId || ws.warehouses[0]?.id || ''
-  const body = useMemo(() => (ws.company ? buildInvoiceBody({ companyId: ws.company.id, registrationId: regId, locationId, date, documentType, customer, reverseCharge, taxPayment, placeOfSupply }, lines.map((l) => ({ ...l, warehouseId: l.warehouseId || whId }))) : null), [ws.company, regId, locationId, date, documentType, customer, reverseCharge, taxPayment, placeOfSupply, lines, whId])
+  const baseBody = useMemo(() => (ws.company ? buildInvoiceBody({ companyId: ws.company.id, registrationId: regId, locationId, date, documentType, customer, reverseCharge, taxPayment, placeOfSupply }, lines.map((l) => ({ ...l, warehouseId: l.warehouseId || whId }))) : null), [ws.company, regId, locationId, date, documentType, customer, reverseCharge, taxPayment, placeOfSupply, lines, whId])
+  const body = useMemo(() => (baseBody && tcsSection && documentType === 'tax_invoice' ? { ...baseBody, tcs: { sectionCode: tcsSection } } : baseBody), [baseBody, tcsSection, documentType])
   const settled = useDebounced(body, 350)
   const calc = useCalculation(settled)
   const stale = JSON.stringify(settled) !== JSON.stringify(body)
@@ -155,6 +161,7 @@ function SalesDocEditor({ kind }: { kind: DocKind }) {
           {ws.locations.length > 1 ? <SelectField label="Place of business" value={locationId} onChange={(e) => setLocationId(e.target.value)} options={[{ value: '', label: 'Default' }, ...ws.locations.map((l) => ({ value: l.id, label: l.name }))]} /> : null}
           {ws.warehouses.length > 1 ? <SelectField label="Ship from" value={whId} onChange={(e) => setWarehouseId(e.target.value)} options={ws.warehouses.map((w) => ({ value: w.id, label: w.name }))} /> : null}
           {special ? <SelectField label="Tax on this supply" value={taxPayment} onChange={(e) => setTaxPayment(e.target.value)} options={[{ value: '', label: 'Choose…' }, { value: 'with_payment', label: 'With payment of IGST' }, { value: 'without_payment', label: 'Without payment (LUT / bond)' }]} /> : null}
+          {kind === 'invoice' && documentType === 'tax_invoice' && (tcsSections.data?.length ?? 0) > 0 ? <SelectField label="TCS (tax collected at source)" value={tcsSection} onChange={(e) => setTcsSection(e.target.value)} options={[{ value: '', label: 'None' }, ...(tcsSections.data ?? []).filter((x) => x.status === 'active').map((x) => ({ value: x.code, label: `${x.code} · ${x.rate}%` }))]} /> : null}
           <div className="flex items-end"><CheckField label="Reverse charge" hint="Tax is payable by the customer" checked={reverseCharge} onChange={(e) => setReverseCharge(e.target.checked)} /></div>
         </div>
       </Card>
@@ -175,6 +182,7 @@ function SalesDocEditor({ kind }: { kind: DocKind }) {
               {calc.data?.taxRegime === 'intra' ? <><Row label="CGST" value={t.cgst} /><Row label="SGST" value={t.sgst} /></> : <Row label="IGST" value={t.igst} />}
               {Number(t.cess) ? <Row label="Cess" value={t.cess} /> : null}
               {Number(t.roundOff) ? <Row label="Round off" value={t.roundOff} /> : null}
+              {Number(t.tcs ?? 0) ? <Row label="TCS" value={t.tcs as string} /> : null}
               <div className="border-l border-line pl-5 text-right"><dt className="eyebrow">Grand total</dt><dd className={`num text-[20px] font-semibold leading-tight ${calc.isFetching || stale ? 'opacity-50' : ''}`}>{formatInr(t.grandTotal)}</dd></div>
             </>
           </dl>

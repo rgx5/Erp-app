@@ -16,7 +16,7 @@ export function moduleOfPage(n: Pick<NavItem, 'to' | 'section'>): string | undef
   if (n.to === '/accounting/tds') return 'purchasing'
   if (n.to === '/gst') return 'gst'
   if (n.to === '/approvals') return 'approvals'
-  if (n.to.startsWith('/accounting/loans')) return 'accounting'
+  if (n.to.startsWith('/accounting/loans') || n.to === '/sales/tcs') return 'accounting'
   if (n.to === '/accounting/journals' || n.to === '/accounting/chart' || n.to === '/accounting/reports' || n.to === '/accounting/periods' || n.to === '/report-centre') return 'accounting'
   return ({ Sales: 'sales', Purchasing: 'purchasing', Inventory: 'inventory', Manufacturing: 'manufacturing', Payroll: 'payroll', 'Point of sale': 'pos', Leads: 'leads' } as Record<string, string>)[n.section ?? '']
 }
@@ -38,6 +38,7 @@ export const NAV: NavItem[] = [
   { to: '/sales/quotes', label: 'Quotes', icon: FileText, needs: ['sales:read'], section: 'Sales' },
   { to: '/sales/orders', label: 'Sales orders', icon: ClipboardList, needs: ['sales:read'], section: 'Sales' },
   { to: '/sales/invoices', label: 'Invoices', icon: FileText, needs: ['sales:read'], section: 'Sales' },
+  { to: '/sales/tcs', label: 'TCS register', icon: FileText, needs: ['tcs:read'], section: 'Sales' },
   { to: '/sales/cheques', label: 'Cheques received', icon: FileCheck, needs: ['cheques:read'], section: 'Sales' },
   { to: '/sales/receipts', label: 'Receipts', icon: ReceiptIcon, needs: ['receivables:read'], section: 'Sales' },
   { to: '/sales/reminders', label: 'Payment reminders', icon: BellRing, needs: ['receivables:read'], section: 'Sales' },

@@ -84,7 +84,7 @@ ${inv.reason ? `<div class="note"><span class="muted">Reason:</span> ${esc(inv.r
 <table class="items"><thead><tr><th>#</th><th>${esc(bilingual('Description'))}</th><th>${esc(bilingual('Qty'))}</th><th>${esc(bilingual('Rate'))}</th><th>${esc(bilingual('Disc.'))}</th><th>${esc(bilingual('Taxable'))}</th><th>GST</th><th>${esc(bilingual('Total'))}</th></tr></thead><tbody>${rows}</tbody></table>
 <div class="summary">
   <div class="words"><div class="label">${esc(bilingual('Amount in words'))}</div><div class="t">${esc(rupeesInWords(inv.grandTotal))}</div></div>
-  <div class="totals">${line(bilingual('Taxable value'), inv.taxableTotal)}${intra ? line('CGST', inv.cgstTotal) + line('SGST', inv.sgstTotal) : line('IGST', inv.igstTotal)}${line('Cess', inv.cessTotal)}${line(bilingual('Round off'), inv.roundOff)}
+  <div class="totals">${line(bilingual('Taxable value'), inv.taxableTotal)}${intra ? line('CGST', inv.cgstTotal) + line('SGST', inv.sgstTotal) : line('IGST', inv.igstTotal)}${line('Cess', inv.cessTotal)}${line(bilingual('Round off'), inv.roundOff)}${Number(inv.tcsAmount ?? 0) ? line(`TCS ${inv.tcsSection ?? ''} @ ${inv.tcsRate ?? ''}%`, inv.tcsAmount as string) : ''}
     <div class="grand"><span>${esc(bilingual('Grand total'))}</span><span class="num">${formatInr(inv.grandTotal)}</span></div></div>
 </div>
 <div class="foot">

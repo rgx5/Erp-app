@@ -161,6 +161,7 @@ function InvoiceDetail({ invoiceId }: { invoiceId: string }) {
           {intra ? <><Total label="CGST" value={inv.cgstTotal} /><Total label="SGST" value={inv.sgstTotal} /></> : <Total label="IGST" value={inv.igstTotal} />}
           {Number(inv.cessTotal) ? <Total label="Cess" value={inv.cessTotal} /> : null}
           {Number(inv.roundOff) ? <Total label="Round off" value={inv.roundOff} /> : null}
+          {Number(inv.tcsAmount ?? 0) ? <Total label={`TCS ${inv.tcsSection ?? ''} @ ${inv.tcsRate ?? ''}%`} value={inv.tcsAmount as string} /> : null}
           <div className="mt-1 flex justify-between border-t border-line pt-2 text-base font-semibold"><dt>Grand total</dt><dd className="num">{formatInr(inv.grandTotal)}</dd></div>
         </dl>
       </Card>

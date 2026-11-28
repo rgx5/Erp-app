@@ -1,7 +1,7 @@
 /** Hindi. Keys are the English text shown on screen. */
 export const hi: Record<string, string> = {
   // menu
-  Dashboard: 'डैशबोर्ड', Setup: 'सेटअप', Quotes: 'कोटेशन', 'Sales orders': 'बिक्री आदेश', Invoices: 'इनवॉइस', 'Cheques received': 'चेक प्राप्त', 'Cheques issued': 'चेक जारी', 'Loans taken': 'ऋण लिए', 'Loans given': 'ऋण दिए', Receipts: 'रसीदें', 'Payment reminders': 'भुगतान अनुस्मारक',
+  Dashboard: 'डैशबोर्ड', Setup: 'सेटअप', Quotes: 'कोटेशन', 'Sales orders': 'बिक्री आदेश', Invoices: 'इनवॉइस', 'Cheques received': 'चेक प्राप्त', 'Cheques issued': 'चेक जारी', 'Loans taken': 'ऋण लिए', 'TCS register': 'टीसीएस रजिस्टर', 'Loans given': 'ऋण दिए', Receipts: 'रसीदें', 'Payment reminders': 'भुगतान अनुस्मारक',
   TDS: 'टीडीएस',
   Leads: 'लीड', 'Lead reports': 'लीड रिपोर्ट', 'Lead sources': 'लीड स्रोत', 'Lead settings': 'लीड सेटिंग',
   'E-invoicing': 'ई-इनवॉइसिंग', 'E-invoice': 'ई-इनवॉइस',
