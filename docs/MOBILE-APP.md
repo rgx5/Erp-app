@@ -1,3 +1,5 @@
+> **Update:** the phone app is now the full desktop client in a phone layout, wrapped for Android with Capacitor (online only). Publishing it on Google Play is described in [PLAY-STORE.md](PLAY-STORE.md). The older Expo app described below is kept for reference and is no longer built by default.
+
 # OneSyncERP mobile app (Android)
 
 The phone app is the Expo / React Native app in the repository root (`src/`). It talks **only to the OneSyncERP platform** (the NestJS

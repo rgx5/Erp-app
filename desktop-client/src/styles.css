@@ -146,4 +146,13 @@ main table > tbody > tr > td { padding-top: 7px; padding-bottom: 7px; }
   [role="tab"] { white-space: nowrap; flex-shrink: 0; }
   .line-row input:not([type="checkbox"]) { border: 1px solid var(--color-line-strong); border-radius: 6px; padding: 0 10px; background: var(--color-surface); }
   .line-row input[aria-label="Item"] { text-align: left; }
+  /* the keyboard hint means nothing on a phone */
+  .kbd-hint { display: none; }
+  input[type="date"] { min-width: 0; width: 100%; padding-left: 10px; padding-right: 6px; }
+  /* the totals bar under an invoice: figures wrap, the grand total gets its own line, the button is full width */
+  .doc-bar { flex-direction: column; align-items: stretch !important; gap: 8px !important; margin-left: -16px !important; margin-right: -16px !important; padding: 10px 16px !important; }
+  .doc-totals { flex-wrap: wrap; justify-content: space-between; gap: 4px 14px !important; }
+  .doc-totals > div { text-align: left !important; }
+  .doc-totals > div:last-child { flex: 1 0 100%; display: flex; justify-content: space-between; align-items: baseline; border-left: 0 !important; padding-left: 0 !important; border-top: 1px solid var(--color-line); padding-top: 4px; }
+  .doc-bar > button { width: 100%; height: 44px !important; }
 }

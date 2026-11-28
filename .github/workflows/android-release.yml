@@ -1,0 +1,128 @@
+name: Android release (Play Store)
+
+# Builds the signed Android App Bundle (.aab) that Google Play requires, plus a signed APK for checking on a phone.
+# Run it by hand ("Run workflow") or by pushing a tag like  android-v1.0.3 .
+# Needs these repository secrets (make them once with scripts/android-upload-key.sh); the build refuses to run without them:
+#   ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
+# Optional, to upload to Google Play straight from here:  PLAY_SERVICE_ACCOUNT_JSON  (a service account with release permission on the app).
+# Store builds are https-only (no CAP_CLEARTEXT), have web debugging off, and do not allow Android cloud/adb backup of the app's data.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version shown to users, e.g. 1.0.3'
+        required: true
+        default: '1.0.0'
+      track:
+        description: 'Upload to Google Play? (needs PLAY_SERVICE_ACCOUNT_JSON)'
+        required: true
+        type: choice
+        default: none
+        options: [none, internal, alpha, beta, production]
+  push:
+    tags: ['android-v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: desktop-client
+    env:
+      VERSION: ${{ github.event.inputs.version || github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the signing secrets exist
+        env:
+          KS: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          PW: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          AL: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          [ -n "$KS" ] && [ -n "$PW" ] && [ -n "$AL" ] || { echo "::error::Add ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS and ANDROID_KEY_PASSWORD as repository secrets first (see scripts/android-upload-key.sh)."; exit 1; }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: desktop-client/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci
+      - name: Check, then build the web app
+        run: |
+          npx tsc --noEmit
+          npx vite build --config vite.web.config.mts
+      - name: App icon
+        run: |
+          mkdir -p resources
+          cp ../assets/icon.png resources/icon-only.png
+          cp ../assets/adaptive-icon.png resources/icon-foreground.png
+          cp ../assets/adaptive-icon-mono.png resources/icon-monochrome.png || true
+          python3 - <<'PY'
+          import zlib, struct
+          w = h = 1024
+          row = b'\x00' + bytes([0x00, 0x49, 0xF9]) * w
+          raw = row * h
+          def chunk(t, d): return struct.pack('>I', len(d)) + t + d + struct.pack('>I', zlib.crc32(t + d) & 0xffffffff)
+          open('resources/icon-background.png', 'wb').write(b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, 2, 0, 0, 0)) + chunk(b'IDAT', zlib.compress(raw, 9)) + chunk(b'IEND', b''))
+          PY
+      - name: Create the Android project
+        run: |
+          npx cap add android
+          npx capacitor-assets generate --android --iconBackgroundColor '#0049F9' --iconBackgroundColorDark '#0049F9'
+          npx cap sync android
+      - name: Version, target level, and store hardening
+        run: |
+          NAME="${VERSION#android-v}"
+          CODE=$(( 1000 + ${{ github.run_number }} ))
+          sed -i -E "s/versionCode [0-9]+/versionCode $CODE/; s/versionName \"[^\"]*\"/versionName \"$NAME\"/" android/app/build.gradle
+          sed -i 's/android:allowBackup="true"/android:allowBackup="false"/' android/app/src/main/AndroidManifest.xml
+          grep -n "versionCode\|versionName" android/app/build.gradle
+          grep -n "allowBackup" android/app/src/main/AndroidManifest.xml
+          grep -q 'allowBackup="false"' android/app/src/main/AndroidManifest.xml || { echo "::error::could not turn backup off"; exit 1; }
+          T=$(grep -E "targetSdkVersion *=" android/variables.gradle | grep -oE "[0-9]+")
+          echo "target SDK $T"
+          [ "$T" -ge 36 ] || { echo "::error::Google Play needs target API 36 or higher (found $T)"; exit 1; }
+          grep -c "usesCleartextTraffic" android/app/src/main/AndroidManifest.xml || true
+      - name: Signing key
+        env:
+          KS: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          echo "$KS" | base64 -d > "$RUNNER_TEMP/release.jks"
+          echo "KEYSTORE=$RUNNER_TEMP/release.jks" >> "$GITHUB_ENV"
+      - name: Build the bundle and the APK
+        working-directory: desktop-client/android
+        env:
+          PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEYPASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          ./gradlew bundleRelease assembleRelease --no-daemon \
+            -Pandroid.injected.signing.store.file="$KEYSTORE" -Pandroid.injected.signing.store.password="$PASS" \
+            -Pandroid.injected.signing.key.alias="$ALIAS" -Pandroid.injected.signing.key.password="${KEYPASS:-$PASS}"
+      - name: Collect
+        run: |
+          mkdir -p ../dist
+          cp android/app/build/outputs/bundle/release/app-release.aab ../dist/onesync-erp-${VERSION#android-v}.aab
+          cp android/app/build/outputs/apk/release/app-release.apk ../dist/onesync-erp-${VERSION#android-v}.apk
+          ls -l ../dist
+      - uses: actions/upload-artifact@v4
+        with:
+          name: onesync-erp-play-release
+          path: dist/*
+          retention-days: 90
+      - name: Upload to Google Play
+        if: ${{ github.event.inputs.track != '' && github.event.inputs.track != 'none' }}
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.onesync.erp.mobile
+          releaseFiles: dist/*.aab
+          track: ${{ github.event.inputs.track }}
+          status: draft

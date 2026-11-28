@@ -1,5 +1,5 @@
 import { Link, useNavigate } from '@tanstack/react-router'
-import { BookOpen, Building2, ChevronDown, Download, FolderOpen, Info, LayoutPanelLeft, LogOut, UserCog } from 'lucide-react'
+import { BookOpen, Building2, ChevronDown, Download, FolderOpen, Info, LayoutPanelLeft, LogOut, ShieldCheck, UserCog } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { useReachability } from '@/api/reachability'
 import { useSession } from '@/auth/session'
@@ -34,6 +34,7 @@ export function UserMenu() {
           <button role="menuitem" type="button" onClick={() => { setOpen(false); void go({ to: '/account' as never }) }} className="mt-1 flex h-8 w-full items-center gap-2 rounded px-2.5 text-[13px] hover:bg-sunken"><UserCog className="size-4 text-muted" aria-hidden />My account and layout</button>
           <button role="menuitem" type="button" onClick={() => { setOpen(false); setLayout(layout === 'command' ? 'classic' : 'command') }} className="flex h-8 w-full items-center gap-2 rounded px-2.5 text-[13px] hover:bg-sunken"><LayoutPanelLeft className="size-4 text-muted" aria-hidden />{layout === 'command' ? 'Switch to the classic layout' : 'Switch to the command-centre layout'}</button>
           <a role="menuitem" href="https://docs.onesyncerp.com" target="_blank" rel="noreferrer" onClick={() => setOpen(false)} className="flex h-8 w-full items-center gap-2 rounded px-2.5 text-[13px] hover:bg-sunken"><BookOpen className="size-4 text-muted" aria-hidden />Help and documentation</a>
+          <a role="menuitem" href="https://onesyncerp.com/privacy" target="_blank" rel="noreferrer" onClick={() => setOpen(false)} className="flex h-8 w-full items-center gap-2 rounded px-2.5 text-[13px] hover:bg-sunken"><ShieldCheck className="size-4 text-muted" aria-hidden />Privacy policy</a>
           {window.onesync ? (
             <div className="my-1 border-y border-line py-1">
               <button role="menuitem" type="button" onClick={() => { setOpen(false); void window.onesync?.app.about() }} className="flex h-8 w-full items-center gap-2 rounded px-2.5 text-[13px] hover:bg-sunken"><Info className="size-4 text-muted" aria-hidden />About OneSyncERP</button>

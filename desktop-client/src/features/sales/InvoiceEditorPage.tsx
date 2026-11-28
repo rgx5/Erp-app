@@ -148,7 +148,7 @@ function SalesDocEditor({ kind }: { kind: DocKind }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <PageHeader title={words.title} sub={<><kbd>Ctrl</kbd> <kbd>S</kbd> saves · <kbd>Enter</kbd> moves to the next field</>} />
+      <PageHeader title={words.title} sub={<span className="kbd-hint"><kbd>Ctrl</kbd> <kbd>S</kbd> saves · <kbd>Enter</kbd> moves to the next field</span>} />
       <Card>
         <div className="grid grid-cols-4 gap-4">
           <div className="col-span-2"><PartyPicker role="customer" value={customer} onPick={(p) => { setCustomer(p); setTaxPayment('') }} autoFocus /></div>
@@ -178,14 +178,14 @@ function SalesDocEditor({ kind }: { kind: DocKind }) {
       <LineGrid partyId={customer?.id} lines={lines} onChange={setLines} warehouses={ws.warehouses} computed={computed as { taxableValue: string; lineTotal: string }[]} />
       <Button variant="ghost" className="self-start" onClick={() => setLines([...lines, emptyLine(whId)])}>+ Add line</Button>
 
-      <div className="sticky bottom-0 z-10 -mx-6 -mb-5 mt-2 flex items-center gap-6 border-t border-line-strong bg-surface px-6 py-3">
+      <div className="doc-bar sticky bottom-0 z-10 -mx-6 -mb-5 mt-2 flex items-center gap-6 border-t border-line-strong bg-surface px-6 py-3">
         <div className="flex min-w-0 flex-1 flex-col gap-1.5">
           {calc.data ? <p className="truncate text-[12.5px] text-muted">Place of supply {stateName(calc.data.placeOfSupply)} · {calc.data.taxRegime === 'intra' ? 'CGST + SGST' : 'IGST'}{calc.data.dueDate ? ` · due ${calc.data.dueDate.split('-').reverse().join('/')}` : ''}</p> : <p className="text-[12.5px] text-muted">Choose a customer and fill in at least one line to see the totals.</p>}
           {calcError ? <Alert>{calcError}</Alert> : null}
           {problem ? <Alert>{problem}</Alert> : null}
         </div>
         {t ? (
-          <dl className="flex items-center gap-5 text-[13px]" aria-label="Totals" aria-busy={calc.isFetching || stale}>
+          <dl className="doc-totals flex items-center gap-5 text-[13px]" aria-label="Totals" aria-busy={calc.isFetching || stale}>
             <>
               <Row label="Taxable value" value={t.taxable} />
               {calc.data?.taxRegime === 'intra' ? <><Row label="CGST" value={t.cgst} /><Row label="SGST" value={t.sgst} /></> : <Row label="IGST" value={t.igst} />}

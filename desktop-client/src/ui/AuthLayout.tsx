@@ -32,6 +32,7 @@ export function AuthLayout({ children }: { children: ReactNode }) {
         <div className="mb-5 flex flex-col items-center gap-2 lg:hidden"><Logo className="size-14 drop-shadow-sm" /><h1 className="text-lg font-semibold tracking-tight">OneSyncERP</h1></div>
         <div className="w-full max-w-md">{children}</div>
         <p className="mt-6 text-center text-xs text-faint">Need help signing in? Ask your administrator.</p>
+        <p className="mt-2 text-center text-xs text-faint"><a className="underline" href="https://onesyncerp.com/privacy" target="_blank" rel="noreferrer">Privacy policy</a> · <a className="underline" href="https://onesyncerp.com/terms" target="_blank" rel="noreferrer">Terms of use</a></p>
       </main>
     </div>
   )

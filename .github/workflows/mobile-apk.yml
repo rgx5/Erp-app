@@ -2,6 +2,7 @@ name: Mobile app (Android)
 
 # The phone app is the same client as the desktop app (desktop-client/), shown in an Android shell with a phone layout. It is online only.
 # Every push to main or a ccr-* branch, or "Run workflow", builds one APK and publishes it to the apk-latest pre-release.
+# This is the PRIVATE test build (may talk to plain-http servers). The Play Store build is android-release.yml.
 # Signed with your release key when these repository secrets exist, otherwise with the fixed test key in desktop-client/mobile (so a new build installs over the old one):
 #   ANDROID_KEYSTORE_BASE64, ANDROID_KEYSTORE_PASSWORD, ANDROID_KEY_ALIAS, ANDROID_KEY_PASSWORD
 
@@ -54,6 +55,8 @@ jobs:
           open('resources/icon-background.png', 'wb').write(png)
           PY
       - name: Create the Android project
+        env:
+          CAP_CLEARTEXT: '1'   # private test builds may reach a plain-http server on an office network; store builds never do
         run: |
           npx cap add android
           npx capacitor-assets generate --android --iconBackgroundColor '#0049F9' --iconBackgroundColorDark '#0049F9'
