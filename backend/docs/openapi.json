@@ -20460,6 +20460,398 @@
           "cheques"
         ]
       }
+    },
+    "/v1/loans/preview": {
+      "post": {
+        "operationId": "Loans_preview",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "principal": {
+                    "type": "string"
+                  },
+                  "annualRate": {
+                    "type": "number"
+                  },
+                  "method": {
+                    "type": "string",
+                    "enum": [
+                      "reducing",
+                      "flat"
+                    ]
+                  },
+                  "tenureMonths": {
+                    "type": "number"
+                  },
+                  "firstDueOn": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "principal",
+                  "annualRate",
+                  "tenureMonths",
+                  "firstDueOn"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "loans"
+        ]
+      }
+    },
+    "/v1/loans": {
+      "get": {
+        "operationId": "Loans_list",
+        "parameters": [
+          {
+            "name": "companyId",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "direction",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "loans"
+        ]
+      },
+      "post": {
+        "operationId": "Loans_create",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "companyId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "direction": {
+                    "type": "string",
+                    "enum": [
+                      "taken",
+                      "given"
+                    ]
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "partyId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "principal": {
+                    "type": "string"
+                  },
+                  "annualRate": {
+                    "type": "number"
+                  },
+                  "method": {
+                    "type": "string",
+                    "enum": [
+                      "reducing",
+                      "flat"
+                    ]
+                  },
+                  "tenureMonths": {
+                    "type": "number"
+                  },
+                  "firstDueOn": {
+                    "type": "string"
+                  },
+                  "disbursedOn": {
+                    "type": "string"
+                  },
+                  "bankAccountId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "loanAccountId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "interestAccountId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "notes": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "companyId",
+                  "direction",
+                  "name",
+                  "principal",
+                  "annualRate",
+                  "tenureMonths",
+                  "disbursedOn",
+                  "bankAccountId"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "loans"
+        ]
+      }
+    },
+    "/v1/loans/{id}": {
+      "get": {
+        "operationId": "Loans_get",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "loans"
+        ]
+      }
+    },
+    "/v1/loans/{id}/instalments/{no}/pay": {
+      "post": {
+        "operationId": "Loans_pay",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "no",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "date": {
+                    "type": "string"
+                  },
+                  "accountId": {
+                    "type": "string",
+                    "format": "uuid"
+                  }
+                },
+                "required": [
+                  "date"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "loans"
+        ]
+      }
+    },
+    "/v1/loans/{id}/foreclose": {
+      "post": {
+        "operationId": "Loans_foreclose",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "date": {
+                    "type": "string"
+                  },
+                  "accountId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "interest": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "date"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "loans"
+        ]
+      }
+    },
+    "/v1/loans/{id}/cancel": {
+      "post": {
+        "operationId": "Loans_cancel",
+        "parameters": [
+          {
+            "name": "id",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "date": {
+                    "type": "string"
+                  },
+                  "reason": {
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "date",
+                  "reason"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "loans"
+        ]
+      }
     }
   },
   "info": {

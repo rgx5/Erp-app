@@ -28,6 +28,8 @@ export const PERMISSIONS = [
   'stock:manage',
   'cheques:read',
   'cheques:post',
+  'loans:read',
+  'loans:post',
   'sales:read',
   'sales:post',
   'sales:cancel',

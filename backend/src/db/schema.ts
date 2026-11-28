@@ -19,3 +19,4 @@ export * from '../modules/leads/leads.schema.js';
 export * from '../modules/purchasing/tds.schema.js';
 export * from '../modules/masterdata/party-rates.schema.js';
 export * from '../modules/cheques/cheques.schema.js';
+export * from '../modules/loans/loans.schema.js';

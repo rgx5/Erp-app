@@ -1,6 +1,6 @@
 /** Marathi. Keys are the English text shown on screen. */
 export const mr: Record<string, string> = {
-  Dashboard: 'डॅशबोर्ड', Setup: 'सेटअप', Quotes: 'कोटेशन', 'Sales orders': 'विक्री ऑर्डर', Invoices: 'इनव्हॉइस', 'Cheques received': 'मिळालेले धनादेश', 'Cheques issued': 'दिलेले धनादेश', Receipts: 'पावत्या', 'Payment reminders': 'पेमेंट स्मरणपत्रे',
+  Dashboard: 'डॅशबोर्ड', Setup: 'सेटअप', Quotes: 'कोटेशन', 'Sales orders': 'विक्री ऑर्डर', Invoices: 'इनव्हॉइस', 'Cheques received': 'मिळालेले धनादेश', 'Cheques issued': 'दिलेले धनादेश', 'Loans taken': 'घेतलेली कर्जे', 'Loans given': 'दिलेली कर्जे', Receipts: 'पावत्या', 'Payment reminders': 'पेमेंट स्मरणपत्रे',
   TDS: 'टीडीएस',
   Leads: 'लीड', 'Lead reports': 'लीड अहवाल', 'Lead sources': 'लीड स्रोत', 'Lead settings': 'लीड सेटिंग्ज',
   'E-invoicing': 'ई-इनव्हॉइसिंग', 'E-invoice': 'ई-इनव्हॉइस',
