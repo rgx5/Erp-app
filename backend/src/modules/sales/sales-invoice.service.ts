@@ -6,7 +6,7 @@ import { UnitOfWork } from '../../platform/database/unit-of-work.js';
 import { AppError, validationFailed } from '../../platform/http/errors.js';
 import { decodeCursor, encodeCursor } from '../../platform/http/validation.js';
 import { journalLines } from '../accounting/accounting.schema.js';
-import { toUnits as moneyToUnits } from '../accounting/money.js';
+import { fromUnits, toUnits as moneyToUnits } from '../accounting/money.js';
 import { PostingService, type PostingLine } from '../accounting/posting.service.js';
 import { qty, value as stockValue } from '../inventory/decimal.js';
 import { stockLedger, stockLedgerSerials, stockSerials } from '../inventory/inventory.schema.js';
@@ -22,6 +22,7 @@ import { receivableAllocations, salesInvoiceLines, salesInvoices } from './sales
 import type { CreateInvoiceInput, CreateNoteInput, ListInvoicesQuery } from './sales.schemas.js';
 import { ensureAccount } from '../accounting/ensure-account.js';
 import { DEFAULT_TCS_SECTIONS, tcsOn } from './tcs.logic.js';
+import { toForeignUnits, toInr, toPaiseUnits } from './fx.logic.js';
 import { SalesSettingsService, type SalesSettingsRow } from './sales-settings.service.js';
 
 export type InvoiceRow = typeof salesInvoices.$inferSelect;
@@ -30,6 +31,7 @@ export interface Posted { invoice: InvoiceRow; lines: InvoiceLineRow[]; warnings
 
 const ZERO: Rates = { igst: '0', cgst: '0', sgst: '0', cess: '0' };
 const moneyOf = (paise: bigint): string => paiseToMoney(paise);
+const fromUnitsPaise = (units: bigint): string => fromUnits(units);
 
 /** A document line after pricing and tax, before it is written. */
 interface PricedLine {
@@ -71,7 +73,7 @@ export class SalesInvoiceService {
    */
   calculate(tenantId: string, input: CreateInvoiceInput) {
     return this.uow.inTenant(tenantId, async (tx) => {
-      const { customer, supplyType, pos, regime, lines, totals, tcs } = await this.priceDocument(tx, tenantId, input, { requireWarehouse: false });
+      const { customer, supplyType, pos, regime, lines, totals, tcs, currency } = await this.priceDocument(tx, tenantId, input, { requireWarehouse: false });
       return {
         documentType: input.documentType, invoiceDate: input.invoiceDate, dueDate: await this.dueDate(tx, tenantId, customer.paymentTermsId, input.invoiceDate),
         customer: { id: customer.id, code: customer.code, name: customer.tradeName ?? customer.legalName, gstin: customer.gstin, gstTreatment: customer.gstTreatment },
@@ -82,6 +84,7 @@ export class SalesInvoiceService {
         })),
         totals: { taxable: moneyOf(totals.taxable), cgst: moneyOf(totals.cgst), sgst: moneyOf(totals.sgst), igst: moneyOf(totals.igst), cess: moneyOf(totals.cess), payable: moneyOf(totals.payable), roundOff: moneyOf(totals.roundOff), tcs: moneyOf(tcs.amount), grandTotal: moneyOf(totals.grand) },
         tcs: tcs.section ? { section: tcs.section, rate: tcs.rate, base: moneyOf(tcs.base), amount: moneyOf(tcs.amount) } : null,
+        currency: currency.code, exchangeRate: currency.rate, foreignTotal: currency.foreignTotal,
       };
     }, { readOnly: true });
   }
@@ -91,6 +94,8 @@ export class SalesInvoiceService {
    * tax and totals. Invoices post the result; quotes and orders use it for estimates.
    */
   async priceDocument(tx: Tx, tenantId: string, input: CreateInvoiceInput, opts: { requireWarehouse: boolean }) {
+    const fx = await this.fxFor(tx, tenantId, input);
+    if (fx) input = { ...input, lines: input.lines.map((l) => ({ ...l, unitPrice: toInr(l.unitPrice, fx.rate) })) };
     const registration = await this.registrationFor(tx, tenantId, input.companyId, input.gstRegistrationId, input.invoiceDate, input.documentType);
     if (input.businessLocationId) {
       const [loc] = await tx.select({ id: businessLocations.id }).from(businessLocations).where(and(eq(businessLocations.tenantId, tenantId), eq(businessLocations.companyId, input.companyId), eq(businessLocations.id, input.businessLocationId)));
@@ -135,7 +140,19 @@ export class SalesInvoiceService {
     if (input.documentType === 'bill_of_supply' && totals.cgst + totals.sgst + totals.igst + totals.cess > 0n) throw new AppError(422, 'bill_of_supply_has_tax', 'A bill of supply cannot carry tax');
 
     const tcs = await this.tcsFor(tx, tenantId, input, totals.taxable);
-    return { registration, customer, supplyType, pos, regime, lines, totals: { ...totals, grand: totals.grand + tcs.amount, tcs: tcs.amount }, tcs };
+    const grand = totals.grand + tcs.amount;
+    const foreignTotal = fx ? fromUnitsPaise(toPaiseUnits(toForeignUnits(grand * 100n, fx.rate))) : null;
+    return { registration, customer, supplyType, pos, regime, lines, totals: { ...totals, grand, tcs: tcs.amount }, tcs, currency: fx ? { code: fx.currency, rate: fx.rate, foreignTotal } : { code: 'INR', rate: '1', foreignTotal: null } };
+  }
+
+  /** The rate for a foreign-currency sale: given, or the one in force on the invoice date. Rupee sales return null. */
+  private async fxFor(tx: Tx, tenantId: string, input: CreateInvoiceInput): Promise<{ currency: string; rate: string } | null> {
+    if (!input.currency || input.currency === 'INR') {
+      if (input.exchangeRate) throw validationFailed([{ path: 'exchangeRate', message: 'An exchange rate only goes with a foreign currency' }]);
+      return null;
+    }
+    const rate = input.exchangeRate ?? (await this.catalog.rateOn(tx, tenantId, input.currency, 'INR', input.invoiceDate)).rate;
+    return { currency: input.currency, rate: rate.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, '') };
   }
 
   /** Seller's TCS (section 206C): looked up from the business's own section table (seeded with the usual ones), on the taxable value unless a base is given. */
@@ -151,7 +168,7 @@ export class SalesInvoiceService {
   }
 
   async postInvoice(tx: Tx, tenantId: string, actorId: string, input: CreateInvoiceInput, extras: InvoiceExtras = {}): Promise<Posted> {
-    const { registration, customer, supplyType, pos, regime, lines, totals, tcs } = await this.priceDocument(tx, tenantId, input, { requireWarehouse: true });
+    const { registration, customer, supplyType, pos, regime, lines, totals, tcs, currency } = await this.priceDocument(tx, tenantId, input, { requireWarehouse: true });
     lines.forEach((l, i) => {
       const e = extras.lines?.[i];
       if (e) {
@@ -164,7 +181,7 @@ export class SalesInvoiceService {
     const header = {
       companyId: input.companyId, gstRegistrationId: registration.id, businessLocationId: input.businessLocationId ?? null, documentType: input.documentType, invoiceNo: allocation, invoiceDate: input.invoiceDate,
       customerId: customer.id, customerName: customer.tradeName ?? customer.legalName, customerGstin: customer.gstin, customerGstTreatment: customer.gstTreatment, placeOfSupply: pos, supplyType,
-      taxPayment: input.taxPayment ?? null, reverseCharge: input.reverseCharge, taxRegime: regime, tcsSection: tcs.section, tcsRate: tcs.rate, tcsBase: tcs.section ? moneyOf(tcs.base) : null, tcsAmount: moneyOf(tcs.amount), originalInvoiceId: null, reason: null, orderId: extras.orderId ?? null, dueDate: await this.dueDate(tx, tenantId, customer.paymentTermsId, input.invoiceDate),
+      taxPayment: input.taxPayment ?? null, reverseCharge: input.reverseCharge, taxRegime: regime, currency: currency.code, exchangeRate: currency.rate, foreignTotal: currency.foreignTotal, tcsSection: tcs.section, tcsRate: tcs.rate, tcsBase: tcs.section ? moneyOf(tcs.base) : null, tcsAmount: moneyOf(tcs.amount), originalInvoiceId: null, reason: null, orderId: extras.orderId ?? null, dueDate: await this.dueDate(tx, tenantId, customer.paymentTermsId, input.invoiceDate),
     };
     return this.finish(tx, tenantId, actorId, invoiceId, header, lines, totals, 'invoice');
   }
@@ -230,6 +247,7 @@ export class SalesInvoiceService {
     const header = {
       companyId: original.companyId, gstRegistrationId: original.gstRegistrationId, businessLocationId: original.businessLocationId, documentType: kind, invoiceNo: noteNo, invoiceDate: input.noteDate,
       customerId: original.customerId, customerName: original.customerName, customerGstin: original.customerGstin, customerGstTreatment: original.customerGstTreatment, placeOfSupply: original.placeOfSupply,
+      currency: original.currency, exchangeRate: original.exchangeRate, foreignTotal: original.currency === 'INR' ? null : fromUnits(toPaiseUnits(toForeignUnits(totals.grand * 100n, original.exchangeRate.replace(/(\.\d*?)0+$/, '$1').replace(/\.$/, ''))) ),
       supplyType: original.supplyType, taxPayment: original.taxPayment, reverseCharge: original.reverseCharge, taxRegime: original.taxRegime, originalInvoiceId: original.id, reason: input.reason,
     };
     return this.finish(tx, tenantId, actorId, noteId, header, lines, totals, kind);

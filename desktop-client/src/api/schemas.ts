@@ -120,7 +120,7 @@ export const invoiceHeader = z.object({
   id: z.string(), companyId: z.string(), gstRegistrationId: z.string(), documentType: z.string(), invoiceNo: z.string(), invoiceDate: z.string(), customerId: z.string(), customerName: z.string(), customerGstin: z.string().nullable(),
   customerGstTreatment: z.string(), placeOfSupply: z.string(), supplyType: z.string(), taxPayment: z.string().nullable(), reverseCharge: z.boolean(), taxRegime: z.string(),
   taxableTotal: z.string(), cgstTotal: z.string(), sgstTotal: z.string(), igstTotal: z.string(), cessTotal: z.string(), roundOff: z.string(), grandTotal: z.string(),
-  tcsSection: z.string().nullable().optional(), tcsRate: z.string().nullable().optional(), tcsAmount: z.string().optional(),
+  currency: z.string().optional(), exchangeRate: z.string().optional(), foreignTotal: z.string().nullable().optional(), tcsSection: z.string().nullable().optional(), tcsRate: z.string().nullable().optional(), tcsAmount: z.string().optional(),
   originalInvoiceId: z.string().nullable(), reason: z.string().nullable(), status: z.string(), cancelledAt: z.string().nullable(), cancelDate: z.string().nullable(), cancelReason: z.string().nullable(), dueDate: z.string().nullable(), createdAt: z.string(),
 })
 export type InvoiceHeader = z.infer<typeof invoiceHeader>
@@ -135,6 +135,7 @@ export const calculation = z.object({
   lines: z.array(z.object({ lineNo: z.number(), itemId: z.string(), description: z.string(), hsn: z.string().nullable(), quantity: z.string(), unitPrice: z.string(), discountPercent: z.string(), taxInclusive: z.boolean(), rates: taxRates, taxableValue: z.string(), cgst: z.string(), sgst: z.string(), igst: z.string(), cess: z.string(), lineTotal: z.string() })),
   totals: z.object({ taxable: z.string(), cgst: z.string(), sgst: z.string(), igst: z.string(), cess: z.string(), payable: z.string(), roundOff: z.string(), tcs: z.string().optional(), grandTotal: z.string() }),
   tcs: z.object({ section: z.string(), rate: z.string().nullable(), base: z.string(), amount: z.string() }).nullable().optional(),
+  currency: z.string().optional(), exchangeRate: z.string().optional(), foreignTotal: z.string().nullable().optional(),
 })
 export type Calculation = z.infer<typeof calculation>
 

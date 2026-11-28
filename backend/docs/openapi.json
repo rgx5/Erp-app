@@ -7281,6 +7281,14 @@
                       "sectionCode"
                     ],
                     "additionalProperties": false
+                  },
+                  "exchangeRate": {
+                    "type": "string",
+                    "pattern": "^\\d{1,10}(\\.\\d{1,8})?$"
+                  },
+                  "currency": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{3}$"
                   }
                 },
                 "required": [
@@ -7484,6 +7492,14 @@
                       "sectionCode"
                     ],
                     "additionalProperties": false
+                  },
+                  "exchangeRate": {
+                    "type": "string",
+                    "pattern": "^\\d{1,10}(\\.\\d{1,8})?$"
+                  },
+                  "currency": {
+                    "type": "string",
+                    "pattern": "^[A-Z]{3}$"
                   }
                 },
                 "required": [
@@ -8517,6 +8533,29 @@
                       ],
                       "additionalProperties": false
                     }
+                  },
+                  "foreign": {
+                    "type": "object",
+                    "properties": {
+                      "currency": {
+                        "type": "string",
+                        "pattern": "^[A-Z]{3}$"
+                      },
+                      "amount": {
+                        "type": "string",
+                        "pattern": "^[0-9]{1,14}(\\.[0-9]{1,4})?$"
+                      },
+                      "rate": {
+                        "type": "string",
+                        "pattern": "^\\d{1,10}(\\.\\d{1,8})?$"
+                      }
+                    },
+                    "required": [
+                      "currency",
+                      "amount",
+                      "rate"
+                    ],
+                    "additionalProperties": false
                   }
                 },
                 "required": [
@@ -21130,6 +21169,25 @@
         ],
         "tags": [
           "tcs"
+        ]
+      }
+    },
+    "/v1/fx/exposure": {
+      "get": {
+        "operationId": "FxController_exposure",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "fx"
         ]
       }
     }

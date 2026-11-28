@@ -10,7 +10,9 @@ import { fromUnits, toUnits } from '../accounting/money.js';
 import { PostingService } from '../accounting/posting.service.js';
 import { first, Recorder } from '../masterdata/helpers.js';
 import { parties } from '../masterdata/masterdata.schema.js';
+import { ensureAccount } from '../accounting/ensure-account.js';
 import { nextDocNumber } from './doc-number.js';
+import { inrUnitsOf, toPaiseUnits } from './fx.logic.js';
 import { customerReceipts, customerRefunds, receivableAllocations, salesInvoices } from './sales.schema.js';
 import type { CreateReceiptInput } from './sales.schemas.js';
 import { SalesSettingsService } from './sales-settings.service.js';
@@ -21,6 +23,7 @@ type InvoiceRow = typeof salesInvoices.$inferSelect;
 
 const DEBIT_DOCS = ['tax_invoice', 'bill_of_supply', 'debit_note', 'opening_balance'];
 const signed = (text: string): bigint => (text.startsWith('-') ? -toUnits(text.slice(1)) : toUnits(text));
+const abs = (n: bigint): bigint => (n < 0n ? -n : n);
 const daysBetween = (from: string, to: string): number => Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
 
 /**
@@ -48,19 +51,49 @@ export class ReceivablesService {
       const settings = await this.settings.require(tx, tenantId, input.companyId, ['receivableAccountId']);
       const receiptNo = await nextDocNumber(tx, tenantId, input.companyId, input.receiptDate, 'RCT');
       const id = uuidv7();
+      const fx = input.foreign ? await this.foreignSettlement(tx, tenantId, customer.id, input) : null;
+      const held = fx ? fx.held : toUnits(input.amount);
+      const fxLines = fx && fx.gain !== 0n ? [fx.gain > 0n ? { accountId: await ensureAccount(tx, tenantId, input.companyId, { code: '4920', name: 'Foreign exchange gain', type: 'income', parentCode: '4000' }), credit: fromUnits(fx.gain), description: receiptNo } : { accountId: await ensureAccount(tx, tenantId, input.companyId, { code: '5810', name: 'Foreign exchange loss', type: 'expense', parentCode: '5000' }), debit: fromUnits(-fx.gain), description: receiptNo }] : [];
       const { entry } = await this.posting.post(tx, tenantId, {
         companyId: input.companyId, postingDate: input.receiptDate, journalType: 'system', description: `Receipt ${receiptNo} from ${customer.tradeName ?? customer.legalName}`,
-        lines: [{ accountId: input.depositAccountId, debit: input.amount, description: receiptNo }, { accountId: settings.receivableAccountId as string, credit: input.amount, partyId: customer.id, description: receiptNo }],
+        lines: [{ accountId: input.depositAccountId, debit: input.amount, description: receiptNo }, { accountId: settings.receivableAccountId as string, credit: fromUnits(held), partyId: customer.id, description: receiptNo }, ...fxLines],
         source: { type: 'customer_receipt', id, event: 'post' }, postedBy: actorId,
       });
       const receipt = first(
-        await tx.insert(customerReceipts).values({ tenantId, id, companyId: input.companyId, receiptNo, customerId: customer.id, receiptDate: input.receiptDate, amount: input.amount, method: input.method, depositAccountId: input.depositAccountId, reference: input.reference ?? null, notes: input.notes ?? null, journalEntryId: entry.id, createdBy: actorId }).returning(),
+        await tx.insert(customerReceipts).values({ tenantId, id, companyId: input.companyId, receiptNo, customerId: customer.id, receiptDate: input.receiptDate, amount: fromUnits(held), ...(input.foreign ? { currency: input.foreign.currency, exchangeRate: input.foreign.rate, foreignAmount: input.foreign.amount, fxAmount: fromUnits(fx?.gain ?? 0n) } : {}), method: input.method, depositAccountId: input.depositAccountId, reference: input.reference ?? null, notes: input.notes ?? null, journalEntryId: entry.id, createdBy: actorId }).returning(),
         'Receipt',
       );
-      if (input.allocations && input.allocations.length > 0) await this.apply(tx, tenantId, actorId, { companyId: input.companyId, customerId: customer.id, source: { type: 'receipt', row: receipt }, allocatedOn: input.receiptDate, items: input.allocations });
+      if ((fx ? fx.items : input.allocations ?? []).length > 0) await this.apply(tx, tenantId, actorId, { companyId: input.companyId, customerId: customer.id, source: { type: 'receipt', row: receipt }, allocatedOn: input.receiptDate, items: fx ? fx.items : (input.allocations ?? []) });
       await this.recorder.record(tx, tenantId, 'customer_receipt', 'posted', receipt, { receiptNo, customerId: customer.id, amount: receipt.amount });
       return this.readReceipt(tx, tenantId, id);
     });
+  }
+
+  /**
+   * A receipt in a foreign currency. Each invoice it settles is cleared at the rupee value it was booked at; whatever the customer's money is
+   * worth in rupees beyond (or short of) that is the realised exchange gain (or loss). Money not allocated stays on account at today's rate.
+   */
+  private async foreignSettlement(tx: Tx, tenantId: string, customerId: string, input: Pick<CreateReceiptInput, 'amount' | 'foreign' | 'allocations'>): Promise<{ held: bigint; gain: bigint; items: { invoiceId: string; amount: string }[] }> {
+    const foreign = input.foreign as NonNullable<CreateReceiptInput['foreign']>;
+    const paid = toUnits(input.amount); const fTotal = toUnits(foreign.amount);
+    if (abs(paid - toPaiseUnits(inrUnitsOf(fTotal, foreign.rate))) > 100n) throw validationFailed([{ path: 'amount', message: `${foreign.amount} ${foreign.currency} at ${foreign.rate} is ${fromUnits(toPaiseUnits(inrUnitsOf(fTotal, foreign.rate)))}, not ${input.amount}` }]);
+    const items: { invoiceId: string; amount: string }[] = []; let booked = 0n; let fAllocated = 0n;
+    for (const it of input.allocations ?? []) {
+      const invoice = first(await tx.select().from(salesInvoices).where(and(eq(salesInvoices.tenantId, tenantId), eq(salesInvoices.id, it.invoiceId))).for('update'), 'Invoice');
+      if (invoice.customerId !== customerId) throw validationFailed([{ path: 'allocations', message: `${invoice.invoiceNo} belongs to a different customer` }]);
+      if (invoice.currency !== foreign.currency || invoice.foreignTotal === null) throw validationFailed([{ path: 'allocations', message: `${invoice.invoiceNo} is not in ${foreign.currency}` }]);
+      const outInr = await this.outstanding(tx, tenantId, invoice);
+      const grand = toUnits(invoice.grandTotal); const fInvoice = toUnits(invoice.foreignTotal);
+      const outForeign = grand === 0n ? 0n : (fInvoice * outInr * 2n + grand) / (2n * grand);
+      const f = toUnits(it.amount);
+      if (f > outForeign + 100n) throw new AppError(409, 'exceeds_outstanding', `Only ${fromUnits(outForeign)} ${foreign.currency} is outstanding on ${invoice.invoiceNo}`, { invoiceId: invoice.id, outstanding: fromUnits(outForeign) });
+      const b = f >= outForeign ? outInr : toPaiseUnits((grand * f * 2n + fInvoice) / (2n * fInvoice));
+      items.push({ invoiceId: invoice.id, amount: fromUnits(b) }); booked += b; fAllocated += f;
+    }
+    if (fAllocated > fTotal) throw validationFailed([{ path: 'allocations', message: 'The invoices settled add up to more than was paid' }]);
+    const advance = toPaiseUnits(inrUnitsOf(fTotal - fAllocated, foreign.rate));
+    const gain = items.length === 0 ? 0n : paid - advance - booked;
+    return { held: booked + advance + (items.length === 0 ? paid - advance : 0n), gain, items };
   }
 
   /** Cancels a receipt (a bounced cheque): reverses its journal and releases whatever it settled. */

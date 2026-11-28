@@ -46,6 +46,9 @@ export const createInvoiceSchema = z.strictObject({
   /** Required for SEZ and export customers: with payment of IGST, or without (under LUT / bond). */
   taxPayment: z.enum(['with_payment', 'without_payment']).optional(),
   lines: z.array(invoiceLine).min(1).max(500),
+  /** A sale in a foreign currency: unit prices are in this currency. The books stay in rupees at `exchangeRate` (rupees per unit), or the rate in force on the invoice date. */
+  currency: z.string().regex(/^[A-Z]{3}$/, 'A 3-letter currency code such as USD').optional(),
+  exchangeRate: z.string().regex(/^\d{1,10}(\.\d{1,8})?$/, 'A rate such as 83.25').optional(),
   /** Tax collected at source on this sale (section 206C). The base defaults to the taxable value. */
   tcs: z.strictObject({ sectionCode: text(60), rate: z.string().regex(/^\d{1,3}(\.\d{1,4})?$/, 'A percentage such as 1 or 2.5').optional(), base: money.optional() }).optional(),
 });
@@ -145,6 +148,8 @@ export const createReceiptSchema = z.strictObject({
   depositAccountId: z.uuid(),
   reference: text(100).optional(),
   notes: text(500).optional(),
+  /** The customer paid in a foreign currency: `amount` above is the rupees that reached the bank (foreign amount × rate); allocations are then in that currency and settle foreign-currency invoices, the difference being posted as exchange gain or loss. */
+  foreign: z.strictObject({ currency: z.string().regex(/^[A-Z]{3}$/), amount: positive, rate: z.string().regex(/^\d{1,10}(\.\d{1,8})?$/, 'A rate such as 83.25') }).optional(),
   /** Settle invoices now; whatever is left stays on account as an advance. */
   allocations: z.array(allocationItem).max(200).optional(),
 });

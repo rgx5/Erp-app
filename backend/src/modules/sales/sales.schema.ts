@@ -52,6 +52,7 @@ export const salesInvoices = erp.table('sales_invoices', {
   roundOff: money('round_off').notNull().default('0'),
   grandTotal: money('grand_total').notNull(),
   /** Tax collected at source: the section, rate and base it was worked out on, and the amount (included in the grand total). */
+  currency: char('currency', { length: 3 }).notNull().default('INR'), exchangeRate: numeric('exchange_rate', { precision: 18, scale: 8 }).notNull().default('1'), foreignTotal: money('foreign_total'),
   tcsSection: text('tcs_section'),
   tcsRate: numeric('tcs_rate', { precision: 7, scale: 4 }),
   tcsBase: money('tcs_base'),
@@ -204,6 +205,7 @@ export const customerReceipts = erp.table('customer_receipts', {
   customerId: uuid('customer_id').notNull(),
   receiptDate: day('receipt_date').notNull(),
   amount: money('amount').notNull(),
+  currency: char('currency', { length: 3 }).notNull().default('INR'), exchangeRate: numeric('exchange_rate', { precision: 18, scale: 8 }).notNull().default('1'), foreignAmount: money('foreign_amount'), fxAmount: money('fx_amount').notNull().default('0'),
   method: text('method').notNull(),
   depositAccountId: uuid('deposit_account_id').notNull(),
   reference: text('reference'),

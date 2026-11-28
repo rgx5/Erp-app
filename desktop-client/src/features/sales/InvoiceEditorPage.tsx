@@ -18,6 +18,7 @@ import { FREQUENCIES, useCreateRecurring } from './recurringQueries'
 import { useCreateChallan, useCreateOrder, useCreateQuote } from './orderQueries'
 import { useCalculation, usePostInvoice, type InvoiceInput } from './queries'
 import { useTcsSections } from '@/features/tcs/queries'
+import { useCurrencies } from '@/features/fx/queries'
 
 const REGISTERED_SPECIAL = new Set(['sez', 'overseas', 'deemed_export'])
 const qtyOk = (v: string): boolean => /^\d{1,12}(\.\d{1,6})?$/.test(v) && Number(v) > 0
@@ -62,6 +63,8 @@ function SalesDocEditor({ kind }: { kind: DocKind }) {
   const [reverseCharge, setReverseCharge] = useState(false)
   const [taxPayment, setTaxPayment] = useState('')
   const [tcsSection, setTcsSection] = useState('')
+  const [currency, setCurrency] = useState('INR'); const [exchangeRate, setExchangeRate] = useState('')
+  const currencies = useCurrencies(kind === 'invoice')
   const tcsSections = useTcsSections(kind === 'invoice' && can(useSession((x) => x.me?.permissions ?? []), 'tcs:read'))
   const placeOfSupply = '' // the server works the place of supply out from the customer's addresses
   const [lines, setLines] = useState<Line[]>([emptyLine()])
@@ -82,7 +85,11 @@ function SalesDocEditor({ kind }: { kind: DocKind }) {
   const regId = registrationId || ws.registrations[0]?.id || ''
   const whId = warehouseId || ws.warehouses[0]?.id || ''
   const baseBody = useMemo(() => (ws.company ? buildInvoiceBody({ companyId: ws.company.id, registrationId: regId, locationId, date, documentType, customer, reverseCharge, taxPayment, placeOfSupply }, lines.map((l) => ({ ...l, warehouseId: l.warehouseId || whId }))) : null), [ws.company, regId, locationId, date, documentType, customer, reverseCharge, taxPayment, placeOfSupply, lines, whId])
-  const body = useMemo(() => (baseBody && tcsSection && documentType === 'tax_invoice' ? { ...baseBody, tcs: { sectionCode: tcsSection } } : baseBody), [baseBody, tcsSection, documentType])
+  const body = useMemo(() => {
+    if (!baseBody) return baseBody
+    const withTcs = tcsSection && documentType === 'tax_invoice' ? { ...baseBody, tcs: { sectionCode: tcsSection } } : baseBody
+    return kind === 'invoice' && currency !== 'INR' ? { ...withTcs, currency, ...(/^\d{1,10}(\.\d{1,8})?$/.test(exchangeRate.trim()) ? { exchangeRate: exchangeRate.trim() } : {}) } : withTcs
+  }, [baseBody, tcsSection, documentType, currency, exchangeRate, kind])
   const settled = useDebounced(body, 350)
   const calc = useCalculation(settled)
   const stale = JSON.stringify(settled) !== JSON.stringify(body)
@@ -162,6 +169,8 @@ function SalesDocEditor({ kind }: { kind: DocKind }) {
           {ws.warehouses.length > 1 ? <SelectField label="Ship from" value={whId} onChange={(e) => setWarehouseId(e.target.value)} options={ws.warehouses.map((w) => ({ value: w.id, label: w.name }))} /> : null}
           {special ? <SelectField label="Tax on this supply" value={taxPayment} onChange={(e) => setTaxPayment(e.target.value)} options={[{ value: '', label: 'Choose…' }, { value: 'with_payment', label: 'With payment of IGST' }, { value: 'without_payment', label: 'Without payment (LUT / bond)' }]} /> : null}
           {kind === 'invoice' && documentType === 'tax_invoice' && (tcsSections.data?.length ?? 0) > 0 ? <SelectField label="TCS (tax collected at source)" value={tcsSection} onChange={(e) => setTcsSection(e.target.value)} options={[{ value: '', label: 'None' }, ...(tcsSections.data ?? []).filter((x) => x.status === 'active').map((x) => ({ value: x.code, label: `${x.code} · ${x.rate}%` }))]} /> : null}
+          {kind === 'invoice' && (currencies.data?.length ?? 0) > 1 ? <SelectField label="Currency" value={currency} onChange={(e) => setCurrency(e.target.value)} options={(currencies.data ?? []).map((c) => ({ value: c, label: c === 'INR' ? 'Indian rupee (₹)' : c }))} /> : null}
+          {kind === 'invoice' && currency !== 'INR' ? <TextField label="Rate (₹ per unit)" inputMode="decimal" placeholder="Latest saved rate" value={exchangeRate} onChange={(e) => setExchangeRate(e.target.value)} /> : null}
           <div className="flex items-end"><CheckField label="Reverse charge" hint="Tax is payable by the customer" checked={reverseCharge} onChange={(e) => setReverseCharge(e.target.checked)} /></div>
         </div>
       </Card>
@@ -183,6 +192,7 @@ function SalesDocEditor({ kind }: { kind: DocKind }) {
               {Number(t.cess) ? <Row label="Cess" value={t.cess} /> : null}
               {Number(t.roundOff) ? <Row label="Round off" value={t.roundOff} /> : null}
               {Number(t.tcs ?? 0) ? <Row label="TCS" value={t.tcs as string} /> : null}
+              {calc.data?.currency && calc.data.currency !== 'INR' && calc.data.foreignTotal ? <Row label={`In ${calc.data.currency} @ ₹${calc.data.exchangeRate}`} value={calc.data.foreignTotal} plain /> : null}
               <div className="border-l border-line pl-5 text-right"><dt className="eyebrow">Grand total</dt><dd className={`num text-[20px] font-semibold leading-tight ${calc.isFetching || stale ? 'opacity-50' : ''}`}>{formatInr(t.grandTotal)}</dd></div>
             </>
           </dl>
@@ -193,6 +203,6 @@ function SalesDocEditor({ kind }: { kind: DocKind }) {
   )
 }
 
-function Row({ label, value }: { label: string; value: string }) {
-  return <div className="text-right"><dt className="eyebrow">{label}</dt><dd className="num text-[13px]">{formatInr(value)}</dd></div>
+function Row({ label, value, plain }: { label: string; value: string; plain?: boolean }) {
+  return <div className="text-right"><dt className="eyebrow">{label}</dt><dd className="num text-[13px]">{plain ? Number(value).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : formatInr(value)}</dd></div>
 }

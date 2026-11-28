@@ -5583,6 +5583,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/fx/exposure": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: operations["FxController_exposure"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -9504,6 +9520,8 @@ export interface operations {
                         rate?: string;
                         base?: string;
                     };
+                    exchangeRate?: string;
+                    currency?: string;
                 };
             };
         };
@@ -9573,6 +9591,8 @@ export interface operations {
                         rate?: string;
                         base?: string;
                     };
+                    exchangeRate?: string;
+                    currency?: string;
                 };
             };
         };
@@ -10070,6 +10090,11 @@ export interface operations {
                         invoiceId: string;
                         amount: string;
                     }[];
+                    foreign?: {
+                        currency: string;
+                        amount: string;
+                        rate: string;
+                    };
                 };
             };
         };
@@ -16663,6 +16688,23 @@ export interface operations {
         };
         responses: {
             201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    FxController_exposure: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
